@@ -1,0 +1,22 @@
+Acertar boatao de clonar ✅
+notificação aparecer somente para quem tem permissão ✅
+mostrar preço de compra na tela de estoque no card e na tabela ✅
+antes de realmente a transferencias ser feita, preciso que tenha uma confirmação apos ela ser criada ✅
+quando tiver varias transferencias mostrar todas juntas se for a mesma ✅
+pesquisa dinamica na tela de vendas ✅
+fazer calculo para desconto em diheiro ser em 10%✅
+adicionar tela de quebra, relatorio de peças quebradas por periodo
+telas que tendem a usar clientes, ter opção de cadastrar na hora do processo
+na os informar se o cliente é logista ou consumidor final✅
+mostrar senha do dispositivo e a urgencia na tela de dispositivos✅
+mostrar preço do custo na tela do tecnico✅
+mostrar peças que o tecnico recebeu✅
+notificações quando tiver quebra na os
+ao modificar o status para em diagnostico nao esta aparecendo no chip no card da tela de os✅
+tecnico nao coloca garantia na os✅
+ajuste dos valores dos produtos na os✅
+desconto no pagamento da os✅
+sistema funcionar somente quando abrir o caixa (OS)✅
+excluir uma os✅
+trocar produto na venda✅
+troca de peça por peça

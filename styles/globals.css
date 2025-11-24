@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@config "../tailwind.config.js";
+
+/* ========================================
+   FIX PARA ZOOM AUTOMÁTICO NO iOS
+   ======================================== */
+/* iOS dá zoom automático em inputs com font-size < 16px */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* ========================================
+   TEMAS DE CORES PERSONALIZADOS
+   ======================================== */
+
+/* As cores dos temas são gerenciadas pelo HeroUI no tailwind.config.js
+   através do atributo data-theme do elemento html.
+   
+   Os temas disponíveis são:
+   - light / dark (tema padrão azul)
+   - purple / purple-dark
+   - green / green-dark
+   - orange / orange-dark
+   
+   O atributo data-theme é configurado automaticamente pelo ConfiguracoesContext.
+*/

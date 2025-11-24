@@ -1,0 +1,963 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Checkbox,
+  Divider,
+  Chip,
+} from "@heroui/react";
+import { PermissoesModulos } from "@/types";
+import { PermissoesService } from "@/services/permissoesService";
+import {
+  getPermissoes,
+  salvarPermissoes,
+} from "@/app/sistema/usuarios/actions/permissoes";
+
+interface PermissoesModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  usuarioId: string;
+  usuarioNome: string;
+  onSuccess: () => void;
+}
+
+export function PermissoesModal({
+  isOpen,
+  onClose,
+  usuarioId,
+  usuarioNome,
+  onSuccess,
+}: PermissoesModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [permissoes, setPermissoes] = useState<PermissoesModulos>(
+    PermissoesService.getPermissoesPadrao()
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      carregarPermissoes();
+    }
+  }, [isOpen, usuarioId]);
+
+  const carregarPermissoes = async () => {
+    setLoadingData(true);
+    setError(null);
+
+    try {
+      const result = await getPermissoes(usuarioId);
+
+      if (result.success) {
+        if (result.data) {
+          setPermissoes(result.data.permissoes);
+        } else {
+          setPermissoes(PermissoesService.getPermissoesPadrao());
+        }
+      } else {
+        setError(result.error || "Erro ao carregar permissões");
+      }
+    } catch (err) {
+      console.error("Erro ao carregar permissões:", err);
+      setError("Erro ao carregar permissões");
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleTogglePermissao = (
+    modulo: keyof PermissoesModulos,
+    acao: string
+  ) => {
+    setPermissoes((prev) => ({
+      ...prev,
+      [modulo]: {
+        ...prev[modulo],
+        [acao]: !prev[modulo]?.[acao as keyof (typeof prev)[typeof modulo]],
+      },
+    }));
+  };
+
+  const handleToggleTodos = (
+    modulo: keyof PermissoesModulos,
+    valor: boolean
+  ) => {
+    setPermissoes((prev) => {
+      const moduloAtual = prev[modulo];
+      if (!moduloAtual) return prev;
+
+      const novoModulo = Object.keys(moduloAtual).reduce((acc, key) => {
+        acc[key as keyof typeof moduloAtual] = valor;
+        return acc;
+      }, {} as any);
+
+      return {
+        ...prev,
+        [modulo]: novoModulo,
+      };
+    });
+  };
+
+  const handleAplicarAdmin = () => {
+    setPermissoes(PermissoesService.getPermissoesAdmin());
+  };
+
+  const handleLimparTodos = () => {
+    setPermissoes(PermissoesService.getPermissoesPadrao());
+  };
+
+  const handleSalvar = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await salvarPermissoes(usuarioId, permissoes);
+
+      if (result.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(result.error || "Erro ao salvar permissões");
+      }
+    } catch (err) {
+      console.error("Erro ao salvar permissões:", err);
+      setError("Erro inesperado ao salvar permissões");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const todosMarcados = (modulo: keyof PermissoesModulos) => {
+    const moduloPermissoes = permissoes[modulo];
+    if (!moduloPermissoes) return false;
+    return Object.values(moduloPermissoes).every((v) => v === true);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+      <ModalContent>
+        <ModalHeader className="flex flex-col gap-1">
+          <div>Gerenciar Permissões</div>
+          <div className="text-sm font-normal text-default-500">
+            {usuarioNome}
+          </div>
+        </ModalHeader>
+
+        <ModalBody>
+          {loadingData ? (
+            <div className="py-8 text-center">
+              <p className="text-default-500">Carregando permissões...</p>
+            </div>
+          ) : (
+            <>
+              {/* Ações Rápidas */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  size="sm"
+                  color="success"
+                  variant="flat"
+                  onPress={handleAplicarAdmin}
+                >
+                  Aplicar Permissões Admin
+                </Button>
+                <Button
+                  size="sm"
+                  color="warning"
+                  variant="flat"
+                  onPress={handleLimparTodos}
+                >
+                  Limpar Todas
+                </Button>
+              </div>
+
+              <Divider className="mb-4" />
+
+              {/* Módulo: Usuários */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Usuários</h3>
+                    <Chip size="sm" variant="flat" color="primary">
+                      Gerenciamento
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("usuarios")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("usuarios", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.usuarios?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("usuarios", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.usuarios?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("usuarios", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.usuarios?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("usuarios", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.usuarios?.excluir}
+                    onValueChange={() =>
+                      handleTogglePermissao("usuarios", "excluir")
+                    }
+                  >
+                    Excluir
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.usuarios?.gerenciar_permissoes}
+                    onValueChange={() =>
+                      handleTogglePermissao("usuarios", "gerenciar_permissoes")
+                    }
+                  >
+                    Gerenciar Permissões
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Estoque */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Estoque</h3>
+                    <Chip size="sm" variant="flat" color="secondary">
+                      Inventário
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("estoque")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("estoque", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.estoque?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.excluir}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "excluir")
+                    }
+                  >
+                    Excluir
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.ajustar}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "ajustar")
+                    }
+                  >
+                    Ajustar Quantidade
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Lojas */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Lojas</h3>
+                    <Chip size="sm" variant="flat" color="success">
+                      Filiais
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("lojas")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("lojas", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.lojas?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("lojas", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.lojas?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("lojas", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.lojas?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("lojas", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.lojas?.excluir}
+                    onValueChange={() =>
+                      handleTogglePermissao("lojas", "excluir")
+                    }
+                  >
+                    Excluir
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Devoluções */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Devoluções</h3>
+                    <Chip size="sm" variant="flat" color="warning">
+                      Reversão
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("devolucoes")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("devolucoes", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.devolucoes?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("devolucoes", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.devolucoes?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("devolucoes", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.devolucoes?.aprovar}
+                    onValueChange={() =>
+                      handleTogglePermissao("devolucoes", "aprovar")
+                    }
+                  >
+                    Aprovar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: RMAs */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">RMAs</h3>
+                    <Chip size="sm" variant="flat" color="danger">
+                      Garantias
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("rmas")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("rmas", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.rmas?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("rmas", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.rmas?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("rmas", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.rmas?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("rmas", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.rmas?.aprovar}
+                    onValueChange={() =>
+                      handleTogglePermissao("rmas", "aprovar")
+                    }
+                  >
+                    Aprovar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Transferências */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Transferências</h3>
+                    <Chip size="sm" variant="flat" color="primary">
+                      Estoque
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("transferencias")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("transferencias", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.transferencias?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("transferencias", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.transferencias?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("transferencias", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.transferencias?.aprovar}
+                    onValueChange={() =>
+                      handleTogglePermissao("transferencias", "aprovar")
+                    }
+                  >
+                    Aprovar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.transferencias?.cancelar}
+                    onValueChange={() =>
+                      handleTogglePermissao("transferencias", "cancelar")
+                    }
+                  >
+                    Cancelar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Caixa */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Caixa</h3>
+                    <Chip size="sm" variant="flat" color="success">
+                      Financeiro
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("caixa")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("caixa", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.caixa?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("caixa", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.caixa?.abrir}
+                    onValueChange={() =>
+                      handleTogglePermissao("caixa", "abrir")
+                    }
+                  >
+                    Abrir Caixa
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.caixa?.fechar}
+                    onValueChange={() =>
+                      handleTogglePermissao("caixa", "fechar")
+                    }
+                  >
+                    Fechar Caixa
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.caixa?.sangria}
+                    onValueChange={() =>
+                      handleTogglePermissao("caixa", "sangria")
+                    }
+                  >
+                    Fazer Sangria
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Configurações */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Configurações</h3>
+                    <Chip size="sm" variant="flat" color="danger">
+                      Admin
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("configuracoes")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("configuracoes", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.configuracoes?.gerenciar}
+                    onValueChange={() =>
+                      handleTogglePermissao("configuracoes", "gerenciar")
+                    }
+                  >
+                    Gerenciar Sistema
+                  </Checkbox>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-danger-50 border border-danger-200 rounded-lg">
+                  <p className="text-danger text-sm">{error}</p>
+                </div>
+              )}
+            </>
+          )}
+        </ModalBody>
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Clientes</h3>
+                    <Chip size="sm" variant="flat" color="primary">
+                      CRM
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("clientes")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("clientes", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.clientes?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("clientes", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.clientes?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("clientes", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.clientes?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("clientes", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.clientes?.deletar}
+                    onValueChange={() =>
+                      handleTogglePermissao("clientes", "deletar")
+                    }
+                  >
+                    Deletar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Fornecedores */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Fornecedores</h3>
+                    <Chip size="sm" variant="flat" color="warning">
+                      Suprimentos
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("fornecedores")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("fornecedores", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.fornecedores?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("fornecedores", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.fornecedores?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("fornecedores", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.fornecedores?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("fornecedores", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.fornecedores?.deletar}
+                    onValueChange={() =>
+                      handleTogglePermissao("fornecedores", "deletar")
+                    }
+                  >
+                    Deletar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Vendas */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Vendas</h3>
+                    <Chip size="sm" variant="flat" color="success">
+                      Comercial
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("vendas")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("vendas", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.vendas?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.vendas?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.vendas?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.vendas?.cancelar}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "cancelar")
+                    }
+                  >
+                    Cancelar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Ordem de Serviço */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Ordem de Serviço</h3>
+                    <Chip size="sm" variant="flat" color="secondary">
+                      Assistência
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("ordem_servico")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("ordem_servico", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.deletar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "deletar")
+                    }
+                  >
+                    Deletar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.cancelar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "cancelar")
+                    }
+                  >
+                    Cancelar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.ordem_servico?.finalizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("ordem_servico", "finalizar")
+                    }
+                  >
+                    Finalizar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Técnicos */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Técnicos</h3>
+                    <Chip size="sm" variant="flat" color="primary">
+                      Equipe
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("tecnicos")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("tecnicos", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.tecnicos?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("tecnicos", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.tecnicos?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("tecnicos", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.tecnicos?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("tecnicos", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.tecnicos?.deletar}
+                    onValueChange={() =>
+                      handleTogglePermissao("tecnicos", "deletar")
+                    }
+                  >
+                    Deletar
+                  </Checkbox>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-danger-50 border border-danger-200 rounded-lg">
+                  <p className="text-danger text-sm">{error}</p>
+                </div>
+              )}
+            </>
+          )}
+        </ModalBody>
+
+        <ModalFooter>
+          <Button variant="light" onPress={onClose} isDisabled={loading}>
+            Cancelar
+          </Button>
+          <Button
+            color="primary"
+            onPress={handleSalvar}
+            isLoading={loading}
+            isDisabled={loadingData}
+          >
+            Salvar Permissões
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  );
+}

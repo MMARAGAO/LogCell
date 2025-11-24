@@ -1,0 +1,741 @@
+// =====================================================
+// SERVICE: ORDEM DE SERVIÇO
+// =====================================================
+
+import { supabase } from "@/lib/supabaseClient";
+import {
+  OrdemServico,
+  OrdemServicoFormData,
+  OrdemServicoPeca,
+  OrdemServicoPecaFormData,
+  HistoricoOrdemServico,
+  EstatisticasOS,
+  StatusOS,
+  OrdemServicoCaixa,
+} from "@/types/ordemServico";
+
+// =====================================================
+// CRUD ORDEM DE SERVIÇO
+// =====================================================
+
+/**
+ * Buscar todas as ordens de serviço
+ */
+export async function buscarOrdensServico(filtros?: {
+  status?: StatusOS;
+  id_loja?: number;
+  cliente_nome?: string;
+  numero_os?: number;
+  data_inicio?: string;
+  data_fim?: string;
+}) {
+  try {
+    let query = supabase
+      .from("ordem_servico")
+      .select(
+        `
+        *,
+        loja:lojas!id_loja(id, nome)
+      `
+      )
+      .order("numero_os", { ascending: false });
+
+    if (filtros?.status) {
+      query = query.eq("status", filtros.status);
+    }
+
+    if (filtros?.id_loja) {
+      query = query.eq("id_loja", filtros.id_loja);
+    }
+
+    if (filtros?.cliente_nome) {
+      query = query.ilike("cliente_nome", `%${filtros.cliente_nome}%`);
+    }
+
+    if (filtros?.numero_os) {
+      query = query.eq("numero_os", filtros.numero_os);
+    }
+
+    if (filtros?.data_inicio) {
+      query = query.gte("data_entrada", filtros.data_inicio);
+    }
+
+    if (filtros?.data_fim) {
+      query = query.lte("data_entrada", filtros.data_fim);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Buscar informações dos técnicos separadamente
+    if (data && data.length > 0) {
+      const tecnicosIds = data
+        .map((os) => os.tecnico_responsavel)
+        .filter((id): id is string => !!id);
+
+      if (tecnicosIds.length > 0) {
+        const { data: tecnicos, error: tecnicoError } = await supabase
+          .from("tecnicos")
+          .select("id, nome")
+          .in("id", tecnicosIds);
+
+        if (tecnicos && tecnicos.length > 0) {
+          // Fazer merge dos dados
+          const ordensComTecnicos = data.map((os) => {
+            const tecnicoEncontrado = os.tecnico_responsavel
+              ? tecnicos.find((t) => t.id === os.tecnico_responsavel)
+              : undefined;
+
+            return {
+              ...os,
+              tecnico: tecnicoEncontrado,
+            };
+          });
+
+          return { data: ordensComTecnicos as OrdemServico[], error: null };
+        } else {
+          console.warn("Nenhum técnico encontrado ou erro na busca");
+        }
+      }
+    }
+
+    return { data: data as OrdemServico[], error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar ordens de serviço:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Buscar OS por ID
+ */
+export async function buscarOrdemServicoPorId(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico")
+      .select(
+        `
+        *,
+        loja:lojas!id_loja(id, nome),
+        pecas:ordem_servico_pecas(
+          *,
+          produto:produtos(id, descricao, marca, categoria)
+        )
+      `
+      )
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+
+    // Buscar informações do técnico separadamente
+    if (data && data.tecnico_responsavel) {
+      const { data: tecnico, error: tecnicoError } = await supabase
+        .from("tecnicos")
+        .select("id, nome")
+        .eq("id", data.tecnico_responsavel)
+        .single();
+
+      if (tecnico) {
+        const osComTecnico = { ...data, tecnico };
+        return {
+          data: osComTecnico as OrdemServico,
+          error: null,
+        };
+      }
+    }
+
+    return { data: data as OrdemServico, error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar ordem de serviço:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Criar nova OS
+ */
+export async function criarOrdemServico(
+  dados: OrdemServicoFormData,
+  userId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico")
+      .insert({
+        ...dados,
+        criado_por: userId,
+        atualizado_por: userId,
+      })
+      .select(
+        `
+        *,
+        loja:lojas!id_loja(id, nome)
+      `
+      )
+      .single();
+
+    if (error) throw error;
+    return { data: data as OrdemServico, error: null };
+  } catch (error: any) {
+    console.error("Erro ao criar ordem de serviço:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Atualizar OS
+ */
+export async function atualizarOrdemServico(
+  id: string,
+  dados: Partial<OrdemServicoFormData>,
+  userId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico")
+      .update({
+        ...dados,
+        atualizado_por: userId,
+      })
+      .eq("id", id)
+      .select(
+        `
+        *,
+        loja:lojas!id_loja(id, nome)
+      `
+      )
+      .single();
+
+    if (error) throw error;
+    return { data: data as OrdemServico, error: null };
+  } catch (error: any) {
+    console.error("Erro ao atualizar ordem de serviço:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Mudar status da OS
+ */
+export async function mudarStatusOS(
+  id: string,
+  novoStatus: StatusOS,
+  userId: string
+) {
+  try {
+    const dados: any = {
+      status: novoStatus,
+      atualizado_por: userId,
+    };
+
+    // Atualizar datas conforme o status
+    if (novoStatus === "em_andamento" && !dados.data_inicio_servico) {
+      dados.data_inicio_servico = new Date().toISOString();
+    } else if (novoStatus === "concluido" && !dados.data_conclusao) {
+      dados.data_conclusao = new Date().toISOString();
+    } else if (novoStatus === "entregue" && !dados.data_entrega_cliente) {
+      dados.data_entrega_cliente = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from("ordem_servico")
+      .update(dados)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: data as OrdemServico, error: null };
+  } catch (error: any) {
+    console.error("Erro ao mudar status da OS:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Cancelar OS (devolve peças ao estoque via trigger)
+ */
+export async function cancelarOrdemServico(id: string, userId: string) {
+  return mudarStatusOS(id, "cancelado", userId);
+}
+
+/**
+ * Deletar OS
+ */
+export async function deletarOrdemServico(id: string) {
+  try {
+    console.log("🗑️ Deletando ordem de serviço:", id);
+
+    // Reverter estoque de peças reservadas antes de deletar
+    const { data: pecas } = await supabase
+      .from("ordem_servico_pecas")
+      .select("*")
+      .eq("id_ordem_servico", id);
+
+    if (pecas && pecas.length > 0) {
+      for (const peca of pecas) {
+        // Se a peça estava reservada mas não baixada, devolver ao estoque
+        if (
+          peca.estoque_reservado &&
+          peca.id_produto &&
+          !peca.estoque_baixado
+        ) {
+          const { data: estoqueAtual } = await supabase
+            .from("estoque_lojas")
+            .select("quantidade")
+            .eq("id_produto", peca.id_produto)
+            .eq("id_loja", peca.id_loja)
+            .single();
+
+          if (estoqueAtual) {
+            await supabase
+              .from("estoque_lojas")
+              .update({
+                quantidade: estoqueAtual.quantidade + peca.quantidade,
+                atualizado_em: new Date().toISOString(),
+              })
+              .eq("id_produto", peca.id_produto)
+              .eq("id_loja", peca.id_loja);
+
+            console.log(
+              `✅ Estoque devolvido: ${peca.quantidade}x produto ${peca.id_produto}`
+            );
+          }
+        }
+      }
+    }
+
+    // Deletar ordem de serviço - CASCADE vai deletar registros relacionados
+    const { error } = await supabase
+      .from("ordem_servico")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("❌ Erro ao deletar OS:", error);
+      throw error;
+    }
+
+    console.log("✅ Ordem de serviço deletada com sucesso!");
+    return { error: null };
+  } catch (error: any) {
+    console.error("Erro ao deletar ordem de serviço:", error);
+    return { error: error.message || "Erro ao excluir ordem de serviço" };
+  }
+}
+
+// =====================================================
+// PEÇAS DA ORDEM DE SERVIÇO
+// =====================================================
+
+/**
+ * Buscar peças de uma OS
+ */
+export async function buscarPecasOS(idOrdemServico: string) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico_pecas")
+      .select(
+        `
+        *,
+        produto:produtos(id, descricao, marca, categoria, preco_venda)
+      `
+      )
+      .eq("id_ordem_servico", idOrdemServico);
+
+    if (error) throw error;
+    return { data: data as OrdemServicoPeca[], error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar peças da OS:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Adicionar peça à OS (trigger reserva estoque automaticamente)
+ */
+export async function adicionarPecaOS(
+  dados: OrdemServicoPecaFormData,
+  userId: string
+) {
+  try {
+    // Validações
+    if (dados.tipo_produto === "avulso" && !dados.descricao_peca) {
+      throw new Error("Descrição é obrigatória para produto avulso");
+    }
+
+    if (dados.tipo_produto === "estoque" && !dados.id_produto) {
+      throw new Error("Produto é obrigatório para tipo estoque");
+    }
+
+    // Buscar descrição do produto se for do estoque
+    let descricaoPeca = dados.descricao_peca || "";
+    if (dados.tipo_produto === "estoque" && dados.id_produto) {
+      const { data: produto } = await supabase
+        .from("produtos")
+        .select("descricao")
+        .eq("id", dados.id_produto)
+        .single();
+
+      if (produto) {
+        descricaoPeca = produto.descricao;
+      }
+    }
+
+    // Calcular valor total
+    // Nota: O trigger do banco verificará automaticamente o estoque disponível
+    const valorTotal = dados.quantidade * dados.valor_venda;
+
+    const { data, error } = await supabase
+      .from("ordem_servico_pecas")
+      .insert({
+        id_ordem_servico: dados.id_ordem_servico,
+        tipo_produto: dados.tipo_produto,
+        id_produto: dados.id_produto,
+        id_loja: dados.id_loja,
+        descricao_peca: descricaoPeca,
+        quantidade: dados.quantidade,
+        valor_custo: dados.valor_custo,
+        valor_venda: dados.valor_venda,
+        valor_total: valorTotal,
+        observacao: dados.observacao,
+        criado_por: userId,
+        // estoque_baixado será setado pelo trigger automaticamente
+      })
+      .select(
+        `
+        *,
+        produto:produtos(id, descricao, marca, categoria)
+      `
+      )
+      .single();
+
+    if (error) throw error;
+
+    // Registrar no histórico
+    const tipoProdutoLabel =
+      dados.tipo_produto === "estoque" ? "do estoque" : "avulso";
+    await registrarHistoricoOS(
+      dados.id_ordem_servico,
+      "adicao_peca",
+      `Peça ${tipoProdutoLabel} adicionada: ${descricaoPeca} (${dados.quantidade}x) - R$ ${dados.valor_venda.toFixed(2)}`,
+      userId
+    );
+
+    return { data: data as OrdemServicoPeca, error: null };
+  } catch (error: any) {
+    console.error("Erro ao adicionar peça à OS:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Remover peça da OS (devolve ao estoque se já foi baixado)
+ */
+export async function removerPecaOS(id: string, userId: string) {
+  try {
+    // Buscar dados da peça antes de deletar
+    const { data: peca } = await supabase
+      .from("ordem_servico_pecas")
+      .select("*, produto:produtos(descricao)")
+      .eq("id", id)
+      .single();
+
+    if (!peca) {
+      throw new Error("Peça não encontrada");
+    }
+
+    // Se o estoque já foi baixado, devolver
+    if (peca.estoque_baixado) {
+      // Buscar estoque atual
+      const { data: estoqueAtual } = await supabase
+        .from("estoque_lojas")
+        .select("quantidade")
+        .eq("id_produto", peca.id_produto)
+        .eq("id_loja", peca.id_loja)
+        .single();
+
+      if (estoqueAtual) {
+        await supabase
+          .from("estoque_lojas")
+          .update({
+            quantidade: estoqueAtual.quantidade + peca.quantidade,
+          })
+          .eq("id_produto", peca.id_produto)
+          .eq("id_loja", peca.id_loja);
+      }
+
+      // Registrar no histórico de estoque
+      await supabase.from("historico_estoque").insert({
+        id_produto: peca.id_produto,
+        id_loja: peca.id_loja,
+        tipo_movimentacao: "entrada",
+        quantidade: peca.quantidade,
+        observacao: `Devolução por remoção de peça da OS`,
+        criado_por: userId,
+      });
+    }
+
+    // Deletar peça
+    const { error } = await supabase
+      .from("ordem_servico_pecas")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    // Registrar no histórico
+    await registrarHistoricoOS(
+      peca.id_ordem_servico,
+      "remocao_peca",
+      `Peça removida: ${peca.produto?.descricao}`,
+      userId
+    );
+
+    return { error: null };
+  } catch (error: any) {
+    console.error("Erro ao remover peça da OS:", error);
+    return { error: error.message };
+  }
+}
+
+// =====================================================
+// HISTÓRICO
+// =====================================================
+
+/**
+ * Buscar histórico de uma OS
+ */
+export async function buscarHistoricoOS(idOrdemServico: string) {
+  try {
+    const { data, error } = await supabase
+      .from("historico_ordem_servico")
+      .select("*")
+      .eq("id_ordem_servico", idOrdemServico)
+      .order("criado_em", { ascending: false });
+
+    if (error) throw error;
+    return { data: data as HistoricoOrdemServico[], error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar histórico da OS:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Registrar evento no histórico
+ */
+export async function registrarHistoricoOS(
+  idOrdemServico: string,
+  tipoEvento: string,
+  descricao: string,
+  userId: string
+) {
+  try {
+    // Buscar nome do usuário
+    const { data: usuario } = await supabase
+      .from("usuarios")
+      .select("nome")
+      .eq("id", userId)
+      .single();
+
+    const { error } = await supabase.from("historico_ordem_servico").insert({
+      id_ordem_servico: idOrdemServico,
+      tipo_evento: tipoEvento,
+      descricao: descricao,
+      criado_por: userId,
+      criado_por_nome: usuario?.nome,
+    });
+
+    if (error) throw error;
+    return { error: null };
+  } catch (error: any) {
+    console.error("Erro ao registrar histórico:", error);
+    return { error: error.message };
+  }
+}
+
+// =====================================================
+// ESTATÍSTICAS
+// =====================================================
+
+/**
+ * Obter estatísticas de OS
+ */
+export async function obterEstatisticasOS(idLoja?: number) {
+  try {
+    const { data, error } = await supabase.rpc("obter_estatisticas_os", {
+      p_id_loja: idLoja,
+    });
+
+    if (error) throw error;
+    return { data: data[0] as EstatisticasOS, error: null };
+  } catch (error: any) {
+    console.error("Erro ao obter estatísticas:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Buscar OS por cliente (histórico do cliente)
+ */
+export async function buscarOSPorCliente(
+  clienteNome?: string,
+  clienteTelefone?: string
+) {
+  try {
+    let query = supabase
+      .from("ordem_servico")
+      .select(
+        `
+        *,
+        loja:lojas!id_loja(id, nome)
+      `
+      )
+      .order("data_entrada", { ascending: false });
+
+    if (clienteNome) {
+      query = query.ilike("cliente_nome", `%${clienteNome}%`);
+    }
+
+    if (clienteTelefone) {
+      query = query.eq("cliente_telefone", clienteTelefone);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return { data: data as OrdemServico[], error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar OS por cliente:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+// =====================================================
+// CAIXA
+// =====================================================
+
+/**
+ * Buscar lançamentos pendentes no caixa
+ */
+export async function buscarLancamentosCaixaOS(idLoja?: number) {
+  try {
+    let query = supabase
+      .from("ordem_servico_caixa")
+      .select(
+        `
+        *,
+        ordem_servico:ordem_servico(
+          numero_os,
+          cliente_nome,
+          cliente_telefone,
+          equipamento_tipo,
+          equipamento_marca,
+          equipamento_modelo,
+          data_entrada,
+          data_entrega_cliente
+        )
+      `
+      )
+      .order("criado_em", { ascending: false });
+
+    if (idLoja) {
+      query = query.eq("id_loja", idLoja);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    return { data: data as OrdemServicoCaixa[], error: null };
+  } catch (error: any) {
+    console.error("Erro ao buscar lançamentos do caixa:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Atualizar dados do lançamento no caixa (forma pagamento, etc)
+ */
+export async function atualizarLancamentoCaixaOS(
+  id: string,
+  dados: {
+    forma_pagamento?: string;
+    parcelas?: number;
+    observacoes?: string;
+  }
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico_caixa")
+      .update(dados)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: data as OrdemServicoCaixa, error: null };
+  } catch (error: any) {
+    console.error("Erro ao atualizar lançamento do caixa:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Confirmar lançamento no caixa (recebimento)
+ */
+export async function confirmarLancamentoCaixaOS(id: string, userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico_caixa")
+      .update({
+        status_caixa: "confirmado",
+        data_confirmacao: new Date().toISOString(),
+        confirmado_por: userId,
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Atualizar valor pago na OS
+    if (data) {
+      await supabase
+        .from("ordem_servico")
+        .update({
+          valor_pago: data.valor_total,
+        })
+        .eq("id", data.id_ordem_servico);
+    }
+
+    return { data: data as OrdemServicoCaixa, error: null };
+  } catch (error: any) {
+    console.error("Erro ao confirmar lançamento do caixa:", error);
+    return { data: null, error: error.message };
+  }
+}
+
+/**
+ * Cancelar lançamento no caixa
+ */
+export async function cancelarLancamentoCaixaOS(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from("ordem_servico_caixa")
+      .update({
+        status_caixa: "cancelado",
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return { data: data as OrdemServicoCaixa, error: null };
+  } catch (error: any) {
+    console.error("Erro ao cancelar lançamento do caixa:", error);
+    return { data: null, error: error.message };
+  }
+}

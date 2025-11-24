@@ -1,0 +1,2 @@
+
+ALTER TABLE historico_usuarios ENABLE ROW LEVEL SECURITY;

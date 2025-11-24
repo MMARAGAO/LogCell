@@ -1,0 +1,695 @@
+import { supabase } from "@/lib/supabaseClient";
+import {
+  Caixa,
+  CaixaCompleto,
+  AbrirCaixaParams,
+  FecharCaixaParams,
+  ResumoCaixa,
+  MovimentacaoCaixa,
+} from "@/types/caixa";
+
+export class CaixaService {
+  // Abrir caixa
+  static async abrirCaixa(params: AbrirCaixaParams): Promise<CaixaCompleto> {
+    try {
+      // Verificar se já existe caixa aberto
+      const { data: caixaAberto, error: erroVerificacao } = await supabase
+        .from("caixas")
+        .select("*")
+        .eq("loja_id", params.loja_id)
+        .eq("status", "aberto")
+        .single();
+
+      if (caixaAberto) {
+        throw new Error("Já existe um caixa aberto para esta loja");
+      }
+
+      // Criar novo caixa
+      const { data, error } = await supabase
+        .from("caixas")
+        .insert({
+          loja_id: params.loja_id,
+          usuario_abertura: params.usuario_id,
+          saldo_inicial: params.saldo_inicial,
+          observacoes_abertura: params.observacoes_abertura,
+          status: "aberto",
+        })
+        .select(
+          `
+          *,
+          loja:lojas(id, nome),
+          usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome)
+        `
+        )
+        .single();
+
+      if (error) throw error;
+
+      return data as CaixaCompleto;
+    } catch (error: any) {
+      console.error("Erro ao abrir caixa:", error);
+      throw error;
+    }
+  }
+
+  // Fechar caixa
+  static async fecharCaixa(params: FecharCaixaParams): Promise<CaixaCompleto> {
+    try {
+      const { data, error } = await supabase
+        .from("caixas")
+        .update({
+          usuario_fechamento: params.usuario_id,
+          data_fechamento: new Date().toISOString(),
+          saldo_final: params.saldo_final,
+          observacoes_fechamento: params.observacoes_fechamento,
+          status: "fechado",
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", params.caixa_id)
+        .select(
+          `
+          *,
+          loja:lojas(id, nome),
+          usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome),
+          usuario_fechamento_info:usuarios!caixas_usuario_fechamento_fkey(id, nome)
+        `
+        )
+        .single();
+
+      if (error) throw error;
+
+      return data as CaixaCompleto;
+    } catch (error: any) {
+      console.error("Erro ao fechar caixa:", error);
+      throw error;
+    }
+  }
+
+  // Buscar caixa aberto de uma loja
+  static async buscarCaixaAberto(
+    lojaId: number
+  ): Promise<CaixaCompleto | null> {
+    try {
+      const { data, error } = await supabase
+        .from("caixas")
+        .select(
+          `
+          *,
+          loja:lojas(id, nome),
+          usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome)
+        `
+        )
+        .eq("loja_id", lojaId)
+        .eq("status", "aberto")
+        .maybeSingle();
+
+      if (error) throw error;
+
+      return data as CaixaCompleto | null;
+    } catch (error: any) {
+      console.error("Erro ao buscar caixa aberto:", error);
+      return null;
+    }
+  }
+
+  // Listar caixas com filtros
+  static async listarCaixas(filtros?: {
+    loja_id?: number;
+    status?: "aberto" | "fechado";
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<CaixaCompleto[]> {
+    try {
+      let query = supabase
+        .from("caixas")
+        .select(
+          `
+          *,
+          loja:lojas(id, nome),
+          usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome),
+          usuario_fechamento_info:usuarios!caixas_usuario_fechamento_fkey(id, nome)
+        `
+        )
+        .order("data_abertura", { ascending: false });
+
+      if (filtros?.loja_id) {
+        query = query.eq("loja_id", filtros.loja_id);
+      }
+
+      if (filtros?.status) {
+        query = query.eq("status", filtros.status);
+      }
+
+      if (filtros?.data_inicio) {
+        query = query.gte("data_abertura", filtros.data_inicio);
+      }
+
+      if (filtros?.data_fim) {
+        query = query.lte("data_abertura", filtros.data_fim);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return (data as CaixaCompleto[]) || [];
+    } catch (error: any) {
+      console.error("Erro ao listar caixas:", error);
+      return [];
+    }
+  }
+
+  // Buscar resumo do caixa
+  static async buscarResumoCaixa(caixaId: string): Promise<ResumoCaixa> {
+    try {
+      // Buscar dados do caixa
+      const { data: caixa, error: erroCaixa } = await supabase
+        .from("caixas")
+        .select("*")
+        .eq("id", caixaId)
+        .single();
+
+      if (erroCaixa) throw erroCaixa;
+
+      console.log("🔍 DEBUG CAIXA - Dados do caixa:", {
+        id: caixa.id,
+        data_abertura: caixa.data_abertura,
+        data_fechamento: caixa.data_fechamento,
+        loja_id: caixa.loja_id,
+      });
+
+      // Expandir o range de busca para compensar diferenças de fuso horário
+      // Adiciona 12 horas antes e depois para garantir que pegue todos os registros
+      const dataAbertura = new Date(
+        new Date(caixa.data_abertura).getTime() - 12 * 60 * 60 * 1000
+      ).toISOString();
+      const dataFechamentoBase =
+        caixa.data_fechamento || new Date().toISOString();
+      const dataFechamento = new Date(
+        new Date(dataFechamentoBase).getTime() + 12 * 60 * 60 * 1000
+      ).toISOString();
+
+      console.log("📅 DEBUG CAIXA - Range de busca:", {
+        dataAbertura,
+        dataFechamento,
+        diferenca_horas:
+          (new Date(dataFechamento).getTime() -
+            new Date(dataAbertura).getTime()) /
+          (1000 * 60 * 60),
+      });
+
+      // Buscar vendas do período
+      const { data: vendas, error: erroVendas } = await supabase
+        .from("vendas")
+        .select(
+          `
+          id,
+          valor_total,
+          valor_pago,
+          criado_em,
+          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+        `
+        )
+        .eq("loja_id", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      if (erroVendas) throw erroVendas;
+
+      // Buscar devoluções do período
+      const { data: devolucoes, error: erroDevolucoes } = await supabase
+        .from("devolucoes_venda")
+        .select(
+          `
+          id,
+          valor_total,
+          criado_em,
+          tipo,
+          venda:vendas!devolucoes_venda_venda_id_fkey(loja_id)
+        `
+        )
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      if (erroDevolucoes) throw erroDevolucoes;
+
+      // Filtrar devoluções da loja
+      const devolucoesLoja =
+        devolucoes?.filter((d: any) => d.venda?.loja_id === caixa.loja_id) ||
+        [];
+
+      // Buscar ordens de serviço pagas no período
+      const { data: ordensServico, error: erroOS } = await supabase
+        .from("ordem_servico_pagamentos")
+        .select(
+          `
+          id,
+          valor,
+          forma_pagamento,
+          criado_em,
+          ordem_servico:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja, numero_os, cliente_nome)
+        `
+        )
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      console.log("💰 DEBUG CAIXA - OS buscadas:", {
+        total: ordensServico?.length || 0,
+        ordensServico: ordensServico?.map((os: any) => ({
+          id: os.id,
+          valor: os.valor,
+          criado_em: os.criado_em,
+          ordem_servico_completo: os.ordem_servico,
+          loja_os: os.ordem_servico?.id_loja,
+          loja_caixa: caixa.loja_id,
+          numero_os: os.ordem_servico?.numero_os,
+          match: os.ordem_servico?.id_loja === caixa.loja_id,
+        })),
+      });
+
+      if (erroOS) throw erroOS;
+
+      // Filtrar OS da loja
+      const osLoja =
+        ordensServico?.filter(
+          (os: any) => os.ordem_servico?.id_loja === caixa.loja_id
+        ) || [];
+
+      console.log("✅ DEBUG CAIXA - OS filtradas da loja:", {
+        total: osLoja.length,
+        osLoja: osLoja.map((os: any) => ({
+          id: os.id,
+          valor: os.valor,
+          numero_os: os.ordem_servico?.numero_os,
+          cliente: os.ordem_servico?.cliente_nome,
+        })),
+      });
+
+      // Calcular resumo de vendas por forma de pagamento
+      const porFormaPagamento: { [key: string]: number } = {};
+      let totalVendas = 0;
+      let totalVendasDinheiro = 0; // Vendas que entram dinheiro no caixa (sem crédito)
+
+      vendas?.forEach((venda: any) => {
+        venda.pagamentos?.forEach((pag: any) => {
+          const forma = pag.tipo_pagamento;
+          const valor = Number(pag.valor);
+          porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
+          totalVendas += valor;
+
+          // Só soma no dinheiro físico se não for pagamento com crédito
+          if (forma !== "credito") {
+            totalVendasDinheiro += valor;
+          }
+        });
+      });
+
+      // Calcular totais de devoluções separados por tipo
+      const devolucoesComCredito = devolucoesLoja.filter(
+        (d: any) => d.tipo === "com_credito"
+      );
+      const devolucoesSemCredito = devolucoesLoja.filter(
+        (d: any) => d.tipo === "sem_credito"
+      );
+
+      const totalDevolucoesComCredito = devolucoesComCredito.reduce(
+        (sum: number, d: any) => sum + Number(d.valor_total),
+        0
+      );
+
+      const totalDevolucoesSemCredito = devolucoesSemCredito.reduce(
+        (sum: number, d: any) => sum + Number(d.valor_total),
+        0
+      );
+
+      const totalDevolucoes =
+        totalDevolucoesComCredito + totalDevolucoesSemCredito;
+      // Apenas devoluções sem crédito saem dinheiro do caixa
+      const totalDevolucoesDinheiro = totalDevolucoesSemCredito;
+
+      const totalOS = osLoja.reduce(
+        (sum: number, os: any) => sum + Number(os.valor),
+        0
+      );
+
+      // Buscar sangrias do período
+      const { data: sangrias, error: erroSangrias } = await supabase
+        .from("sangrias_caixa")
+        .select("*")
+        .eq("caixa_id", caixaId)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      if (erroSangrias) throw erroSangrias;
+
+      const totalSangrias =
+        sangrias?.reduce((sum: number, s: any) => sum + Number(s.valor), 0) ||
+        0;
+
+      // Buscar quebras do período
+      // Primeiro buscar TODAS as quebras da loja para debug
+      const { data: todasQuebras } = await supabase
+        .from("quebra_pecas")
+        .select("*")
+        .eq("id_loja", caixa.loja_id);
+
+      console.log("🔍 DEBUG CAIXA - TODAS as quebras da loja:", {
+        total: todasQuebras?.length || 0,
+        loja_id: caixa.loja_id,
+        range_busca: { dataAbertura, dataFechamento },
+        quebras: todasQuebras?.map((q: any) => ({
+          id: q.id,
+          criado_em: q.criado_em,
+          valor_total: q.valor_total,
+          id_loja: q.id_loja,
+          dentro_range:
+            q.criado_em >= dataAbertura && q.criado_em <= dataFechamento,
+        })),
+      });
+
+      const { data: quebras, error: erroQuebras } = await supabase
+        .from("quebra_pecas")
+        .select("*")
+        .eq("id_loja", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      console.log("🔨 DEBUG CAIXA - Quebras no período:", {
+        total: quebras?.length || 0,
+        loja_id: caixa.loja_id,
+        quebras: quebras?.map((q: any) => ({
+          id: q.id,
+          criado_em: q.criado_em,
+          valor_total: q.valor_total,
+          id_loja: q.id_loja,
+        })),
+      });
+
+      if (erroQuebras) throw erroQuebras;
+
+      const totalQuebras =
+        quebras?.reduce(
+          (sum: number, q: any) => sum + Number(q.valor_total || 0),
+          0
+        ) || 0;
+
+      // Saldo esperado considera apenas movimentações de dinheiro físico (quebras NÃO afetam)
+      const saldoEsperado =
+        Number(caixa.saldo_inicial) +
+        totalVendasDinheiro +
+        totalOS -
+        totalDevolucoesDinheiro -
+        totalSangrias;
+      const diferenca = caixa.saldo_final
+        ? Number(caixa.saldo_final) - saldoEsperado
+        : undefined;
+
+      return {
+        vendas: {
+          quantidade: vendas?.length || 0,
+          total: totalVendas,
+          por_forma_pagamento: porFormaPagamento,
+        },
+        devolucoes: {
+          quantidade: devolucoesLoja.length,
+          total: totalDevolucoes,
+        },
+        devolucoes_com_credito: {
+          quantidade: devolucoesComCredito.length,
+          total: totalDevolucoesComCredito,
+        },
+        devolucoes_sem_credito: {
+          quantidade: devolucoesSemCredito.length,
+          total: totalDevolucoesSemCredito,
+        },
+        ordens_servico: {
+          quantidade: osLoja.length,
+          total: totalOS,
+        },
+        sangrias: {
+          quantidade: sangrias?.length || 0,
+          total: totalSangrias,
+        },
+        quebras: {
+          quantidade: quebras?.length || 0,
+          total: totalQuebras,
+        },
+        saldo_inicial: Number(caixa.saldo_inicial),
+        total_entradas: totalVendasDinheiro + totalOS, // Apenas dinheiro físico
+        total_saidas: totalDevolucoesDinheiro + totalSangrias, // Devoluções sem crédito + sangrias
+        saldo_esperado: saldoEsperado,
+        saldo_informado: caixa.saldo_final
+          ? Number(caixa.saldo_final)
+          : undefined,
+        diferenca: diferenca,
+      };
+    } catch (error: any) {
+      console.error("Erro ao buscar resumo do caixa:", error);
+      throw error;
+    }
+  }
+
+  // Buscar movimentações do caixa
+  static async buscarMovimentacoes(
+    caixaId: string
+  ): Promise<MovimentacaoCaixa[]> {
+    try {
+      // Buscar dados do caixa
+      const { data: caixa, error: erroCaixa } = await supabase
+        .from("caixas")
+        .select("*")
+        .eq("id", caixaId)
+        .single();
+
+      if (erroCaixa) throw erroCaixa;
+
+      const dataAbertura = caixa.data_abertura;
+      const dataFechamento = caixa.data_fechamento || new Date().toISOString();
+
+      const movimentacoes: MovimentacaoCaixa[] = [];
+
+      // Buscar vendas
+      const { data: vendas } = await supabase
+        .from("vendas")
+        .select(
+          `
+          id,
+          numero_venda,
+          valor_pago,
+          criado_em,
+          cliente:clientes(nome),
+          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+        `
+        )
+        .eq("loja_id", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      vendas?.forEach((venda: any) => {
+        const usouCredito = venda.pagamentos?.some(
+          (pag: any) => pag.tipo_pagamento === "credito"
+        );
+
+        venda.pagamentos?.forEach((pag: any) => {
+          movimentacoes.push({
+            tipo: "venda",
+            descricao: `Venda #${venda.numero_venda} - ${venda.cliente?.nome || "Cliente"}`,
+            valor: Number(pag.valor),
+            data: venda.criado_em,
+            referencia_id: venda.id,
+            forma_pagamento: pag.tipo_pagamento,
+            usou_credito: usouCredito && pag.tipo_pagamento === "credito",
+          });
+        });
+      });
+
+      // Buscar devoluções
+      const { data: devolucoes } = await supabase
+        .from("devolucoes_venda")
+        .select(
+          `
+          id,
+          valor_total,
+          criado_em,
+          tipo,
+          venda:vendas!devolucoes_venda_venda_id_fkey(
+            numero_venda,
+            loja_id,
+            cliente:clientes(nome)
+          )
+        `
+        )
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      devolucoes
+        ?.filter((d: any) => d.venda?.loja_id === caixa.loja_id)
+        .forEach((dev: any) => {
+          movimentacoes.push({
+            tipo: "devolucao",
+            descricao: `Devolução Venda #${dev.venda?.numero_venda} - ${dev.venda?.cliente?.nome || "Cliente"}`,
+            valor: -Number(dev.valor_total),
+            data: dev.criado_em,
+            referencia_id: dev.id,
+            gerou_credito: dev.tipo === "com_credito",
+          });
+        });
+
+      // Buscar pagamentos de OS
+      const { data: pagamentosOS } = await supabase
+        .from("ordem_servico_pagamentos")
+        .select(
+          `
+          id,
+          id_ordem_servico,
+          valor,
+          forma_pagamento,
+          criado_em,
+          ordem_servico:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(
+            numero_os,
+            id_loja,
+            cliente_nome
+          )
+        `
+        )
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      // Agrupar pagamentos de OS por id_ordem_servico
+      const osAgrupadas: { [key: string]: any } = {};
+      pagamentosOS
+        ?.filter((p: any) => p.ordem_servico?.id_loja === caixa.loja_id)
+        .forEach((pag: any) => {
+          const osId = pag.id_ordem_servico;
+          if (!osAgrupadas[osId]) {
+            osAgrupadas[osId] = {
+              tipo: "ordem_servico",
+              descricao: `OS #${pag.ordem_servico?.numero_os} - ${pag.ordem_servico?.cliente_nome}`,
+              valor: 0,
+              data: pag.criado_em,
+              referencia_id: osId,
+              pagamentos: [],
+            };
+          }
+          osAgrupadas[osId].valor += Number(pag.valor);
+          osAgrupadas[osId].pagamentos.push({
+            tipo_pagamento: pag.forma_pagamento,
+            valor: Number(pag.valor),
+          });
+        });
+
+      // Adicionar OS agrupadas às movimentações
+      Object.values(osAgrupadas).forEach((os) => {
+        movimentacoes.push(os);
+      });
+
+      // Buscar quebras
+      const { data: quebras } = await supabase
+        .from("quebra_pecas")
+        .select(
+          `
+          id,
+          quantidade,
+          motivo,
+          valor_total,
+          criado_em,
+          produtos:id_produto(descricao)
+        `
+        )
+        .eq("id_loja", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      quebras?.forEach((quebra: any) => {
+        movimentacoes.push({
+          tipo: "quebra",
+          descricao: `Quebra - ${quebra.produtos?.descricao || "Produto"} (${quebra.quantidade}x) - ${quebra.motivo}`,
+          valor: -Number(quebra.valor_total || 0), // Negativo apenas para visualização
+          data: quebra.criado_em,
+          referencia_id: quebra.id,
+        });
+      });
+
+      // Buscar sangrias
+      const { data: sangrias } = await supabase
+        .from("sangrias_caixa")
+        .select(
+          `
+          id,
+          valor,
+          motivo,
+          criado_em,
+          usuario:usuarios!sangrias_caixa_realizado_por_fkey(nome)
+        `
+        )
+        .eq("caixa_id", caixa.id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      sangrias?.forEach((sangria: any) => {
+        movimentacoes.push({
+          tipo: "sangria",
+          descricao: `Sangria - ${sangria.motivo}`,
+          valor: -Number(sangria.valor),
+          data: sangria.criado_em,
+          referencia_id: sangria.id,
+        });
+      });
+
+      // Ordenar por data
+      movimentacoes.sort(
+        (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
+      );
+
+      return movimentacoes;
+    } catch (error: any) {
+      console.error("Erro ao buscar movimentações:", error);
+      return [];
+    }
+  }
+
+  // Registrar sangria
+  static async registrarSangria(params: {
+    caixa_id: string;
+    valor: number;
+    motivo: string;
+    usuario_id: string;
+  }): Promise<void> {
+    try {
+      const { error } = await supabase.from("sangrias_caixa").insert({
+        caixa_id: params.caixa_id,
+        valor: params.valor,
+        motivo: params.motivo,
+        realizado_por: params.usuario_id,
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error("Erro ao registrar sangria:", error);
+      throw error;
+    }
+  }
+
+  // Buscar sangrias de um caixa
+  static async buscarSangrias(caixaId: string) {
+    try {
+      const { data, error } = await supabase
+        .from("sangrias_caixa")
+        .select(
+          `
+          *,
+          usuario:usuarios!sangrias_caixa_realizado_por_fkey(id, nome)
+        `
+        )
+        .eq("caixa_id", caixaId)
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+
+      return data;
+    } catch (error: any) {
+      console.error("Erro ao buscar sangrias:", error);
+      return [];
+    }
+  }
+}
