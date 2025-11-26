@@ -59,6 +59,7 @@ import {
   criarOrdemServico,
   atualizarOrdemServico,
   deletarOrdemServico,
+  cancelarOrdemServico,
 } from "@/services/ordemServicoService";
 import type {
   OrdemServico,
@@ -237,12 +238,18 @@ export default function OrdemServicoPage() {
       return;
     }
 
+    // Verificar se a OS foi cancelada
+    if (os.status !== "cancelado") {
+      toast.error("A OS precisa ser cancelada antes de ser excluída");
+      return;
+    }
+
     console.log("✅ Permissão OK, abrindo confirmação...");
 
     try {
       const confirmado = await confirm({
         title: "Excluir Ordem de Serviço",
-        message: `Deseja realmente excluir a OS #${os.numero_os}?`,
+        message: `Deseja realmente excluir a OS #${os.numero_os}? Esta ação não pode ser desfeita.`,
         confirmText: "Excluir",
         cancelText: "Cancelar",
         variant: "danger",
@@ -271,6 +278,49 @@ export default function OrdemServicoPage() {
     } catch (err) {
       console.error("❌ Erro no handleDeletarOS:", err);
       toast.error("Erro ao excluir ordem de serviço");
+    }
+  };
+
+  const handleCancelarOS = async (os: OrdemServico) => {
+    if (!temPermissao("os.editar")) {
+      toast.error("Você não tem permissão para cancelar ordens de serviço");
+      return;
+    }
+
+    if (os.status === "cancelado") {
+      toast.error("Esta OS já está cancelada");
+      return;
+    }
+
+    if (os.status === "entregue") {
+      toast.error("Não é possível cancelar uma OS já entregue");
+      return;
+    }
+
+    try {
+      const confirmado = await confirm({
+        title: "Cancelar Ordem de Serviço",
+        message: `Deseja realmente cancelar a OS #${os.numero_os}? O estoque das peças será devolvido.`,
+        confirmText: "Cancelar OS",
+        cancelText: "Voltar",
+        variant: "warning",
+        confirmColor: "warning",
+      });
+
+      if (!confirmado) return;
+
+      const { error } = await cancelarOrdemServico(os.id, usuario!.id);
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+
+      toast.success("Ordem de serviço cancelada com sucesso!");
+      await carregarOrdensServico();
+    } catch (err) {
+      console.error("Erro ao cancelar OS:", err);
+      toast.error("Erro ao cancelar ordem de serviço");
     }
   };
 
@@ -502,8 +552,22 @@ export default function OrdemServicoPage() {
       onPress: () => handleVerHistorico(os),
     });
 
-    // Excluir OS
-    if (temPermissao("os.deletar")) {
+    // Cancelar OS
+    if (
+      temPermissao("os.editar") &&
+      os.status !== "cancelado" &&
+      os.status !== "entregue"
+    ) {
+      items.push({
+        key: "cancelar",
+        label: "Cancelar OS",
+        onPress: () => handleCancelarOS(os),
+        color: "warning" as const,
+      });
+    }
+
+    // Excluir OS (só se estiver cancelada)
+    if (temPermissao("os.deletar") && os.status === "cancelado") {
       items.push({
         key: "deletar",
         label: "Excluir OS",
@@ -712,6 +776,7 @@ export default function OrdemServicoPage() {
               onVisualizar={handleVisualizarOS}
               onEditar={handleEditarOS}
               onDeletar={handleDeletarOS}
+              onCancelar={handleCancelarOS}
               onGerenciarPecas={handleGerenciarPecas}
               onVerHistorico={handleVerHistorico}
               onGerenciarFotos={handleGerenciarFotos}

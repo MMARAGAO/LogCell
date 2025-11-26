@@ -768,7 +768,7 @@ export default function OrdemServicoFormModal({
                   id_loja: peca.id_loja,
                   id_ordem_servico: osId,
                   tipo_movimentacao: "saida",
-                  quantidade_alterada: -peca.quantidade, // Negativo para saída
+                  quantidade: peca.quantidade,
                   quantidade_anterior: quantidadeAnterior,
                   quantidade_nova: novaQuantidade,
                   motivo: `Utilizado na OS #${osNumero}`,

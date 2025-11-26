@@ -385,7 +385,56 @@ export default function DashboardPage() {
 
       {/* Novos Cards de Métricas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Contas a Receber */}
+        {/* Vendas Fiadas */}
+        {podeVerVendas && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-danger/10 rounded-xl">
+                    <AlertTriangle className="w-6 h-6 text-danger" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Vendas Fiadas
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {dados.metricas.vendas_fiadas || 0}
+                    </p>
+                    <p className="text-sm font-semibold text-danger mt-1">
+                      {formatarMoeda(dados.metricas.valor_vendas_fiadas || 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_vendas_fiadas || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-danger" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-success" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_vendas_fiadas || 0) >= 0
+                      ? "text-danger"
+                      : "text-success"
+                  }`}
+                >
+                  {formatarPercentual(
+                    dados.metricas.variacao_vendas_fiadas || 0
+                  )}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+      </div>
+
+      {/* Contas a Receber */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
           <CardBody className="p-6">
             <div className="flex items-start justify-between">
@@ -408,6 +457,92 @@ export default function DashboardPage() {
             <div className="mt-4">
               <span className="text-sm text-default-500">
                 {dados.contas_receber.length} vendas pendentes
+              </span>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Transferências Pendentes */}
+        <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+          <CardBody className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-secondary/10 rounded-xl">
+                  <Package className="w-6 h-6 text-secondary" />
+                </div>
+                <div>
+                  <p className="text-sm text-default-500 font-medium">
+                    Transferências Pendentes
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {dados.metricas_adicionais.transferencias_pendentes}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-default-500">
+                Aguardando confirmação
+              </span>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Devoluções do Mês */}
+        <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+          <CardBody className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-danger/10 rounded-xl">
+                  <AlertTriangle className="w-6 h-6 text-danger" />
+                </div>
+                <div>
+                  <p className="text-sm text-default-500 font-medium">
+                    Devoluções no Período
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {dados.metricas_adicionais.devolucoes_mes}
+                  </p>
+                  <p className="text-sm font-semibold text-danger mt-1">
+                    {formatarMoeda(
+                      dados.metricas_adicionais.valor_devolucoes_mes
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-default-500">Total devolvido</span>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Movimentações de Caixa Hoje */}
+        <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+          <CardBody className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-success/10 rounded-xl">
+                  <DollarSign className="w-6 h-6 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-default-500 font-medium">
+                    Sangrias Hoje
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {dados.metricas_adicionais.movimentacoes_caixa_dia}
+                  </p>
+                  <p className="text-sm font-semibold text-success mt-1">
+                    {formatarMoeda(
+                      dados.metricas_adicionais.valor_movimentacoes_caixa_dia
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <span className="text-sm text-default-500">
+                Retiradas de caixa
               </span>
             </div>
           </CardBody>
@@ -1159,6 +1294,155 @@ export default function DashboardPage() {
               )}
             </CardBody>
           </Card>
+
+          {/* Vendas Fiadas Detalhadas */}
+          {podeVerVendas &&
+            dados.vendas_fiadas_detalhadas &&
+            dados.vendas_fiadas_detalhadas.length > 0 && (
+              <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] lg:col-span-3">
+                <CardHeader className="flex items-center gap-2 pb-3">
+                  <AlertTriangle className="w-5 h-5 text-danger" />
+                  <h3 className="font-bold text-foreground">
+                    Vendas Fiadas Detalhadas
+                  </h3>
+                  <Chip size="sm" color="danger" variant="flat">
+                    {dados.vendas_fiadas_detalhadas.length}
+                  </Chip>
+                </CardHeader>
+                <CardBody className="p-0">
+                  <div className="divide-y divide-divider max-h-64 overflow-y-auto">
+                    {dados.vendas_fiadas_detalhadas
+                      .sort((a, b) => b.dias_em_aberto - a.dias_em_aberto)
+                      .map((venda) => (
+                        <div
+                          key={venda.id}
+                          className="p-4 hover:bg-default-50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-semibold text-foreground">
+                                  Venda #{venda.numero_venda}
+                                </p>
+                                <Chip
+                                  size="sm"
+                                  color={
+                                    venda.status_pagamento === "muito_atrasado"
+                                      ? "danger"
+                                      : venda.status_pagamento === "atrasado"
+                                        ? "warning"
+                                        : "success"
+                                  }
+                                  variant="flat"
+                                >
+                                  {venda.dias_em_aberto} dias em aberto
+                                </Chip>
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                <div>
+                                  <p className="text-default-500">Cliente</p>
+                                  <p className="font-medium text-foreground">
+                                    {venda.cliente_nome}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-default-500">Vendedor</p>
+                                  <p className="font-medium text-foreground">
+                                    {venda.vendedor_nome}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-default-500">Loja</p>
+                                  <p className="font-medium text-foreground">
+                                    {venda.loja_nome}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-default-500">
+                                    Data da Venda
+                                  </p>
+                                  <p className="font-medium text-foreground">
+                                    {new Date(
+                                      venda.criado_em
+                                    ).toLocaleDateString("pt-BR")}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right">
+                              <div className="mb-2">
+                                <p className="text-xs text-default-500">
+                                  Valor Total
+                                </p>
+                                <p className="text-lg font-bold text-foreground">
+                                  {formatarMoeda(venda.valor_total)}
+                                </p>
+                              </div>
+                              <div className="mb-2">
+                                <p className="text-xs text-default-500">
+                                  Valor Pago
+                                </p>
+                                <p className="text-sm font-semibold text-success">
+                                  {formatarMoeda(venda.valor_pago)}
+                                </p>
+                              </div>
+                              <div className="mb-3">
+                                <p className="text-xs text-default-500">
+                                  Pendente
+                                </p>
+                                <p className="text-sm font-semibold text-danger">
+                                  {formatarMoeda(venda.valor_pendente)}
+                                </p>
+                              </div>
+
+                              <Button
+                                size="sm"
+                                color="primary"
+                                variant="flat"
+                                onClick={() =>
+                                  (window.location.href = `/sistema/vendas?numero=${venda.numero_venda}`)
+                                }
+                              >
+                                Ver Detalhes
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Barra de progresso de pagamento */}
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between text-xs text-default-500 mb-1">
+                              <span>Progresso de Pagamento</span>
+                              <span>
+                                {(
+                                  (venda.valor_pago / venda.valor_total) *
+                                  100
+                                ).toFixed(1)}
+                                %
+                              </span>
+                            </div>
+                            <div className="w-full bg-default-200 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all ${
+                                  venda.status_pagamento === "muito_atrasado"
+                                    ? "bg-danger"
+                                    : venda.status_pagamento === "atrasado"
+                                      ? "bg-warning"
+                                      : "bg-success"
+                                }`}
+                                style={{
+                                  width: `${(venda.valor_pago / venda.valor_total) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardBody>
+              </Card>
+            )}
 
           {/* Produtos Inativos */}
           <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">

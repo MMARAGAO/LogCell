@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
+import { EditarPagamentoVendaModal } from "@/components/vendas/EditarPagamentoVendaModal";
 import { DetalhesVendaModal } from "@/components/vendas/DetalhesVendaModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
@@ -123,6 +124,8 @@ export default function VendasPage() {
   // Estados de UI
   const [modalNovaVendaOpen, setModalNovaVendaOpen] = useState(false);
   const [modalPagamentoOpen, setModalPagamentoOpen] = useState(false);
+  const [modalEditarPagamentoOpen, setModalEditarPagamentoOpen] =
+    useState(false);
   const [modalDetalhesOpen, setModalDetalhesOpen] = useState(false);
   const [modalCancelarOpen, setModalCancelarOpen] = useState(false);
   const [modalExcluirOpen, setModalExcluirOpen] = useState(false);
@@ -326,13 +329,18 @@ export default function VendasPage() {
 
   const carregarProdutos = async () => {
     try {
-      const { data, error } = await supabase.from("produtos").select(`
+      const { data, error } = await supabase
+        .from("produtos")
+        .select(
+          `
           id,
           descricao,
           codigo_fabricante,
           preco_venda,
           categoria
-        `);
+        `
+        )
+        .eq("ativo", true);
 
       if (error) throw error;
 
@@ -466,7 +474,7 @@ export default function VendasPage() {
       itens: ItemCarrinho[];
       pagamentos: PagamentoCarrinho[];
       desconto: {
-        tipo: "valor" | "porcentagem";
+        tipo: "valor" | "percentual";
         valor: number;
         motivo: string;
       } | null;
@@ -511,10 +519,7 @@ export default function VendasPage() {
             })),
             desconto: dados.desconto
               ? {
-                  tipo:
-                    dados.desconto.tipo === "porcentagem"
-                      ? "percentual"
-                      : "valor",
+                  tipo: dados.desconto.tipo,
                   valor: dados.desconto.valor,
                   motivo: dados.desconto.motivo,
                 }
@@ -638,6 +643,16 @@ export default function VendasPage() {
 
     setVendaSelecionada(venda);
     setModalPagamentoOpen(true);
+  };
+
+  const handleAbrirModalEditarPagamento = (venda: VendaCompleta) => {
+    if (!temPermissao("vendas.processar_pagamentos")) {
+      toast.error("Você não tem permissão para editar pagamentos");
+      return;
+    }
+
+    setVendaSelecionada(venda);
+    setModalEditarPagamentoOpen(true);
   };
 
   const handleAbrirDetalhes = async (venda: VendaCompleta) => {
@@ -776,6 +791,19 @@ export default function VendasPage() {
         label: "Adicionar Pagamento",
         icon: <DollarSign className="w-4 h-4" />,
         onClick: () => handleAbrirModalPagamento(venda),
+      });
+    }
+
+    // Editar Pagamentos
+    if (
+      venda.status !== "cancelada" &&
+      temPermissao("vendas.processar_pagamentos")
+    ) {
+      items.push({
+        key: "editar_pagamento",
+        label: "Editar Pagamentos",
+        icon: <Wallet className="w-4 h-4" />,
+        onClick: () => handleAbrirModalEditarPagamento(venda),
       });
     }
 
@@ -1421,6 +1449,22 @@ export default function VendasPage() {
         />
       )}
 
+      {/* Modal Editar Pagamento */}
+      {vendaSelecionada && (
+        <EditarPagamentoVendaModal
+          isOpen={modalEditarPagamentoOpen}
+          onClose={() => {
+            setModalEditarPagamentoOpen(false);
+            setVendaSelecionada(null);
+          }}
+          venda={{
+            id: vendaSelecionada.id,
+            numero_venda: vendaSelecionada.numero_venda,
+          }}
+          onPagamentoEditado={handlePagamentoAdicionado}
+        />
+      )}
+
       {/* Modal Detalhes da Venda */}
       <DetalhesVendaModal
         isOpen={modalDetalhesOpen}
@@ -1466,9 +1510,24 @@ export default function VendasPage() {
               </strong>
               ?
             </p>
-            <p className="text-sm text-warning">
-              O estoque dos produtos será devolvido.
-            </p>
+            {vendaSelecionada?.devolucoes &&
+            vendaSelecionada.devolucoes.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-sm text-warning font-semibold">
+                  ⚠️ Esta venda possui {vendaSelecionada.devolucoes.length}{" "}
+                  devolução(ões) registrada(s).
+                </p>
+                <p className="text-sm text-default-600">
+                  O sistema irá devolver ao estoque apenas os itens que{" "}
+                  <strong>não foram devolvidos</strong> nas devoluções
+                  anteriores.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-warning">
+                O estoque dos produtos será devolvido.
+              </p>
+            )}
           </div>
         }
         confirmText="Sim, cancelar venda"

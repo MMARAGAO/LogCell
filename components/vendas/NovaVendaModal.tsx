@@ -71,7 +71,7 @@ interface DadosVenda {
   itens: ItemCarrinho[];
   pagamentos: PagamentoCarrinho[];
   desconto: {
-    tipo: "valor" | "porcentagem";
+    tipo: "valor" | "percentual";
     valor: number;
     motivo: string;
   } | null;
@@ -110,7 +110,7 @@ export function NovaVendaModal({
   const [pagamentos, setPagamentos] = useState<PagamentoCarrinho[]>([]);
   const [valorDesconto, setValorDesconto] = useState(0);
   const [descontoInfo, setDescontoInfo] = useState<{
-    tipo: "valor" | "porcentagem";
+    tipo: "valor" | "percentual";
     valor: number;
     motivo: string;
   } | null>(null);
@@ -235,7 +235,14 @@ export function NovaVendaModal({
           quantidade: item.quantidade,
           preco_unitario: item.preco_unitario,
           subtotal: item.subtotal,
-          desconto: item.desconto || undefined,
+          desconto:
+            item.desconto_tipo && item.desconto_valor
+              ? {
+                  tipo: item.desconto_tipo as "valor" | "percentual",
+                  valor: item.desconto_valor,
+                  motivo: "Desconto aplicado",
+                }
+              : undefined,
         })) || [];
       setItensCarrinho(itens);
 
@@ -249,10 +256,44 @@ export function NovaVendaModal({
         })) || [];
       setPagamentos(pags);
 
+      // Carregar desconto da venda
+      if (vendaParaEditar.descontos && vendaParaEditar.descontos.length > 0) {
+        const desc = vendaParaEditar.descontos[0];
+        setDescontoInfo({
+          tipo: desc.tipo === "percentual" ? "percentual" : "valor",
+          valor: desc.valor,
+          motivo: desc.motivo || "Desconto aplicado",
+        });
+      }
+
       // Ir direto para o passo 2 (produtos) se for edição
       setCurrentStep(2);
     }
   }, [vendaParaEditar, isOpen]);
+
+  // Calcular valorDesconto quando descontoInfo mudar
+  useEffect(() => {
+    if (!descontoInfo) {
+      setValorDesconto(0);
+      return;
+    }
+
+    const subtotalItens = itensCarrinho.reduce(
+      (sum, item) => sum + item.subtotal,
+      0
+    );
+    const descontosItens = itensCarrinho.reduce(
+      (sum, item) => sum + calcularDescontoItem(item),
+      0
+    );
+    const baseCalculo = subtotalItens - descontosItens;
+
+    if (descontoInfo.tipo === "percentual") {
+      setValorDesconto((baseCalculo * descontoInfo.valor) / 100);
+    } else {
+      setValorDesconto(descontoInfo.valor);
+    }
+  }, [descontoInfo, itensCarrinho]);
 
   // Carrega créditos quando cliente é selecionado
   useEffect(() => {
@@ -485,7 +526,7 @@ export function NovaVendaModal({
 
   const aplicarDescontoItem = (
     produtoId: string,
-    tipo: "valor" | "porcentagem",
+    tipo: "valor" | "percentual",
     valor: number
   ) => {
     // Limpar desconto geral ao aplicar desconto por item
@@ -840,7 +881,7 @@ export function NovaVendaModal({
                             >
                               <span className="text-success-700">
                                 {item.produto_nome}:{" "}
-                                {item.desconto?.tipo === "porcentagem"
+                                {item.desconto?.tipo === "percentual"
                                   ? `${item.desconto.valor}%`
                                   : formatarMoeda(item.desconto?.valor || 0)}
                               </span>

@@ -12,11 +12,20 @@ import {
   CardBody,
   Input,
   Textarea,
-  Checkbox,
   Divider,
   Chip,
+  Radio,
+  RadioGroup,
 } from "@heroui/react";
-import { PackageX, AlertCircle, CheckCircle2, CreditCard } from "lucide-react";
+import {
+  PackageX,
+  AlertCircle,
+  CheckCircle2,
+  CreditCard,
+  Wallet,
+  Banknote,
+  Smartphone,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { VendasService } from "@/services/vendasService";
 import { VendaCompleta, ItemVenda } from "@/types/vendas";
@@ -50,7 +59,10 @@ export function ModalDevolucao({
   const { usuario } = useAuth();
   const { temPermissao } = usePermissoes();
   const [itensDevolucao, setItensDevolucao] = useState<ItemDevolucao[]>([]);
-  const [gerarCredito, setGerarCredito] = useState(true);
+  const [tipoReembolso, setTipoReembolso] = useState<"credito" | "sem_credito">(
+    "credito"
+  );
+  const [formaPagamento, setFormaPagamento] = useState<string>("dinheiro");
   const [motivo, setMotivo] = useState("");
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
@@ -79,7 +91,8 @@ export function ModalDevolucao({
 
       console.log("🔍 Itens para devolução:", itens);
       setItensDevolucao(itens);
-      setGerarCredito(true);
+      setTipoReembolso("credito");
+      setFormaPagamento("dinheiro");
       setMotivo("");
       setErro("");
     }
@@ -100,7 +113,23 @@ export function ModalDevolucao({
   };
 
   const calcularTotal = () => {
-    return itensDevolucao.reduce((total, item) => total + item.subtotal, 0);
+    const subtotalItens = itensDevolucao.reduce(
+      (total, item) => total + item.subtotal,
+      0
+    );
+
+    // Se a venda tem desconto, calcular o desconto proporcional
+    if (venda.valor_desconto > 0 && venda.valor_total > 0) {
+      // Percentual de desconto aplicado na venda original
+      const percentualDesconto = venda.valor_desconto / venda.valor_total;
+
+      // Aplicar o mesmo percentual no valor dos itens devolvidos
+      const descontoProporcional = subtotalItens * percentualDesconto;
+
+      return subtotalItens - descontoProporcional;
+    }
+
+    return subtotalItens;
   };
 
   const validarDevolucao = (): boolean => {
@@ -115,6 +144,11 @@ export function ModalDevolucao({
 
     if (!motivo.trim()) {
       setErro("Informe o motivo da devolução");
+      return false;
+    }
+
+    if (!formaPagamento) {
+      setErro("Selecione a forma de pagamento");
       return false;
     }
 
@@ -147,7 +181,9 @@ export function ModalDevolucao({
       const resultado = await VendasService.processarDevolucao({
         venda_id: venda.id,
         itens: itensParaDevolver,
-        gerar_credito: gerarCredito,
+        gerar_credito: tipoReembolso === "credito",
+        forma_pagamento:
+          tipoReembolso === "credito" ? "credito_loja" : formaPagamento,
         motivo: motivo.trim(),
         usuario_id: usuario.id,
       });
@@ -288,47 +324,148 @@ export function ModalDevolucao({
             {/* Valor Total da Devolução */}
             <Card className="bg-danger-50">
               <CardBody className="p-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">
-                    Valor Total da Devolução
-                  </span>
-                  <span className="text-2xl font-bold text-danger">
-                    {formatarMoeda(calcularTotal())}
-                  </span>
-                </div>
+                {(() => {
+                  const subtotalItens = itensDevolucao.reduce(
+                    (total, item) => total + item.subtotal,
+                    0
+                  );
+                  const totalComDesconto = calcularTotal();
+                  const descontoAplicado = subtotalItens - totalComDesconto;
+
+                  return (
+                    <div className="space-y-2">
+                      {/* Subtotal */}
+                      {descontoAplicado > 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-default-600">
+                            Subtotal dos Itens
+                          </span>
+                          <span className="text-default-700">
+                            {formatarMoeda(subtotalItens)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Desconto */}
+                      {descontoAplicado > 0 && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-default-600">
+                            Desconto Proporcional (
+                            {(
+                              (venda.valor_desconto / venda.valor_total) *
+                              100
+                            ).toFixed(1)}
+                            %)
+                          </span>
+                          <span className="text-success-600">
+                            - {formatarMoeda(descontoAplicado)}
+                          </span>
+                        </div>
+                      )}
+
+                      {descontoAplicado > 0 && <Divider />}
+
+                      {/* Total */}
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold">
+                          Valor Total da Devolução
+                        </span>
+                        <span className="text-2xl font-bold text-danger">
+                          {formatarMoeda(totalComDesconto)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </CardBody>
             </Card>
 
             {/* Opções */}
-            <div className="space-y-6">
-              <div className="">
-                <Checkbox
-                  isSelected={gerarCredito}
-                  onValueChange={(checked) => {
-                    if (
-                      checked &&
-                      !temPermissao("devolucoes.processar_creditos")
-                    ) {
-                      toast.error("Você não tem permissão para gerar créditos");
-                      return;
-                    }
-                    setGerarCredito(checked);
-                  }}
-                  isDisabled={!temPermissao("devolucoes.processar_creditos")}
-                >
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    <span>Gerar crédito para o cliente</span>
-                  </div>
-                  <p className="text-xs text-default-500 ml-6">
-                    {gerarCredito
-                      ? "O cliente poderá usar este crédito em compras futuras"
-                      : temPermissao("devolucoes.processar_creditos")
-                        ? "Nenhum crédito será gerado"
-                        : "Você não tem permissão para gerar créditos"}
+            <div className="space-y-4">
+              <Card className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400">
+                <CardBody className="p-4 space-y-4">
+                  <p className="text-sm font-semibold mb-3 text-default-700">
+                    Como deseja processar o reembolso?
                   </p>
-                </Checkbox>
-              </div>
+                  <RadioGroup
+                    value={tipoReembolso}
+                    onValueChange={(value) => {
+                      if (
+                        value === "credito" &&
+                        !temPermissao("devolucoes.processar_creditos")
+                      ) {
+                        toast.error(
+                          "Você não tem permissão para gerar créditos"
+                        );
+                        return;
+                      }
+                      setTipoReembolso(value as "credito" | "sem_credito");
+                    }}
+                  >
+                    <Radio
+                      value="credito"
+                      description="O cliente receberá crédito para usar em futuras compras"
+                      isDisabled={
+                        !temPermissao("devolucoes.processar_creditos")
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-4 h-4" />
+                        <span>Gerar crédito para o cliente</span>
+                      </div>
+                    </Radio>
+                    <Radio
+                      value="sem_credito"
+                      description="Reembolso direto ao cliente (dinheiro, PIX, etc)"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4" />
+                        <span>Reembolso manual</span>
+                      </div>
+                    </Radio>
+                  </RadioGroup>
+
+                  {/* Forma de pagamento do reembolso manual */}
+                  {tipoReembolso === "sem_credito" && (
+                    <div className="pt-2 space-y-2">
+                      <Divider />
+                      <p className="text-sm font-semibold text-default-700">
+                        Forma de pagamento do reembolso:
+                      </p>
+                      <RadioGroup
+                        value={formaPagamento}
+                        onValueChange={setFormaPagamento}
+                        orientation="horizontal"
+                      >
+                        <Radio value="dinheiro">
+                          <div className="flex items-center gap-1">
+                            <Banknote className="w-4 h-4" />
+                            <span className="text-sm">Dinheiro</span>
+                          </div>
+                        </Radio>
+                        <Radio value="pix">
+                          <div className="flex items-center gap-1">
+                            <Smartphone className="w-4 h-4" />
+                            <span className="text-sm">PIX</span>
+                          </div>
+                        </Radio>
+                        <Radio value="debito">
+                          <div className="flex items-center gap-1">
+                            <CreditCard className="w-4 h-4" />
+                            <span className="text-sm">Cartão Débito</span>
+                          </div>
+                        </Radio>
+                        <Radio value="credito">
+                          <div className="flex items-center gap-1">
+                            <CreditCard className="w-4 h-4" />
+                            <span className="text-sm">Cartão Crédito</span>
+                          </div>
+                        </Radio>
+                      </RadioGroup>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
 
               <Textarea
                 label="Motivo da Devolução"

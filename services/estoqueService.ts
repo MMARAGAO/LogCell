@@ -256,37 +256,68 @@ export async function getTodoEstoque(
 // Buscar produtos com quantidades agrupadas por loja
 export async function getProdutosComEstoque(): Promise<any[]> {
   try {
-    // 1. Buscar TODOS os produtos com TODOS os campos
-    const { data: produtos, error: produtosError } = await supabase
-      .from("produtos")
-      .select("*")
-      .order("descricao", { ascending: true });
+    // 1. Buscar TODOS os produtos com PAGINAÇÃO
+    const allProdutos: any[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    let hasMore = true;
 
-    if (produtosError) {
-      console.error("Erro ao buscar produtos:", produtosError);
-      throw produtosError;
+    while (hasMore) {
+      const { data: produtos, error: produtosError } = await supabase
+        .from("produtos")
+        .select("*")
+        .order("descricao", { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (produtosError) {
+        console.error("Erro ao buscar produtos:", produtosError);
+        throw produtosError;
+      }
+
+      if (produtos && produtos.length > 0) {
+        allProdutos.push(...produtos);
+        offset += pageSize;
+        hasMore = produtos.length === pageSize;
+      } else {
+        hasMore = false;
+      }
     }
 
-    // 2. Buscar todos os estoques
-    const { data: estoques, error: estoqueError } = await supabase
-      .from("estoque_lojas")
-      .select(
-        `
-        id_produto,
-        id_loja,
-        quantidade,
-        loja:lojas(id, nome)
-      `
-      );
+    // 2. Buscar todos os estoques com PAGINAÇÃO
+    const allEstoques: any[] = [];
+    offset = 0;
+    hasMore = true;
 
-    if (estoqueError) {
-      console.error("Erro ao buscar estoques:", estoqueError);
-      throw estoqueError;
+    while (hasMore) {
+      const { data: estoques, error: estoqueError } = await supabase
+        .from("estoque_lojas")
+        .select(
+          `
+          id_produto,
+          id_loja,
+          quantidade,
+          loja:lojas(id, nome)
+        `
+        )
+        .range(offset, offset + pageSize - 1);
+
+      if (estoqueError) {
+        console.error("Erro ao buscar estoques:", estoqueError);
+        throw estoqueError;
+      }
+
+      if (estoques && estoques.length > 0) {
+        allEstoques.push(...estoques);
+        offset += pageSize;
+        hasMore = estoques.length === pageSize;
+      } else {
+        hasMore = false;
+      }
     }
 
     // 3. Criar mapa de estoques por produto
     const estoquesMap = new Map<string, any[]>();
-    estoques?.forEach((estoque: any) => {
+    allEstoques.forEach((estoque: any) => {
       if (!estoquesMap.has(estoque.id_produto)) {
         estoquesMap.set(estoque.id_produto, []);
       }
@@ -298,7 +329,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
     });
 
     // 4. Combinar produtos com seus estoques
-    const produtosComEstoque = produtos?.map((produto: any) => {
+    const produtosComEstoque = allProdutos.map((produto: any) => {
       const estoquesLoja = estoquesMap.get(produto.id) || [];
       const total_estoque = estoquesLoja.reduce(
         (sum, e) => sum + e.quantidade,

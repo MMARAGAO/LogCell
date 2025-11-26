@@ -53,10 +53,8 @@ export default function AdicionarPecaModal({
   const [loading, setLoading] = useState(false);
   const [produtosEstoque, setProdutosEstoque] = useState<ProdutoEstoque[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
-  const [lojas, setLojas] = useState<Array<{ id: number; nome: string }>>([]);
 
   const [tipoPeca, setTipoPeca] = useState<"estoque" | "avulso">("estoque");
-  const [idLojaPeca, setIdLojaPeca] = useState<number | null>(idLoja);
   const [idProdutoSelecionado, setIdProdutoSelecionado] = useState<
     string | null
   >(null);
@@ -73,24 +71,10 @@ export default function AdicionarPecaModal({
   const [valorVendaEstoque, setValorVendaEstoque] = useState<string>("");
 
   useEffect(() => {
-    if (isOpen) {
-      carregarLojas();
-      if (tipoPeca === "estoque" && idLojaPeca) {
-        carregarProdutosEstoque(idLojaPeca);
-      }
+    if (isOpen && tipoPeca === "estoque") {
+      carregarProdutosEstoque(idLoja);
     }
-  }, [isOpen, tipoPeca, idLojaPeca]);
-
-  const carregarLojas = async () => {
-    try {
-      const { LojasService } = await import("@/services/lojasService");
-      const data = await LojasService.getLojasAtivas();
-      setLojas(data.map((loja) => ({ id: loja.id, nome: loja.nome })));
-    } catch (error) {
-      console.error("Erro ao carregar lojas:", error);
-      setLojas([]);
-    }
-  };
+  }, [isOpen, tipoPeca, idLoja]);
 
   const carregarProdutosEstoque = async (lojaId: number) => {
     setLoadingProdutos(true);
@@ -179,10 +163,6 @@ export default function AdicionarPecaModal({
     }
 
     if (tipoPeca === "estoque") {
-      if (!idLojaPeca) {
-        toast.showToast("Selecione uma loja", "error");
-        return;
-      }
       if (!idProdutoSelecionado) {
         toast.showToast("Selecione um produto do estoque", "error");
         return;
@@ -210,7 +190,7 @@ export default function AdicionarPecaModal({
 
     const formData = {
       id_ordem_servico: idOrdemServico,
-      id_loja: tipoPeca === "estoque" ? idLojaPeca! : idLoja,
+      id_loja: idLoja,
       tipo_produto: tipoPeca,
       quantidade:
         tipoPeca === "estoque"
@@ -321,39 +301,17 @@ export default function AdicionarPecaModal({
           {tipoPeca === "estoque" ? (
             <>
               <div className="bg-primary-50 dark:bg-primary-900/20 p-3 rounded-lg">
-                <p className="text-sm font-semibold mb-1">Peça do Estoque</p>
+                <p className="text-sm font-semibold mb-1">
+                  Peça do Estoque da OS
+                </p>
                 <p className="text-xs text-default-500">
-                  Selecione de qual loja e qual produto será utilizado
+                  Os produtos mostrados são do estoque da loja desta OS
                 </p>
               </div>
 
-              <Select
-                label="Loja"
-                placeholder="Selecione a loja"
-                selectedKeys={idLojaPeca ? [idLojaPeca.toString()] : []}
-                onSelectionChange={(keys) => {
-                  const lojaId = parseInt(Array.from(keys)[0] as string);
-                  setIdLojaPeca(lojaId);
-                  carregarProdutosEstoque(lojaId);
-                  setIdProdutoSelecionado(null);
-                  setProdutoSelecionado(null);
-                }}
-                isRequired
-                variant="bordered"
-                startContent={<Store className="w-4 h-4" />}
-              >
-                {lojas.map((loja) => (
-                  <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
-                ))}
-              </Select>
-
               <Autocomplete
                 label="Produto"
-                placeholder={
-                  idLojaPeca
-                    ? "Buscar produto no estoque"
-                    : "Selecione uma loja primeiro"
-                }
+                placeholder="Buscar produto no estoque"
                 selectedKey={idProdutoSelecionado}
                 onSelectionChange={(key) =>
                   handleProdutoSelecionado(key as string)

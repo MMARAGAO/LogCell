@@ -244,8 +244,8 @@ CREATE TABLE public.historico_ordem_servico (
   criado_por uuid,
   criado_por_nome character varying,
   CONSTRAINT historico_ordem_servico_pkey PRIMARY KEY (id),
-  CONSTRAINT historico_ordem_servico_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
-  CONSTRAINT historico_ordem_servico_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id)
+  CONSTRAINT historico_ordem_servico_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id),
+  CONSTRAINT historico_ordem_servico_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id)
 );
 CREATE TABLE public.historico_produtos (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -502,10 +502,10 @@ CREATE TABLE public.ordem_servico_pecas (
   criado_em timestamp without time zone DEFAULT now(),
   criado_por uuid,
   CONSTRAINT ordem_servico_pecas_pkey PRIMARY KEY (id),
+  CONSTRAINT ordem_servico_pecas_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id),
   CONSTRAINT ordem_servico_pecas_id_produto_fkey FOREIGN KEY (id_produto) REFERENCES public.produtos(id),
   CONSTRAINT ordem_servico_pecas_id_loja_fkey FOREIGN KEY (id_loja) REFERENCES public.lojas(id),
-  CONSTRAINT ordem_servico_pecas_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
-  CONSTRAINT ordem_servico_pecas_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id)
+  CONSTRAINT ordem_servico_pecas_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id)
 );
 CREATE TABLE public.pagamentos_venda (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -595,11 +595,11 @@ CREATE TABLE public.quebra_pecas (
   observacao_aprovacao text,
   produto_descricao text,
   CONSTRAINT quebra_pecas_pkey PRIMARY KEY (id),
+  CONSTRAINT quebra_pecas_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id),
   CONSTRAINT quebra_pecas_id_produto_fkey FOREIGN KEY (id_produto) REFERENCES public.produtos(id),
   CONSTRAINT quebra_pecas_id_loja_fkey FOREIGN KEY (id_loja) REFERENCES public.lojas(id),
   CONSTRAINT quebra_pecas_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
-  CONSTRAINT quebra_pecas_aprovado_por_fkey FOREIGN KEY (aprovado_por) REFERENCES auth.users(id),
-  CONSTRAINT quebra_pecas_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id)
+  CONSTRAINT quebra_pecas_aprovado_por_fkey FOREIGN KEY (aprovado_por) REFERENCES auth.users(id)
 );
 CREATE TABLE public.rmas (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -631,7 +631,9 @@ CREATE TABLE public.sangrias_caixa (
   motivo text NOT NULL,
   realizado_por uuid NOT NULL,
   criado_em timestamp without time zone DEFAULT now(),
+  venda_id uuid,
   CONSTRAINT sangrias_caixa_pkey PRIMARY KEY (id),
+  CONSTRAINT sangrias_caixa_venda_id_fkey FOREIGN KEY (venda_id) REFERENCES public.vendas(id),
   CONSTRAINT sangrias_caixa_caixa_id_fkey FOREIGN KEY (caixa_id) REFERENCES public.caixas(id),
   CONSTRAINT sangrias_caixa_realizado_por_fkey FOREIGN KEY (realizado_por) REFERENCES public.usuarios(id)
 );
@@ -704,6 +706,8 @@ CREATE TABLE public.trocas_produtos (
   usuario_id uuid,
   observacao text,
   criado_em timestamp with time zone DEFAULT now(),
+  tipo_reembolso character varying CHECK (tipo_reembolso IS NULL OR (tipo_reembolso::text = ANY (ARRAY['credito'::character varying, 'manual'::character varying]::text[]))),
+  forma_pagamento_reembolso character varying CHECK (forma_pagamento_reembolso IS NULL OR (forma_pagamento_reembolso::text = ANY (ARRAY['dinheiro'::character varying, 'pix'::character varying, 'transferencia'::character varying, 'cartao_debito'::character varying, 'cartao_credito'::character varying]::text[]))),
   CONSTRAINT trocas_produtos_pkey PRIMARY KEY (id),
   CONSTRAINT trocas_produtos_item_venda_id_fkey FOREIGN KEY (item_venda_id) REFERENCES public.itens_venda(id),
   CONSTRAINT trocas_produtos_produto_antigo_id_fkey FOREIGN KEY (produto_antigo_id) REFERENCES public.produtos(id),

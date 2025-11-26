@@ -41,6 +41,7 @@ interface OrdemServicoCardProps {
   onVisualizar: (os: OrdemServico) => void;
   onEditar: (os: OrdemServico) => void;
   onDeletar: (os: OrdemServico) => void;
+  onCancelar?: (os: OrdemServico) => void;
   onGerenciarPecas: (os: OrdemServico) => void;
   onVerHistorico: (os: OrdemServico) => void;
   onGerenciarFotos?: (os: OrdemServico) => void;
@@ -53,6 +54,7 @@ export default function OrdemServicoCard({
   onVisualizar,
   onEditar,
   onDeletar,
+  onCancelar,
   onGerenciarPecas,
   onVerHistorico,
   onGerenciarFotos,
@@ -265,15 +267,30 @@ export default function OrdemServicoCard({
               >
                 Ver Histórico
               </DropdownItem>
-              <DropdownItem
-                key="deletar"
-                startContent={<Trash2 className="w-4 h-4" />}
-                color="danger"
-                className="text-danger"
-                onPress={() => onDeletar(os)}
-              >
-                Excluir
-              </DropdownItem>
+              {onCancelar &&
+              os.status !== "cancelado" &&
+              os.status !== "entregue" ? (
+                <DropdownItem
+                  key="cancelar"
+                  startContent={<AlertTriangle className="w-4 h-4" />}
+                  color="warning"
+                  className="text-warning"
+                  onPress={() => onCancelar(os)}
+                >
+                  Cancelar OS
+                </DropdownItem>
+              ) : null}
+              {os.status === "cancelado" ? (
+                <DropdownItem
+                  key="deletar"
+                  startContent={<Trash2 className="w-4 h-4" />}
+                  color="danger"
+                  className="text-danger"
+                  onPress={() => onDeletar(os)}
+                >
+                  Excluir
+                </DropdownItem>
+              ) : null}
             </DropdownMenu>
           </Dropdown>
         </div>

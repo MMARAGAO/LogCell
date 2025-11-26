@@ -297,8 +297,10 @@ export class CaixaService {
           porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
           totalVendas += valor;
 
-          // Só soma no dinheiro físico se não for pagamento com crédito
-          if (forma !== "credito") {
+          // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
+          // credito = cartão de crédito (conta no caixa)
+          // credito_cliente = crédito da loja (NÃO conta no caixa)
+          if (forma !== "credito_cliente") {
             totalVendasDinheiro += valor;
           }
         });
@@ -487,10 +489,13 @@ export class CaixaService {
 
       vendas?.forEach((venda: any) => {
         const usouCredito = venda.pagamentos?.some(
-          (pag: any) => pag.tipo_pagamento === "credito"
+          (pag: any) => pag.tipo_pagamento === "credito_cliente"
         );
 
         venda.pagamentos?.forEach((pag: any) => {
+          // Não incluir crédito de cliente como movimentação de caixa
+          if (pag.tipo_pagamento === "credito_cliente") return;
+
           movimentacoes.push({
             tipo: "venda",
             descricao: `Venda #${venda.numero_venda} - ${venda.cliente?.nome || "Cliente"}`,
@@ -498,7 +503,7 @@ export class CaixaService {
             data: venda.criado_em,
             referencia_id: venda.id,
             forma_pagamento: pag.tipo_pagamento,
-            usou_credito: usouCredito && pag.tipo_pagamento === "credito",
+            usou_credito: usouCredito,
           });
         });
       });
@@ -512,6 +517,7 @@ export class CaixaService {
           valor_total,
           criado_em,
           tipo,
+          forma_pagamento,
           venda:vendas!devolucoes_venda_venda_id_fkey(
             numero_venda,
             loja_id,
@@ -532,6 +538,7 @@ export class CaixaService {
             data: dev.criado_em,
             referencia_id: dev.id,
             gerou_credito: dev.tipo === "com_credito",
+            forma_pagamento: dev.forma_pagamento,
           });
         });
 

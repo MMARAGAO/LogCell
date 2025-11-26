@@ -64,7 +64,8 @@ export function HistoricoDevolucoes({
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
+      // Buscar devoluções
+      const { data: devolucoesData, error: erroDevs } = await supabase
         .from("devolucoes_venda")
         .select(
           `
@@ -73,16 +74,42 @@ export function HistoricoDevolucoes({
           itens:itens_devolucao(
             *,
             item_venda:itens_venda(produto_nome, produto_codigo, preco_unitario)
-          ),
-          credito:creditos_cliente!creditos_cliente_devolucao_id_fkey(id, valor_total, saldo)
+          )
         `
         )
         .eq("venda_id", vendaId)
         .order("criado_em", { ascending: false });
 
-      if (error) throw error;
+      if (erroDevs) throw erroDevs;
 
-      setDevolucoes(data || []);
+      // Buscar créditos separadamente para cada devolução
+      const devolucoesComCreditos = await Promise.all(
+        (devolucoesData || []).map(async (devolucao) => {
+          if (devolucao.tipo === "com_credito") {
+            const { data: credito } = await supabase
+              .from("creditos_cliente")
+              .select("id, valor_total, saldo, valor_utilizado")
+              .eq("devolucao_id", devolucao.id)
+              .maybeSingle();
+
+            return { ...devolucao, credito };
+          }
+          return devolucao;
+        })
+      );
+
+      console.log("📦 Devoluções carregadas:", devolucoesComCreditos);
+      console.log(
+        "💰 Detalhes dos créditos:",
+        devolucoesComCreditos.map((d) => ({
+          devolucao_id: d.id,
+          valor_total_devolucao: d.valor_total,
+          credito: d.credito,
+          tipo: d.tipo,
+        }))
+      );
+
+      setDevolucoes(devolucoesComCreditos || []);
     } catch (error) {
       console.error("Erro ao carregar histórico de devoluções:", error);
     } finally {
@@ -214,6 +241,29 @@ export function HistoricoDevolucoes({
                           </p>
                         </div>
                       </div>
+
+                      {/* Forma de Pagamento */}
+                      {devolucao.forma_pagamento && (
+                        <div className="flex items-start gap-2">
+                          <CreditCard className="w-4 h-4 text-default-400 mt-0.5" />
+                          <div>
+                            <p className="text-xs text-default-500">
+                              Forma de Pagamento
+                            </p>
+                            <p className="text-sm font-medium">
+                              {devolucao.forma_pagamento === "dinheiro" &&
+                                "Dinheiro"}
+                              {devolucao.forma_pagamento === "pix" && "PIX"}
+                              {devolucao.forma_pagamento === "debito" &&
+                                "Cartão de Débito"}
+                              {devolucao.forma_pagamento === "credito" &&
+                                "Cartão de Crédito"}
+                              {devolucao.forma_pagamento === "credito_loja" &&
+                                "Crédito na Loja"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Motivo */}
                       <div>

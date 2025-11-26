@@ -112,8 +112,10 @@ export default function DevolucoesPage() {
   };
 
   const handleDevolucaoProcessada = () => {
+    // Recarregar vendas para atualizar os valores
     carregarVendas();
     handleFecharModal();
+    toast.success("Devolução processada com sucesso!");
   };
 
   const handleAbrirHistorico = (vendaId: string) => {

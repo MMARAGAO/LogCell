@@ -577,13 +577,16 @@ export default function CaixaPage() {
           const tipo =
             mov.tipo.replace("_", " ").toUpperCase() + formaPagamento;
 
-          // Adicionar indicação de crédito para devoluções
+          // Adicionar indicação de crédito e forma de pagamento para devoluções
           let descricao = mov.descricao || "-";
           if (mov.tipo === "devolucao") {
             const creditoInfo = mov.gerou_credito
               ? " [COM CRÉDITO]"
               : " [SEM CRÉDITO]";
-            descricao = descricao + creditoInfo;
+            const formaPgto = mov.forma_pagamento
+              ? ` (${mov.forma_pagamento.toUpperCase()})`
+              : "";
+            descricao = descricao + creditoInfo + formaPgto;
           }
 
           return [
@@ -617,13 +620,16 @@ export default function CaixaPage() {
           const tipo =
             mov.tipo.replace("_", " ").toUpperCase() + formaPagamento;
 
-          // Adicionar indicação de crédito para devoluções
+          // Adicionar indicação de crédito e forma de pagamento para devoluções
           let descricao = mov.descricao || "-";
           if (mov.tipo === "devolucao") {
             const creditoInfo = mov.gerou_credito
               ? " [COM CRÉDITO]"
               : " [SEM CRÉDITO]";
-            descricao = descricao + creditoInfo;
+            const formaPgto = mov.forma_pagamento
+              ? ` (${mov.forma_pagamento.toUpperCase()})`
+              : "";
+            descricao = descricao + creditoInfo + formaPgto;
           }
 
           return [
@@ -1520,13 +1526,32 @@ export default function CaixaPage() {
                                     Gerou Crédito
                                   </Chip>
                                 )}
-                                {mov.usou_credito && (
+                                {mov.tipo === "devolucao" &&
+                                  mov.forma_pagamento && (
+                                    <Chip
+                                      size="sm"
+                                      color="primary"
+                                      variant="flat"
+                                    >
+                                      {mov.forma_pagamento === "dinheiro" &&
+                                        "💵 Dinheiro"}
+                                      {mov.forma_pagamento === "pix" &&
+                                        "📱 PIX"}
+                                      {mov.forma_pagamento === "debito" &&
+                                        "💳 Débito"}
+                                      {mov.forma_pagamento === "credito" &&
+                                        "💳 Crédito"}
+                                      {mov.forma_pagamento === "credito_loja" &&
+                                        "🎁 Crédito Loja"}
+                                    </Chip>
+                                  )}
+                                {mov.eh_credito_cliente && (
                                   <Chip
                                     size="sm"
                                     color="secondary"
                                     variant="flat"
                                   >
-                                    Usou Crédito
+                                    🎁 Usou Crédito (não soma no caixa)
                                   </Chip>
                                 )}
                               </div>
@@ -1556,10 +1581,21 @@ export default function CaixaPage() {
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-sm capitalize">
-                                  {mov.forma_pagamento?.replace("_", " ") ||
-                                    "-"}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm capitalize">
+                                    {mov.forma_pagamento?.replace("_", " ") ||
+                                      "-"}
+                                  </span>
+                                  {mov.eh_credito_cliente && (
+                                    <Chip
+                                      size="sm"
+                                      color="warning"
+                                      variant="flat"
+                                    >
+                                      ⚠️ Não soma no caixa
+                                    </Chip>
+                                  )}
+                                </div>
                               )}
                             </TableCell>
                             <TableCell>

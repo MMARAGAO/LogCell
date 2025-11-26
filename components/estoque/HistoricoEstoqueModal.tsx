@@ -51,20 +51,33 @@ export default function HistoricoEstoqueModal({
     }
   };
 
-  const getIconeAlteracao = (quantidadeAlterada?: number) => {
-    if (!quantidadeAlterada) return null;
-    if (quantidadeAlterada > 0) {
+  const getIconeAlteracao = (item: HistoricoEstoqueCompleto) => {
+    if (
+      item.quantidade_anterior === undefined ||
+      item.quantidade_nova === undefined
+    )
+      return null;
+    const alteracao = item.quantidade_nova - item.quantidade_anterior;
+    if (alteracao > 0) {
       return <ArrowUpCircleIcon className="w-5 h-5 text-success" />;
-    } else {
+    } else if (alteracao < 0) {
       return <ArrowDownCircleIcon className="w-5 h-5 text-danger" />;
     }
+    return null;
   };
 
   const getCorAlteracao = (
-    quantidadeAlterada?: number
+    item: HistoricoEstoqueCompleto
   ): "success" | "danger" | "default" => {
-    if (!quantidadeAlterada) return "default";
-    return quantidadeAlterada > 0 ? "success" : "danger";
+    if (
+      item.quantidade_anterior === undefined ||
+      item.quantidade_nova === undefined
+    )
+      return "default";
+    const alteracao = item.quantidade_nova - item.quantidade_anterior;
+    if (alteracao > 0) return "success";
+    if (alteracao < 0) return "danger";
+    return "default";
   };
 
   const formatarData = (data: string) => {
@@ -75,6 +88,31 @@ export default function HistoricoEstoqueModal({
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const getTipoMovimentacao = (tipo?: string) => {
+    const tipos: Record<
+      string,
+      {
+        label: string;
+        color: "success" | "danger" | "warning" | "primary" | "default";
+      }
+    > = {
+      venda: { label: "Venda", color: "danger" },
+      devolucao_venda: { label: "Devolução", color: "success" },
+      entrada: { label: "Entrada", color: "success" },
+      ajuste: { label: "Ajuste", color: "warning" },
+      transferencia_saida: { label: "Transferência (Saída)", color: "danger" },
+      transferencia_entrada: {
+        label: "Transferência (Entrada)",
+        color: "success",
+      },
+      ordem_servico: { label: "Ordem de Serviço", color: "primary" },
+      quebra: { label: "Quebra", color: "danger" },
+    };
+    return (
+      tipos[tipo || "ajuste"] || { label: tipo || "Ajuste", color: "default" }
+    );
   };
 
   return (
@@ -101,20 +139,44 @@ export default function HistoricoEstoqueModal({
                   <div className="flex items-start justify-between gap-4">
                     {/* Ícone e Informações */}
                     <div className="flex items-center gap-3 flex-1">
-                      {getIconeAlteracao(item.quantidade_alterada)}
+                      {getIconeAlteracao(item)}
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
+                          {/* Tipo de Movimentação */}
+                          {item.tipo_movimentacao &&
+                            (() => {
+                              const tipo = getTipoMovimentacao(
+                                item.tipo_movimentacao
+                              );
+                              return (
+                                <Chip
+                                  color={tipo.color}
+                                  variant="flat"
+                                  size="sm"
+                                  className="font-semibold"
+                                >
+                                  {tipo.label}
+                                </Chip>
+                              );
+                            })()}
+
                           {/* Alteração de Quantidade */}
-                          {item.quantidade_alterada !== undefined && (
-                            <Chip
-                              color={getCorAlteracao(item.quantidade_alterada)}
-                              variant="flat"
-                              size="sm"
-                            >
-                              {item.quantidade_alterada > 0 ? "+" : ""}
-                              {item.quantidade_alterada}
-                            </Chip>
-                          )}
+                          {item.quantidade_anterior !== undefined &&
+                            item.quantidade_nova !== undefined &&
+                            (() => {
+                              const alteracao =
+                                item.quantidade_nova - item.quantidade_anterior;
+                              return alteracao !== 0 ? (
+                                <Chip
+                                  color={getCorAlteracao(item)}
+                                  variant="flat"
+                                  size="sm"
+                                >
+                                  {alteracao > 0 ? "+" : ""}
+                                  {alteracao}
+                                </Chip>
+                              ) : null;
+                            })()}
 
                           {/* Data */}
                           <span className="text-sm text-default-500">
@@ -144,6 +206,14 @@ export default function HistoricoEstoqueModal({
                               </span>
                             </p>
                           )}
+
+                        {/* Motivo */}
+                        {item.motivo && (
+                          <p className="text-sm text-default-600 mt-1">
+                            <span className="font-semibold">Motivo:</span>{" "}
+                            {item.motivo}
+                          </p>
+                        )}
 
                         {/* Observação */}
                         {item.observacao && (

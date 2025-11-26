@@ -240,10 +240,11 @@ export default function TransferenciaModal({
           `
           id_produto,
           quantidade,
-          produto:produtos(descricao, marca, modelos, preco_venda)
+          produto:produtos!inner(descricao, marca, modelos, preco_venda, ativo)
         `
         )
         .eq("id_loja", idLoja)
+        .eq("produto.ativo", true)
         .gt("quantidade", 0); // Apenas produtos com estoque
 
       if (error) throw error;

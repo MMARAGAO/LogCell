@@ -34,14 +34,14 @@ export class VendasService {
   }): Promise<{ success: boolean; venda?: Venda; error?: string }> {
     try {
       // Gera número da venda
-      const { data: ultimaVenda } = await supabase
+      const { data: vendas } = await supabase
         .from("vendas")
         .select("numero_venda")
         .order("criado_em", { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      const numeroVenda = ultimaVenda ? ultimaVenda.numero_venda + 1 : 1;
+      const numeroVenda =
+        vendas && vendas.length > 0 ? vendas[0].numero_venda + 1 : 1;
 
       const { data, error } = await supabase
         .from("vendas")
@@ -512,7 +512,9 @@ export class VendasService {
       const valorPago =
         pagamentos?.reduce((sum, pag) => sum + pag.valor, 0) || 0;
 
-      const saldoDevedor = valorTotal - valorDesconto - valorPago;
+      // Calcular valor total APÓS desconto
+      const valorTotalComDesconto = valorTotal - valorDesconto;
+      const saldoDevedor = valorTotalComDesconto - valorPago;
 
       // Determinar status da venda
       let novoStatus = venda?.status;
@@ -523,8 +525,9 @@ export class VendasService {
       }
 
       console.log("📊 Totais calculados:", {
-        valorTotal,
+        subtotalItens: valorTotal,
         valorDesconto,
+        valorTotalComDesconto,
         valorPago,
         saldoDevedor,
         novoStatus,
@@ -534,7 +537,7 @@ export class VendasService {
       const { error: erroUpdate } = await supabase
         .from("vendas")
         .update({
-          valor_total: valorTotal,
+          valor_total: valorTotalComDesconto, // CORRIGIDO: valor após desconto
           valor_desconto: valorDesconto,
           valor_pago: valorPago,
           saldo_devedor: saldoDevedor,
@@ -599,20 +602,48 @@ export class VendasService {
         return { success: false, error: "Venda já está cancelada" };
       }
 
-      // Buscar itens da venda para devolver estoque
+      // Buscar itens da venda com suas devoluções
       const { data: itens } = await supabase
         .from("itens_venda")
-        .select("produto_id, quantidade")
+        .select(
+          `
+          id,
+          produto_id, 
+          quantidade,
+          itens_devolucao:itens_devolucao(quantidade)
+        `
+        )
         .eq("venda_id", vendaId);
 
       console.log("🔍 Itens da venda para devolver estoque:", itens);
 
-      // Devolver estoque de cada item
+      // Devolver estoque de cada item (apenas o que NÃO foi devolvido)
       if (itens && itens.length > 0) {
         for (const item of itens) {
+          // Calcular quanto já foi devolvido deste item
+          const quantidadeDevolvida =
+            item.itens_devolucao?.reduce(
+              (total: number, dev: any) => total + (dev.quantidade || 0),
+              0
+            ) || 0;
+
+          // Calcular quanto ainda precisa ser devolvido
+          const quantidadeADevolver = item.quantidade - quantidadeDevolvida;
+
           console.log(
-            `📦 Devolvendo produto ${item.produto_id}, quantidade: ${item.quantidade}`
+            `📦 Produto ${item.produto_id}:`,
+            `Total: ${item.quantidade},`,
+            `Já devolvido: ${quantidadeDevolvida},`,
+            `A devolver: ${quantidadeADevolver}`
           );
+
+          // Se já devolveu tudo, pula este item
+          if (quantidadeADevolver <= 0) {
+            console.log(
+              `⏭️ Produto ${item.produto_id} já foi totalmente devolvido, pulando...`
+            );
+            continue;
+          }
 
           // Buscar estoque atual
           const { data: estoqueAtual, error: errorEstoque } = await supabase
@@ -628,13 +659,18 @@ export class VendasService {
           );
 
           if (estoqueAtual) {
-            const novaQuantidade = estoqueAtual.quantidade + item.quantidade;
+            const novaQuantidade =
+              estoqueAtual.quantidade + quantidadeADevolver;
             console.log(`➕ Nova quantidade será: ${novaQuantidade}`);
 
             // Devolver ao estoque
             const { error: errorUpdate } = await supabase
               .from("estoque_lojas")
-              .update({ quantidade: novaQuantidade })
+              .update({
+                quantidade: novaQuantidade,
+                atualizado_por: usuarioId,
+                atualizado_em: new Date().toISOString(),
+              })
               .eq("id_produto", item.produto_id)
               .eq("id_loja", venda.loja_id);
 
@@ -642,7 +678,7 @@ export class VendasService {
               console.error("❌ Erro ao atualizar estoque:", errorUpdate);
             } else {
               console.log(
-                `✅ Estoque devolvido com sucesso para produto ${item.produto_id}`
+                `✅ Estoque devolvido com sucesso para produto ${item.produto_id}: +${quantidadeADevolver}`
               );
             }
           } else {
@@ -654,11 +690,15 @@ export class VendasService {
         }
       }
 
-      // Atualizar status da venda
+      // Atualizar status da venda e zerar valores
       console.log("🔄 Atualizando status da venda para 'cancelada'...");
       const { data: vendaAtualizada, error } = await supabase
         .from("vendas")
-        .update({ status: "cancelada" })
+        .update({
+          status: "cancelada",
+          valor_pago: 0,
+          saldo_devedor: 0,
+        })
         .eq("id", vendaId)
         .select()
         .single();
@@ -674,6 +714,32 @@ export class VendasService {
         status_novo: vendaAtualizada.status,
         atualizado_em: vendaAtualizada.atualizado_em,
       });
+
+      // Remover pagamentos da venda cancelada
+      console.log("🗑️ Removendo pagamentos da venda cancelada...");
+      const { error: errorPagamentos } = await supabase
+        .from("pagamentos_venda")
+        .delete()
+        .eq("venda_id", vendaId);
+
+      if (errorPagamentos) {
+        console.error("❌ Erro ao remover pagamentos:", errorPagamentos);
+      } else {
+        console.log("✅ Pagamentos removidos com sucesso!");
+      }
+
+      // Remover sangrias relacionadas à venda cancelada
+      console.log("🗑️ Removendo sangrias relacionadas à venda...");
+      const { error: errorSangrias } = await supabase
+        .from("sangrias_caixa")
+        .delete()
+        .eq("venda_id", vendaId);
+
+      if (errorSangrias) {
+        console.error("❌ Erro ao remover sangrias:", errorSangrias);
+      } else {
+        console.log("✅ Sangrias removidas com sucesso!");
+      }
 
       // Registrar no histórico
       await this.registrarHistorico({
@@ -709,7 +775,7 @@ export class VendasService {
         quantidade: number;
         preco_unitario: number;
         subtotal: number;
-        desconto_tipo?: "valor" | "porcentagem";
+        desconto_tipo?: "valor" | "percentual";
         desconto_valor?: number;
         valor_desconto?: number;
       }>;
@@ -797,6 +863,7 @@ export class VendasService {
               .update({
                 quantidade: estoqueAtual.quantidade + itemAntigo.quantidade,
                 atualizado_por: usuarioId,
+                atualizado_em: new Date().toISOString(),
               })
               .eq("id_produto", itemAntigo.produto_id)
               .eq("id_loja", vendaAtual.loja_id);
@@ -806,9 +873,9 @@ export class VendasService {
               id_produto: itemAntigo.produto_id,
               id_loja: vendaAtual.loja_id,
               usuario_id: usuarioId,
+              quantidade: itemAntigo.quantidade,
               quantidade_anterior: estoqueAtual.quantidade,
               quantidade_nova: estoqueAtual.quantidade + itemAntigo.quantidade,
-              quantidade_alterada: itemAntigo.quantidade,
               tipo_movimentacao: "devolucao_edicao_venda",
               motivo: `Devolução ao estoque por remoção de item da venda ${vendaAtual.numero_venda}`,
             });
@@ -856,6 +923,7 @@ export class VendasService {
             .update({
               quantidade: estoqueAtual.quantidade - itemNovo.quantidade,
               atualizado_por: usuarioId,
+              atualizado_em: new Date().toISOString(),
             })
             .eq("id_produto", itemNovo.produto_id)
             .eq("id_loja", vendaAtual.loja_id);
@@ -879,9 +947,9 @@ export class VendasService {
             id_produto: itemNovo.produto_id,
             id_loja: vendaAtual.loja_id,
             usuario_id: usuarioId,
+            quantidade: itemNovo.quantidade,
             quantidade_anterior: estoqueAtual.quantidade,
             quantidade_nova: estoqueAtual.quantidade - itemNovo.quantidade,
-            quantidade_alterada: -itemNovo.quantidade,
             tipo_movimentacao: "baixa_edicao_venda",
             motivo: `Baixa de estoque por adição de item na venda ${vendaAtual.numero_venda}`,
           });
@@ -967,6 +1035,7 @@ export class VendasService {
               .update({
                 quantidade: estoqueAtual.quantidade - diferenca,
                 atualizado_por: usuarioId,
+                atualizado_em: new Date().toISOString(),
               })
               .eq("id_produto", itemNovo.produto_id)
               .eq("id_loja", vendaAtual.loja_id);
@@ -990,9 +1059,9 @@ export class VendasService {
               id_produto: itemNovo.produto_id,
               id_loja: vendaAtual.loja_id,
               usuario_id: usuarioId,
+              quantidade: diferenca,
               quantidade_anterior: estoqueAtual.quantidade,
               quantidade_nova: estoqueAtual.quantidade - diferenca,
-              quantidade_alterada: -diferenca,
               tipo_movimentacao:
                 diferenca > 0 ? "baixa_edicao_venda" : "devolucao_edicao_venda",
               motivo: `Ajuste de estoque por alteração de quantidade na venda ${vendaAtual.numero_venda} (de ${itemAntigo.quantidade} para ${itemNovo.quantidade})`,
@@ -1242,6 +1311,8 @@ export class VendasService {
                 .from("estoque_lojas")
                 .update({
                   quantidade: estoqueAtual.quantidade - item.quantidade,
+                  atualizado_por: usuarioId,
+                  atualizado_em: new Date().toISOString(),
                 })
                 .eq("id_produto", item.produto_id)
                 .eq("id_loja", venda.loja_id);
@@ -1269,6 +1340,8 @@ export class VendasService {
                   .update({
                     quantidade:
                       estoqueAtual.quantidade + itemOriginal.quantidade,
+                    atualizado_por: usuarioId,
+                    atualizado_em: new Date().toISOString(),
                   })
                   .eq("id_produto", itemOriginal.produto_id)
                   .eq("id_loja", venda.loja_id);
@@ -1301,6 +1374,8 @@ export class VendasService {
                   .from("estoque_lojas")
                   .update({
                     quantidade: estoqueAtual.quantidade - diferenca,
+                    atualizado_por: usuarioId,
+                    atualizado_em: new Date().toISOString(),
                   })
                   .eq("id_produto", item.produto_id)
                   .eq("id_loja", venda.loja_id);
@@ -1430,7 +1505,8 @@ export class VendasService {
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           pagamentos:pagamentos_venda(id, valor, tipo_pagamento, criado_em),
-          itens:itens_venda(id, produto_id, quantidade, preco_unitario, subtotal, devolvido)
+          itens:itens_venda(id, produto_id, quantidade, preco_unitario, subtotal, devolvido),
+          devolucoes:devolucoes_venda(id)
         `
         )
         .order("criado_em", { ascending: false });
@@ -1532,6 +1608,8 @@ export class VendasService {
             .from("estoque_lojas")
             .update({
               quantidade: estoqueAtual.quantidade + itemAntigo.quantidade,
+              atualizado_por: usuarioId,
+              atualizado_em: new Date().toISOString(),
             })
             .eq("id_produto", itemAntigo.produto_id)
             .eq("id_loja", vendaAtual.loja_id);
@@ -1632,6 +1710,7 @@ export class VendasService {
       preco_unitario: number;
     }>;
     gerar_credito: boolean;
+    forma_pagamento: string;
     motivo: string;
     usuario_id: string;
   }): Promise<{
@@ -1655,11 +1734,41 @@ export class VendasService {
         throw new Error("Apenas vendas concluídas podem ter devolução");
       }
 
-      // Calcular valor total da devolução
-      const valorDevolvido = dados.itens.reduce(
+      // Calcular valor total da devolução (subtotal dos itens)
+      const subtotalItens = dados.itens.reduce(
         (total, item) => total + item.quantidade * item.preco_unitario,
         0
       );
+
+      console.log("💰 Subtotal dos itens devolvidos:", subtotalItens);
+      console.log(
+        "💰 Venda - desconto:",
+        venda.valor_desconto,
+        "total:",
+        venda.valor_total
+      );
+
+      // Aplicar desconto proporcional se a venda teve desconto
+      let valorDevolvido = subtotalItens;
+      if (venda.valor_desconto > 0 && venda.valor_total > 0) {
+        const percentualDesconto = venda.valor_desconto / venda.valor_total;
+        const descontoProporcional = subtotalItens * percentualDesconto;
+        valorDevolvido = subtotalItens - descontoProporcional;
+
+        console.log("💰 Cálculo da devolução COM DESCONTO:", {
+          subtotalItens,
+          descontoVenda: venda.valor_desconto,
+          totalVenda: venda.valor_total,
+          percentualDesconto: (percentualDesconto * 100).toFixed(2) + "%",
+          descontoProporcional,
+          valorFinalDevolvido: valorDevolvido,
+        });
+      } else {
+        console.log("💰 Cálculo da devolução SEM DESCONTO:", {
+          subtotalItens,
+          valorFinalDevolvido: valorDevolvido,
+        });
+      }
 
       // Criar registro de devolução
       const { data: devolucao, error: erroDevolucao } = await supabase
@@ -1668,6 +1777,7 @@ export class VendasService {
           venda_id: dados.venda_id,
           tipo: dados.gerar_credito ? "com_credito" : "sem_credito",
           valor_total: valorDevolvido,
+          forma_pagamento: dados.forma_pagamento,
           motivo: dados.motivo,
           realizado_por: dados.usuario_id,
         })
@@ -1750,7 +1860,15 @@ export class VendasService {
 
       // Gerar crédito se solicitado
       if (dados.gerar_credito) {
-        const { error: erroCredito } = await supabase
+        console.log("💳 Gerando crédito:", {
+          cliente_id: venda.cliente_id,
+          venda_origem_id: dados.venda_id,
+          devolucao_id: devolucao.id,
+          valor_total: valorDevolvido,
+          saldo: valorDevolvido,
+        });
+
+        const { data: creditoData, error: erroCredito } = await supabase
           .from("creditos_cliente")
           .insert({
             cliente_id: venda.cliente_id,
@@ -1762,9 +1880,16 @@ export class VendasService {
             saldo: valorDevolvido,
             motivo: `Devolução de produtos - ${dados.motivo}`,
             gerado_por: dados.usuario_id,
-          });
+          })
+          .select()
+          .single();
 
-        if (erroCredito) throw erroCredito;
+        if (erroCredito) {
+          console.error("❌ Erro ao criar crédito:", erroCredito);
+          throw erroCredito;
+        }
+
+        console.log("✅ Crédito criado com sucesso:", creditoData);
       }
 
       // Registrar no histórico

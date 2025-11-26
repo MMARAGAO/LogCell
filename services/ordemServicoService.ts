@@ -354,7 +354,7 @@ export async function buscarPecasOS(idOrdemServico: string) {
 }
 
 /**
- * Adicionar peça à OS (trigger reserva estoque automaticamente)
+ * Adicionar peça à OS com controle de estoque direto (sem trigger)
  */
 export async function adicionarPecaOS(
   dados: OrdemServicoPecaFormData,
@@ -370,22 +370,78 @@ export async function adicionarPecaOS(
       throw new Error("Produto é obrigatório para tipo estoque");
     }
 
-    // Buscar descrição do produto se for do estoque
+    // Buscar descrição do produto e verificar estoque se for do estoque
     let descricaoPeca = dados.descricao_peca || "";
+    let quantidadeMinima = 5;
+
     if (dados.tipo_produto === "estoque" && dados.id_produto) {
       const { data: produto } = await supabase
         .from("produtos")
-        .select("descricao")
+        .select("descricao, quantidade_minima")
         .eq("id", dados.id_produto)
         .single();
 
       if (produto) {
         descricaoPeca = produto.descricao;
+        quantidadeMinima = produto.quantidade_minima || 5;
+      }
+
+      // VERIFICAR E BAIXAR ESTOQUE MANUALMENTE (como em vendas)
+      const { data: estoqueAtual } = await supabase
+        .from("estoque_lojas")
+        .select("quantidade")
+        .eq("id_produto", dados.id_produto)
+        .eq("id_loja", dados.id_loja)
+        .single();
+
+      if (!estoqueAtual) {
+        throw new Error("Produto não encontrado no estoque desta loja");
+      }
+
+      if (estoqueAtual.quantidade < dados.quantidade) {
+        throw new Error(
+          `Estoque insuficiente! Disponível: ${estoqueAtual.quantidade}, Necessário: ${dados.quantidade}`
+        );
+      }
+
+      // Baixar do estoque
+      const novaQuantidade = estoqueAtual.quantidade - dados.quantidade;
+      const { error: erroEstoque } = await supabase
+        .from("estoque_lojas")
+        .update({
+          quantidade: novaQuantidade,
+          atualizado_em: new Date().toISOString(),
+          atualizado_por: userId,
+        })
+        .eq("id_produto", dados.id_produto)
+        .eq("id_loja", dados.id_loja);
+
+      if (erroEstoque) throw erroEstoque;
+
+      // Registrar no histórico de estoque
+      const { error: erroHistorico } = await supabase
+        .from("historico_estoque")
+        .insert({
+          id_produto: dados.id_produto,
+          id_loja: dados.id_loja,
+          tipo_movimentacao: "saida",
+          quantidade: dados.quantidade,
+          quantidade_anterior: estoqueAtual.quantidade,
+          quantidade_nova: novaQuantidade,
+          quantidade_alterada: dados.quantidade,
+          motivo: "ordem_servico",
+          observacao: `Saída para OS - ${descricaoPeca}`,
+          usuario_id: userId,
+          id_ordem_servico: dados.id_ordem_servico,
+        });
+
+      if (erroHistorico) {
+        console.error("Erro ao registrar histórico de estoque:", erroHistorico);
+        // Não falhar a operação por causa do histórico
       }
     }
 
     // Calcular valor total
-    // Nota: O trigger do banco verificará automaticamente o estoque disponível
     const valorTotal = dados.quantidade * dados.valor_venda;
 
     const { data, error } = await supabase
@@ -402,7 +458,9 @@ export async function adicionarPecaOS(
         valor_total: valorTotal,
         observacao: dados.observacao,
         criado_por: userId,
-        // estoque_baixado será setado pelo trigger automaticamente
+        estoque_baixado: dados.tipo_produto === "estoque",
+        data_baixa_estoque:
+          dados.tipo_produto === "estoque" ? new Date().toISOString() : null,
       })
       .select(
         `
@@ -414,7 +472,7 @@ export async function adicionarPecaOS(
 
     if (error) throw error;
 
-    // Registrar no histórico
+    // Registrar no histórico da OS
     const tipoProdutoLabel =
       dados.tipo_produto === "estoque" ? "do estoque" : "avulso";
     await registrarHistoricoOS(
@@ -448,7 +506,7 @@ export async function removerPecaOS(id: string, userId: string) {
     }
 
     // Se o estoque já foi baixado, devolver
-    if (peca.estoque_baixado) {
+    if (peca.estoque_baixado && peca.tipo_produto === "estoque") {
       // Buscar estoque atual
       const { data: estoqueAtual } = await supabase
         .from("estoque_lojas")
@@ -458,24 +516,32 @@ export async function removerPecaOS(id: string, userId: string) {
         .single();
 
       if (estoqueAtual) {
+        const novaQuantidade = estoqueAtual.quantidade + peca.quantidade;
+
         await supabase
           .from("estoque_lojas")
           .update({
-            quantidade: estoqueAtual.quantidade + peca.quantidade,
+            quantidade: novaQuantidade,
+            atualizado_por: userId,
+            atualizado_em: new Date().toISOString(),
           })
           .eq("id_produto", peca.id_produto)
           .eq("id_loja", peca.id_loja);
-      }
 
-      // Registrar no histórico de estoque
-      await supabase.from("historico_estoque").insert({
-        id_produto: peca.id_produto,
-        id_loja: peca.id_loja,
-        tipo_movimentacao: "entrada",
-        quantidade: peca.quantidade,
-        observacao: `Devolução por remoção de peça da OS`,
-        criado_por: userId,
-      });
+        // Registrar no histórico de estoque
+        await supabase.from("historico_estoque").insert({
+          id_produto: peca.id_produto,
+          id_loja: peca.id_loja,
+          tipo_movimentacao: "entrada",
+          quantidade: peca.quantidade,
+          quantidade_anterior: estoqueAtual.quantidade,
+          quantidade_nova: novaQuantidade,
+          quantidade_alterada: peca.quantidade,
+          motivo: "ordem_servico",
+          observacao: `Devolução por remoção de peça da OS`,
+          usuario_id: userId,
+        });
+      }
     }
 
     // Deletar peça

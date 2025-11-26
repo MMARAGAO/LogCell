@@ -23,6 +23,12 @@ export interface MetricasPrincipais {
   novos_clientes: number;
 
   caixas_abertos: number;
+
+  vendas_fiadas: number;
+  vendas_fiadas_periodo_anterior: number;
+  variacao_vendas_fiadas: number;
+  valor_vendas_fiadas: number;
+  valor_vendas_fiadas_periodo_anterior: number;
 }
 
 export interface VendasPorDia {
@@ -160,6 +166,21 @@ export interface QuebraPeca {
   dias_pendente: number;
 }
 
+export interface VendaFiada {
+  id: string;
+  numero_venda: string;
+  cliente_nome: string;
+  vendedor_nome: string;
+  loja_nome: string;
+  valor_total: number;
+  valor_pago: number;
+  valor_pendente: number;
+  criado_em: string;
+  finalizado_em: string | null;
+  dias_em_aberto: number;
+  status_pagamento: "em_dia" | "atrasado" | "muito_atrasado";
+}
+
 export interface DadosDashboard {
   metricas: MetricasPrincipais;
   vendas_por_dia: VendasPorDia[];
@@ -173,6 +194,7 @@ export interface DadosDashboard {
   pecas_mais_usadas: PecaMaisUsada[];
   giro_estoque: GiroEstoque[];
   faturamento_mensal: FaturamentoMensal[];
+  vendas_fiadas_detalhadas: VendaFiada[];
   alertas: {
     produtos_estoque_baixo: ProdutoEstoqueBaixo[];
     os_atrasadas: OSAtrasada[];
@@ -191,6 +213,13 @@ export interface DadosDashboard {
     quebras_total_valor: number;
     quebras_total_quantidade: number;
     quebras_pendentes_aprovacao: number;
+    // Novas métricas
+    transferencias_pendentes: number;
+    valor_transferencias_pendentes: number;
+    devolucoes_mes: number;
+    valor_devolucoes_mes: number;
+    movimentacoes_caixa_dia: number;
+    valor_movimentacoes_caixa_dia: number;
   };
 }
 

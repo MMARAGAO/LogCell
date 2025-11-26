@@ -196,7 +196,7 @@ export function CarrinhoVenda({
                         <div className="flex items-center gap-1 px-2 py-0.5 bg-success-50 rounded">
                           <span className="text-xs text-success-700">
                             Desc:{" "}
-                            {item.desconto.tipo === "porcentagem"
+                            {item.desconto.tipo === "percentual"
                               ? `${item.desconto.valor}%`
                               : formatarMoeda(item.desconto.valor)}
                           </span>

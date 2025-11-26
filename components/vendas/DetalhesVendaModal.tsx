@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Modal,
   ModalContent,
@@ -31,9 +31,11 @@ import {
   Building2,
   Receipt,
   RefreshCw,
+  ArrowRightLeft,
 } from "lucide-react";
 import type { VendaCompleta } from "@/types/vendas";
 import { TrocarProdutoModal } from "./TrocarProdutoModal";
+import { supabase } from "@/lib/supabaseClient";
 
 interface DetalhesVendaModalProps {
   isOpen: boolean;
@@ -50,6 +52,39 @@ export function DetalhesVendaModal({
 }: DetalhesVendaModalProps) {
   const [trocaModalOpen, setTrocaModalOpen] = useState(false);
   const [itemSelecionado, setItemSelecionado] = useState<any>(null);
+  const [trocas, setTrocas] = useState<any[]>([]);
+  const [loadingTrocas, setLoadingTrocas] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && venda) {
+      carregarTrocas();
+    }
+  }, [isOpen, venda?.id]);
+
+  const carregarTrocas = async () => {
+    if (!venda) return;
+
+    setLoadingTrocas(true);
+    try {
+      const { data, error } = await supabase
+        .from("trocas_produtos")
+        .select(
+          `
+          *,
+          usuario:usuarios(nome)
+        `
+        )
+        .eq("venda_id", venda.id)
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+      setTrocas(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar trocas:", error);
+    } finally {
+      setLoadingTrocas(false);
+    }
+  };
 
   if (!venda) return null;
 
@@ -61,19 +96,40 @@ export function DetalhesVendaModal({
   };
 
   const formatarData = (data: string) => {
-    // PostgreSQL now() retorna UTC mas timestamp without timezone não indica isso
-    // Supabase retorna como '2025-11-14T20:28:04' (que é UTC)
-    // Adiciona 'Z' para indicar que é UTC e deixar o JavaScript converter para local
-    const dataUTC = data.endsWith("Z") ? data : data + "Z";
-    const dataLocal = new Date(dataUTC);
+    if (!data) return "Data não disponível";
 
-    return dataLocal.toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    try {
+      // Remove timezone se tiver e cria data diretamente
+      // Formato do banco: "2025-11-25 18:44:11.953503+00"
+      // ou "2025-11-25T18:44:11.953503Z"
+      let dataString = data.replace(" ", "T"); // Substitui espaço por T
+
+      // Se terminar com +00, substitui por Z
+      if (dataString.includes("+")) {
+        dataString = dataString.split("+")[0] + "Z";
+      } else if (!dataString.endsWith("Z")) {
+        dataString = dataString + "Z";
+      }
+
+      const dataLocal = new Date(dataString);
+
+      // Verifica se a data é válida
+      if (isNaN(dataLocal.getTime())) {
+        console.error("Data inválida:", data);
+        return "Data inválida";
+      }
+
+      return dataLocal.toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      console.error("Erro ao formatar data:", data, error);
+      return "Data inválida";
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -198,7 +254,7 @@ export function DetalhesVendaModal({
                         {item.desconto_valor && item.desconto_valor > 0 && (
                           <Chip size="sm" color="warning" variant="flat">
                             Desconto:{" "}
-                            {item.desconto_tipo === "porcentagem"
+                            {item.desconto_tipo === "percentual"
                               ? `${item.desconto_valor}%`
                               : formatarMoeda(item.desconto_valor)}
                           </Chip>
@@ -369,6 +425,175 @@ export function DetalhesVendaModal({
                         <p className="font-bold text-success">
                           {formatarMoeda(pagamento.valor)}
                         </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Trocas de Produtos */}
+          {trocas.length > 0 && (
+            <Card className="mt-4">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5" />
+                  Trocas de Produtos
+                </h3>
+                <div className="space-y-3">
+                  {trocas.map((troca: any, index: number) => {
+                    const getTipoReembolsoLabel = () => {
+                      if (!troca.tipo_reembolso) return "";
+                      if (troca.tipo_reembolso === "credito") {
+                        return "Crédito gerado";
+                      }
+                      if (
+                        troca.tipo_reembolso === "manual" &&
+                        troca.forma_pagamento_reembolso
+                      ) {
+                        const formas: Record<string, string> = {
+                          dinheiro: "Dinheiro",
+                          pix: "PIX",
+                          transferencia: "Transferência",
+                          cartao_debito: "Cartão Débito",
+                          cartao_credito: "Cartão Crédito",
+                        };
+                        return `Reembolso: ${formas[troca.forma_pagamento_reembolso] || troca.forma_pagamento_reembolso}`;
+                      }
+                      return "";
+                    };
+
+                    const getTipoReembolsoColor = () => {
+                      if (troca.tipo_reembolso === "credito") return "primary";
+                      return "success";
+                    };
+
+                    return (
+                      <div
+                        key={index}
+                        className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3"
+                      >
+                        {/* Cabeçalho da troca */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <ArrowRightLeft className="w-5 h-5 text-blue-500" />
+                            <div>
+                              <p className="font-medium text-sm">
+                                Troca realizada
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {troca.criado_em
+                                  ? formatarData(troca.criado_em)
+                                  : "Data não disponível"}
+                                {troca.usuario && (
+                                  <span className="ml-2">
+                                    • {troca.usuario.nome}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <Chip size="sm" variant="flat">
+                            {troca.quantidade_trocada}un
+                          </Chip>
+                        </div>
+
+                        {/* Produtos */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Produto devolvido */}
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-semibold">
+                              DEVOLVIDO
+                            </p>
+                            <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
+                              <p className="text-sm font-medium line-clamp-2">
+                                {troca.produto_antigo_nome}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {troca.quantidade_trocada}x{" "}
+                                {formatarMoeda(troca.produto_antigo_preco)}
+                              </p>
+                              <p className="text-sm font-bold text-red-600 mt-1">
+                                {formatarMoeda(
+                                  troca.produto_antigo_preco *
+                                    troca.quantidade_trocada
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Produto recebido */}
+                          <div className="space-y-1">
+                            <p className="text-xs text-gray-500 font-semibold">
+                              RECEBIDO
+                            </p>
+                            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
+                              <p className="text-sm font-medium line-clamp-2">
+                                {troca.produto_novo_nome}
+                              </p>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {troca.quantidade_trocada}x{" "}
+                                {formatarMoeda(troca.produto_novo_preco)}
+                              </p>
+                              <p className="text-sm font-bold text-green-600 mt-1">
+                                {formatarMoeda(
+                                  troca.produto_novo_preco *
+                                    troca.quantidade_trocada
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Diferença e reembolso */}
+                        <Divider />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">
+                              Diferença:
+                            </span>
+                            {troca.diferenca_valor > 0 ? (
+                              <Chip color="warning" size="sm" variant="flat">
+                                Cliente pagou{" "}
+                                {formatarMoeda(Math.abs(troca.diferenca_valor))}
+                              </Chip>
+                            ) : troca.diferenca_valor < 0 ? (
+                              <Chip
+                                color={getTipoReembolsoColor()}
+                                size="sm"
+                                variant="flat"
+                              >
+                                {formatarMoeda(Math.abs(troca.diferenca_valor))}
+                              </Chip>
+                            ) : (
+                              <Chip color="default" size="sm" variant="flat">
+                                Sem diferença
+                              </Chip>
+                            )}
+                          </div>
+                          {troca.diferenca_valor < 0 &&
+                            getTipoReembolsoLabel() && (
+                              <Chip
+                                color={getTipoReembolsoColor()}
+                                size="sm"
+                                variant="bordered"
+                              >
+                                {getTipoReembolsoLabel()}
+                              </Chip>
+                            )}
+                        </div>
+
+                        {/* Observação */}
+                        {troca.observacao && (
+                          <>
+                            <Divider />
+                            <div className="text-xs text-gray-600">
+                              <span className="font-semibold">Obs:</span>{" "}
+                              {troca.observacao}
+                            </div>
+                          </>
+                        )}
                       </div>
                     );
                   })}

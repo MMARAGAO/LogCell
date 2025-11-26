@@ -276,9 +276,14 @@ function ProdutoCard({
       <CardBody className="p-3">
         {/* Título e ID */}
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="font-bold text-base text-default-900 line-clamp-2 flex-1">
-            {produto.descricao}
-          </h3>
+          <div className="flex-1">
+            <h3 className="font-bold text-base text-default-900 line-clamp-2">
+              {produto.descricao}
+            </h3>
+            <p className="text-xs text-default-400 font-mono mt-1">
+              #{produto.id.slice(0, 8)}
+            </p>
+          </div>
         </div>
 
         {/* Grid de Informações Compacto */}
@@ -882,8 +887,28 @@ export default function EstoquePage() {
       {temPermissao("estoque.ver_estatisticas") && (
         <div className="mb-6 space-y-4">
           {/* Linha 1: Cards Financeiros Principais */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Total em Estoque (Valor de Venda) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Card 1: TOTAL DE ITENS EM ESTOQUE - DESTAQUE */}
+            <Card className="shadow-md hover:shadow-xl transition-shadow border-2 border-primary/20">
+              <CardBody className="flex flex-col items-center justify-center gap-2 py-4">
+                <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl">
+                  <CubeIcon className="w-8 h-8 text-primary" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-default-500 uppercase tracking-wide font-semibold">
+                    Total de Itens
+                  </p>
+                  <p className="text-4xl font-black text-primary mt-1">
+                    {statsFinanceiras.quantidadeTotal.toLocaleString("pt-BR")}
+                  </p>
+                  <p className="text-xs text-default-400 mt-1">
+                    unidades em estoque
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Card 2: Total em Estoque (Valor de Venda) */}
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardBody className="flex flex-row items-center gap-4">
                 <div className="p-3 bg-success/10 rounded-xl">
@@ -895,13 +920,13 @@ export default function EstoquePage() {
                     {formatarMoeda(statsFinanceiras.valorEstoqueVenda)}
                   </p>
                   <p className="text-xs text-default-400 mt-1">
-                    {statsFinanceiras.quantidadeTotal} unidades
+                    valor de venda
                   </p>
                 </div>
               </CardBody>
             </Card>
 
-            {/* Card 2: Custo do Estoque */}
+            {/* Card 3: Custo do Estoque */}
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardBody className="flex flex-row items-center gap-4">
                 <div className="p-3 bg-warning/10 rounded-xl">
@@ -919,15 +944,15 @@ export default function EstoquePage() {
               </CardBody>
             </Card>
 
-            {/* Card 3: Produtos Ativos */}
+            {/* Card 4: Produtos Ativos */}
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardBody className="flex flex-row items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-xl">
-                  <ChartBarIcon className="w-6 h-6 text-primary" />
+                <div className="p-3 bg-secondary/10 rounded-xl">
+                  <ChartBarIcon className="w-6 h-6 text-secondary" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm text-default-500">Produtos Ativos</p>
-                  <p className="text-2xl font-bold text-primary">
+                  <p className="text-2xl font-bold text-secondary">
                     {stats.ativos}
                   </p>
                   <p className="text-xs text-default-400 mt-1">
@@ -937,7 +962,7 @@ export default function EstoquePage() {
               </CardBody>
             </Card>
 
-            {/* Card 4: Alertas */}
+            {/* Card 5: Alertas */}
             <Card className="shadow-sm hover:shadow-md transition-shadow">
               <CardBody className="flex flex-row items-center gap-4">
                 <div className="p-3 bg-danger/10 rounded-xl">

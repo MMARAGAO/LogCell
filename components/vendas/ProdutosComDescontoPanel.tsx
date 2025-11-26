@@ -26,7 +26,7 @@ interface ProdutosComDescontoPanelProps {
   itens: ItemCarrinho[];
   onAplicarDesconto: (
     produtoId: string,
-    tipo: "valor" | "porcentagem",
+    tipo: "valor" | "percentual",
     valor: number
   ) => void;
 }
@@ -39,7 +39,7 @@ export function ProdutosComDescontoPanel({
   const [produtoSelecionado, setProdutoSelecionado] = useState<string | null>(
     null
   );
-  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "porcentagem">(
+  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
     "valor"
   );
   const [valorDesconto, setValorDesconto] = useState("");
@@ -92,7 +92,7 @@ export function ProdutosComDescontoPanel({
     const valorFormatado = Math.round(valorNumerico * 100) / 100;
 
     // Se for percentual, limitar ao desconto máximo
-    if (tipoDesconto === "porcentagem" && valorFormatado > descontoMaximo) {
+    if (tipoDesconto === "percentual" && valorFormatado > descontoMaximo) {
       setValorDesconto(descontoMaximo.toString());
       return;
     }
@@ -150,7 +150,7 @@ export function ProdutosComDescontoPanel({
     if (!item) return;
 
     // Validar desconto máximo
-    if (tipoDesconto === "porcentagem") {
+    if (tipoDesconto === "percentual") {
       if (valor > 100) {
         toast.error("Percentual não pode ser maior que 100%");
         return;
@@ -284,20 +284,20 @@ export function ProdutosComDescontoPanel({
               label="Tipo de Desconto"
               selectedKeys={[tipoDesconto]}
               onChange={(e) =>
-                setTipoDesconto(e.target.value as "valor" | "porcentagem")
+                setTipoDesconto(e.target.value as "valor" | "percentual")
               }
             >
               <SelectItem key="valor">Valor (R$)</SelectItem>
-              <SelectItem key="porcentagem">Porcentagem (%)</SelectItem>
+              <SelectItem key="percentual">percentual (%)</SelectItem>
             </Select>
 
             <Input
-              label={`Valor do Desconto${tipoDesconto === "porcentagem" ? " (%)" : ""}`}
+              label={`Valor do Desconto${tipoDesconto === "percentual" ? " (%)" : ""}`}
               type="number"
               step="0.01"
               min="0"
               max={
-                tipoDesconto === "porcentagem"
+                tipoDesconto === "percentual"
                   ? descontoMaximo
                   : itemSelecionado?.subtotal
               }
@@ -311,7 +311,7 @@ export function ProdutosComDescontoPanel({
                 )
               }
               description={
-                tipoDesconto === "porcentagem"
+                tipoDesconto === "percentual"
                   ? `Digite o percentual de desconto (máx: ${descontoMaximo}%)`
                   : "Digite o valor fixo do desconto"
               }

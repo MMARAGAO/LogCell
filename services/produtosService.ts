@@ -28,11 +28,27 @@ export async function getProdutos(filtros?: {
       );
     }
 
-    const { data, error } = await query;
+    // BUSCAR TODOS OS PRODUTOS COM PAGINAÇÃO
+    const allData: Produto[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    let hasMore = true;
 
-    if (error) throw error;
+    while (hasMore) {
+      const { data, error } = await query.range(offset, offset + pageSize - 1);
 
-    return data || [];
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        offset += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allData;
   } catch (error) {
     console.error("Erro ao buscar produtos:", error);
     throw error;
@@ -190,26 +206,109 @@ export async function getEstatisticasProdutos() {
 // Estatísticas financeiras e de estoque
 export async function getEstatisticasFinanceiras() {
   try {
-    // Buscar todos os produtos com preços
-    const { data: produtos, error: produtosError } = await supabase
-      .from("produtos")
-      .select("id, preco_compra, preco_venda, quantidade_minima, ativo");
+    console.log(
+      "📊 [getEstatisticasFinanceiras] ========== VERSÃO NOVA COM LOGS =========="
+    );
+    console.log("📊 [getEstatisticasFinanceiras] Iniciando busca...");
 
-    if (produtosError) throw produtosError;
+    // Buscar TODOS os produtos com paginação
+    console.log(
+      "🚀 [getEstatisticasFinanceiras] Carregando TODOS os produtos..."
+    );
+    const allProdutos: any[] = [];
+    let produtosOffset = 0;
+    let produtosHasMore = true;
+    const produtosPageSize = 1000;
 
-    // Buscar todos os estoques
-    const { data: estoques, error: estoquesError } = await supabase
-      .from("estoque_lojas")
-      .select("id_produto, quantidade");
+    while (produtosHasMore) {
+      const { data, error } = await supabase
+        .from("produtos")
+        .select("id, preco_compra, preco_venda, quantidade_minima, ativo")
+        .range(produtosOffset, produtosOffset + produtosPageSize - 1);
 
-    if (estoquesError) throw estoquesError;
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allProdutos.push(...data);
+        produtosOffset += produtosPageSize;
+        produtosHasMore = data.length === produtosPageSize;
+      } else {
+        produtosHasMore = false;
+      }
+    }
+
+    console.log(
+      `📦 [getEstatisticasFinanceiras] Produtos carregados: ${allProdutos.length}`
+    );
+
+    // Buscar TODOS os estoques COM PAGINAÇÃO
+    console.log(
+      "🚀 [getEstatisticasFinanceiras] INICIANDO LOOP DE PAGINAÇÃO..."
+    );
+    const allEstoques: any[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    let hasMore = true;
+    let iteracao = 0;
+
+    while (hasMore) {
+      iteracao++;
+      console.log(
+        `🔄 [getEstatisticasFinanceiras] Iteração ${iteracao}: buscando registros ${offset} a ${offset + pageSize - 1}`
+      );
+
+      const { data, error } = await supabase
+        .from("estoque_lojas")
+        .select("id_produto, quantidade")
+        .range(offset, offset + pageSize - 1);
+
+      if (error) {
+        console.error(
+          `❌ [getEstatisticasFinanceiras] Erro na iteração ${iteracao}:`,
+          error
+        );
+        throw error;
+      }
+
+      console.log(
+        `📥 [getEstatisticasFinanceiras] Iteração ${iteracao}: recebeu ${data?.length || 0} registros`
+      );
+
+      if (data && data.length > 0) {
+        allEstoques.push(...data);
+        console.log(
+          `📦 [getEstatisticasFinanceiras] Total acumulado: ${allEstoques.length} registros`
+        );
+        offset += pageSize;
+        hasMore = data.length === pageSize;
+
+        if (!hasMore) {
+          console.log(
+            `⏹️ [getEstatisticasFinanceiras] Última página! Recebeu ${data.length} registros (menos que ${pageSize})`
+          );
+        }
+      } else {
+        console.log(
+          `⚠️ [getEstatisticasFinanceiras] Nenhum dado recebido na iteração ${iteracao}`
+        );
+        hasMore = false;
+      }
+    }
+
+    console.log(
+      `✅ [getEstatisticasFinanceiras] Total final de registros de estoque: ${allEstoques.length}`
+    );
 
     // Criar mapa de quantidades por produto
     const estoqueMap = new Map<string, number>();
-    estoques?.forEach((est) => {
+    allEstoques.forEach((est) => {
       const atual = estoqueMap.get(est.id_produto) || 0;
       estoqueMap.set(est.id_produto, atual + est.quantidade);
     });
+
+    console.log(
+      `📊 [getEstatisticasFinanceiras] Produtos com estoque: ${estoqueMap.size}`
+    );
 
     // Calcular estatísticas
     let valorTotalCompra = 0;
@@ -220,7 +319,7 @@ export async function getEstatisticasFinanceiras() {
     let produtosEstoqueBaixo = 0;
     let produtosSemEstoque = 0;
 
-    produtos?.forEach((produto) => {
+    allProdutos.forEach((produto) => {
       const quantidade = estoqueMap.get(produto.id) || 0;
       const precoCompra = produto.preco_compra || 0;
       const precoVenda = produto.preco_venda || 0;
@@ -247,7 +346,7 @@ export async function getEstatisticasFinanceiras() {
       }
     });
 
-    return {
+    const resultado = {
       valorTotalCompra,
       valorTotalVenda,
       valorEstoqueCompra,
@@ -260,6 +359,15 @@ export async function getEstatisticasFinanceiras() {
       produtosEstoqueBaixo,
       produtosSemEstoque,
     };
+
+    console.log(`🎯 [getEstatisticasFinanceiras] RESULTADO:`, {
+      quantidadeTotal: resultado.quantidadeTotal.toLocaleString("pt-BR"),
+      valorEstoqueVenda: `R$ ${resultado.valorEstoqueVenda.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+      produtosSemEstoque: resultado.produtosSemEstoque,
+      produtosEstoqueBaixo: resultado.produtosEstoqueBaixo,
+    });
+
+    return resultado;
   } catch (error) {
     console.error("Erro ao buscar estatísticas financeiras:", error);
     throw error;

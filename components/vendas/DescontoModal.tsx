@@ -21,7 +21,7 @@ interface DescontoModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAplicar: (
-    tipo: "valor" | "porcentagem",
+    tipo: "valor" | "percentual",
     valor: number,
     motivo: string
   ) => void;
@@ -34,7 +34,7 @@ export function DescontoModal({
   onAplicar,
   valorTotal,
 }: DescontoModalProps) {
-  const [tipo, setTipo] = useState<"valor" | "porcentagem">("porcentagem");
+  const [tipo, setTipo] = useState<"valor" | "percentual">("percentual");
   const [valor, setValor] = useState("");
   const [motivo, setMotivo] = useState("");
   const [descontoMaximo, setDescontoMaximo] = useState<number>(100);
@@ -81,7 +81,7 @@ export function DescontoModal({
     const valorFormatado = Math.round(valorNumerico * 100) / 100;
 
     // Se for percentual, limitar ao desconto máximo
-    if (tipo === "porcentagem" && valorFormatado > descontoMaximo) {
+    if (tipo === "percentual" && valorFormatado > descontoMaximo) {
       setValor(descontoMaximo.toString());
       return;
     }
@@ -138,7 +138,7 @@ export function DescontoModal({
     }
 
     // Validar desconto máximo
-    if (tipo === "porcentagem") {
+    if (tipo === "percentual") {
       if (valorNumerico > 100) {
         toast.error("Percentual não pode ser maior que 100%");
         return;
@@ -176,7 +176,7 @@ export function DescontoModal({
   };
 
   const handleClose = () => {
-    setTipo("porcentagem");
+    setTipo("percentual");
     setValor("");
     setMotivo("");
     onClose();
@@ -202,10 +202,10 @@ export function DescontoModal({
               label="Tipo de Desconto"
               selectedKeys={[tipo]}
               onChange={(e) =>
-                setTipo(e.target.value as "valor" | "porcentagem")
+                setTipo(e.target.value as "valor" | "percentual")
               }
             >
-              <SelectItem key="porcentagem">Percentual (%)</SelectItem>
+              <SelectItem key="percentual">Percentual (%)</SelectItem>
               <SelectItem key="valor">Valor Fixo (R$)</SelectItem>
             </Select>
 
@@ -224,18 +224,18 @@ export function DescontoModal({
               type="number"
               step="0.01"
               min="0"
-              max={tipo === "porcentagem" ? descontoMaximo : valorTotal}
+              max={tipo === "percentual" ? descontoMaximo : valorTotal}
               value={valor}
               onChange={(e) => handleValorChange(e.target.value)}
               startContent={
-                tipo === "porcentagem" ? (
+                tipo === "percentual" ? (
                   <Percent className="w-4 h-4 text-gray-500" />
                 ) : (
                   <DollarSign className="w-4 h-4 text-gray-500" />
                 )
               }
               description={
-                tipo === "porcentagem"
+                tipo === "percentual"
                   ? `Digite o percentual de desconto (máx: ${descontoMaximo}%)`
                   : "Digite o valor fixo do desconto"
               }

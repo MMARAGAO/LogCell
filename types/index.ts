@@ -277,6 +277,8 @@ export interface HistoricoEstoque {
   quantidade_anterior?: number;
   quantidade_nova?: number;
   quantidade_alterada?: number;
+  tipo_movimentacao?: string;
+  motivo?: string;
   observacao?: string;
   criado_em: string;
 }

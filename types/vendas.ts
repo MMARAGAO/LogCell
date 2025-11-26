@@ -32,7 +32,7 @@ export interface ItemVenda {
   preco_unitario: number;
   subtotal: number;
   devolvido: number; // Quantidade devolvida
-  desconto_tipo?: "valor" | "porcentagem";
+  desconto_tipo?: "valor" | "percentual";
   desconto_valor?: number;
   valor_desconto?: number; // Valor calculado do desconto em R$
   criado_em?: string;
@@ -66,7 +66,7 @@ export interface PagamentoVenda {
 export interface DescontoVenda {
   id?: string;
   venda_id: string;
-  tipo: "valor" | "porcentagem";
+  tipo: "valor" | "percentual";
   valor: number;
   motivo?: string;
   aplicado_por: string;
@@ -78,6 +78,7 @@ export interface DevolucaoVenda {
   venda_id: string;
   tipo: "com_credito" | "sem_credito";
   valor_total: number;
+  forma_pagamento?: string;
   motivo: string;
   realizado_por: string;
   criado_em?: string;
@@ -145,7 +146,7 @@ export interface ItemCarrinho {
   subtotal: number;
   estoque_disponivel?: number;
   desconto?: {
-    tipo: "valor" | "porcentagem";
+    tipo: "valor" | "percentual";
     valor: number;
   };
 }
