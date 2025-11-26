@@ -474,6 +474,7 @@ export default function FornecedoresPage() {
                       <div className="flex flex-wrap gap-1">
                         {produtosPorFornecedor[fornecedor.id]
                           .slice(0, 5)
+                          .filter((item: any) => item.produto)
                           .map((item: any) => (
                             <Chip
                               key={item.produto.id}
