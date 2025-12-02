@@ -1,0 +1,712 @@
+[
+  {
+    "funcao_nome": "alternar_status_loja_com_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.alternar_status_loja_com_usuario(p_id integer, p_ativo boolean, p_usuario_id uuid DEFAULT NULL::uuid)\n RETURNS TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    -- Setar a variável de sessão com o usuario_id\r\n    IF p_usuario_id IS NOT NULL THEN\r\n        PERFORM set_config('app.current_user_id', p_usuario_id::TEXT, true);\r\n        RAISE NOTICE '✅ Usuario ID setado na sessão (STATUS): %', p_usuario_id;\r\n    END IF;\r\n\r\n    -- Alterar status e retornar os dados\r\n    RETURN QUERY\r\n    UPDATE lojas\r\n    SET \r\n        ativo = p_ativo,\r\n        atualizado_em = NOW()\r\n    WHERE lojas.id = p_id\r\n    RETURNING \r\n        lojas.id,\r\n        lojas.nome,\r\n        lojas.cnpj,\r\n        lojas.telefone,\r\n        lojas.email,\r\n        lojas.endereco,\r\n        lojas.cidade,\r\n        lojas.estado,\r\n        lojas.cep,\r\n        lojas.ativo,\r\n        lojas.criado_em,\r\n        lojas.atualizado_em;\r\nEND;\r\n$function$\n",
+    "parametros": "p_id integer, p_ativo boolean, p_usuario_id uuid DEFAULT NULL::uuid",
+    "retorno": "TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "atualizar_devolvido_item_venda",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_devolvido_item_venda(p_item_id uuid, p_quantidade integer)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n  -- Atualizar quantidade devolvida no item da venda\r\n  UPDATE itens_venda\r\n  SET devolvido = COALESCE(devolvido, 0) + p_quantidade\r\n  WHERE id = p_item_id;\r\n  \r\n  -- Validar que a quantidade devolvida nÃ£o excede a quantidade vendida\r\n  IF (SELECT devolvido > quantidade FROM itens_venda WHERE id = p_item_id) THEN\r\n    RAISE EXCEPTION 'Quantidade devolvida nÃ£o pode ser maior que a quantidade vendida';\r\n  END IF;\r\nEND;\r\n$function$\n",
+    "parametros": "p_item_id uuid, p_quantidade integer",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "atualizar_estoque_com_trigger",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_estoque_com_trigger(p_produto_id uuid, p_loja_id integer, p_quantidade integer, p_usuario_id uuid)\n RETURNS json\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_result json;\r\nBEGIN\r\n  -- Fazer UPDATE que vai disparar o trigger\r\n  UPDATE public.estoque_lojas\r\n  SET \r\n    quantidade = p_quantidade,\r\n    atualizado_por = p_usuario_id,\r\n    atualizado_em = NOW()\r\n  WHERE id_produto = p_produto_id\r\n    AND id_loja = p_loja_id;\r\n  \r\n  -- Se nÃ£o existe, criar\r\n  IF NOT FOUND THEN\r\n    INSERT INTO public.estoque_lojas (\r\n      id_produto,\r\n      id_loja,\r\n      quantidade,\r\n      atualizado_por\r\n    )\r\n    VALUES (\r\n      p_produto_id,\r\n      p_loja_id,\r\n      p_quantidade,\r\n      p_usuario_id\r\n    );\r\n  END IF;\r\n  \r\n  -- Retornar sucesso\r\n  SELECT json_build_object(\r\n    'success', true,\r\n    'quantidade', p_quantidade\r\n  ) INTO v_result;\r\n  \r\n  RETURN v_result;\r\n  \r\nEXCEPTION\r\n  WHEN OTHERS THEN\r\n    RETURN json_build_object(\r\n      'success', false,\r\n      'error', SQLERRM\r\n    );\r\nEND;\r\n$function$\n",
+    "parametros": "p_produto_id uuid, p_loja_id integer, p_quantidade integer, p_usuario_id uuid",
+    "retorno": "json",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "atualizar_estoque_item",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_estoque_item(p_item_id uuid, p_produto_id uuid, p_quantidade integer, p_loja_id integer, p_venda_id uuid)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_quantidade_atual INTEGER;\r\n  v_cliente_nome TEXT;\r\n  v_venda_numero INTEGER;\r\nBEGIN\r\n  -- Busca informações da venda para melhor rastreabilidade\r\n  SELECT c.nome, v.numero_venda \r\n  INTO v_cliente_nome, v_venda_numero\r\n  FROM vendas v\r\n  LEFT JOIN clientes c ON c.id = v.cliente_id\r\n  WHERE v.id = p_venda_id;\r\n\r\n  -- Busca quantidade atual no estoque\r\n  SELECT quantidade INTO v_quantidade_atual\r\n  FROM estoque_lojas\r\n  WHERE id_produto = p_produto_id \r\n    AND id_loja = p_loja_id;\r\n  \r\n  -- Se não encontrou o estoque, sai\r\n  IF v_quantidade_atual IS NULL THEN\r\n    RAISE WARNING 'Produto % não tem estoque na loja %', p_produto_id, p_loja_id;\r\n    RETURN;\r\n  END IF;\r\n  \r\n  -- Atualiza o estoque\r\n  UPDATE estoque_lojas\r\n  SET \r\n    quantidade = quantidade - p_quantidade,\r\n    atualizado_em = NOW()\r\n  WHERE id_produto = p_produto_id \r\n    AND id_loja = p_loja_id;\r\n  \r\n  -- Registra no histórico com informações completas da venda\r\n  INSERT INTO historico_estoque (\r\n    id_produto,\r\n    id_loja,\r\n    quantidade_anterior,\r\n    quantidade_nova,\r\n    quantidade_alterada,\r\n    tipo_movimentacao,\r\n    observacao\r\n  ) VALUES (\r\n    p_produto_id,\r\n    p_loja_id,\r\n    v_quantidade_atual,\r\n    v_quantidade_atual - p_quantidade,\r\n    -p_quantidade,\r\n    'venda',\r\n    CASE \r\n      WHEN v_cliente_nome IS NOT NULL THEN\r\n        'Venda #' || COALESCE(v_venda_numero::TEXT, SUBSTRING(p_venda_id::TEXT, 1, 8)) || ' - Cliente: ' || v_cliente_nome\r\n      ELSE\r\n        'Venda #' || COALESCE(v_venda_numero::TEXT, SUBSTRING(p_venda_id::TEXT, 1, 8))\r\n    END\r\n  );\r\nEND;\r\n$function$\n",
+    "parametros": "p_item_id uuid, p_produto_id uuid, p_quantidade integer, p_loja_id integer, p_venda_id uuid",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_estoque_item",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_estoque_item(p_item_id uuid, p_produto_id uuid, p_quantidade integer, p_loja_id integer)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_quantidade_atual INTEGER;\r\nBEGIN\r\n  -- Busca quantidade atual no estoque\r\n  SELECT quantidade INTO v_quantidade_atual\r\n  FROM estoque_lojas\r\n  WHERE id_produto = p_produto_id \r\n    AND id_loja = p_loja_id;\r\n  \r\n  -- Se não encontrou o estoque, sai\r\n  IF v_quantidade_atual IS NULL THEN\r\n    RAISE WARNING 'Produto % não tem estoque na loja %', p_produto_id, p_loja_id;\r\n    RETURN;\r\n  END IF;\r\n  \r\n  -- Atualiza o estoque\r\n  UPDATE estoque_lojas\r\n  SET \r\n    quantidade = quantidade - p_quantidade,\r\n    atualizado_em = NOW()\r\n  WHERE id_produto = p_produto_id \r\n    AND id_loja = p_loja_id;\r\n  \r\n  -- Registra no histórico\r\n  INSERT INTO historico_estoque (\r\n    id_produto,\r\n    id_loja,\r\n    quantidade_anterior,\r\n    quantidade_nova,\r\n    quantidade_alterada,\r\n    tipo_movimentacao,\r\n    observacao\r\n  ) VALUES (\r\n    p_produto_id,\r\n    p_loja_id,\r\n    v_quantidade_atual,\r\n    v_quantidade_atual - p_quantidade,\r\n    -p_quantidade,\r\n    'venda',\r\n    'Baixa automática - Item ID: ' || p_item_id\r\n  );\r\nEND;\r\n$function$\n",
+    "parametros": "p_item_id uuid, p_produto_id uuid, p_quantidade integer, p_loja_id integer",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_estoque_venda",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_estoque_venda()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_loja_id INTEGER;\r\n  v_quantidade_atual INTEGER;\r\n  v_status_venda VARCHAR;\r\nBEGIN\r\n  -- Busca a loja e status da venda\r\n  SELECT loja_id, status INTO v_loja_id, v_status_venda\r\n  FROM vendas\r\n  WHERE id = NEW.venda_id;\r\n  \r\n  -- IMPORTANTE: Só dá baixa no estoque se a venda já estiver CONCLUÍDA\r\n  -- Isso evita dar baixa em vendas \"em_andamento\" que podem ser canceladas\r\n  IF v_status_venda != 'concluida' THEN\r\n    RETURN NEW;\r\n  END IF;\r\n  \r\n  -- Busca quantidade atual no estoque\r\n  SELECT quantidade INTO v_quantidade_atual\r\n  FROM estoque_lojas\r\n  WHERE id_produto = NEW.produto_id \r\n    AND id_loja = v_loja_id;\r\n  \r\n  -- Se não encontrou o estoque, retorna sem fazer nada\r\n  IF v_quantidade_atual IS NULL THEN\r\n    RAISE WARNING 'Produto % não tem estoque na loja %', NEW.produto_id, v_loja_id;\r\n    RETURN NEW;\r\n  END IF;\r\n  \r\n  -- Atualiza o estoque (REDUZ a quantidade)\r\n  UPDATE estoque_lojas\r\n  SET \r\n    quantidade = quantidade - NEW.quantidade,\r\n    atualizado_em = NOW()\r\n  WHERE id_produto = NEW.produto_id \r\n    AND id_loja = v_loja_id;\r\n  \r\n  -- Registra no histórico\r\n  INSERT INTO historico_estoque (\r\n    id_produto,\r\n    id_loja,\r\n    quantidade_anterior,\r\n    quantidade_nova,\r\n    quantidade_alterada,\r\n    tipo_movimentacao,\r\n    observacao\r\n  ) VALUES (\r\n    NEW.produto_id,\r\n    v_loja_id,\r\n    v_quantidade_atual,\r\n    v_quantidade_atual - NEW.quantidade,\r\n    -NEW.quantidade,\r\n    'venda',\r\n    'Venda item ID: ' || NEW.id\r\n  );\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_loja_com_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_loja_com_usuario(p_id integer, p_nome text DEFAULT NULL::text, p_cnpj character varying DEFAULT NULL::character varying, p_telefone text DEFAULT NULL::text, p_email text DEFAULT NULL::text, p_endereco text DEFAULT NULL::text, p_cidade text DEFAULT NULL::text, p_estado character varying DEFAULT NULL::character varying, p_cep character varying DEFAULT NULL::character varying, p_usuario_id uuid DEFAULT NULL::uuid)\n RETURNS TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    -- Setar a variável de sessão com o usuario_id\r\n    IF p_usuario_id IS NOT NULL THEN\r\n        PERFORM set_config('app.current_user_id', p_usuario_id::TEXT, true);\r\n        RAISE NOTICE '✅ Usuario ID setado na sessão (UPDATE): %', p_usuario_id;\r\n    END IF;\r\n\r\n    -- Atualizar a loja e retornar os dados\r\n    RETURN QUERY\r\n    UPDATE lojas\r\n    SET \r\n        nome = COALESCE(p_nome, lojas.nome),\r\n        cnpj = COALESCE(p_cnpj, lojas.cnpj),\r\n        telefone = COALESCE(p_telefone, lojas.telefone),\r\n        email = COALESCE(p_email, lojas.email),\r\n        endereco = COALESCE(p_endereco, lojas.endereco),\r\n        cidade = COALESCE(p_cidade, lojas.cidade),\r\n        estado = COALESCE(p_estado, lojas.estado),\r\n        cep = COALESCE(p_cep, lojas.cep),\r\n        atualizado_em = NOW()\r\n    WHERE lojas.id = p_id\r\n    RETURNING \r\n        lojas.id,\r\n        lojas.nome,\r\n        lojas.cnpj,\r\n        lojas.telefone,\r\n        lojas.email,\r\n        lojas.endereco,\r\n        lojas.cidade,\r\n        lojas.estado,\r\n        lojas.cep,\r\n        lojas.ativo,\r\n        lojas.criado_em,\r\n        lojas.atualizado_em;\r\nEND;\r\n$function$\n",
+    "parametros": "p_id integer, p_nome text DEFAULT NULL::text, p_cnpj character varying DEFAULT NULL::character varying, p_telefone text DEFAULT NULL::text, p_email text DEFAULT NULL::text, p_endereco text DEFAULT NULL::text, p_cidade text DEFAULT NULL::text, p_estado character varying DEFAULT NULL::character varying, p_cep character varying DEFAULT NULL::character varying, p_usuario_id uuid DEFAULT NULL::uuid",
+    "retorno": "TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_clientes",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_clientes()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.atualizado_em = NOW();\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_estoque_lojas",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_estoque_lojas()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.atualizado_em = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_fornecedores",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_fornecedores()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.atualizado_em = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_lojas_fotos",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_lojas_fotos()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.atualizado_em = NOW();\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.atualizado_em = NOW();\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_produtos",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_produtos()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    -- A tabela produtos usa atualizado_em (não updated_at)\r\n    NEW.atualizado_em = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_produtos_fornecedores",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_produtos_fornecedores()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.atualizado_em = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_rma",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_rma()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    NEW.atualizado_em = NOW();\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_timestamp_tecnicos",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_timestamp_tecnicos()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.atualizado_em = NOW();\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "atualizar_valor_pago_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.atualizar_valor_pago_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  -- Atualiza o valor_pago da OS com a soma dos pagamentos\r\n  UPDATE ordem_servico\r\n  SET valor_pago = (\r\n    SELECT COALESCE(SUM(valor), 0)\r\n    FROM ordem_servico_pagamentos\r\n    WHERE id_ordem_servico = NEW.id_ordem_servico\r\n  )\r\n  WHERE id = NEW.id_ordem_servico;\r\n\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "auditar_estoques",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.auditar_estoques(p_id_loja integer DEFAULT NULL::integer)\n RETURNS TABLE(produto text, loja text, estoque_sistema integer, estoque_calculado integer, diferenca integer, status text, ultima_movimentacao timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n  RETURN QUERY\r\n  WITH estoque_calc AS (\r\n    SELECT \r\n      h.id_produto,\r\n      h.id_loja,\r\n      SUM(\r\n        COALESCE(\r\n          CASE \r\n            -- Prioriza quantidade para evitar duplicação\r\n            WHEN h.quantidade IS NOT NULL AND h.tipo_movimentacao IN ('entrada', 'saida', 'devolucao_venda', 'quebra') THEN\r\n              CASE \r\n                WHEN h.tipo_movimentacao IN ('entrada', 'devolucao_venda') THEN h.quantidade\r\n                WHEN h.tipo_movimentacao IN ('saida', 'quebra') THEN -h.quantidade\r\n              END\r\n            -- Usa quantidade_alterada APENAS se quantidade for NULL\r\n            WHEN h.quantidade IS NULL THEN h.quantidade_alterada\r\n            ELSE 0\r\n          END,\r\n          0\r\n        )\r\n      )::INTEGER as calculado,\r\n      MAX(h.criado_em) as ultima_mov\r\n    FROM historico_estoque h\r\n    WHERE p_id_loja IS NULL OR h.id_loja = p_id_loja\r\n    GROUP BY h.id_produto, h.id_loja\r\n  )\r\n  SELECT \r\n    p.descricao as produto,\r\n    l.nome as loja,\r\n    e.quantidade as estoque_sistema,\r\n    ec.calculado as estoque_calculado,\r\n    (e.quantidade - ec.calculado)::INTEGER as diferenca,\r\n    CASE \r\n      WHEN e.quantidade = ec.calculado THEN '✅ OK'\r\n      WHEN e.quantidade > ec.calculado THEN '⚠️ Estoque maior'\r\n      ELSE '🔴 Estoque menor'\r\n    END as status,\r\n    ec.ultima_mov as ultima_movimentacao\r\n  FROM estoque_calc ec\r\n  JOIN produtos p ON p.id = ec.id_produto\r\n  JOIN lojas l ON l.id = ec.id_loja\r\n  LEFT JOIN estoque_lojas e ON e.id_produto = ec.id_produto AND e.id_loja = ec.id_loja\r\n  WHERE e.quantidade != ec.calculado OR e.quantidade IS NULL\r\n  ORDER BY ABS(e.quantidade - ec.calculado) DESC, p.descricao;\r\nEND;\r\n$function$\n",
+    "parametros": "p_id_loja integer DEFAULT NULL::integer",
+    "retorno": "TABLE(produto text, loja text, estoque_sistema integer, estoque_calculado integer, diferenca integer, status text, ultima_movimentacao timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "baixa_estoque_ao_adicionar_item",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.baixa_estoque_ao_adicionar_item()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_loja_id INTEGER;\r\n  v_quantidade_atual INTEGER;\r\n  v_cliente_nome TEXT;\r\n  v_vendedor_nome TEXT;\r\n  v_vendedor_id UUID;\r\n  v_venda_numero INTEGER;\r\nBEGIN\r\n  -- Buscar informações da venda\r\n  SELECT v.loja_id, v.numero_venda, v.vendedor_id, c.nome, u.nome\r\n  INTO v_loja_id, v_venda_numero, v_vendedor_id, v_cliente_nome, v_vendedor_nome\r\n  FROM vendas v\r\n  LEFT JOIN clientes c ON c.id = v.cliente_id\r\n  LEFT JOIN usuarios u ON u.id = v.vendedor_id\r\n  WHERE v.id = NEW.venda_id;\r\n  \r\n  -- Buscar quantidade atual no estoque\r\n  SELECT quantidade INTO v_quantidade_atual\r\n  FROM estoque_lojas\r\n  WHERE id_produto = NEW.produto_id \r\n    AND id_loja = v_loja_id;\r\n  \r\n  -- Se não encontrou o estoque, retorna sem fazer nada\r\n  IF v_quantidade_atual IS NULL THEN\r\n    RAISE WARNING 'Produto % não tem estoque na loja %', NEW.produto_id, v_loja_id;\r\n    RETURN NEW;\r\n  END IF;\r\n  \r\n  RAISE NOTICE '🔵 Iniciando baixa de estoque: produto=%, loja=%, qtd_atual=%, qtd_venda=%', \r\n    NEW.produto_id, v_loja_id, v_quantidade_atual, NEW.quantidade;\r\n  \r\n  -- Atualizar o estoque (REDUZ a quantidade)\r\n  -- IMPORTANTE: preencher atualizado_por faz a trigger genérica ignorar\r\n  UPDATE estoque_lojas\r\n  SET \r\n    quantidade = quantidade - NEW.quantidade,\r\n    atualizado_em = NOW(),\r\n    atualizado_por = v_vendedor_id\r\n  WHERE id_produto = NEW.produto_id \r\n    AND id_loja = v_loja_id;\r\n  \r\n  RAISE NOTICE '✅ Estoque atualizado! Nova quantidade=%', (v_quantidade_atual - NEW.quantidade);\r\n  \r\n  -- Deletar registro genérico se foi criado (após o UPDATE)\r\n  DELETE FROM historico_estoque\r\n  WHERE id_produto = NEW.produto_id\r\n    AND id_loja = v_loja_id\r\n    AND observacao = 'Quantidade alterada'\r\n    AND usuario_id = v_vendedor_id\r\n    AND tipo_movimentacao IS NULL\r\n    AND criado_em > NOW() - INTERVAL '1 second';\r\n  \r\n  -- Registrar no histórico com informações completas da venda\r\n  -- Este é o ÚNICO registro que deve ser criado\r\n  INSERT INTO historico_estoque (\r\n    id_produto,\r\n    id_loja,\r\n    usuario_id,\r\n    quantidade_anterior,\r\n    quantidade_nova,\r\n    quantidade_alterada,\r\n    tipo_movimentacao,\r\n    observacao\r\n  ) VALUES (\r\n    NEW.produto_id,\r\n    v_loja_id,\r\n    v_vendedor_id,\r\n    v_quantidade_atual,\r\n    v_quantidade_atual - NEW.quantidade,\r\n    -NEW.quantidade,\r\n    'venda',\r\n    CASE \r\n      WHEN v_cliente_nome IS NOT NULL THEN\r\n        'Venda #' || COALESCE(v_venda_numero::TEXT, SUBSTRING(NEW.venda_id::TEXT, 1, 8)) || ' - Cliente: ' || v_cliente_nome\r\n      ELSE\r\n        'Venda #' || COALESCE(v_venda_numero::TEXT, SUBSTRING(NEW.venda_id::TEXT, 1, 8))\r\n    END\r\n  );\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "baixa_estoque_ao_concluir_venda",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.baixa_estoque_ao_concluir_venda()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  -- Só processa se o status mudou para 'concluida'\r\n  IF NEW.status = 'concluida' AND (OLD.status IS NULL OR OLD.status != 'concluida') THEN\r\n    -- Para cada item da venda, dá baixa no estoque\r\n    PERFORM atualizar_estoque_item(item.id, item.produto_id, item.quantidade, NEW.loja_id, NEW.id)\r\n    FROM itens_venda item\r\n    WHERE item.venda_id = NEW.id;\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "calcular_estoque_produto",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.calcular_estoque_produto(p_id_produto uuid, p_id_loja integer DEFAULT NULL::integer)\n RETURNS TABLE(id_produto uuid, id_loja integer, descricao text, estoque_calculado integer, estoque_atual integer, diferenca integer, em_ordem boolean)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n  RETURN QUERY\r\n  WITH estoque_calc AS (\r\n    SELECT \r\n      h.id_produto,\r\n      h.id_loja,\r\n      SUM(\r\n        COALESCE(\r\n          CASE \r\n            -- Prioriza quantidade para evitar duplicação\r\n            WHEN h.quantidade IS NOT NULL AND h.tipo_movimentacao IN ('entrada', 'saida', 'devolucao_venda', 'quebra') THEN\r\n              CASE \r\n                WHEN h.tipo_movimentacao IN ('entrada', 'devolucao_venda') THEN h.quantidade\r\n                WHEN h.tipo_movimentacao IN ('saida', 'quebra') THEN -h.quantidade\r\n              END\r\n            -- Usa quantidade_alterada APENAS se quantidade for NULL\r\n            WHEN h.quantidade IS NULL THEN h.quantidade_alterada\r\n            ELSE 0\r\n          END,\r\n          0\r\n        )\r\n      )::INTEGER as calculado\r\n    FROM historico_estoque h\r\n    WHERE h.id_produto = p_id_produto\r\n      AND (p_id_loja IS NULL OR h.id_loja = p_id_loja)\r\n    GROUP BY h.id_produto, h.id_loja\r\n  )\r\n  SELECT \r\n    ec.id_produto,\r\n    ec.id_loja,\r\n    p.descricao,\r\n    ec.calculado as estoque_calculado,\r\n    COALESCE(e.quantidade, 0) as estoque_atual,\r\n    (COALESCE(e.quantidade, 0) - ec.calculado)::INTEGER as diferenca,\r\n    (COALESCE(e.quantidade, 0) = ec.calculado) as em_ordem\r\n  FROM estoque_calc ec\r\n  JOIN produtos p ON p.id = ec.id_produto\r\n  LEFT JOIN estoque_lojas e ON e.id_produto = ec.id_produto AND e.id_loja = ec.id_loja;\r\nEND;\r\n$function$\n",
+    "parametros": "p_id_produto uuid, p_id_loja integer DEFAULT NULL::integer",
+    "retorno": "TABLE(id_produto uuid, id_loja integer, descricao text, estoque_calculado integer, estoque_atual integer, diferenca integer, em_ordem boolean)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "confirmar_transferencia",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.confirmar_transferencia(p_transferencia_id uuid, p_usuario_id uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_transferencia RECORD;\r\n  v_item RECORD;\r\n  v_estoque_origem RECORD;\r\n  v_estoque_destino RECORD;\r\nBEGIN\r\n  -- 1. Buscar dados da transferência\r\n  SELECT * INTO v_transferencia\r\n  FROM public.transferencias\r\n  WHERE id = p_transferencia_id;\r\n\r\n  IF NOT FOUND THEN\r\n    RETURN jsonb_build_object('success', false, 'error', 'Transferência não encontrada');\r\n  END IF;\r\n\r\n  IF v_transferencia.status != 'pendente' THEN\r\n    RETURN jsonb_build_object('success', false, 'error', 'Esta transferência já foi ' || v_transferencia.status);\r\n  END IF;\r\n\r\n  -- 2. Processar cada item\r\n  FOR v_item IN \r\n    SELECT ti.*, p.descricao as produto_nome\r\n    FROM public.transferencias_itens ti\r\n    JOIN public.produtos p ON p.id = ti.produto_id\r\n    WHERE ti.transferencia_id = p_transferencia_id\r\n  LOOP\r\n    -- Verificar estoque origem\r\n    SELECT * INTO v_estoque_origem\r\n    FROM public.estoque_lojas\r\n    WHERE id_produto = v_item.produto_id AND id_loja = v_transferencia.loja_origem_id;\r\n\r\n    IF NOT FOUND THEN\r\n      RETURN jsonb_build_object('success', false, 'error', 'Produto \"' || v_item.produto_nome || '\" não encontrado no estoque da loja de origem');\r\n    END IF;\r\n\r\n    IF v_estoque_origem.quantidade < v_item.quantidade THEN\r\n      RETURN jsonb_build_object('success', false, 'error', 'Estoque insuficiente para \"' || v_item.produto_nome || '\". Disponível: ' || v_estoque_origem.quantidade || ', Necessário: ' || v_item.quantidade);\r\n    END IF;\r\n\r\n    -- Reduzir estoque origem\r\n    UPDATE public.estoque_lojas\r\n    SET quantidade = quantidade - v_item.quantidade, atualizado_por = p_usuario_id, atualizado_em = now()\r\n    WHERE id = v_estoque_origem.id;\r\n\r\n    -- Registrar histórico SAÍDA (origem)\r\n    INSERT INTO public.historico_estoque (\r\n      id_produto, id_loja, usuario_id,\r\n      quantidade, quantidade_anterior, quantidade_nova,\r\n      tipo_movimentacao, observacao\r\n    ) VALUES (\r\n      v_item.produto_id, v_transferencia.loja_origem_id, p_usuario_id,\r\n      v_item.quantidade, v_estoque_origem.quantidade, v_estoque_origem.quantidade - v_item.quantidade,\r\n      'transferencia_saida', 'Transferência #' || p_transferencia_id::text || ' → Loja ID: ' || v_transferencia.loja_destino_id\r\n    );\r\n\r\n    -- Adicionar estoque destino\r\n    SELECT * INTO v_estoque_destino\r\n    FROM public.estoque_lojas\r\n    WHERE id_produto = v_item.produto_id AND id_loja = v_transferencia.loja_destino_id;\r\n\r\n    IF FOUND THEN\r\n      -- Atualizar estoque existente\r\n      UPDATE public.estoque_lojas\r\n      SET quantidade = quantidade + v_item.quantidade, atualizado_por = p_usuario_id, atualizado_em = now()\r\n      WHERE id = v_estoque_destino.id;\r\n\r\n      -- Registrar histórico ENTRADA (destino)\r\n      INSERT INTO public.historico_estoque (\r\n        id_produto, id_loja, usuario_id,\r\n        quantidade, quantidade_anterior, quantidade_nova,\r\n        tipo_movimentacao, observacao\r\n      ) VALUES (\r\n        v_item.produto_id, v_transferencia.loja_destino_id, p_usuario_id,\r\n        v_item.quantidade, v_estoque_destino.quantidade, v_estoque_destino.quantidade + v_item.quantidade,\r\n        'transferencia_entrada', 'Transferência #' || p_transferencia_id::text || ' ← Loja ID: ' || v_transferencia.loja_origem_id\r\n      );\r\n    ELSE\r\n      -- Criar novo estoque\r\n      INSERT INTO public.estoque_lojas (id_produto, id_loja, quantidade, atualizado_por)\r\n      VALUES (v_item.produto_id, v_transferencia.loja_destino_id, v_item.quantidade, p_usuario_id);\r\n\r\n      -- Registrar histórico ENTRADA (destino)\r\n      INSERT INTO public.historico_estoque (\r\n        id_produto, id_loja, usuario_id,\r\n        quantidade, quantidade_anterior, quantidade_nova,\r\n        tipo_movimentacao, observacao\r\n      ) VALUES (\r\n        v_item.produto_id, v_transferencia.loja_destino_id, p_usuario_id,\r\n        v_item.quantidade, 0, v_item.quantidade,\r\n        'transferencia_entrada', 'Transferência #' || p_transferencia_id::text || ' ← Loja ID: ' || v_transferencia.loja_origem_id\r\n      );\r\n    END IF;\r\n  END LOOP;\r\n\r\n  -- 3. Atualizar status da transferência\r\n  UPDATE public.transferencias\r\n  SET status = 'confirmada'\r\n  WHERE id = p_transferencia_id;\r\n\r\n  RETURN jsonb_build_object('success', true);\r\nEND;\r\n$function$\n",
+    "parametros": "p_transferencia_id uuid, p_usuario_id uuid",
+    "retorno": "jsonb",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "contar_notificacoes_nao_lidas",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.contar_notificacoes_nao_lidas(p_usuario_id uuid)\n RETURNS integer\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_count INTEGER;\r\nBEGIN\r\n    SELECT COUNT(*)\r\n    INTO v_count\r\n    FROM public.notificacoes n\r\n    INNER JOIN public.notificacoes_usuarios nu ON nu.notificacao_id = n.id\r\n    WHERE nu.usuario_id = p_usuario_id\r\n    AND nu.lida = false\r\n    AND (n.expira_em IS NULL OR n.expira_em > NOW());\r\n    \r\n    RETURN v_count;\r\nEND;\r\n$function$\n",
+    "parametros": "p_usuario_id uuid",
+    "retorno": "integer",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "criar_lancamento_caixa_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.criar_lancamento_caixa_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_total_pecas DECIMAL(10, 2);\r\n  v_valor_servico DECIMAL(10, 2);\r\nBEGIN\r\n  -- Apenas criar lançamento se status mudou para 'entregue'\r\n  IF NEW.status = 'entregue' AND OLD.status != 'entregue' THEN\r\n    \r\n    -- Calcular total das peças\r\n    SELECT COALESCE(SUM(valor_total), 0) INTO v_total_pecas\r\n    FROM ordem_servico_pecas\r\n    WHERE id_ordem_servico = NEW.id;\r\n    \r\n    -- Calcular valor do serviço (total - peças)\r\n    v_valor_servico := COALESCE(NEW.valor_total, 0) - v_total_pecas;\r\n    \r\n    -- Criar lançamento no caixa (se não existir)\r\n    INSERT INTO ordem_servico_caixa (\r\n      id_ordem_servico,\r\n      id_loja,\r\n      valor_total,\r\n      valor_pecas,\r\n      valor_servico,\r\n      valor_desconto,\r\n      status_caixa,\r\n      criado_por\r\n    )\r\n    SELECT\r\n      NEW.id,\r\n      NEW.id_loja,\r\n      COALESCE(NEW.valor_total, 0),\r\n      v_total_pecas,\r\n      v_valor_servico,\r\n      COALESCE(NEW.valor_desconto, 0),\r\n      'pendente',\r\n      NEW.atualizado_por\r\n    WHERE NOT EXISTS (\r\n      SELECT 1 FROM ordem_servico_caixa \r\n      WHERE id_ordem_servico = NEW.id\r\n    );\r\n    \r\n    -- Registrar no histórico\r\n    INSERT INTO historico_ordem_servico (\r\n      id_ordem_servico,\r\n      tipo_evento,\r\n      descricao,\r\n      criado_por\r\n    ) VALUES (\r\n      NEW.id,\r\n      'lancamento_caixa',\r\n      'Lançamento criado no caixa - Valor: R$ ' || COALESCE(NEW.valor_total, 0),\r\n      NEW.atualizado_por\r\n    );\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "criar_notificacao_estoque",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.criar_notificacao_estoque(p_produto_id uuid, p_loja_id integer, p_quantidade integer, p_quantidade_minima integer)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    v_produto_nome TEXT;\r\n    v_loja_nome TEXT;\r\n    v_estado_atual TEXT;\r\n    v_estado_anterior TEXT;\r\n    v_notificacao_id INTEGER;\r\n    v_tipo TEXT;\r\n    v_titulo TEXT;\r\n    v_mensagem TEXT;\r\nBEGIN\r\n    RAISE NOTICE 'ðŸŸ¢ criar_notificacao_estoque INICIADA';\r\n    RAISE NOTICE '   Params: produto=%, loja=%, qtd=%, min=%', \r\n      p_produto_id, p_loja_id, p_quantidade, p_quantidade_minima;\r\n    \r\n    -- Buscar informaÃ§Ãµes do produto e loja\r\n    SELECT descricao INTO v_produto_nome FROM public.produtos WHERE id = p_produto_id;\r\n    SELECT nome INTO v_loja_nome FROM public.lojas WHERE id = p_loja_id;\r\n    \r\n    RAISE NOTICE '   Produto: %, Loja: %', v_produto_nome, v_loja_nome;\r\n    \r\n    IF v_produto_nome IS NULL OR v_loja_nome IS NULL THEN\r\n        RAISE NOTICE 'âŒ Produto ou loja nÃ£o encontrados, saindo';\r\n        RETURN;\r\n    END IF;\r\n    \r\n    -- Determinar estado atual\r\n    IF p_quantidade = 0 THEN\r\n        v_estado_atual := 'zerado';\r\n    ELSIF p_quantidade <= p_quantidade_minima THEN\r\n        v_estado_atual := 'baixo';\r\n    ELSE\r\n        v_estado_atual := 'normal';\r\n    END IF;\r\n    \r\n    RAISE NOTICE '   Estado atual: %', v_estado_atual;\r\n    \r\n    -- Verificar estado anterior\r\n    SELECT estado INTO v_estado_anterior \r\n    FROM public.alertas_estoque_controle\r\n    WHERE produto_id = p_produto_id AND loja_id = p_loja_id;\r\n    \r\n    RAISE NOTICE '   Estado anterior: %', v_estado_anterior;\r\n    \r\n    -- Se nÃ£o mudou de estado, nÃ£o fazer nada\r\n    IF v_estado_anterior = v_estado_atual THEN\r\n        RAISE NOTICE 'â­ï¸  Estado nÃ£o mudou (%->%), nÃ£o criar notificaÃ§Ã£o', v_estado_anterior, v_estado_atual;\r\n        RETURN;\r\n    END IF;\r\n    \r\n    RAISE NOTICE 'âœ… Estado mudou de % para %, criando notificaÃ§Ã£o', v_estado_anterior, v_estado_atual;\r\n    \r\n    -- Determinar tipo e mensagem (SEM acentos para evitar problemas de encoding)\r\n    IF v_estado_anterior IN ('baixo', 'zerado') AND v_estado_atual = 'normal' THEN\r\n        v_tipo := 'estoque_reposto';\r\n        v_titulo := 'Estoque Reposto';\r\n        v_mensagem := 'O estoque de \"' || v_produto_nome || '\" foi reposto na loja \"' || v_loja_nome || '\". Quantidade atual: ' || p_quantidade || ' unidades.';\r\n    ELSIF v_estado_atual = 'zerado' THEN\r\n        v_tipo := 'estoque_zerado';\r\n        v_titulo := 'Estoque Zerado';\r\n        v_mensagem := 'O produto \"' || v_produto_nome || '\" esta sem estoque na loja \"' || v_loja_nome || '\"!';\r\n    ELSIF v_estado_atual = 'baixo' THEN\r\n        v_tipo := 'estoque_baixo';\r\n        v_titulo := 'Estoque Baixo';\r\n        v_mensagem := 'O estoque de \"' || v_produto_nome || '\" esta baixo na loja \"' || v_loja_nome || '\". Quantidade atual: ' || p_quantidade || ' (minimo: ' || p_quantidade_minima || ').';\r\n    ELSE\r\n        RAISE NOTICE 'â­ï¸  Nenhuma notificaÃ§Ã£o necessÃ¡ria';\r\n        RETURN;\r\n    END IF;\r\n    \r\n    RAISE NOTICE 'ðŸ“ Criando notificaÃ§Ã£o tipo: %', v_tipo;\r\n    \r\n    -- Criar notificaÃ§Ã£o\r\n    BEGIN\r\n        INSERT INTO public.notificacoes (\r\n            tipo, titulo, mensagem, produto_id, loja_id,\r\n            dados_extras\r\n        )\r\n        VALUES (\r\n            v_tipo, v_titulo, v_mensagem, p_produto_id, p_loja_id,\r\n            jsonb_build_object(\r\n                'quantidade', p_quantidade,\r\n                'quantidade_minima', p_quantidade_minima,\r\n                'estado', v_estado_atual\r\n            )\r\n        )\r\n        RETURNING id INTO v_notificacao_id;\r\n        \r\n        RAISE NOTICE 'âœ… NotificaÃ§Ã£o criada ID: %', v_notificacao_id;\r\n        \r\n        -- Criar registros para todos os usuÃ¡rios ativos\r\n        INSERT INTO public.notificacoes_usuarios (notificacao_id, usuario_id)\r\n        SELECT v_notificacao_id, id\r\n        FROM public.usuarios\r\n        WHERE ativo = true;\r\n        \r\n        RAISE NOTICE 'âœ… Registros de usuÃ¡rios criados';\r\n        \r\n    EXCEPTION\r\n        WHEN OTHERS THEN\r\n            RAISE WARNING 'âŒ Erro ao criar notificaÃ§Ã£o: %', SQLERRM;\r\n            RETURN;\r\n    END;\r\n    \r\n    -- Atualizar controle de alerta\r\n    INSERT INTO public.alertas_estoque_controle (\r\n        produto_id, loja_id, estado, quantidade_atual, quantidade_minima\r\n    )\r\n    VALUES (\r\n        p_produto_id, p_loja_id, v_estado_atual, p_quantidade, p_quantidade_minima\r\n    )\r\n    ON CONFLICT (produto_id, loja_id)\r\n    DO UPDATE SET\r\n        estado = v_estado_atual,\r\n        quantidade_atual = p_quantidade,\r\n        quantidade_minima = p_quantidade_minima,\r\n        ultimo_alerta_em = NOW(),\r\n        atualizado_em = NOW();\r\n        \r\n    RAISE NOTICE 'âœ… Controle de alerta atualizado';\r\n    RAISE NOTICE 'ðŸ criar_notificacao_estoque CONCLUÃDA';\r\n        \r\nEXCEPTION\r\n    WHEN OTHERS THEN\r\n        RAISE WARNING 'âŒ Erro geral em criar_notificacao_estoque: %', SQLERRM;\r\n        RETURN;\r\nEND;\r\n$function$\n",
+    "parametros": "p_produto_id uuid, p_loja_id integer, p_quantidade integer, p_quantidade_minima integer",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "criar_tecnico_auth_user",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.criar_tecnico_auth_user(p_email character varying, p_senha character varying, p_nome character varying, p_telefone character varying, p_cpf character varying DEFAULT NULL::character varying, p_especialidades text[] DEFAULT NULL::text[], p_id_loja integer DEFAULT NULL::integer, p_criado_por uuid DEFAULT NULL::uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_user_id UUID;\r\n  v_tecnico_id UUID;\r\nBEGIN\r\n  -- 1. Verificar se email já existe em auth.users\r\n  SELECT id INTO v_user_id\r\n  FROM auth.users\r\n  WHERE email = p_email;\r\n\r\n  -- 2. Se não existe, criar usuário no Supabase Auth\r\n  IF v_user_id IS NULL THEN\r\n    -- Criar usuário via admin API do Supabase\r\n    -- NOTA: Esta parte requer configuração no Supabase Dashboard\r\n    -- ou uso da API administrativa\r\n    RAISE EXCEPTION 'Criar usuário via Supabase Admin API ou Dashboard primeiro';\r\n  END IF;\r\n\r\n  -- 3. Criar registro na tabela tecnicos\r\n  INSERT INTO tecnicos (\r\n    id,\r\n    nome,\r\n    email,\r\n    telefone,\r\n    cpf,\r\n    especialidades,\r\n    id_loja,\r\n    usuario_id,\r\n    ativo,\r\n    criado_por,\r\n    criado_em,\r\n    atualizado_em\r\n  )\r\n  VALUES (\r\n    v_user_id, -- Usar mesmo ID do auth.users\r\n    p_nome,\r\n    p_email,\r\n    p_telefone,\r\n    p_cpf,\r\n    p_especialidades,\r\n    p_id_loja,\r\n    v_user_id,\r\n    true,\r\n    p_criado_por,\r\n    NOW(),\r\n    NOW()\r\n  )\r\n  RETURNING id INTO v_tecnico_id;\r\n\r\n  RETURN v_tecnico_id;\r\nEND;\r\n$function$\n",
+    "parametros": "p_email character varying, p_senha character varying, p_nome character varying, p_telefone character varying, p_cpf character varying DEFAULT NULL::character varying, p_especialidades text[] DEFAULT NULL::text[], p_id_loja integer DEFAULT NULL::integer, p_criado_por uuid DEFAULT NULL::uuid",
+    "retorno": "uuid",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "definir_foto_principal",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.definir_foto_principal(p_foto_id integer)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_loja_id INTEGER;\r\nBEGIN\r\n  -- Obter o loja_id da foto\r\n  SELECT loja_id INTO v_loja_id FROM lojas_fotos WHERE id = p_foto_id;\r\n  \r\n  -- Desmarcar todas as fotos principais desta loja\r\n  UPDATE lojas_fotos \r\n  SET is_principal = FALSE \r\n  WHERE loja_id = v_loja_id;\r\n  \r\n  -- Marcar a foto selecionada como principal\r\n  UPDATE lojas_fotos \r\n  SET is_principal = TRUE \r\n  WHERE id = p_foto_id;\r\nEND;\r\n$function$\n",
+    "parametros": "p_foto_id integer",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "deletar_loja_com_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.deletar_loja_com_usuario(p_id integer, p_usuario_id uuid DEFAULT NULL::uuid)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    -- Setar a variável de sessão com o usuario_id\r\n    IF p_usuario_id IS NOT NULL THEN\r\n        PERFORM set_config('app.current_user_id', p_usuario_id::TEXT, true);\r\n        RAISE NOTICE '✅ Usuario ID setado na sessão (DELETE): %', p_usuario_id;\r\n    END IF;\r\n\r\n    -- Deletar a loja\r\n    DELETE FROM lojas WHERE id = p_id;\r\n    \r\n    RETURN FOUND;\r\nEND;\r\n$function$\n",
+    "parametros": "p_id integer, p_usuario_id uuid DEFAULT NULL::uuid",
+    "retorno": "boolean",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "devolver_pecas_ao_cancelar_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.devolver_pecas_ao_cancelar_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_peca RECORD;\r\n  v_quantidade_anterior INTEGER;\r\n  v_quantidade_nova INTEGER;\r\n  v_contador INTEGER := 0;\r\nBEGIN\r\n  -- Verificar se mudou para cancelado\r\n  IF NEW.status = 'cancelado' AND (OLD.status IS NULL OR OLD.status != 'cancelado') THEN\r\n    \r\n    RAISE NOTICE '=== INICIANDO DEVOLUÇÃO PARA OS % ===', NEW.numero_os;\r\n    \r\n    -- Processar cada peça do estoque desta OS\r\n    FOR v_peca IN \r\n      SELECT \r\n        osp.id,\r\n        osp.id_produto,\r\n        osp.id_loja,\r\n        osp.tipo_produto,\r\n        osp.descricao_peca,\r\n        osp.quantidade,\r\n        osp.estoque_baixado,\r\n        p.descricao as produto_descricao\r\n      FROM ordem_servico_pecas osp\r\n      LEFT JOIN produtos p ON p.id = osp.id_produto\r\n      WHERE osp.id_ordem_servico = NEW.id \r\n        AND osp.tipo_produto = 'estoque'\r\n        AND osp.id_produto IS NOT NULL\r\n        AND osp.id_loja IS NOT NULL\r\n    LOOP\r\n      \r\n      RAISE NOTICE 'Peça: % (qtd: %) - Baixado: %', \r\n        v_peca.descricao_peca, \r\n        v_peca.quantidade, \r\n        COALESCE(v_peca.estoque_baixado, TRUE);\r\n      \r\n      -- Verificar se estoque foi baixado\r\n      IF COALESCE(v_peca.estoque_baixado, TRUE) = TRUE THEN\r\n        \r\n        -- Buscar quantidade atual do estoque\r\n        SELECT quantidade INTO v_quantidade_anterior\r\n        FROM estoque_lojas\r\n        WHERE id_produto = v_peca.id_produto\r\n          AND id_loja = v_peca.id_loja;\r\n        \r\n        IF v_quantidade_anterior IS NULL THEN\r\n          RAISE NOTICE '  ⚠️ Produto não encontrado no estoque da loja %', v_peca.id_loja;\r\n          CONTINUE;\r\n        END IF;\r\n        \r\n        -- Calcular nova quantidade\r\n        v_quantidade_nova := v_quantidade_anterior + v_peca.quantidade;\r\n        \r\n        RAISE NOTICE '  ↗️ Devolvendo: % -> % unidades', v_quantidade_anterior, v_quantidade_nova;\r\n        \r\n        -- Devolver ao estoque\r\n        UPDATE estoque_lojas\r\n        SET quantidade = v_quantidade_nova,\r\n            atualizado_por = NEW.atualizado_por,\r\n            atualizado_em = NOW()\r\n        WHERE id_produto = v_peca.id_produto\r\n          AND id_loja = v_peca.id_loja;\r\n        \r\n        -- Registrar no histórico (USANDO AS COLUNAS CORRETAS)\r\n        INSERT INTO historico_estoque (\r\n          id_produto,\r\n          id_loja,\r\n          id_ordem_servico,\r\n          tipo_movimentacao,\r\n          quantidade_alterada,\r\n          quantidade_anterior,\r\n          quantidade_nova,\r\n          motivo,\r\n          observacao,\r\n          usuario_id  -- COLUNA CORRETA!\r\n        ) VALUES (\r\n          v_peca.id_produto,\r\n          v_peca.id_loja,\r\n          NEW.id,\r\n          'entrada',\r\n          v_peca.quantidade,\r\n          v_quantidade_anterior,\r\n          v_quantidade_nova,\r\n          'Devolução por cancelamento de OS #' || NEW.numero_os,\r\n          COALESCE(v_peca.produto_descricao, v_peca.descricao_peca),\r\n          NEW.atualizado_por  -- usuario_id\r\n        );\r\n        \r\n        -- Atualizar flag da peça\r\n        UPDATE ordem_servico_pecas\r\n        SET estoque_baixado = FALSE\r\n        WHERE id = v_peca.id;\r\n        \r\n        v_contador := v_contador + 1;\r\n        RAISE NOTICE '  ✅ Peça devolvida!';\r\n        \r\n      ELSE\r\n        RAISE NOTICE '  ℹ️ Peça já foi devolvida anteriormente';\r\n      END IF;\r\n      \r\n    END LOOP;\r\n    \r\n    RAISE NOTICE '=== DEVOLUÇÃO CONCLUÍDA: % peças processadas ===', v_contador;\r\n    \r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "exec",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.exec(sql text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    EXECUTE sql;\r\n    RETURN 'OK';\r\nEND;\r\n$function$\n",
+    "parametros": "sql text",
+    "retorno": "text",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "fn_registrar_mudancas_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.fn_registrar_mudancas_usuario()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_usuario_atual UUID;\r\nBEGIN\r\n  -- Obtém o ID do usuário autenticado\r\n  v_usuario_atual := auth.uid();\r\n\r\n  -- Operação INSERT\r\n  IF (TG_OP = 'INSERT') THEN\r\n    INSERT INTO public.historico_usuarios (\r\n      usuario_id,\r\n      usuario_alterou_id,\r\n      campo_alterado,\r\n      valor_anterior,\r\n      valor_novo,\r\n      tipo_operacao\r\n    ) VALUES (\r\n      NEW.id,\r\n      v_usuario_atual,\r\n      'criacao',\r\n      NULL,\r\n      'Usuário criado',\r\n      'INSERT'\r\n    );\r\n    RETURN NEW;\r\n  END IF;\r\n\r\n  -- Operação UPDATE\r\n  IF (TG_OP = 'UPDATE') THEN\r\n    -- Verificar campo: nome\r\n    IF (OLD.nome IS DISTINCT FROM NEW.nome) THEN\r\n      INSERT INTO public.historico_usuarios (\r\n        usuario_id,\r\n        usuario_alterou_id,\r\n        campo_alterado,\r\n        valor_anterior,\r\n        valor_novo,\r\n        tipo_operacao\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_usuario_atual,\r\n        'nome',\r\n        OLD.nome,\r\n        NEW.nome,\r\n        'UPDATE'\r\n      );\r\n    END IF;\r\n\r\n    -- Verificar campo: email\r\n    IF (OLD.email IS DISTINCT FROM NEW.email) THEN\r\n      INSERT INTO public.historico_usuarios (\r\n        usuario_id,\r\n        usuario_alterou_id,\r\n        campo_alterado,\r\n        valor_anterior,\r\n        valor_novo,\r\n        tipo_operacao\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_usuario_atual,\r\n        'email',\r\n        OLD.email,\r\n        NEW.email,\r\n        'UPDATE'\r\n      );\r\n    END IF;\r\n\r\n    -- Verificar campo: telefone\r\n    IF (OLD.telefone IS DISTINCT FROM NEW.telefone) THEN\r\n      INSERT INTO public.historico_usuarios (\r\n        usuario_id,\r\n        usuario_alterou_id,\r\n        campo_alterado,\r\n        valor_anterior,\r\n        valor_novo,\r\n        tipo_operacao\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_usuario_atual,\r\n        'telefone',\r\n        OLD.telefone,\r\n        NEW.telefone,\r\n        'UPDATE'\r\n      );\r\n    END IF;\r\n\r\n    -- Verificar campo: cpf\r\n    IF (OLD.cpf IS DISTINCT FROM NEW.cpf) THEN\r\n      INSERT INTO public.historico_usuarios (\r\n        usuario_id,\r\n        usuario_alterou_id,\r\n        campo_alterado,\r\n        valor_anterior,\r\n        valor_novo,\r\n        tipo_operacao\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_usuario_atual,\r\n        'cpf',\r\n        OLD.cpf,\r\n        NEW.cpf,\r\n        'UPDATE'\r\n      );\r\n    END IF;\r\n\r\n    -- Verificar campo: ativo\r\n    IF (OLD.ativo IS DISTINCT FROM NEW.ativo) THEN\r\n      INSERT INTO public.historico_usuarios (\r\n        usuario_id,\r\n        usuario_alterou_id,\r\n        campo_alterado,\r\n        valor_anterior,\r\n        valor_novo,\r\n        tipo_operacao\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_usuario_atual,\r\n        'status',\r\n        CASE WHEN OLD.ativo THEN 'Ativo' ELSE 'Inativo' END,\r\n        CASE WHEN NEW.ativo THEN 'Ativo' ELSE 'Inativo' END,\r\n        'UPDATE'\r\n      );\r\n    END IF;\r\n\r\n    RETURN NEW;\r\n  END IF;\r\n\r\n  -- Operação DELETE\r\n  IF (TG_OP = 'DELETE') THEN\r\n    INSERT INTO public.historico_usuarios (\r\n      usuario_id,\r\n      usuario_alterou_id,\r\n      campo_alterado,\r\n      valor_anterior,\r\n      valor_novo,\r\n      tipo_operacao\r\n    ) VALUES (\r\n      OLD.id,\r\n      v_usuario_atual,\r\n      'exclusao',\r\n      'Usuário existente',\r\n      NULL,\r\n      'DELETE'\r\n    );\r\n    RETURN OLD;\r\n  END IF;\r\n\r\n  RETURN NULL;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "gerar_numero_rma",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.gerar_numero_rma()\n RETURNS text\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    ano INTEGER;\r\n    prefixo TEXT;\r\n    ultimo_numero INTEGER;\r\n    proximo_numero INTEGER;\r\nBEGIN\r\n    ano := EXTRACT(YEAR FROM NOW());\r\n    prefixo := 'RMA' || ano::TEXT;\r\n    \r\n    SELECT COALESCE(\r\n        MAX(CAST(SUBSTRING(numero_rma FROM LENGTH(prefixo) + 1) AS INTEGER)),\r\n        0\r\n    ) INTO ultimo_numero\r\n    FROM public.rmas\r\n    WHERE numero_rma LIKE prefixo || '%';\r\n    \r\n    proximo_numero := ultimo_numero + 1;\r\n    \r\n    RETURN prefixo || LPAD(proximo_numero::TEXT, 6, '0');\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "text",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "get_tipo_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.get_tipo_usuario(user_id uuid)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_tipo TEXT;\r\nBEGIN\r\n  -- Verificar se é técnico\r\n  IF EXISTS(SELECT 1 FROM tecnicos WHERE id = user_id OR usuario_id = user_id) THEN\r\n    RETURN 'tecnico';\r\n  END IF;\r\n  \r\n  -- Verificar se é usuário administrativo\r\n  IF EXISTS(SELECT 1 FROM usuarios WHERE id = user_id) THEN\r\n    RETURN 'usuario';\r\n  END IF;\r\n  \r\n  RETURN 'desconhecido';\r\nEND;\r\n$function$\n",
+    "parametros": "user_id uuid",
+    "retorno": "text",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "inserir_loja_com_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.inserir_loja_com_usuario(p_nome text, p_cnpj character varying DEFAULT NULL::character varying, p_telefone text DEFAULT NULL::text, p_email text DEFAULT NULL::text, p_endereco text DEFAULT NULL::text, p_cidade text DEFAULT NULL::text, p_estado character varying DEFAULT NULL::character varying, p_cep character varying DEFAULT NULL::character varying, p_usuario_id uuid DEFAULT NULL::uuid)\n RETURNS TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    -- Setar a variável de sessão com o usuario_id\r\n    IF p_usuario_id IS NOT NULL THEN\r\n        PERFORM set_config('app.current_user_id', p_usuario_id::TEXT, true);\r\n        RAISE NOTICE '✅ Usuario ID setado na sessão: %', p_usuario_id;\r\n    END IF;\r\n\r\n    -- Inserir a loja e retornar os dados\r\n    RETURN QUERY\r\n    INSERT INTO lojas (nome, cnpj, telefone, email, endereco, cidade, estado, cep, ativo)\r\n    VALUES (p_nome, p_cnpj, p_telefone, p_email, p_endereco, p_cidade, p_estado, p_cep, true)\r\n    RETURNING \r\n        lojas.id,\r\n        lojas.nome,\r\n        lojas.cnpj,\r\n        lojas.telefone,\r\n        lojas.email,\r\n        lojas.endereco,\r\n        lojas.cidade,\r\n        lojas.estado,\r\n        lojas.cep,\r\n        lojas.ativo,\r\n        lojas.criado_em,\r\n        lojas.atualizado_em;\r\nEND;\r\n$function$\n",
+    "parametros": "p_nome text, p_cnpj character varying DEFAULT NULL::character varying, p_telefone text DEFAULT NULL::text, p_email text DEFAULT NULL::text, p_endereco text DEFAULT NULL::text, p_cidade text DEFAULT NULL::text, p_estado character varying DEFAULT NULL::character varying, p_cep character varying DEFAULT NULL::character varying, p_usuario_id uuid DEFAULT NULL::uuid",
+    "retorno": "TABLE(id integer, nome text, cnpj character varying, telefone text, email text, endereco text, cidade text, estado character varying, cep character varying, ativo boolean, criado_em timestamp with time zone, atualizado_em timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "is_tecnico",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.is_tecnico(user_id uuid)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  v_is_tecnico BOOLEAN;\r\nBEGIN\r\n  SELECT EXISTS(\r\n    SELECT 1 FROM tecnicos \r\n    WHERE id = user_id OR usuario_id = user_id\r\n  ) INTO v_is_tecnico;\r\n  \r\n  RETURN v_is_tecnico;\r\nEND;\r\n$function$\n",
+    "parametros": "user_id uuid",
+    "retorno": "boolean",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "log_alteracoes_usuarios",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.log_alteracoes_usuarios()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nbegin\r\n  insert into public.historico_usuarios (\r\n    usuario_id,\r\n    modificado_por,\r\n    campo_modificado,\r\n    valor_antigo,\r\n    valor_novo\r\n  )\r\n  values (\r\n    new.id,\r\n    auth.uid(),\r\n    TG_ARGV[0], -- nome do campo alterado\r\n    old.*::text,\r\n    new.*::text\r\n  );\r\n  return new;\r\nend;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "marcar_notificacao_lida",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.marcar_notificacao_lida(p_notificacao_id integer, p_usuario_id uuid)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    UPDATE public.notificacoes_usuarios\r\n    SET lida = true,\r\n        lida_em = NOW()\r\n    WHERE notificacao_id = p_notificacao_id\r\n    AND usuario_id = p_usuario_id;\r\nEND;\r\n$function$\n",
+    "parametros": "p_notificacao_id integer, p_usuario_id uuid",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "marcar_todas_notificacoes_lidas",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.marcar_todas_notificacoes_lidas(p_usuario_id uuid)\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    UPDATE public.notificacoes_usuarios\r\n    SET lida = true,\r\n        lida_em = NOW()\r\n    WHERE usuario_id = p_usuario_id\r\n    AND lida = false;\r\nEND;\r\n$function$\n",
+    "parametros": "p_usuario_id uuid",
+    "retorno": "void",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "notificar_estoque_simples",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.notificar_estoque_simples()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_produto_nome TEXT;\r\n  v_loja_nome TEXT;\r\n  v_titulo TEXT;\r\n  v_mensagem TEXT;\r\n  v_tipo TEXT;\r\n  v_estado_anterior TEXT;\r\n  v_deve_notificar BOOLEAN := FALSE;\r\n  v_novo_estado TEXT;\r\n  v_quantidade_minima INTEGER;\r\nBEGIN\r\n  -- Buscar quantidade_minima do produto\r\n  SELECT p.quantidade_minima INTO v_quantidade_minima\r\n  FROM produtos p\r\n  WHERE p.id = NEW.id_produto;\r\n  \r\n  -- Buscar nomes do produto e loja\r\n  SELECT p.descricao INTO v_produto_nome\r\n  FROM produtos p\r\n  WHERE p.id = NEW.id_produto;\r\n  \r\n  SELECT l.nome INTO v_loja_nome\r\n  FROM lojas l\r\n  WHERE l.id = NEW.id_loja;\r\n  \r\n  -- Buscar estado anterior\r\n  SELECT estado INTO v_estado_anterior\r\n  FROM alertas_estoque_controle\r\n  WHERE produto_id = NEW.id_produto \r\n    AND loja_id = NEW.id_loja;\r\n  \r\n  RAISE NOTICE '📊 Verificando: produto=%, loja=%, qtd=%, min=%, estado_ant=%', \r\n    v_produto_nome, v_loja_nome, NEW.quantidade, v_quantidade_minima, COALESCE(v_estado_anterior, 'nenhum');\r\n  \r\n  -- ============================================\r\n  -- LÓGICA DE NOTIFICAÇÃO\r\n  -- ============================================\r\n  \r\n  -- Caso 1: ESTOQUE ZERADO\r\n  IF NEW.quantidade = 0 THEN\r\n    IF v_estado_anterior IS NULL OR v_estado_anterior != 'zerado' THEN\r\n      v_tipo := 'estoque_zerado';\r\n      v_titulo := 'Estoque Zerado';\r\n      v_mensagem := 'O produto ' || v_produto_nome || ' está com estoque zerado na loja ' || v_loja_nome || '.';\r\n      v_deve_notificar := TRUE;\r\n      RAISE NOTICE '🔴 ZERADO: vai notificar';\r\n    ELSE\r\n      RAISE NOTICE '⚪ ZERADO: já estava zerado';\r\n    END IF;\r\n  \r\n  -- Caso 2: ESTOQUE BAIXO\r\n  ELSIF NEW.quantidade > 0 AND NEW.quantidade <= v_quantidade_minima THEN\r\n    IF v_estado_anterior IS NULL OR v_estado_anterior != 'baixo' THEN\r\n      v_tipo := 'estoque_baixo';\r\n      v_titulo := 'Estoque Baixo';\r\n      v_mensagem := 'O produto ' || v_produto_nome || ' está com estoque baixo na loja ' || v_loja_nome || '. Quantidade atual: ' || NEW.quantidade || ' (Mínimo: ' || v_quantidade_minima || ')';\r\n      v_deve_notificar := TRUE;\r\n      RAISE NOTICE '🟡 BAIXO: vai notificar';\r\n    ELSE\r\n      RAISE NOTICE '⚪ BAIXO: já estava baixo';\r\n    END IF;\r\n  \r\n  -- Caso 3: ESTOQUE REPOSTO\r\n  ELSIF NEW.quantidade > v_quantidade_minima THEN\r\n    IF v_estado_anterior = 'baixo' OR v_estado_anterior = 'zerado' THEN\r\n      v_tipo := 'estoque_reposto';\r\n      v_titulo := 'Estoque Reposto';\r\n      v_mensagem := 'O produto ' || v_produto_nome || ' foi reposto na loja ' || v_loja_nome || '. Quantidade atual: ' || NEW.quantidade || ' (Mínimo: ' || v_quantidade_minima || ')';\r\n      v_deve_notificar := TRUE;\r\n      RAISE NOTICE '🟢 REPOSTO: vai notificar';\r\n    ELSE\r\n      RAISE NOTICE '⚪ NORMAL: continua normal';\r\n    END IF;\r\n  END IF;\r\n  \r\n  -- ============================================\r\n  -- CRIAR NOTIFICAÇÃO SE NECESSÁRIO\r\n  -- ============================================\r\n  \r\n  IF v_deve_notificar THEN\r\n    RAISE NOTICE '✅ Criando notificação: tipo=%', v_tipo;\r\n    \r\n    INSERT INTO notificacoes (\r\n      tipo,\r\n      titulo,\r\n      mensagem,\r\n      produto_id,\r\n      loja_id,\r\n      criado_em\r\n    ) VALUES (\r\n      v_tipo,\r\n      v_titulo,\r\n      v_mensagem,\r\n      NEW.id_produto,\r\n      NEW.id_loja,\r\n      NOW()\r\n    );\r\n    \r\n    RAISE NOTICE '📬 Notificação criada!';\r\n  END IF;\r\n  \r\n  -- ============================================\r\n  -- ATUALIZAR CONTROLE DE ESTADO\r\n  -- ============================================\r\n  \r\n  IF NEW.quantidade = 0 THEN\r\n    v_novo_estado := 'zerado';\r\n  ELSIF NEW.quantidade <= v_quantidade_minima THEN\r\n    v_novo_estado := 'baixo';\r\n  ELSE\r\n    v_novo_estado := 'normal';\r\n  END IF;\r\n  \r\n  INSERT INTO alertas_estoque_controle (\r\n    produto_id,\r\n    loja_id,\r\n    estado,\r\n    quantidade_atual,\r\n    quantidade_minima,\r\n    atualizado_em\r\n  ) VALUES (\r\n    NEW.id_produto,\r\n    NEW.id_loja,\r\n    v_novo_estado,\r\n    NEW.quantidade,\r\n    v_quantidade_minima,\r\n    NOW()\r\n  )\r\n  ON CONFLICT (produto_id, loja_id) \r\n  DO UPDATE SET\r\n    estado = v_novo_estado,\r\n    quantidade_atual = NEW.quantidade,\r\n    quantidade_minima = v_quantidade_minima,\r\n    atualizado_em = NOW();\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "obter_estatisticas_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.obter_estatisticas_os(p_id_loja integer DEFAULT NULL::integer)\n RETURNS TABLE(total_os integer, aguardando integer, em_andamento integer, concluido integer, entregue integer, cancelado integer, valor_total_mes numeric, valor_recebido_mes numeric)\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  RETURN QUERY\r\n  SELECT\r\n    COUNT(*)::INTEGER AS total_os,\r\n    COUNT(*) FILTER (WHERE status = 'aguardando')::INTEGER AS aguardando,\r\n    COUNT(*) FILTER (WHERE status = 'em_andamento')::INTEGER AS em_andamento,\r\n    COUNT(*) FILTER (WHERE status = 'concluido')::INTEGER AS concluido,\r\n    COUNT(*) FILTER (WHERE status = 'entregue')::INTEGER AS entregue,\r\n    COUNT(*) FILTER (WHERE status = 'cancelado')::INTEGER AS cancelado,\r\n    COALESCE(SUM(valor_total) FILTER (WHERE \r\n      data_entrada >= date_trunc('month', CURRENT_DATE)\r\n    ), 0) AS valor_total_mes,\r\n    COALESCE(SUM(valor_pago) FILTER (WHERE \r\n      data_entrada >= date_trunc('month', CURRENT_DATE)\r\n    ), 0) AS valor_recebido_mes\r\n  FROM ordem_servico\r\n  WHERE (p_id_loja IS NULL OR id_loja = p_id_loja);\r\nEND;\r\n$function$\n",
+    "parametros": "p_id_loja integer DEFAULT NULL::integer",
+    "retorno": "TABLE(total_os integer, aguardando integer, em_andamento integer, concluido integer, entregue integer, cancelado integer, valor_total_mes numeric, valor_recebido_mes numeric)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "obter_fotos_loja",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.obter_fotos_loja(p_loja_id integer)\n RETURNS TABLE(id integer, url text, legenda text, ordem integer, is_principal boolean, criado_em timestamp with time zone)\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  RETURN QUERY\r\n  SELECT \r\n    lf.id,\r\n    lf.url,\r\n    lf.legenda,\r\n    lf.ordem,\r\n    lf.is_principal,\r\n    lf.criado_em\r\n  FROM lojas_fotos lf\r\n  WHERE lf.loja_id = p_loja_id\r\n  ORDER BY lf.ordem ASC, lf.criado_em ASC;\r\nEND;\r\n$function$\n",
+    "parametros": "p_loja_id integer",
+    "retorno": "TABLE(id integer, url text, legenda text, ordem integer, is_principal boolean, criado_em timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "obter_historico_loja",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.obter_historico_loja(p_loja_id integer)\n RETURNS TABLE(id integer, loja_id integer, operacao character varying, dados_antigos jsonb, dados_novos jsonb, usuario_id uuid, usuario_nome text, usuario_email text, criado_em timestamp with time zone, campos_modificados text[])\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    RETURN QUERY\r\n    SELECT \r\n        h.id,\r\n        h.loja_id,\r\n        h.operacao,\r\n        h.dados_antigos,\r\n        h.dados_novos,\r\n        h.usuario_id,\r\n        u.nome as usuario_nome,\r\n        u.email as usuario_email,\r\n        h.criado_em,\r\n        CASE \r\n            WHEN h.operacao = 'UPDATE' AND h.dados_antigos IS NOT NULL AND h.dados_novos IS NOT NULL THEN\r\n                (SELECT array_agg(key)\r\n                 FROM jsonb_each(h.dados_novos) \r\n                 WHERE h.dados_antigos->key IS DISTINCT FROM h.dados_novos->key)\r\n            ELSE\r\n                ARRAY[]::TEXT[]\r\n        END as campos_modificados\r\n    FROM historico_lojas h\r\n    LEFT JOIN usuarios u ON u.id = h.usuario_id\r\n    WHERE h.loja_id = p_loja_id\r\n    ORDER BY h.criado_em DESC;\r\nEND;\r\n$function$\n",
+    "parametros": "p_loja_id integer",
+    "retorno": "TABLE(id integer, loja_id integer, operacao character varying, dados_antigos jsonb, dados_novos jsonb, usuario_id uuid, usuario_nome text, usuario_email text, criado_em timestamp with time zone, campos_modificados text[])",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "obter_notificacoes_usuario",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.obter_notificacoes_usuario(p_usuario_id uuid, p_apenas_nao_lidas boolean DEFAULT false, p_limite integer DEFAULT 50)\n RETURNS TABLE(id integer, tipo character varying, titulo character varying, mensagem text, produto_id uuid, loja_id integer, dados_extras jsonb, criado_em timestamp with time zone, lida boolean, lida_em timestamp with time zone)\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    RETURN QUERY\r\n    SELECT \r\n        n.id,\r\n        n.tipo,\r\n        n.titulo,\r\n        n.mensagem,\r\n        n.produto_id,\r\n        n.loja_id,\r\n        n.dados_extras,\r\n        n.criado_em,\r\n        nu.lida,\r\n        nu.lida_em\r\n    FROM public.notificacoes n\r\n    INNER JOIN public.notificacoes_usuarios nu ON nu.notificacao_id = n.id\r\n    WHERE nu.usuario_id = p_usuario_id\r\n    AND (p_apenas_nao_lidas = false OR nu.lida = false)\r\n    AND (n.expira_em IS NULL OR n.expira_em > NOW())\r\n    ORDER BY n.criado_em DESC\r\n    LIMIT p_limite;\r\nEND;\r\n$function$\n",
+    "parametros": "p_usuario_id uuid, p_apenas_nao_lidas boolean DEFAULT false, p_limite integer DEFAULT 50",
+    "retorno": "TABLE(id integer, tipo character varying, titulo character varying, mensagem text, produto_id uuid, loja_id integer, dados_extras jsonb, criado_em timestamp with time zone, lida boolean, lida_em timestamp with time zone)",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "popular_notificacoes_usuarios",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.popular_notificacoes_usuarios()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_usuario RECORD;\r\n  v_count INTEGER := 0;\r\nBEGIN\r\n  -- Log para debug\r\n  RAISE NOTICE 'Trigger popular_notificacoes_usuarios disparado para notificacao ID=%', NEW.id;\r\n  \r\n  -- Inserir para todos os usuários ativos\r\n  -- (ajuste o WHERE se quiser apenas admins ou gerentes)\r\n  FOR v_usuario IN \r\n    SELECT id \r\n    FROM usuarios \r\n    WHERE ativo = true\r\n  LOOP\r\n    INSERT INTO notificacoes_usuarios (\r\n      notificacao_id,\r\n      usuario_id,\r\n      lida,\r\n      criado_em\r\n    ) VALUES (\r\n      NEW.id,\r\n      v_usuario.id,\r\n      false,\r\n      NOW()\r\n    );\r\n    \r\n    v_count := v_count + 1;\r\n  END LOOP;\r\n  \r\n  RAISE NOTICE 'Criados % registros em notificacoes_usuarios para notificacao ID=%', v_count, NEW.id;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "processar_baixa_estoque_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.processar_baixa_estoque_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_estoque_atual INTEGER;\r\n  v_estoque_novo INTEGER;\r\n  v_numero_os INTEGER;\r\n  v_descricao_produto TEXT;\r\n  v_quantidade_minima INTEGER;\r\n  v_linhas_afetadas INTEGER;\r\nBEGIN\r\n  -- Apenas processar se for produto do estoque (não avulso)\r\n  IF NEW.tipo_produto = 'estoque' AND NEW.id_produto IS NOT NULL AND NEW.id_loja IS NOT NULL THEN\r\n    \r\n    -- Buscar dados da OS e produto\r\n    SELECT numero_os INTO v_numero_os\r\n    FROM ordem_servico\r\n    WHERE id = NEW.id_ordem_servico;\r\n\r\n    SELECT descricao, COALESCE(quantidade_minima, 5) \r\n    INTO v_descricao_produto, v_quantidade_minima\r\n    FROM produtos\r\n    WHERE id = NEW.id_produto;\r\n    \r\n    -- Usar UPDATE com RETURNING para pegar estoque anterior\r\n    UPDATE estoque_lojas\r\n    SET quantidade = quantidade - NEW.quantidade,\r\n        atualizado_em = NOW(),\r\n        atualizado_por = NEW.criado_por\r\n    WHERE id_produto = NEW.id_produto\r\n      AND id_loja = NEW.id_loja\r\n      AND quantidade >= NEW.quantidade\r\n    RETURNING quantidade + NEW.quantidade, quantidade \r\n    INTO v_estoque_atual, v_estoque_novo;\r\n    \r\n    -- Verificar se UPDATE afetou alguma linha\r\n    GET DIAGNOSTICS v_linhas_afetadas = ROW_COUNT;\r\n    \r\n    IF v_linhas_afetadas = 0 THEN\r\n      -- Buscar estoque atual para mensagem\r\n      SELECT COALESCE(quantidade, 0) INTO v_estoque_atual\r\n      FROM estoque_lojas\r\n      WHERE id_produto = NEW.id_produto\r\n        AND id_loja = NEW.id_loja;\r\n      \r\n      IF v_estoque_atual IS NULL THEN\r\n        RAISE EXCEPTION 'Produto não encontrado no estoque da loja';\r\n      ELSE\r\n        RAISE EXCEPTION 'Estoque insuficiente! Disponível: %, Necessário: %', \r\n          v_estoque_atual, NEW.quantidade;\r\n      END IF;\r\n    END IF;\r\n    \r\n    -- Marcar como estoque baixado\r\n    NEW.estoque_baixado := TRUE;\r\n    NEW.data_baixa_estoque := NOW();\r\n\r\n    -- Criar notificação se necessário\r\n    BEGIN\r\n      PERFORM criar_notificacao_estoque(\r\n        NEW.id_produto,\r\n        NEW.id_loja,\r\n        v_estoque_novo,\r\n        v_quantidade_minima\r\n      );\r\n    EXCEPTION\r\n      WHEN OTHERS THEN\r\n        -- Ignora erro de notificação\r\n        NULL;\r\n    END;\r\n\r\n    -- Registrar no histórico\r\n    INSERT INTO historico_estoque (\r\n      id_produto,\r\n      id_loja,\r\n      tipo_movimentacao,\r\n      quantidade,\r\n      quantidade_anterior,\r\n      quantidade_nova,\r\n      quantidade_alterada,\r\n      motivo,\r\n      observacao,\r\n      usuario_id,\r\n      id_ordem_servico\r\n    ) VALUES (\r\n      NEW.id_produto,\r\n      NEW.id_loja,\r\n      'saida',\r\n      NEW.quantidade,\r\n      v_estoque_atual,\r\n      v_estoque_novo,\r\n      NEW.quantidade,\r\n      'ordem_servico',\r\n      'Saída para OS #' || COALESCE(v_numero_os::TEXT, 'N/A') || ' - ' || COALESCE(v_descricao_produto, 'Produto'),\r\n      NEW.criado_por,\r\n      NEW.id_ordem_servico\r\n    );\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "processar_quebra_peca",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.processar_quebra_peca()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_produto RECORD;\r\nBEGIN\r\n  -- Só processar quando aprovado for alterado para TRUE\r\n  IF NEW.aprovado = TRUE AND (OLD.aprovado IS NULL OR OLD.aprovado = FALSE) THEN\r\n    \r\n    -- Buscar informações do produto\r\n    SELECT * INTO v_produto\r\n    FROM produtos\r\n    WHERE id = NEW.id_produto;\r\n    \r\n    -- Deduzir do estoque da loja\r\n    UPDATE estoque_lojas\r\n    SET quantidade = quantidade - NEW.quantidade\r\n    WHERE id_produto = NEW.id_produto\r\n      AND id_loja = NEW.id_loja;\r\n    \r\n    -- Registrar no histórico de estoque\r\n    INSERT INTO historico_estoque (\r\n      id_produto,\r\n      id_loja,\r\n      tipo_movimentacao,\r\n      quantidade,\r\n      quantidade_anterior,\r\n      quantidade_nova,\r\n      quantidade_alterada,\r\n      motivo,\r\n      observacao,\r\n      usuario_id,\r\n      id_ordem_servico\r\n    )\r\n    SELECT \r\n      NEW.id_produto,\r\n      NEW.id_loja,\r\n      'quebra',\r\n      NEW.quantidade,\r\n      el.quantidade + NEW.quantidade, -- quantidade antes da dedução\r\n      el.quantidade, -- quantidade após dedução\r\n      -NEW.quantidade, -- quantidade alterada (negativo para saída)\r\n      CONCAT('Quebra aprovada - ', NEW.tipo_ocorrencia),\r\n      NEW.motivo,\r\n      NEW.aprovado_por,\r\n      NEW.id_ordem_servico\r\n    FROM estoque_lojas el\r\n    WHERE el.id_produto = NEW.id_produto\r\n      AND el.id_loja = NEW.id_loja;\r\n      \r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "registrar_devolucao_estoque",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_devolucao_estoque()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_produto_id UUID;\r\n  v_loja_id INTEGER;\r\n  v_usuario_id UUID;\r\n  v_numero_venda VARCHAR;\r\n  v_quantidade_anterior INTEGER;\r\nBEGIN\r\n  -- Buscar informações do item de venda\r\n  SELECT iv.produto_id\r\n  INTO v_produto_id\r\n  FROM itens_venda iv\r\n  WHERE iv.id = NEW.item_venda_id;\r\n  \r\n  IF v_produto_id IS NULL THEN\r\n    RAISE EXCEPTION 'Produto não encontrado para item_venda_id: %', NEW.item_venda_id;\r\n  END IF;\r\n  \r\n  -- Buscar informações da venda\r\n  SELECT v.loja_id, v.numero_venda\r\n  INTO v_loja_id, v_numero_venda\r\n  FROM vendas v\r\n  JOIN itens_venda iv ON iv.venda_id = v.id\r\n  WHERE iv.id = NEW.item_venda_id;\r\n  \r\n  IF v_loja_id IS NULL THEN\r\n    RAISE EXCEPTION 'Venda não encontrada para item_venda_id: %', NEW.item_venda_id;\r\n  END IF;\r\n  \r\n  -- Buscar usuário que realizou a devolução\r\n  SELECT dv.realizado_por\r\n  INTO v_usuario_id\r\n  FROM devolucoes_venda dv\r\n  WHERE dv.id = NEW.devolucao_id;\r\n  \r\n  -- Buscar quantidade anterior do estoque\r\n  SELECT COALESCE(el.quantidade, 0)\r\n  INTO v_quantidade_anterior\r\n  FROM estoque_lojas el\r\n  WHERE el.id_produto = v_produto_id\r\n  AND el.id_loja = v_loja_id;\r\n  \r\n  -- Se não encontrou, quantidade anterior é 0\r\n  IF v_quantidade_anterior IS NULL THEN\r\n    v_quantidade_anterior := 0;\r\n  END IF;\r\n  \r\n  -- Atualizar estoque da loja\r\n  INSERT INTO estoque_lojas (id_produto, id_loja, quantidade, atualizado_em, atualizado_por)\r\n  VALUES (v_produto_id, v_loja_id, NEW.quantidade, NOW(), v_usuario_id)\r\n  ON CONFLICT (id_produto, id_loja)\r\n  DO UPDATE SET \r\n    quantidade = estoque_lojas.quantidade + NEW.quantidade,\r\n    atualizado_em = NOW(),\r\n    atualizado_por = v_usuario_id;\r\n  \r\n  -- Registrar no histórico (CORRIGIDO: Devolucao ao invés de Devolução)\r\n  INSERT INTO historico_estoque (\r\n    id_produto,\r\n    id_loja,\r\n    tipo_movimentacao,\r\n    quantidade,\r\n    quantidade_anterior,\r\n    quantidade_nova,\r\n    motivo,\r\n    usuario_id,\r\n    criado_em\r\n  ) VALUES (\r\n    v_produto_id,\r\n    v_loja_id,\r\n    'devolucao_venda',\r\n    NEW.quantidade,\r\n    v_quantidade_anterior,\r\n    v_quantidade_anterior + NEW.quantidade,\r\n    'Devolucao da venda #' || COALESCE(v_numero_venda, 'N/A') || ' - ' || COALESCE(NEW.motivo, 'Sem motivo'),\r\n    v_usuario_id,\r\n    NOW()\r\n  );\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "registrar_foto_adicionada",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_foto_adicionada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n    )\r\n    SELECT \r\n        NEW.id_ordem_servico,\r\n        'foto_adicionada',\r\n        'Foto adicionada à ordem de serviço',\r\n        jsonb_build_object(\r\n            'foto_id', NEW.id,\r\n            'url', NEW.url,\r\n            'ordem', NEW.ordem,\r\n            'is_principal', NEW.is_principal\r\n        ),\r\n        auth.uid(),\r\n        u.nome\r\n    FROM usuarios u\r\n    WHERE u.id = auth.uid();\r\n    \r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_foto_removida",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_foto_removida()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_anteriores,\r\n        criado_por,\r\n        criado_por_nome\r\n    )\r\n    SELECT \r\n        OLD.id_ordem_servico,\r\n        'foto_removida',\r\n        'Foto removida da ordem de serviço',\r\n        jsonb_build_object(\r\n            'foto_id', OLD.id,\r\n            'url', OLD.url,\r\n            'ordem', OLD.ordem,\r\n            'is_principal', OLD.is_principal\r\n        ),\r\n        auth.uid(),\r\n        u.nome\r\n    FROM usuarios u\r\n    WHERE u.id = auth.uid();\r\n    \r\n    RETURN OLD;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_historico_ajuste_manual",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_ajuste_manual()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n    v_usuario_id UUID;\r\nBEGIN\r\n    -- Capturar o usuário autenticado\r\n    v_usuario_id := COALESCE(\r\n        NEW.atualizado_por, \r\n        OLD.atualizado_por, \r\n        auth.uid()\r\n    );\r\n\r\n    -- Apenas para UPDATE de quantidade via modal de ajuste manual\r\n    -- Detecta ajuste manual quando atualizado_por é preenchido\r\n    -- e não existe registro recente no historico (código não registrou manualmente)\r\n    IF TG_OP = 'UPDATE' \r\n       AND OLD.quantidade IS DISTINCT FROM NEW.quantidade \r\n       AND NEW.atualizado_por IS NOT NULL THEN\r\n        \r\n        -- Verificar se código já registrou manualmente\r\n        IF NOT EXISTS(\r\n            SELECT 1 \r\n            FROM historico_estoque \r\n            WHERE id_produto = NEW.id_produto \r\n              AND id_loja = NEW.id_loja\r\n              AND quantidade_nova = NEW.quantidade\r\n              AND criado_em > NOW() - INTERVAL '1 second'\r\n        ) THEN\r\n            -- Registrar ajuste manual\r\n            INSERT INTO historico_estoque (\r\n                id_produto,\r\n                id_loja,\r\n                quantidade,\r\n                quantidade_anterior,\r\n                quantidade_nova,\r\n                usuario_id,\r\n                tipo_movimentacao,\r\n                observacao\r\n            ) VALUES (\r\n                NEW.id_produto,\r\n                NEW.id_loja,\r\n                ABS(NEW.quantidade - OLD.quantidade),\r\n                OLD.quantidade,\r\n                NEW.quantidade,\r\n                v_usuario_id,\r\n                'ajuste',\r\n                'Ajuste manual de estoque'\r\n            );\r\n        END IF;\r\n    END IF;\r\n\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_historico_estoque",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_estoque()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n    v_usuario_id UUID;\r\n    v_produto_existe BOOLEAN;\r\n    v_registro_recente BOOLEAN;\r\nBEGIN\r\n    -- Capturar o usuário autenticado\r\n    v_usuario_id := COALESCE(\r\n        NEW.atualizado_por, \r\n        OLD.atualizado_por, \r\n        auth.uid()\r\n    );\r\n\r\n    -- Verificar se o produto ainda existe\r\n    IF TG_OP = 'DELETE' THEN\r\n        SELECT EXISTS(SELECT 1 FROM produtos WHERE id = OLD.id_produto) INTO v_produto_existe;\r\n        \r\n        IF NOT v_produto_existe THEN\r\n            RETURN OLD;\r\n        END IF;\r\n        \r\n        -- Registrar deleção\r\n        BEGIN\r\n            INSERT INTO historico_estoque (\r\n                id_produto,\r\n                id_loja,\r\n                quantidade,\r\n                quantidade_anterior,\r\n                quantidade_nova,\r\n                usuario_id,\r\n                tipo_movimentacao,\r\n                observacao\r\n            ) VALUES (\r\n                OLD.id_produto,\r\n                OLD.id_loja,\r\n                OLD.quantidade,\r\n                OLD.quantidade,\r\n                0,\r\n                v_usuario_id,\r\n                'ajuste',\r\n                'Estoque removido'\r\n            );\r\n        EXCEPTION\r\n            WHEN undefined_table THEN\r\n                NULL;\r\n        END;\r\n        \r\n        RETURN OLD;\r\n    END IF;\r\n\r\n    -- INSERT: novo estoque\r\n    IF TG_OP = 'INSERT' THEN\r\n        BEGIN\r\n            INSERT INTO historico_estoque (\r\n                id_produto,\r\n                id_loja,\r\n                quantidade,\r\n                quantidade_anterior,\r\n                quantidade_nova,\r\n                usuario_id,\r\n                tipo_movimentacao,\r\n                observacao\r\n            ) VALUES (\r\n                NEW.id_produto,\r\n                NEW.id_loja,\r\n                NEW.quantidade,\r\n                0,\r\n                NEW.quantidade,\r\n                v_usuario_id,\r\n                'ajuste',\r\n                'Estoque inicial criado'\r\n            );\r\n        EXCEPTION\r\n            WHEN undefined_table THEN\r\n                NULL;\r\n        END;\r\n        \r\n        RETURN NEW;\r\n    END IF;\r\n\r\n    -- UPDATE: alteração de quantidade\r\n    IF TG_OP = 'UPDATE' AND OLD.quantidade IS DISTINCT FROM NEW.quantidade THEN\r\n        -- Verificar se já existe registro manual nos últimos 2 segundos\r\n        -- (evita duplicação quando vendasService.ts registra manualmente)\r\n        SELECT EXISTS(\r\n            SELECT 1 \r\n            FROM historico_estoque \r\n            WHERE id_produto = NEW.id_produto \r\n              AND id_loja = NEW.id_loja\r\n              AND quantidade_nova = NEW.quantidade\r\n              AND criado_em > NOW() - INTERVAL '2 seconds'\r\n        ) INTO v_registro_recente;\r\n\r\n        -- Se já existe registro recente, não duplicar\r\n        IF v_registro_recente THEN\r\n            RETURN NEW;\r\n        END IF;\r\n\r\n        BEGIN\r\n            INSERT INTO historico_estoque (\r\n                id_produto,\r\n                id_loja,\r\n                quantidade,\r\n                quantidade_anterior,\r\n                quantidade_nova,\r\n                usuario_id,\r\n                tipo_movimentacao,\r\n                observacao\r\n            ) VALUES (\r\n                NEW.id_produto,\r\n                NEW.id_loja,\r\n                ABS(NEW.quantidade - OLD.quantidade),\r\n                OLD.quantidade,\r\n                NEW.quantidade,\r\n                v_usuario_id,\r\n                'ajuste',\r\n                'Ajuste manual de estoque'\r\n            );\r\n        EXCEPTION\r\n            WHEN undefined_table THEN\r\n                NULL;\r\n        END;\r\n    END IF;\r\n\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_historico_fornecedores",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_fornecedores()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n    IF (TG_OP = 'DELETE') THEN\r\n        INSERT INTO public.historico_fornecedores (fornecedor_id, operacao, dados_anteriores, usuario_id)\r\n        VALUES (OLD.id, TG_OP, row_to_json(OLD), OLD.atualizado_por);\r\n        RETURN OLD;\r\n    ELSIF (TG_OP = 'UPDATE') THEN\r\n        INSERT INTO public.historico_fornecedores (fornecedor_id, operacao, dados_anteriores, dados_novos, usuario_id)\r\n        VALUES (NEW.id, TG_OP, row_to_json(OLD), row_to_json(NEW), NEW.atualizado_por);\r\n        RETURN NEW;\r\n    ELSIF (TG_OP = 'INSERT') THEN\r\n        INSERT INTO public.historico_fornecedores (fornecedor_id, operacao, dados_novos, usuario_id)\r\n        VALUES (NEW.id, TG_OP, row_to_json(NEW), NEW.criado_por);\r\n        RETURN NEW;\r\n    END IF;\r\n    RETURN NULL;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "registrar_historico_lojas",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_lojas()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n    v_usuario_id UUID;\r\n    v_dados_antigos JSONB;\r\n    v_dados_novos JSONB;\r\nBEGIN\r\n    -- Tentar obter o usuario_id da variável de sessão primeiro\r\n    BEGIN\r\n        v_usuario_id := current_setting('app.current_user_id', true)::UUID;\r\n        RAISE NOTICE '✅ Usuario ID da sessão obtido: %', v_usuario_id;\r\n    EXCEPTION WHEN OTHERS THEN\r\n        -- Se não existir na sessão, tentar auth.uid()\r\n        v_usuario_id := auth.uid();\r\n        RAISE NOTICE '⚠️ Usuario ID do auth.uid(): %', v_usuario_id;\r\n    END;\r\n\r\n    -- Log para debug\r\n    IF v_usuario_id IS NULL THEN\r\n        RAISE WARNING '❌ usuario_id está NULL - nenhum método funcionou!';\r\n    END IF;\r\n\r\n    -- Preparar os dados conforme a operação\r\n    IF (TG_OP = 'DELETE') THEN\r\n        v_dados_antigos := to_jsonb(OLD);\r\n        v_dados_novos := NULL;\r\n    ELSIF (TG_OP = 'UPDATE') THEN\r\n        v_dados_antigos := to_jsonb(OLD);\r\n        v_dados_novos := to_jsonb(NEW);\r\n    ELSIF (TG_OP = 'INSERT') THEN\r\n        v_dados_antigos := NULL;\r\n        v_dados_novos := to_jsonb(NEW);\r\n    END IF;\r\n\r\n    -- Inserir registro no histórico\r\n    INSERT INTO historico_lojas (\r\n        loja_id,\r\n        operacao,\r\n        dados_antigos,\r\n        dados_novos,\r\n        usuario_id\r\n    ) VALUES (\r\n        COALESCE(NEW.id, OLD.id),\r\n        TG_OP,\r\n        v_dados_antigos,\r\n        v_dados_novos,\r\n        v_usuario_id  -- Agora permite NULL temporariamente\r\n    );\r\n\r\n    RETURN COALESCE(NEW, OLD);\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_historico_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_tipo_evento VARCHAR(50);\r\n  v_descricao TEXT;\r\n  v_usuario_nome VARCHAR(255);\r\nBEGIN\r\n  -- Buscar nome do usuário (admin OU técnico)\r\n  -- Primeiro tenta em usuarios, depois em tecnicos\r\n  SELECT nome INTO v_usuario_nome\r\n  FROM usuarios\r\n  WHERE id = COALESCE(NEW.atualizado_por, NEW.criado_por)\r\n  LIMIT 1;\r\n  \r\n  -- Se não encontrou em usuarios, busca em tecnicos\r\n  IF v_usuario_nome IS NULL THEN\r\n    SELECT nome INTO v_usuario_nome\r\n    FROM tecnicos\r\n    WHERE usuario_id = COALESCE(NEW.atualizado_por, NEW.criado_por)\r\n    LIMIT 1;\r\n  END IF;\r\n  \r\n  -- Se ainda não encontrou, usa identificador genérico\r\n  IF v_usuario_nome IS NULL THEN\r\n    v_usuario_nome := 'Usuário não identificado';\r\n  END IF;\r\n\r\n  IF TG_OP = 'INSERT' THEN\r\n    v_tipo_evento := 'criacao';\r\n    v_descricao := 'Ordem de Serviço criada - OS #' || NEW.numero_os;\r\n    \r\n    INSERT INTO historico_ordem_servico (\r\n      id_ordem_servico,\r\n      tipo_evento,\r\n      status_novo,\r\n      descricao,\r\n      dados_novos,\r\n      criado_por,\r\n      criado_por_nome\r\n    ) VALUES (\r\n      NEW.id,\r\n      v_tipo_evento,\r\n      NEW.status,\r\n      v_descricao,\r\n      to_jsonb(NEW),\r\n      NEW.criado_por,\r\n      v_usuario_nome\r\n    );\r\n    \r\n  ELSIF TG_OP = 'UPDATE' THEN\r\n    -- Detectar tipo de mudança\r\n    IF OLD.status != NEW.status THEN\r\n      v_tipo_evento := 'mudanca_status';\r\n      v_descricao := 'Status alterado de \"' || OLD.status || '\" para \"' || NEW.status || '\"';\r\n      \r\n      INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        status_anterior,\r\n        status_novo,\r\n        descricao,\r\n        dados_anteriores,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n      ) VALUES (\r\n        NEW.id,\r\n        v_tipo_evento,\r\n        OLD.status,\r\n        NEW.status,\r\n        v_descricao,\r\n        to_jsonb(OLD),\r\n        to_jsonb(NEW),\r\n        NEW.atualizado_por,\r\n        v_usuario_nome\r\n      );\r\n    END IF;\r\n    \r\n    -- Registrar mudança de técnico responsável\r\n    IF COALESCE(OLD.tecnico_responsavel::TEXT, '') != COALESCE(NEW.tecnico_responsavel::TEXT, '') THEN\r\n      DECLARE\r\n        v_tecnico_nome VARCHAR(255);\r\n      BEGIN\r\n        IF NEW.tecnico_responsavel IS NOT NULL THEN\r\n          SELECT nome INTO v_tecnico_nome\r\n          FROM tecnicos\r\n          WHERE usuario_id = NEW.tecnico_responsavel\r\n          LIMIT 1;\r\n          \r\n          v_descricao := 'OS atribuída ao técnico: ' || COALESCE(v_tecnico_nome, 'Técnico não identificado');\r\n        ELSE\r\n          v_descricao := 'Técnico responsável removido';\r\n        END IF;\r\n        \r\n        INSERT INTO historico_ordem_servico (\r\n          id_ordem_servico,\r\n          tipo_evento,\r\n          descricao,\r\n          dados_anteriores,\r\n          dados_novos,\r\n          criado_por,\r\n          criado_por_nome\r\n        ) VALUES (\r\n          NEW.id,\r\n          'atribuicao_tecnico',\r\n          v_descricao,\r\n          jsonb_build_object('tecnico_responsavel', OLD.tecnico_responsavel),\r\n          jsonb_build_object('tecnico_responsavel', NEW.tecnico_responsavel),\r\n          NEW.atualizado_por,\r\n          v_usuario_nome\r\n        );\r\n      END;\r\n    END IF;\r\n    \r\n    -- Registrar mudança nas observações técnicas\r\n    IF COALESCE(OLD.observacoes_tecnicas, '') != COALESCE(NEW.observacoes_tecnicas, '') THEN\r\n      INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_anteriores,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n      ) VALUES (\r\n        NEW.id,\r\n        'observacao',\r\n        'Observações técnicas atualizadas',\r\n        jsonb_build_object('observacoes_tecnicas', OLD.observacoes_tecnicas),\r\n        jsonb_build_object('observacoes_tecnicas', NEW.observacoes_tecnicas),\r\n        NEW.atualizado_por,\r\n        v_usuario_nome\r\n      );\r\n    END IF;\r\n    \r\n    -- Registrar conclusão da OS\r\n    IF NEW.data_conclusao IS NOT NULL AND OLD.data_conclusao IS NULL THEN\r\n      INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n      ) VALUES (\r\n        NEW.id,\r\n        'conclusao',\r\n        'OS concluída pelo técnico',\r\n        jsonb_build_object(\r\n          'data_conclusao', NEW.data_conclusao,\r\n          'observacoes_tecnicas', NEW.observacoes_tecnicas\r\n        ),\r\n        NEW.atualizado_por,\r\n        v_usuario_nome\r\n      );\r\n    END IF;\r\n    \r\n    -- Registrar outras mudanças importantes de valores\r\n    IF OLD.valor_total != NEW.valor_total OR \r\n       OLD.valor_orcamento != NEW.valor_orcamento OR\r\n       OLD.valor_pago != NEW.valor_pago THEN\r\n      INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_anteriores,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n      ) VALUES (\r\n        NEW.id,\r\n        'atualizacao_valores',\r\n        'Valores atualizados',\r\n        jsonb_build_object(\r\n          'valor_orcamento', OLD.valor_orcamento,\r\n          'valor_total', OLD.valor_total,\r\n          'valor_pago', OLD.valor_pago,\r\n          'valor_desconto', OLD.valor_desconto\r\n        ),\r\n        jsonb_build_object(\r\n          'valor_orcamento', NEW.valor_orcamento,\r\n          'valor_total', NEW.valor_total,\r\n          'valor_pago', NEW.valor_pago,\r\n          'valor_desconto', NEW.valor_desconto\r\n        ),\r\n        NEW.atualizado_por,\r\n        v_usuario_nome\r\n      );\r\n    END IF;\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "registrar_historico_produto",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_historico_produto()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\r\nDECLARE\r\n    v_usuario_id UUID;\r\nBEGIN\r\n    -- Determinar o usuário que fez a alteração\r\n    v_usuario_id := COALESCE(NEW.atualizado_por, auth.uid());\r\n\r\n    -- Verificar alteração em descrição\r\n    IF OLD.descricao IS DISTINCT FROM NEW.descricao THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'descricao', OLD.descricao, NEW.descricao, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em grupo\r\n    IF OLD.grupo IS DISTINCT FROM NEW.grupo THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'grupo', OLD.grupo, NEW.grupo, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em categoria\r\n    IF OLD.categoria IS DISTINCT FROM NEW.categoria THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'categoria', OLD.categoria, NEW.categoria, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em código do fabricante\r\n    IF OLD.codigo_fabricante IS DISTINCT FROM NEW.codigo_fabricante THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'codigo_fabricante', OLD.codigo_fabricante, NEW.codigo_fabricante, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em modelos\r\n    IF OLD.modelos IS DISTINCT FROM NEW.modelos THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'modelos', OLD.modelos, NEW.modelos, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em marca\r\n    IF OLD.marca IS DISTINCT FROM NEW.marca THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'marca', OLD.marca, NEW.marca, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em preço de compra\r\n    IF OLD.preco_compra IS DISTINCT FROM NEW.preco_compra THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'preco_compra', OLD.preco_compra::TEXT, NEW.preco_compra::TEXT, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em preço de venda\r\n    IF OLD.preco_venda IS DISTINCT FROM NEW.preco_venda THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'preco_venda', OLD.preco_venda::TEXT, NEW.preco_venda::TEXT, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em quantidade mínima\r\n    IF OLD.quantidade_minima IS DISTINCT FROM NEW.quantidade_minima THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'quantidade_minima', OLD.quantidade_minima::TEXT, NEW.quantidade_minima::TEXT, v_usuario_id);\r\n    END IF;\r\n\r\n    -- Verificar alteração em ativo\r\n    IF OLD.ativo IS DISTINCT FROM NEW.ativo THEN\r\n        INSERT INTO historico_produtos (produto_id, campo, valor_antigo, valor_novo, usuario_id)\r\n        VALUES (NEW.id, 'ativo', OLD.ativo::TEXT, NEW.ativo::TEXT, v_usuario_id);\r\n    END IF;\r\n\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_laudo_atualizado",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_laudo_atualizado()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n    mudancas text[];\r\n    evento text;\r\n    descr text;\r\n    v_usuario_nome text;\r\nBEGIN\r\n    mudancas := ARRAY[]::text[];\r\n    \r\n    -- Buscar nome do usuário (ANTES do IF/ELSE)\r\n    SELECT nome INTO v_usuario_nome\r\n    FROM usuarios\r\n    WHERE id = auth.uid();\r\n    \r\n    -- Se não encontrar, usar 'Sistema'\r\n    IF v_usuario_nome IS NULL THEN\r\n        v_usuario_nome := 'Sistema';\r\n    END IF;\r\n    \r\n    -- Verifica se é preenchimento inicial ou atualização\r\n    IF OLD.laudo_diagnostico IS NULL AND NEW.laudo_diagnostico IS NOT NULL THEN\r\n        evento := 'laudo_preenchido';\r\n        descr := 'Laudo técnico preenchido';\r\n    ELSE\r\n        evento := 'laudo_atualizado';\r\n        \r\n        -- Identifica campos que mudaram\r\n        IF COALESCE(OLD.laudo_diagnostico, '') != COALESCE(NEW.laudo_diagnostico, '') THEN\r\n            mudancas := array_append(mudancas, 'Diagnóstico');\r\n        END IF;\r\n        \r\n        IF COALESCE(OLD.laudo_causa, '') != COALESCE(NEW.laudo_causa, '') THEN\r\n            mudancas := array_append(mudancas, 'Causa');\r\n        END IF;\r\n        \r\n        IF COALESCE(OLD.laudo_procedimentos, '') != COALESCE(NEW.laudo_procedimentos, '') THEN\r\n            mudancas := array_append(mudancas, 'Procedimentos');\r\n        END IF;\r\n        \r\n        IF COALESCE(OLD.laudo_recomendacoes, '') != COALESCE(NEW.laudo_recomendacoes, '') THEN\r\n            mudancas := array_append(mudancas, 'Recomendações');\r\n        END IF;\r\n        \r\n        IF COALESCE(OLD.laudo_condicao_final, '') != COALESCE(NEW.laudo_condicao_final, '') THEN\r\n            mudancas := array_append(mudancas, 'Condição Final');\r\n        END IF;\r\n        \r\n        IF OLD.laudo_garantia_dias IS DISTINCT FROM NEW.laudo_garantia_dias THEN\r\n            mudancas := array_append(mudancas, 'Garantia: ' || COALESCE(OLD.laudo_garantia_dias::text, 'NULL') || ' → ' || COALESCE(NEW.laudo_garantia_dias::text, 'NULL') || ' dias');\r\n        END IF;\r\n        \r\n        descr := 'Laudo técnico atualizado: ' || array_to_string(mudancas, ', ');\r\n    END IF;\r\n    \r\n    -- Se houve mudanças relevantes, registra (AGORA USA VALUES AO INVÉS DE SELECT)\r\n    IF array_length(mudancas, 1) > 0 OR evento = 'laudo_preenchido' THEN\r\n        INSERT INTO historico_ordem_servico (\r\n            id_ordem_servico,\r\n            tipo_evento,\r\n            descricao,\r\n            dados_anteriores,\r\n            dados_novos,\r\n            criado_por,\r\n            criado_por_nome\r\n        ) VALUES (\r\n            NEW.id,\r\n            evento,\r\n            descr,\r\n            CASE \r\n                WHEN evento = 'laudo_atualizado' THEN\r\n                    jsonb_build_object(\r\n                        'diagnostico', OLD.laudo_diagnostico,\r\n                        'causa', OLD.laudo_causa,\r\n                        'procedimentos', OLD.laudo_procedimentos,\r\n                        'recomendacoes', OLD.laudo_recomendacoes,\r\n                        'garantia_dias', OLD.laudo_garantia_dias,\r\n                        'condicao_final', OLD.laudo_condicao_final\r\n                    )\r\n                ELSE NULL\r\n            END,\r\n            jsonb_build_object(\r\n                'diagnostico', NEW.laudo_diagnostico,\r\n                'causa', NEW.laudo_causa,\r\n                'procedimentos', NEW.laudo_procedimentos,\r\n                'recomendacoes', NEW.laudo_recomendacoes,\r\n                'garantia_dias', NEW.laudo_garantia_dias,\r\n                'condicao_final', NEW.laudo_condicao_final\r\n            ),\r\n            auth.uid(),\r\n            v_usuario_nome\r\n        );\r\n    END IF;\r\n    \r\n    RETURN NEW;\r\nEXCEPTION WHEN OTHERS THEN\r\n    -- Log de erro (aparece nos logs do Supabase)\r\n    RAISE WARNING 'Erro no trigger registrar_laudo_atualizado: %', SQLERRM;\r\n    RETURN NEW; -- Continua mesmo com erro para não bloquear o UPDATE\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_modificacao",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_modificacao()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n  -- Registra cada campo modificado\r\n  IF OLD.nome IS DISTINCT FROM NEW.nome THEN\r\n    INSERT INTO public.historico_usuarios (usuario_id, modificado_por, campo_modificado, valor_antigo, valor_novo)\r\n    VALUES (NEW.id, auth.uid(), 'nome', OLD.nome, NEW.nome);\r\n  END IF;\r\n  \r\n  IF OLD.email IS DISTINCT FROM NEW.email THEN\r\n    INSERT INTO public.historico_usuarios (usuario_id, modificado_por, campo_modificado, valor_antigo, valor_novo)\r\n    VALUES (NEW.id, auth.uid(), 'email', OLD.email, NEW.email);\r\n  END IF;\r\n  \r\n  IF OLD.telefone IS DISTINCT FROM NEW.telefone THEN\r\n    INSERT INTO public.historico_usuarios (usuario_id, modificado_por, campo_modificado, valor_antigo, valor_novo)\r\n    VALUES (NEW.id, auth.uid(), 'telefone', OLD.telefone, NEW.telefone);\r\n  END IF;\r\n  \r\n  IF OLD.cpf IS DISTINCT FROM NEW.cpf THEN\r\n    INSERT INTO public.historico_usuarios (usuario_id, modificado_por, campo_modificado, valor_antigo, valor_novo)\r\n    VALUES (NEW.id, auth.uid(), 'cpf', OLD.cpf, NEW.cpf);\r\n  END IF;\r\n  \r\n  IF OLD.ativo IS DISTINCT FROM NEW.ativo THEN\r\n    INSERT INTO public.historico_usuarios (usuario_id, modificado_por, campo_modificado, valor_antigo, valor_novo)\r\n    VALUES (NEW.id, auth.uid(), 'ativo', OLD.ativo::text, NEW.ativo::text);\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_peca_adicionada",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_peca_adicionada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n    )\r\n    SELECT \r\n        NEW.id_ordem_servico,\r\n        'peca_adicionada',\r\n        'Peça adicionada: ' || NEW.descricao_peca || ' (Qtd: ' || NEW.quantidade || ')',\r\n        jsonb_build_object(\r\n            'peca_id', NEW.id,\r\n            'descricao', NEW.descricao_peca,\r\n            'quantidade', NEW.quantidade,\r\n            'tipo_produto', NEW.tipo_produto,\r\n            'valor_venda', NEW.valor_venda,\r\n            'valor_total', NEW.valor_total\r\n        ),\r\n        auth.uid(),\r\n        u.nome\r\n    FROM usuarios u\r\n    WHERE u.id = auth.uid();\r\n    \r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_peca_atualizada",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_peca_atualizada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n    mudancas text[];\r\nBEGIN\r\n    -- Verifica quais campos mudaram\r\n    mudancas := ARRAY[]::text[];\r\n    \r\n    IF OLD.quantidade != NEW.quantidade THEN\r\n        mudancas := array_append(mudancas, 'Quantidade: ' || OLD.quantidade || ' → ' || NEW.quantidade);\r\n    END IF;\r\n    \r\n    IF OLD.valor_venda != NEW.valor_venda THEN\r\n        mudancas := array_append(mudancas, 'Valor: R$ ' || OLD.valor_venda || ' → R$ ' || NEW.valor_venda);\r\n    END IF;\r\n    \r\n    IF OLD.estoque_baixado != NEW.estoque_baixado THEN\r\n        mudancas := array_append(mudancas, \r\n            CASE \r\n                WHEN NEW.estoque_baixado THEN 'Estoque baixado'\r\n                ELSE 'Baixa de estoque cancelada'\r\n            END\r\n        );\r\n    END IF;\r\n    \r\n    -- Se houve mudanças, registra no histórico\r\n    IF array_length(mudancas, 1) > 0 THEN\r\n        INSERT INTO historico_ordem_servico (\r\n            id_ordem_servico,\r\n            tipo_evento,\r\n            descricao,\r\n            dados_anteriores,\r\n            dados_novos,\r\n            criado_por,\r\n            criado_por_nome\r\n        )\r\n        SELECT \r\n            NEW.id_ordem_servico,\r\n            'peca_atualizada',\r\n            'Peça atualizada: ' || NEW.descricao_peca || ' - ' || array_to_string(mudancas, ', '),\r\n            jsonb_build_object(\r\n                'peca_id', OLD.id,\r\n                'quantidade', OLD.quantidade,\r\n                'valor_venda', OLD.valor_venda,\r\n                'estoque_baixado', OLD.estoque_baixado\r\n            ),\r\n            jsonb_build_object(\r\n                'peca_id', NEW.id,\r\n                'quantidade', NEW.quantidade,\r\n                'valor_venda', NEW.valor_venda,\r\n                'estoque_baixado', NEW.estoque_baixado\r\n            ),\r\n            auth.uid(),\r\n            u.nome\r\n        FROM usuarios u\r\n        WHERE u.id = auth.uid();\r\n    END IF;\r\n    \r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_peca_removida",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_peca_removida()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_anteriores,\r\n        criado_por,\r\n        criado_por_nome\r\n    )\r\n    SELECT \r\n        OLD.id_ordem_servico,\r\n        'peca_removida',\r\n        'Peça removida: ' || OLD.descricao_peca || ' (Qtd: ' || OLD.quantidade || ')',\r\n        jsonb_build_object(\r\n            'peca_id', OLD.id,\r\n            'descricao', OLD.descricao_peca,\r\n            'quantidade', OLD.quantidade,\r\n            'valor_total', OLD.valor_total\r\n        ),\r\n        auth.uid(),\r\n        u.nome\r\n    FROM usuarios u\r\n    WHERE u.id = auth.uid();\r\n    \r\n    RETURN OLD;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_quebra_aprovada",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_quebra_aprovada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n    v_usuario_nome text;\r\n    v_produto_nome text;\r\n    status_texto text;\r\n    evento text;\r\nBEGIN\r\n    -- Só registra se o status de aprovação mudou\r\n    IF OLD.aprovado IS DISTINCT FROM NEW.aprovado THEN\r\n        -- Buscar nome do usuário que aprovou\r\n        IF NEW.aprovado_por IS NOT NULL THEN\r\n            SELECT nome INTO v_usuario_nome\r\n            FROM usuarios\r\n            WHERE id = NEW.aprovado_por;\r\n        END IF;\r\n        \r\n        IF v_usuario_nome IS NULL THEN\r\n            v_usuario_nome := 'Sistema';\r\n        END IF;\r\n        \r\n        -- Buscar nome do produto\r\n        IF NEW.id_produto IS NOT NULL THEN\r\n            SELECT descricao INTO v_produto_nome\r\n            FROM produtos\r\n            WHERE id = NEW.id_produto;\r\n        ELSE\r\n            -- Para peças externas\r\n            SELECT descricao_peca INTO v_produto_nome\r\n            FROM ordem_servico_pecas\r\n            WHERE id_ordem_servico = NEW.id_ordem_servico\r\n            LIMIT 1;\r\n            \r\n            IF v_produto_nome IS NULL THEN\r\n                v_produto_nome := 'Peça externa';\r\n            END IF;\r\n        END IF;\r\n        \r\n        -- Definir status e evento\r\n        IF NEW.aprovado THEN\r\n            status_texto := 'aprovada';\r\n            evento := 'quebra_aprovada';\r\n        ELSE\r\n            status_texto := 'reprovada';\r\n            evento := 'quebra_reprovada';\r\n        END IF;\r\n        \r\n        -- Inserir no histórico\r\n        INSERT INTO historico_ordem_servico (\r\n            id_ordem_servico,\r\n            tipo_evento,\r\n            descricao,\r\n            dados_anteriores,\r\n            dados_novos,\r\n            criado_por,\r\n            criado_por_nome\r\n        ) VALUES (\r\n            NEW.id_ordem_servico,\r\n            evento,\r\n            'Quebra ' || status_texto || ': ' || v_produto_nome || ' (Qtd: ' || NEW.quantidade || ')',\r\n            jsonb_build_object(\r\n                'quebra_id', OLD.id,\r\n                'aprovado', OLD.aprovado,\r\n                'aprovado_em', OLD.aprovado_em\r\n            ),\r\n            jsonb_build_object(\r\n                'quebra_id', NEW.id,\r\n                'produto_nome', v_produto_nome,\r\n                'quantidade', NEW.quantidade,\r\n                'aprovado', NEW.aprovado,\r\n                'aprovado_em', NEW.aprovado_em,\r\n                'aprovado_por', NEW.aprovado_por,\r\n                'observacao_aprovacao', NEW.observacao_aprovacao\r\n            ),\r\n            NEW.aprovado_por,\r\n            v_usuario_nome\r\n        );\r\n    END IF;\r\n    \r\n    RETURN NEW;\r\nEXCEPTION WHEN OTHERS THEN\r\n    RAISE WARNING 'Erro no trigger registrar_quebra_aprovada: %', SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "registrar_quebra_registrada",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.registrar_quebra_registrada()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n    v_usuario_nome text;\r\n    v_produto_nome text;\r\nBEGIN\r\n    -- Buscar nome do técnico que criou (campo criado_por na quebra_pecas)\r\n    IF NEW.criado_por IS NOT NULL THEN\r\n        -- Primeiro tenta buscar na tabela usuarios\r\n        SELECT nome INTO v_usuario_nome\r\n        FROM usuarios\r\n        WHERE id = NEW.criado_por;\r\n        \r\n        -- Se não encontrar em usuarios, busca em tecnicos\r\n        IF v_usuario_nome IS NULL THEN\r\n            SELECT nome INTO v_usuario_nome\r\n            FROM tecnicos\r\n            WHERE usuario_id = NEW.criado_por;\r\n        END IF;\r\n    END IF;\r\n    \r\n    -- Se ainda não encontrou, usa 'Sistema'\r\n    IF v_usuario_nome IS NULL THEN\r\n        v_usuario_nome := 'Sistema';\r\n    END IF;\r\n    \r\n    -- Buscar nome do produto (se existir - pode ser peça externa)\r\n    IF NEW.id_produto IS NOT NULL THEN\r\n        SELECT descricao INTO v_produto_nome\r\n        FROM produtos\r\n        WHERE id = NEW.id_produto;\r\n    ELSE\r\n        -- Para peças externas, buscar da ordem_servico_pecas\r\n        SELECT descricao_peca INTO v_produto_nome\r\n        FROM ordem_servico_pecas\r\n        WHERE id_ordem_servico = NEW.id_ordem_servico\r\n        LIMIT 1;\r\n        \r\n        IF v_produto_nome IS NULL THEN\r\n            v_produto_nome := 'Peça externa';\r\n        END IF;\r\n    END IF;\r\n    \r\n    -- Inserir no histórico\r\n    INSERT INTO historico_ordem_servico (\r\n        id_ordem_servico,\r\n        tipo_evento,\r\n        descricao,\r\n        dados_novos,\r\n        criado_por,\r\n        criado_por_nome\r\n    ) VALUES (\r\n        NEW.id_ordem_servico,\r\n        'quebra_registrada',\r\n        'Quebra registrada: ' || v_produto_nome || ' (Qtd: ' || NEW.quantidade || ') - ' || NEW.tipo_ocorrencia,\r\n        jsonb_build_object(\r\n            'quebra_id', NEW.id,\r\n            'produto_id', NEW.id_produto,\r\n            'produto_nome', v_produto_nome,\r\n            'quantidade', NEW.quantidade,\r\n            'tipo_ocorrencia', NEW.tipo_ocorrencia,\r\n            'motivo', NEW.motivo,\r\n            'responsavel', NEW.responsavel,\r\n            'descontar_tecnico', NEW.descontar_tecnico\r\n        ),\r\n        NEW.criado_por,\r\n        v_usuario_nome\r\n    );\r\n    \r\n    RETURN NEW;\r\nEXCEPTION WHEN OTHERS THEN\r\n    RAISE WARNING 'Erro no trigger registrar_quebra_registrada: %', SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "set_config",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.set_config(setting_name text, setting_value text, is_local boolean DEFAULT true)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nBEGIN\r\n    PERFORM set_config(setting_name, setting_value, is_local);\r\n    RETURN setting_value;\r\nEND;\r\n$function$\n",
+    "parametros": "setting_name text, setting_value text, is_local boolean DEFAULT true",
+    "retorno": "text",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "tem_permissao",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.tem_permissao(permissao_nome text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\r\nDECLARE\r\n  tem_perm boolean;\r\nBEGIN\r\n  SELECT (permissoes->permissao_nome)::boolean INTO tem_perm\r\n  FROM public.permissoes\r\n  WHERE usuario_id = auth.uid()\r\n  LIMIT 1;\r\n  \r\n  RETURN COALESCE(tem_perm, false);\r\nEND;\r\n$function$\n",
+    "parametros": "permissao_nome text",
+    "retorno": "boolean",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY DEFINER"
+  },
+  {
+    "funcao_nome": "trigger_verificar_estoque",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.trigger_verificar_estoque()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  v_quantidade_minima INTEGER;\r\nBEGIN\r\n  RAISE NOTICE 'ðŸ”µ trigger_verificar_estoque: INICIADO';\r\n  RAISE NOTICE '   OLD.quantidade = %, NEW.quantidade = %', OLD.quantidade, NEW.quantidade;\r\n  RAISE NOTICE '   id_produto = %, id_loja = %', NEW.id_produto, NEW.id_loja;\r\n  \r\n  -- Buscar quantidade mÃ­nima do produto\r\n  SELECT quantidade_minima INTO v_quantidade_minima\r\n  FROM public.produtos\r\n  WHERE id = NEW.id_produto;\r\n  \r\n  RAISE NOTICE '   quantidade_minima = %', v_quantidade_minima;\r\n  \r\n  -- Se nÃ£o tem quantidade_minima definida, usar 5 como padrÃ£o\r\n  IF v_quantidade_minima IS NULL THEN\r\n    v_quantidade_minima := 5;\r\n    RAISE NOTICE '   quantidade_minima era NULL, usando padrÃ£o = 5';\r\n  END IF;\r\n  \r\n  RAISE NOTICE 'ðŸŸ¡ Chamando criar_notificacao_estoque(%, %, %, %)', \r\n    NEW.id_produto, NEW.id_loja, NEW.quantidade, v_quantidade_minima;\r\n  \r\n  -- Chamar a funÃ§Ã£o inteligente de criar_notificacao_estoque\r\n  PERFORM criar_notificacao_estoque(\r\n    NEW.id_produto,\r\n    NEW.id_loja,\r\n    NEW.quantidade,\r\n    v_quantidade_minima\r\n  );\r\n  \r\n  RAISE NOTICE 'ðŸŸ¢ trigger_verificar_estoque: CONCLUÃDO';\r\n  \r\n  RETURN NEW;\r\n  \r\nEXCEPTION\r\n  WHEN OTHERS THEN\r\n    RAISE WARNING 'ðŸ”´ Erro ao verificar estoque: %', SQLERRM;\r\n    RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "update_ordem_servico_fotos_updated_at",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.update_ordem_servico_fotos_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.atualizado_em = CURRENT_TIMESTAMP;\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "update_timestamp",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.update_timestamp()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nbegin\r\n  new.atualizado_em = now();\r\n  return new;\r\nend;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "update_updated_at_column",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.update_updated_at_column()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  NEW.updated_at = TIMEZONE('utc', NOW());\r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "validar_estoque_antes_saida",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.validar_estoque_antes_saida()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n  estoque_atual INTEGER;\r\n  quantidade_saida INTEGER;\r\nBEGIN\r\n  -- ✅ VALIDAR APENAS SAÍDAS (não validar entradas, transferências ou ajustes!)\r\n  IF NEW.tipo_movimentacao IN ('saida', 'venda', 'baixa_edicao_venda', 'quebra') THEN\r\n    \r\n    -- Calcular quantidade de saída (usar campo quantidade)\r\n    quantidade_saida := COALESCE(NEW.quantidade, 0);\r\n    \r\n    -- Buscar estoque atual\r\n    SELECT quantidade INTO estoque_atual\r\n    FROM estoque_lojas\r\n    WHERE id_produto = NEW.id_produto\r\n      AND id_loja = NEW.id_loja;\r\n    \r\n    -- Validar se tem estoque suficiente\r\n    IF estoque_atual IS NULL OR estoque_atual < quantidade_saida THEN\r\n      RAISE EXCEPTION 'Estoque insuficiente! Disponível: %, Necessário: %', \r\n        COALESCE(estoque_atual, 0), quantidade_saida\r\n        USING HINT = 'Verifique o estoque antes de realizar a operação';\r\n    END IF;\r\n  END IF;\r\n\r\n  -- ✅ PERMITIR SEM VALIDAÇÃO:\r\n  -- - Entradas (entrada, devolucao_venda, transferencia_entrada)\r\n  -- - Saída de transferência (transferencia_saida - já validada na função)\r\n  -- - Ajustes manuais (ajuste)\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "verificar_caixa_aberto",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.verificar_caixa_aberto()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  IF NEW.status = 'aberto' THEN\r\n    IF EXISTS (\r\n      SELECT 1 FROM caixas \r\n      WHERE loja_id = NEW.loja_id \r\n      AND status = 'aberto' \r\n      AND id != COALESCE(NEW.id, '00000000-0000-0000-0000-000000000000'::UUID)\r\n    ) THEN\r\n      RAISE EXCEPTION 'JÃ¡ existe um caixa aberto para esta loja';\r\n    END IF;\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  },
+  {
+    "funcao_nome": "verificar_foto_principal_os",
+    "schema": "public",
+    "codigo_completo": "CREATE OR REPLACE FUNCTION public.verificar_foto_principal_os()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\r\nBEGIN\r\n  -- Se está marcando como principal\r\n  IF NEW.is_principal = true THEN\r\n    -- Remove o flag principal de todas as outras fotos desta OS\r\n    UPDATE ordem_servico_fotos\r\n    SET is_principal = false\r\n    WHERE id_ordem_servico = NEW.id_ordem_servico\r\n      AND id != NEW.id;\r\n  END IF;\r\n  \r\n  RETURN NEW;\r\nEND;\r\n$function$\n",
+    "parametros": "",
+    "retorno": "trigger",
+    "linguagem": "plpgsql",
+    "volatilidade": "VOLATILE",
+    "seguranca": "SECURITY INVOKER"
+  }
+]

@@ -23,12 +23,17 @@ import {
   EyeIcon,
   FunnelIcon,
   PlusIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import {
   buscarTransferencias,
   confirmarTransferencia,
   cancelarTransferencia,
 } from "@/services/transferenciasService";
+import {
+  exportarTransferenciasParaExcel,
+  gerarRelatorioTransferenciaPDF,
+} from "@/lib/exportarTransferencias";
 
 interface Loja {
   id: number;
@@ -260,16 +265,31 @@ export default function TransferenciasPage() {
           </p>
         </div>
 
-        {temPermissao("transferencias.criar") && (
+        <div className="flex gap-2">
+          {/* Botão Exportar Excel */}
           <Button
-            color="primary"
-            size="lg"
-            startContent={<PlusIcon className="h-5 w-5" />}
-            onPress={onTransferenciaOpen}
+            color="success"
+            variant="flat"
+            startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+            onPress={() =>
+              exportarTransferenciasParaExcel(transferencias, "transferencias")
+            }
+            isDisabled={transferencias.length === 0}
           >
-            Nova Transferência
+            Exportar Excel
           </Button>
-        )}
+
+          {temPermissao("transferencias.criar") && (
+            <Button
+              color="primary"
+              size="lg"
+              startContent={<PlusIcon className="h-5 w-5" />}
+              onPress={onTransferenciaOpen}
+            >
+              Nova Transferência
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Estatísticas */}
@@ -638,6 +658,15 @@ function TransferenciaCard({
             >
               Detalhes
             </Button>
+            <Button
+              size="sm"
+              variant="flat"
+              color="success"
+              startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+              onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
+            >
+              PDF
+            </Button>
             {transferencia.status === "pendente" && (
               <>
                 <Button
@@ -787,10 +816,18 @@ function DetalhesTransferenciaModal({
           )}
 
           {/* Ações */}
-          {transferencia.status === "pendente" && (
-            <>
-              <Divider />
-              <div className="flex gap-2 justify-end">
+          <Divider />
+          <div className="flex gap-2 justify-end">
+            <Button
+              color="success"
+              variant="flat"
+              startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+              onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
+            >
+              Baixar PDF
+            </Button>
+            {transferencia.status === "pendente" && (
+              <>
                 <Button
                   color="danger"
                   variant="flat"
@@ -814,9 +851,9 @@ function DetalhesTransferenciaModal({
                 >
                   Confirmar Transferência
                 </Button>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </CardBody>
       </Card>
     </div>

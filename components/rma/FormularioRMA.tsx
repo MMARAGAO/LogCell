@@ -133,12 +133,26 @@ export default function FormularioRMA({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Carregar produtos (será filtrado por loja depois)
-      const { data: produtosData } = await supabase
-        .from("produtos")
-        .select("id, descricao, marca, categoria")
-        .eq("ativo", true)
-        .order("descricao");
+      // Carregar produtos com paginação (será filtrado por loja depois)
+      let produtosData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("produtos")
+          .select("id, descricao, marca, categoria")
+          .eq("ativo", true)
+          .order("descricao")
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+
+        produtosData = [...produtosData, ...(data || [])];
+        page++;
+        hasMore = (data?.length || 0) === pageSize;
+      }
 
       // Carregar lojas
       const { data: lojasData } = await supabase

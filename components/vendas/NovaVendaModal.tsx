@@ -329,27 +329,52 @@ export function NovaVendaModal({
       try {
         const { supabase } = await import("@/lib/supabaseClient");
 
-        // Busca estoque de todos os produtos da loja
-        const { data: estoques, error } = await supabase
-          .from("estoque_lojas")
-          .select("id_produto, quantidade")
-          .eq("id_loja", lojaSelecionada);
+        // Buscar TODOS os produtos com paginação (Supabase limita a 1000 por padrão)
+        let allData: any[] = [];
+        let page = 0;
+        const pageSize = 1000;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("estoque_lojas")
+            .select(`
+              id_produto,
+              quantidade,
+              produtos:id_produto (
+                id,
+                descricao,
+                codigo_fabricante,
+                preco_venda,
+                categoria,
+                ativo
+              )
+            `)
+            .eq("id_loja", lojaSelecionada)
+            .range(page * pageSize, (page + 1) * pageSize - 1);
 
-        // Mapeia produtos com estoque
-        const estoqueMap = new Map(
-          (estoques || []).map((e: any) => [e.id_produto, e.quantidade])
-        );
+          if (error) throw error;
 
-        const produtosAtualizados = produtos.map((p: any) => ({
-          id: p.id,
-          nome: p.nome || p.descricao,
-          codigo: p.codigo || p.codigo_fabricante,
-          preco_venda: p.preco_venda,
-          categoria: p.categoria,
-          estoque_disponivel: estoqueMap.get(p.id) || 0,
-        }));
+          allData = [...allData, ...(data || [])];
+          page++;
+          hasMore = (data?.length || 0) === pageSize;
+        }
+
+        // Mapear para o formato esperado
+        const produtosAtualizados = allData
+          .filter((item: any) => 
+            item.produtos && 
+            item.produtos.ativo !== false && 
+            item.quantidade > 0
+          )
+          .map((item: any) => ({
+            id: item.produtos.id,
+            nome: item.produtos.descricao,
+            codigo: item.produtos.id.split('-')[0].toUpperCase(),
+            preco_venda: item.produtos.preco_venda,
+            categoria: item.produtos.categoria,
+            estoque_disponivel: item.quantidade,
+          }));
 
         setProdutosComEstoque(produtosAtualizados);
       } catch (error) {
@@ -359,7 +384,7 @@ export function NovaVendaModal({
     };
 
     carregarEstoque();
-  }, [lojaSelecionada, produtos]);
+  }, [lojaSelecionada]);
 
   const handleClose = () => {
     resetForm();

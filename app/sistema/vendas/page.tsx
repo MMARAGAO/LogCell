@@ -329,23 +329,36 @@ export default function VendasPage() {
 
   const carregarProdutos = async () => {
     try {
-      const { data, error } = await supabase
-        .from("produtos")
-        .select(
-          `
-          id,
-          descricao,
-          codigo_fabricante,
-          preco_venda,
-          categoria
-        `
-        )
-        .eq("ativo", true);
+      // Buscar todos os produtos com paginação
+      let allData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("produtos")
+          .select(
+            `
+            id,
+            descricao,
+            codigo_fabricante,
+            preco_venda,
+            categoria
+          `
+          )
+          .eq("ativo", true)
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+
+        allData = [...allData, ...(data || [])];
+        page++;
+        hasMore = (data?.length || 0) === pageSize;
+      }
 
       // Mapeia para o formato esperado pela interface Produto
-      const produtosFormatados = (data || []).map((p: any) => ({
+      const produtosFormatados = allData.map((p: any) => ({
         id: p.id,
         nome: p.descricao,
         codigo: p.codigo_fabricante,

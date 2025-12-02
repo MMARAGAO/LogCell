@@ -42,6 +42,7 @@ import {
   ExclamationTriangleIcon,
   DocumentDuplicateIcon,
   TruckIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -83,6 +84,8 @@ import { LojasService } from "@/services/lojasService";
 import MiniCarrossel from "@/components/MiniCarrossel";
 import { useFotosProduto } from "@/hooks/useFotosProduto";
 import { formatarMoeda, formatarPorcentagem } from "@/lib/formatters";
+import { exportarEstoqueParaExcel } from "@/lib/exportarExcel";
+import { gerarRelatorioProdutoPDF } from "@/lib/exportarPDF";
 
 // Componente auxiliar para o card de produto com fotos
 function ProdutoCard({
@@ -97,6 +100,7 @@ function ProdutoCard({
   onClonar,
   onDeletar,
   onToggleAtivo,
+  onBaixarRelatorio,
   canEdit,
   canDelete,
   canAdjust,
@@ -113,6 +117,7 @@ function ProdutoCard({
   onClonar: (produto: any) => void;
   onDeletar: (produto: any) => void;
   onToggleAtivo: (produto: any) => void;
+  onBaixarRelatorio: (produto: any) => void;
   canEdit: boolean;
   canDelete: boolean;
   canAdjust: boolean;
@@ -145,6 +150,18 @@ function ProdutoCard({
         color="secondary"
       >
         Clonar Produto
+      </DropdownItem>
+    );
+
+    // Baixar Relatório (sempre disponível)
+    items.push(
+      <DropdownItem
+        key="relatorio"
+        startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
+        onPress={() => onBaixarRelatorio(produto)}
+        color="success"
+      >
+        Baixar Relatório PDF
       </DropdownItem>
     );
 
@@ -887,7 +904,7 @@ export default function EstoquePage() {
       {temPermissao("estoque.ver_estatisticas") && (
         <div className="mb-6 space-y-4">
           {/* Linha 1: Cards Financeiros Principais */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: TOTAL DE ITENS EM ESTOQUE - DESTAQUE */}
             <Card className="shadow-md hover:shadow-xl transition-shadow border-2 border-primary/20">
               <CardBody className="flex flex-col items-center justify-center gap-2 py-4">
@@ -1148,6 +1165,19 @@ export default function EstoquePage() {
             </div>
 
             <div className="flex gap-2">
+              {/* Botão Exportar Excel */}
+              <Button
+                color="success"
+                variant="flat"
+                startContent={<DocumentArrowDownIcon className="w-5 h-5" />}
+                onPress={() =>
+                  exportarEstoqueParaExcel(produtosFiltrados, "estoque")
+                }
+                isDisabled={produtosFiltrados.length === 0}
+              >
+                Exportar Excel
+              </Button>
+
               {/* Botão Novo Produto */}
               {temPermissao("estoque.adicionar") && (
                 <Button
@@ -1209,6 +1239,7 @@ export default function EstoquePage() {
                 onClonar={handleClonarProduto}
                 onDeletar={handleDeletar}
                 onToggleAtivo={handleToggleAtivo}
+                onBaixarRelatorio={gerarRelatorioProdutoPDF}
                 canEdit={temPermissao("estoque.editar")}
                 canDelete={temPermissao("estoque.deletar")}
                 canAdjust={temPermissao("estoque.ajustar")}

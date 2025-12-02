@@ -148,7 +148,7 @@ export async function atualizarQuantidadeEstoque(
         .update({
           quantidade: quantidade,
           atualizado_em: new Date().toISOString(),
-          // NÃO preencher atualizado_por para trigger notificar
+          atualizado_por: usuarioId, // Preencher para trigger registrar no histórico
         })
         .eq("id_produto", produtoId)
         .eq("id_loja", lojaId)

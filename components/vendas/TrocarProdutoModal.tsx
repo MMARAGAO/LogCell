@@ -118,33 +118,47 @@ export function TrocarProdutoModal({
   const carregarProdutos = async () => {
     setLoadingProdutos(true);
     try {
-      // Buscar produtos com estoque disponível e fotos (apenas produtos ativos)
-      const { data, error } = await supabase
-        .from("produtos")
-        .select(
-          `
-          id,
-          descricao,
-          marca,
-          categoria,
-          preco_venda,
-          codigo_fabricante,
-          ativo,
-          estoque:estoque_lojas!inner(
-            quantidade
-          ),
-          fotos:fotos_produtos(
-            url,
-            is_principal
-          )
-        `
-        )
-        .eq("estoque.id_loja", lojaId)
-        .eq("ativo", true)
-        .gt("estoque.quantidade", 0)
-        .order("descricao");
+      // Buscar produtos com estoque disponível e fotos com paginação
+      let allData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("produtos")
+          .select(
+            `
+            id,
+            descricao,
+            marca,
+            categoria,
+            preco_venda,
+            codigo_fabricante,
+            ativo,
+            estoque:estoque_lojas!inner(
+              quantidade
+            ),
+            fotos:fotos_produtos(
+              url,
+              is_principal
+            )
+          `
+          )
+          .eq("estoque.id_loja", lojaId)
+          .eq("ativo", true)
+          .gt("estoque.quantidade", 0)
+          .order("descricao")
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+
+        allData = [...allData, ...(data || [])];
+        page++;
+        hasMore = (data?.length || 0) === pageSize;
+      }
+
+      const data = allData;
 
       const produtosFormatados: ProdutoEstoque[] = (data || []).map(
         (produto: any) => {
