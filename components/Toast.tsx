@@ -19,7 +19,13 @@ interface ToastProps {
   duration?: number;
 }
 
-export function Toast({ message, description, type, onClose, duration = 5000 }: ToastProps) {
+export function Toast({
+  message,
+  description,
+  type,
+  onClose,
+  duration = 5000,
+}: ToastProps) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onClose();
@@ -103,25 +109,42 @@ export function useToast() {
     show: false,
   });
 
-  const showToast = useCallback((message: string, type: ToastType = "info", options?: ToastOptions) => {
-    setToast({ message, description: options?.description, type, show: true });
-  }, []);
+  const showToast = useCallback(
+    (message: string, type: ToastType = "info", options?: ToastOptions) => {
+      setToast({
+        message,
+        description: options?.description,
+        type,
+        show: true,
+      });
+    },
+    []
+  );
 
   const hideToast = useCallback(() => {
     setToast((prev) => ({ ...prev, show: false }));
   }, []);
 
   const ToastComponent = toast.show ? (
-    <Toast message={toast.message} description={toast.description} type={toast.type} onClose={hideToast} />
+    <Toast
+      message={toast.message}
+      description={toast.description}
+      type={toast.type}
+      onClose={hideToast}
+    />
   ) : null;
 
   return {
     showToast,
     hideToast,
     ToastComponent,
-    success: (message: string, options?: ToastOptions) => showToast(message, "success", options),
-    error: (message: string, options?: ToastOptions) => showToast(message, "error", options),
-    warning: (message: string, options?: ToastOptions) => showToast(message, "warning", options),
-    info: (message: string, options?: ToastOptions) => showToast(message, "info", options),
+    success: (message: string, options?: ToastOptions) =>
+      showToast(message, "success", options),
+    error: (message: string, options?: ToastOptions) =>
+      showToast(message, "error", options),
+    warning: (message: string, options?: ToastOptions) =>
+      showToast(message, "warning", options),
+    info: (message: string, options?: ToastOptions) =>
+      showToast(message, "info", options),
   };
 }
