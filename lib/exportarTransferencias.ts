@@ -330,6 +330,311 @@ export function gerarRelatorioTransferenciaPDF(
   doc.save(`${nomeArquivo}.pdf`);
 }
 
+// ============== RELATÓRIO DETALHADO DE TRANSFERÊNCIA ==============
+export function gerarRelatorioTransferenciaDetalhado(
+  transferencia: TransferenciaCompleta
+) {
+  const doc = new jsPDF();
+  const margemEsquerda = 14;
+  let yPos = 20;
+
+  // Cabeçalho
+  doc.setFillColor(46, 117, 182);
+  doc.rect(0, 0, doc.internal.pageSize.getWidth(), 30, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("RELATÓRIO DETALHADO", margemEsquerda, 15);
+  doc.setFontSize(12);
+  doc.text("Transferência de Estoque", margemEsquerda, 23);
+
+  yPos = 40;
+  doc.setTextColor(0, 0, 0);
+
+  // Informações da transferência
+  const infoTransferencia = [
+    ["ID da Transferência:", `#${transferencia.id.substring(0, 8)}`],
+    ["Loja de Origem:", transferencia.loja_origem_nome || "-"],
+    ["Loja de Destino:", transferencia.loja_destino_nome || "-"],
+    [
+      "Status:",
+      transferencia.status === "pendente"
+        ? "⏳ Pendente"
+        : transferencia.status === "confirmada"
+          ? "✓ Confirmada"
+          : "✗ Cancelada",
+    ],
+    [
+      "Data de Criação:",
+      new Date(transferencia.criado_em).toLocaleString("pt-BR"),
+    ],
+    ["Criado por:", transferencia.usuario_nome || "-"],
+  ];
+
+  if (transferencia.confirmado_em) {
+    infoTransferencia.push(
+      [
+        "Confirmado em:",
+        new Date(transferencia.confirmado_em).toLocaleString("pt-BR"),
+      ],
+      ["Confirmado por:", transferencia.confirmado_por_nome || "-"]
+    );
+  }
+
+  if (transferencia.cancelado_em) {
+    infoTransferencia.push(
+      [
+        "Cancelado em:",
+        new Date(transferencia.cancelado_em).toLocaleString("pt-BR"),
+      ],
+      ["Cancelado por:", transferencia.cancelado_por_nome || "-"],
+      ["Motivo:", transferencia.motivo_cancelamento || "-"]
+    );
+  }
+
+  if (transferencia.observacao) {
+    infoTransferencia.push(["Observação:", transferencia.observacao]);
+  }
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [],
+    body: infoTransferencia,
+    theme: "striped",
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 50 },
+      1: { cellWidth: 132 },
+    },
+    margin: { left: margemEsquerda },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // Produtos detalhados
+  doc.setFillColor(46, 117, 182);
+  doc.rect(margemEsquerda, yPos, 182, 8, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("PRODUTOS TRANSFERIDOS (DETALHADO)", margemEsquerda + 2, yPos + 5.5);
+  yPos += 12;
+  doc.setTextColor(0, 0, 0);
+
+  const produtosData = transferencia.itens.map((item, index) => [
+    (index + 1).toString(),
+    item.produto_descricao || "-",
+    item.produto_marca || "-",
+    item.produto_codigo || "-",
+    item.quantidade.toString(),
+  ]);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["#", "Produto", "Marca", "Código", "Qtd"]],
+    body: produtosData,
+    theme: "grid",
+    styles: { fontSize: 9, cellPadding: 2.5 },
+    headStyles: {
+      fillColor: [68, 114, 196],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 75 },
+      2: { cellWidth: 40 },
+      3: { cellWidth: 30 },
+      4: { cellWidth: 25, halign: "center" },
+    },
+    margin: { left: margemEsquerda },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+
+  // Resumo estatístico
+  const totalItens = transferencia.itens.length;
+  const totalQuantidade = transferencia.itens.reduce(
+    (sum, item) => sum + item.quantidade,
+    0
+  );
+
+  doc.setFillColor(240, 248, 255);
+  doc.rect(margemEsquerda, yPos, 182, 25, "F");
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("RESUMO ESTATÍSTICO", margemEsquerda + 5, yPos + 7);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(
+    `• Total de Produtos Diferentes: ${totalItens}`,
+    margemEsquerda + 5,
+    yPos + 14
+  );
+  doc.text(
+    `• Quantidade Total Transferida: ${totalQuantidade} unidades`,
+    margemEsquerda + 5,
+    yPos + 20
+  );
+
+  // Rodapé
+  const totalPaginas = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= totalPaginas; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(
+      `Relatório Detalhado - Página ${i} de ${totalPaginas} - Gerado em ${new Date().toLocaleString("pt-BR")}`,
+      doc.internal.pageSize.getWidth() / 2,
+      doc.internal.pageSize.getHeight() - 10,
+      { align: "center" }
+    );
+  }
+
+  const timestamp = new Date().toISOString().split("T")[0];
+  const nomeArquivo = `transferencia_detalhado_${transferencia.id.substring(0, 8)}_${timestamp}`;
+  doc.save(`${nomeArquivo}.pdf`);
+}
+
+// ============== RELATÓRIO RESUMIDO DE TRANSFERÊNCIA ==============
+export function gerarRelatorioTransferenciaResumido(
+  transferencia: TransferenciaCompleta
+) {
+  const doc = new jsPDF();
+  const margemEsquerda = 14;
+  let yPos = 20;
+
+  // Cabeçalho compacto
+  doc.setFillColor(46, 117, 182);
+  doc.rect(0, 0, doc.internal.pageSize.getWidth(), 25, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("RELATÓRIO RESUMIDO", margemEsquerda, 12);
+  doc.setFontSize(10);
+  doc.text("Transferência de Estoque", margemEsquerda, 19);
+
+  yPos = 35;
+  doc.setTextColor(0, 0, 0);
+
+  // Informações essenciais
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Transferência:", margemEsquerda, yPos);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(
+    `#${transferencia.id.substring(0, 8)} - ${new Date(transferencia.criado_em).toLocaleDateString("pt-BR")}`,
+    margemEsquerda + 35,
+    yPos
+  );
+
+  yPos += 7;
+  doc.setFont("helvetica", "bold");
+  doc.text("De:", margemEsquerda, yPos);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    transferencia.loja_origem_nome || "-",
+    margemEsquerda + 35,
+    yPos
+  );
+
+  yPos += 7;
+  doc.setFont("helvetica", "bold");
+  doc.text("Para:", margemEsquerda, yPos);
+  doc.setFont("helvetica", "normal");
+  doc.text(
+    transferencia.loja_destino_nome || "-",
+    margemEsquerda + 35,
+    yPos
+  );
+
+  yPos += 7;
+  doc.setFont("helvetica", "bold");
+  doc.text("Status:", margemEsquerda, yPos);
+  doc.setFont("helvetica", "normal");
+  const statusTexto =
+    transferencia.status === "pendente"
+      ? "Pendente"
+      : transferencia.status === "confirmada"
+        ? "Confirmada"
+        : "Cancelada";
+  doc.text(statusTexto, margemEsquerda + 35, yPos);
+
+  yPos += 12;
+
+  // Lista de produtos resumida
+  doc.setFillColor(46, 117, 182);
+  doc.rect(margemEsquerda, yPos, 182, 7, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("PRODUTOS", margemEsquerda + 2, yPos + 5);
+  yPos += 10;
+  doc.setTextColor(0, 0, 0);
+
+  const produtosData = transferencia.itens.map((item, index) => [
+    (index + 1).toString(),
+    item.produto_descricao || "-",
+    item.quantidade.toString(),
+  ]);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [["#", "Produto", "Qtd"]],
+    body: produtosData,
+    theme: "plain",
+    styles: { fontSize: 9, cellPadding: 2 },
+    headStyles: {
+      fillColor: [68, 114, 196],
+      textColor: 255,
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 145 },
+      2: { cellWidth: 25, halign: "center" },
+    },
+    margin: { left: margemEsquerda },
+  });
+
+  yPos = (doc as any).lastAutoTable.finalY + 10;
+
+  // Totais
+  const totalItens = transferencia.itens.length;
+  const totalQuantidade = transferencia.itens.reduce(
+    (sum, item) => sum + item.quantidade,
+    0
+  );
+
+  doc.setFillColor(245, 245, 245);
+  doc.rect(margemEsquerda, yPos, 182, 15, "F");
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(
+    `Total: ${totalItens} produto(s) | ${totalQuantidade} unidade(s)`,
+    margemEsquerda + 5,
+    yPos + 10
+  );
+
+  // Rodapé
+  doc.setFontSize(8);
+  doc.setTextColor(128, 128, 128);
+  doc.text(
+    `Relatório Resumido - Gerado em ${new Date().toLocaleString("pt-BR")}`,
+    doc.internal.pageSize.getWidth() / 2,
+    doc.internal.pageSize.getHeight() - 10,
+    { align: "center" }
+  );
+
+  const timestamp = new Date().toISOString().split("T")[0];
+  const nomeArquivo = `transferencia_resumido_${transferencia.id.substring(0, 8)}_${timestamp}`;
+  doc.save(`${nomeArquivo}.pdf`);
+}
+
 // ============== FUNÇÕES AUXILIARES ==============
 function aplicarEstilosCabecalho(ws: XLSX.WorkSheet) {
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1");

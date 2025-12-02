@@ -16,7 +16,7 @@ import {
   CardBody,
   Chip,
 } from "@heroui/react";
-import { DollarSign, Plus, Trash2 } from "lucide-react";
+import { DollarSign, Plus, Trash2, Calendar, Edit2 } from "lucide-react";
 import { VendasService } from "@/services/vendasService";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -61,6 +61,8 @@ export function AdicionarPagamentoModal({
   const [valor, setValor] = useState("");
   const [creditoDisponivel, setCreditoDisponivel] = useState<number>(0);
   const [loadingCredito, setLoadingCredito] = useState(false);
+  const [pagamentos, setPagamentos] = useState<any[]>([]);
+  const [loadingPagamentos, setLoadingPagamentos] = useState(false);
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -89,6 +91,35 @@ export function AdicionarPagamentoModal({
       setLoadingCredito(false);
     }
   };
+
+  const buscarPagamentos = async () => {
+    if (!vendaId) return;
+
+    setLoadingPagamentos(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data, error } = await supabase
+        .from("pagamentos_venda")
+        .select("*")
+        .eq("venda_id", vendaId)
+        .order("criado_em", { ascending: false });
+
+      if (!error && data) {
+        setPagamentos(data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar pagamentos:", error);
+    } finally {
+      setLoadingPagamentos(false);
+    }
+  };
+
+  // Buscar pagamentos ao abrir modal
+  useEffect(() => {
+    if (isOpen) {
+      buscarPagamentos();
+    }
+  }, [isOpen, vendaId]);
 
   // Buscar crédito quando seleciona crédito do cliente
   useEffect(() => {
@@ -136,6 +167,7 @@ export function AdicionarPagamentoModal({
         toast.success("Pagamento adicionado com sucesso!");
         setValor("");
         setTipoPagamento("dinheiro");
+        buscarPagamentos(); // Atualizar lista
         onPagamentoAdicionado();
       } else {
         toast.error(resultado.error || "Erro ao adicionar pagamento");
@@ -156,6 +188,28 @@ export function AdicionarPagamentoModal({
 
   const getTipoPagamentoLabel = (tipo: string) => {
     return tiposPagamento.find((t) => t.value === tipo)?.label || tipo;
+  };
+
+  // Agrupar pagamentos por tipo
+  const pagamentosAgrupados = pagamentos.reduce(
+    (acc, pagamento) => {
+      const tipo = pagamento.tipo_pagamento;
+      if (!acc[tipo]) {
+        acc[tipo] = [];
+      }
+      acc[tipo].push(pagamento);
+      return acc;
+    },
+    {} as Record<string, any[]>
+  );
+
+  const calcularTotalPorTipo = (tipo: string) => {
+    return (
+      pagamentosAgrupados[tipo]?.reduce(
+        (sum: number, p: any) => sum + p.valor,
+        0
+      ) || 0
+    );
   };
 
   return (
@@ -199,6 +253,70 @@ export function AdicionarPagamentoModal({
                 </div>
               </CardBody>
             </Card>
+
+            {/* Lista de Pagamentos Adicionados */}
+            {pagamentos.length > 0 && (
+              <Card>
+                <CardBody>
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg">
+                      Pagamentos Adicionados
+                    </h3>
+
+                    {loadingPagamentos ? (
+                      <div className="text-center py-4 text-default-500">
+                        Carregando pagamentos...
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(pagamentosAgrupados).map(
+                          ([tipo, pagamentosTipo]) => (
+                            <div
+                              key={tipo}
+                              className="border-b border-divider pb-3 last:border-b-0"
+                            >
+                              <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-medium text-sm uppercase text-default-600">
+                                  {getTipoPagamentoLabel(tipo)}
+                                </h4>
+                                <span className="font-semibold text-primary">
+                                  R$ {calcularTotalPorTipo(tipo).toFixed(2)}
+                                </span>
+                              </div>
+
+                              <div className="ml-4 space-y-2">
+                                {(pagamentosTipo as any[]).map(
+                                  (pagamento: any) => (
+                                    <div
+                                      key={pagamento.id}
+                                      className="flex justify-between items-center text-sm py-1 hover:bg-default-100 px-2 rounded transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <Calendar className="h-3 w-3 text-default-400" />
+                                        <span className="text-default-600">
+                                          {new Date(
+                                            pagamento.criado_em
+                                          ).toLocaleDateString("pt-BR")}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-foreground">
+                                          R$ {pagamento.valor.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
+            )}
 
             {/* Form de Pagamento */}
             {saldoDevedor > 0 ? (

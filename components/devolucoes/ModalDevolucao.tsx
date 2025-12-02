@@ -48,6 +48,7 @@ interface ItemDevolucao {
   quantidade_devolver: number;
   preco_unitario: number;
   subtotal: number;
+  desconto_unitario: number; // Desconto por unidade
 }
 
 export function ModalDevolucao({
@@ -86,6 +87,9 @@ export function ModalDevolucao({
             quantidade_devolver: 0,
             preco_unitario: item.preco_unitario,
             subtotal: 0,
+            desconto_unitario: item.valor_desconto
+              ? item.valor_desconto / item.quantidade
+              : 0, // Desconto por unidade
           };
         });
 
@@ -118,18 +122,13 @@ export function ModalDevolucao({
       0
     );
 
-    // Se a venda tem desconto, calcular o desconto proporcional
-    if (venda.valor_desconto > 0 && venda.valor_total > 0) {
-      // Percentual de desconto aplicado na venda original
-      const percentualDesconto = venda.valor_desconto / venda.valor_total;
+    // Calcular desconto baseado apenas nos itens sendo devolvidos
+    const descontoItens = itensDevolucao.reduce((total, item) => {
+      // Desconto proporcional à quantidade devolvida
+      return total + item.desconto_unitario * item.quantidade_devolver;
+    }, 0);
 
-      // Aplicar o mesmo percentual no valor dos itens devolvidos
-      const descontoProporcional = subtotalItens * percentualDesconto;
-
-      return subtotalItens - descontoProporcional;
-    }
-
-    return subtotalItens;
+    return subtotalItens - descontoItens;
   };
 
   const validarDevolucao = (): boolean => {
@@ -350,12 +349,7 @@ export function ModalDevolucao({
                       {descontoAplicado > 0 && (
                         <div className="flex justify-between items-center text-sm">
                           <span className="text-default-600">
-                            Desconto Proporcional (
-                            {(
-                              (venda.valor_desconto / venda.valor_total) *
-                              100
-                            ).toFixed(1)}
-                            %)
+                            Desconto dos Itens
                           </span>
                           <span className="text-success-600">
                             - {formatarMoeda(descontoAplicado)}

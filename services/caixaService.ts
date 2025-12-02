@@ -225,7 +225,13 @@ export class CaixaService {
           valor_total,
           criado_em,
           tipo,
-          venda:vendas!devolucoes_venda_venda_id_fkey(loja_id)
+          venda_id,
+          venda:vendas!devolucoes_venda_venda_id_fkey(
+            id,
+            loja_id,
+            criado_em,
+            valor_total
+          )
         `
         )
         .gte("criado_em", dataAbertura)
@@ -290,17 +296,52 @@ export class CaixaService {
       let totalVendas = 0;
       let totalVendasDinheiro = 0; // Vendas que entram dinheiro no caixa (sem crédito)
 
+      // Identificar vendas que foram devolvidas no mesmo dia do caixa
+      const vendasDevolvidasMesmoDia = new Set<string>();
+      const valorVendasDevolvidasMesmoDia: { [venda_id: string]: number } = {};
+
+      devolucoesLoja.forEach((dev: any) => {
+        const vendaCriadaEm = new Date(dev.venda?.criado_em);
+        const devolucaoCriadaEm = new Date(dev.criado_em);
+        const caixaAberturaData = new Date(caixa.data_abertura);
+
+        // Verifica se a venda e a devolução são do mesmo dia de abertura do caixa
+        const mesmodia =
+          vendaCriadaEm.toDateString() === caixaAberturaData.toDateString() &&
+          devolucaoCriadaEm.toDateString() === caixaAberturaData.toDateString();
+
+        if (mesmodia && dev.venda_id) {
+          vendasDevolvidasMesmoDia.add(dev.venda_id);
+          // Armazena o valor devolvido (pode ser parcial)
+          valorVendasDevolvidasMesmoDia[dev.venda_id] =
+            (valorVendasDevolvidasMesmoDia[dev.venda_id] || 0) +
+            Number(dev.valor_total);
+        }
+      });
+
+      console.log("🔍 DEBUG CAIXA - Vendas devolvidas no mesmo dia:", {
+        vendas: Array.from(vendasDevolvidasMesmoDia),
+        valores: valorVendasDevolvidasMesmoDia,
+      });
+
       vendas?.forEach((venda: any) => {
+        const vendaDevolvida = vendasDevolvidasMesmoDia.has(venda.id);
+
         venda.pagamentos?.forEach((pag: any) => {
           const forma = pag.tipo_pagamento;
           const valor = Number(pag.valor);
-          porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
-          totalVendas += valor;
+
+          // Se não foi devolvida no mesmo dia, conta normalmente
+          if (!vendaDevolvida) {
+            porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
+            totalVendas += valor;
+          }
 
           // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
+          // E se não foi venda devolvida no mesmo dia
           // credito = cartão de crédito (conta no caixa)
           // credito_cliente = crédito da loja (NÃO conta no caixa)
-          if (forma !== "credito_cliente") {
+          if (forma !== "credito_cliente" && !vendaDevolvida) {
             totalVendasDinheiro += valor;
           }
         });
@@ -697,6 +738,110 @@ export class CaixaService {
     } catch (error: any) {
       console.error("Erro ao buscar sangrias:", error);
       return [];
+    }
+  }
+
+  // Buscar vendas detalhadas agrupadas por forma de pagamento
+  static async buscarVendasDetalhadasPorPagamento(caixaId: string) {
+    try {
+      // Buscar dados do caixa
+      const { data: caixa, error: erroCaixa } = await supabase
+        .from("caixas")
+        .select("*")
+        .eq("id", caixaId)
+        .single();
+
+      if (erroCaixa) throw erroCaixa;
+
+      const dataAbertura = new Date(
+        new Date(caixa.data_abertura).getTime() - 12 * 60 * 60 * 1000
+      ).toISOString();
+      const dataFechamentoBase =
+        caixa.data_fechamento || new Date().toISOString();
+      const dataFechamento = new Date(
+        new Date(dataFechamentoBase).getTime() + 12 * 60 * 60 * 1000
+      ).toISOString();
+
+      // Buscar todas as vendas do período com pagamentos e clientes
+      const { data: vendas, error } = await supabase
+        .from("vendas")
+        .select(
+          `
+          id,
+          numero_venda,
+          valor_total,
+          valor_desconto,
+          valor_pago,
+          criado_em,
+          cliente_id,
+          cliente:clientes(id, nome, cpf),
+          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+        `
+        )
+        .eq("loja_id", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento)
+        .order("criado_em", { ascending: true });
+
+      if (error) throw error;
+
+      // Agrupar vendas por forma de pagamento
+      const vendasPorFormaPagamento: {
+        [key: string]: {
+          vendas: Array<{
+            numero_venda: string;
+            cliente_nome: string;
+            cliente_cpf?: string;
+            valor_total: number;
+            valor_desconto: number;
+            valor_pago: number;
+            criado_em: string;
+            hora: string;
+          }>;
+          total: number;
+        };
+      } = {};
+
+      vendas?.forEach((venda: any) => {
+        venda.pagamentos?.forEach((pag: any) => {
+          const formaPagamento = pag.tipo_pagamento || "nao_informado";
+
+          if (!vendasPorFormaPagamento[formaPagamento]) {
+            vendasPorFormaPagamento[formaPagamento] = {
+              vendas: [],
+              total: 0,
+            };
+          }
+
+          // Extrair hora da venda
+          const dataVenda = new Date(venda.criado_em);
+          const hora = dataVenda.toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          vendasPorFormaPagamento[formaPagamento].vendas.push({
+            numero_venda: venda.numero_venda,
+            cliente_nome: venda.cliente?.nome || "Cliente não informado",
+            cliente_cpf: venda.cliente?.cpf,
+            valor_total: Number(venda.valor_total),
+            valor_desconto: Number(venda.valor_desconto || 0),
+            valor_pago: Number(pag.valor),
+            criado_em: venda.criado_em,
+            hora: hora,
+          });
+
+          vendasPorFormaPagamento[formaPagamento].total += Number(pag.valor);
+        });
+      });
+
+      return vendasPorFormaPagamento;
+    } catch (error: any) {
+      console.error(
+        "Erro ao buscar vendas detalhadas por pagamento:",
+        error
+      );
+      return {};
     }
   }
 }

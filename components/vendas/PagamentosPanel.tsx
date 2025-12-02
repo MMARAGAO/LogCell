@@ -139,6 +139,23 @@ export function PagamentosPanel({
     }
   };
 
+  // Agrupar pagamentos por tipo
+  const pagamentosAgrupados = pagamentos.reduce(
+    (acc, pagamento) => {
+      const tipo = pagamento.tipo_pagamento;
+      if (!acc[tipo]) {
+        acc[tipo] = [];
+      }
+      acc[tipo].push(pagamento);
+      return acc;
+    },
+    {} as Record<string, PagamentoCarrinho[]>
+  );
+
+  const calcularTotalPorTipo = (tipo: string) => {
+    return pagamentosAgrupados[tipo]?.reduce((sum, p) => sum + p.valor, 0) || 0;
+  };
+
   return (
     <div className="space-y-4">
       {/* Botões de Desconto */}
@@ -209,6 +226,177 @@ export function PagamentosPanel({
             )}
           </div>
         </CardHeader>
+      </Card>
+
+      {/* Lista de Pagamentos Adicionados */}
+      {pagamentos.length > 0 && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Pagamentos Adicionados</h3>
+          </CardHeader>
+          <CardBody className="gap-3">
+            {Object.entries(pagamentosAgrupados).map(
+              ([tipo, pagamentosTipo]) => (
+                <div key={tipo} className="space-y-2">
+                  {/* Cabeçalho do Tipo */}
+                  <div className="flex items-center justify-between p-2 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-primary">
+                        {getTipoPagamentoLabel(tipo)}
+                      </span>
+                    </div>
+                    <span className="font-bold text-primary">
+                      {formatarMoeda(calcularTotalPorTipo(tipo))}
+                    </span>
+                  </div>
+
+                  {/* Lista de Pagamentos deste Tipo */}
+                  {pagamentosTipo.map((pagamento, idx) => {
+                    const indexGlobal = pagamentos.findIndex(
+                      (p) =>
+                        p.tipo_pagamento === pagamento.tipo_pagamento &&
+                        p.valor === pagamento.valor &&
+                        p.data_pagamento === pagamento.data_pagamento
+                    );
+                    return (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 ml-6 rounded-lg bg-default-100 hover:bg-default-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-2 text-sm text-default-600">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {new Date(
+                              pagamento.data_pagamento
+                            ).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-success">
+                            {formatarMoeda(pagamento.valor)}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              color="primary"
+                              onClick={() => handleEditarClick(indexGlobal)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              color="danger"
+                              onClick={() => onRemoverPagamento(indexGlobal)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            <Divider className="my-2" />
+
+            <div className="flex justify-between items-center p-3 bg-success-50 dark:bg-success-900/20 rounded-lg">
+              <span className="font-semibold">Total Pago:</span>
+              <span className="text-xl font-bold text-success">
+                {formatarMoeda(valorPago)}
+              </span>
+            </div>
+
+            {saldoDevedor > 0 && (
+              <div className="flex justify-between items-center p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+                <span className="font-semibold">Saldo Devedor:</span>
+                <span className="text-xl font-bold text-warning">
+                  {formatarMoeda(saldoDevedor)}
+                </span>
+              </div>
+            )}
+
+            {saldoDevedor < 0 && (
+              <div className="flex justify-between items-center p-3 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
+                <span className="font-semibold">Troco:</span>
+                <span className="text-xl font-bold text-primary">
+                  {formatarMoeda(Math.abs(saldoDevedor))}
+                </span>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Adicionar Novo Pagamento */}
+      <Card>
+        <CardHeader>
+          <h3 className="text-lg font-semibold">
+            {editandoIndex !== null
+              ? "Editar Pagamento"
+              : "Adicionar Pagamento"}
+          </h3>
+        </CardHeader>
+        <CardBody className="gap-3">
+          <Select
+            label="Tipo de Pagamento"
+            selectedKeys={[tipoPagamento]}
+            onChange={(e) => setTipoPagamento(e.target.value)}
+          >
+            {tiposPagamento.map((tipo) => (
+              <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
+            ))}
+          </Select>
+
+          <Input
+            type="number"
+            label="Valor"
+            placeholder="0,00"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+            startContent={<DollarSign className="w-4 h-4 text-default-400" />}
+          />
+
+          <Input
+            type="date"
+            label="Data do Pagamento"
+            value={dataPagamento}
+            onChange={(e) => setDataPagamento(e.target.value)}
+            startContent={<Calendar className="w-4 h-4 text-default-400" />}
+          />
+
+          <Button
+            color="success"
+            startContent={<Plus className="w-4 h-4" />}
+            onClick={handleAdicionarPagamento}
+            className="w-full"
+          >
+            {editandoIndex !== null
+              ? "Salvar Alterações"
+              : "Adicionar Pagamento"}
+          </Button>
+
+          {editandoIndex !== null && (
+            <Button
+              variant="light"
+              onClick={() => {
+                setEditandoIndex(null);
+                setValor("");
+                setTipoPagamento("dinheiro");
+                setDataPagamento(new Date().toISOString().split("T")[0]);
+              }}
+              className="w-full"
+            >
+              Cancelar Edição
+            </Button>
+          )}
+        </CardBody>
       </Card>
 
       {/* Modal Seletor de Produto */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -46,6 +46,11 @@ import {
   History,
   Download,
   ExternalLink,
+  Banknote,
+  Smartphone,
+  CreditCard,
+  Gift,
+  HelpCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CaixaService } from "@/services/caixaService";
@@ -100,6 +105,7 @@ export default function CaixaPage() {
   const [caixaDetalhes, setCaixaDetalhes] = useState<CaixaCompleto | null>(
     null
   );
+  const [vendasDetalhadas, setVendasDetalhadas] = useState<any>({});
 
   useEffect(() => {
     carregarLojas();
@@ -247,10 +253,12 @@ export default function CaixaPage() {
     setModalDetalhesAberto(true);
 
     try {
-      const [resumoData, movimentacoesData] = await Promise.all([
-        CaixaService.buscarResumoCaixa(caixa.id),
-        CaixaService.buscarMovimentacoes(caixa.id),
-      ]);
+      const [resumoData, movimentacoesData, vendasDetalhadasData] =
+        await Promise.all([
+          CaixaService.buscarResumoCaixa(caixa.id),
+          CaixaService.buscarMovimentacoes(caixa.id),
+          CaixaService.buscarVendasDetalhadasPorPagamento(caixa.id),
+        ]);
 
       setResumo(resumoData);
 
@@ -261,6 +269,7 @@ export default function CaixaPage() {
       }));
 
       setMovimentacoes(movimentacoesFormatadas);
+      setVendasDetalhadas(vendasDetalhadasData);
     } catch (error) {
       console.error("Erro ao carregar detalhes:", error);
     } finally {
@@ -329,8 +338,12 @@ export default function CaixaPage() {
     return `${horas}h ${minutos}min`;
   };
 
-  const gerarPDFCaixa = () => {
+  const gerarPDFCaixa = async () => {
     if (!caixaDetalhes || !resumo) return;
+
+    // Buscar vendas detalhadas por forma de pagamento
+    const vendasDetalhadas =
+      await CaixaService.buscarVendasDetalhadasPorPagamento(caixaDetalhes.id);
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -396,6 +409,24 @@ export default function CaixaPage() {
       15,
       yPos
     );
+
+    // Total Geral do Caixa
+    yPos += 10;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setFillColor(59, 130, 246);
+    doc.rect(15, yPos - 5, pageWidth - 30, 10, "F");
+    doc.setTextColor(255, 255, 255);
+    const totalGeral =
+      resumo.saldo_inicial + resumo.total_entradas - resumo.total_saidas;
+    doc.text(
+      `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
+      pageWidth / 2,
+      yPos,
+      { align: "center" }
+    );
+    doc.setTextColor(0, 0, 0);
+    yPos += 12;
 
     if (
       caixaDetalhes.saldo_final !== null &&
@@ -558,6 +589,82 @@ export default function CaixaPage() {
       headStyles: { fillColor: [59, 130, 246] },
       margin: { left: 15, right: 15 },
     });
+
+    // Nova seção: Vendas Detalhadas por Forma de Pagamento
+    if (Object.keys(vendasDetalhadas).length > 0) {
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+
+      // Verificar se precisa de nova página
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Vendas Detalhadas por Forma de Pagamento", 15, yPos);
+
+      // Mapear nomes das formas de pagamento
+      const nomesFormasPagamento: { [key: string]: string } = {
+        dinheiro: "DINHEIRO",
+        pix: "PIX",
+        credito: "CARTÃO DE CRÉDITO",
+        debito: "CARTÃO DE DÉBITO",
+        credito_cliente: "CRÉDITO DO CLIENTE",
+        nao_informado: "NÃO INFORMADO",
+      };
+
+      // Iterar por cada forma de pagamento
+      for (const [formaPagamento, dados] of Object.entries(vendasDetalhadas)) {
+        yPos += 10;
+
+        // Verificar se precisa de nova página
+        if (yPos > 260) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        // Título da forma de pagamento
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(34, 197, 94);
+        doc.rect(15, yPos - 5, pageWidth - 30, 8, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text(
+          `${nomesFormasPagamento[formaPagamento] || formaPagamento.toUpperCase()} - Total: ${formatarMoeda(dados.total)}`,
+          pageWidth / 2,
+          yPos,
+          { align: "center" }
+        );
+        doc.setTextColor(0, 0, 0);
+
+        yPos += 10;
+
+        // Tabela de vendas
+        const vendasData = dados.vendas.map((venda) => [
+          venda.hora,
+          `#${venda.numero_venda}`,
+          venda.cliente_nome,
+          formatarMoeda(venda.valor_pago),
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Hora", "Venda", "Cliente", "Valor"]],
+          body: vendasData,
+          theme: "striped",
+          headStyles: { fillColor: [34, 197, 94] },
+          margin: { left: 15, right: 15 },
+          styles: { fontSize: 9 },
+          didDrawPage: (data) => {
+            // Atualizar yPos após cada página
+            yPos = data.cursor ? data.cursor.y : yPos;
+          },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY + 5;
+      }
+    }
 
     // Movimentações Detalhadas
     if (movimentacoes.length > 0) {
@@ -1351,6 +1458,28 @@ export default function CaixaPage() {
                       </p>
                     </CardBody>
                   </Card>
+
+                  {/* Total Geral do Caixa */}
+                  <Card className="bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30 col-span-2">
+                    <CardBody>
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="w-5 h-5 text-success" />
+                        <p className="text-sm text-default-700 font-semibold">
+                          TOTAL GERAL DO CAIXA
+                        </p>
+                      </div>
+                      <p className="text-2xl font-bold text-success">
+                        {formatarMoeda(
+                          resumo.saldo_inicial +
+                            resumo.total_entradas -
+                            resumo.total_saidas
+                        )}
+                      </p>
+                      <p className="text-xs text-default-500 mt-1">
+                        Saldo Inicial + Entradas - Saídas
+                      </p>
+                    </CardBody>
+                  </Card>
                 </div>
 
                 {/* Vendas */}
@@ -1472,6 +1601,140 @@ export default function CaixaPage() {
                   </Card>
                 </div>
 
+                {/* Nova seção: Vendas Detalhadas por Forma de Pagamento */}
+                {Object.keys(vendasDetalhadas).length > 0 && (
+                  <Card className="bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/30">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="w-5 h-5 text-success" />
+                        <span className="font-bold text-lg">
+                          Vendas Detalhadas por Forma de Pagamento
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <Tabs aria-label="Formas de pagamento" color="success">
+                        {Object.entries(vendasDetalhadas).map(
+                          ([formaPagamento, dados]: [string, any]) => {
+                            const nomesFormasPagamento: {
+                              [key: string]: { label: string; icon: any };
+                            } = {
+                              dinheiro: { label: "DINHEIRO", icon: Banknote },
+                              pix: { label: "PIX", icon: Smartphone },
+                              credito: { label: "CRÉDITO", icon: CreditCard },
+                              debito: { label: "DÉBITO", icon: CreditCard },
+                              credito_cliente: {
+                                label: "CRÉDITO CLIENTE",
+                                icon: Gift,
+                              },
+                              nao_informado: {
+                                label: "NÃO INFORMADO",
+                                icon: HelpCircle,
+                              },
+                            };
+
+                            return (
+                              <Tab
+                                key={formaPagamento}
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    {nomesFormasPagamento[formaPagamento] ? (
+                                      <>
+                                        {React.createElement(
+                                          nomesFormasPagamento[formaPagamento]
+                                            .icon,
+                                          { className: "w-4 h-4" }
+                                        )}
+                                        <span>
+                                          {
+                                            nomesFormasPagamento[formaPagamento]
+                                              .label
+                                          }
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span>
+                                        {formaPagamento.toUpperCase()}
+                                      </span>
+                                    )}
+                                    <Chip size="sm" color="success">
+                                      {formatarMoeda(dados.total)}
+                                    </Chip>
+                                  </div>
+                                }
+                              >
+                                <Card className="mt-4">
+                                  <CardBody>
+                                    <div className="mb-4 flex justify-between items-center">
+                                      <p className="text-sm text-default-600">
+                                        Total de {dados.vendas.length} venda(s)
+                                      </p>
+                                      <p className="text-xl font-bold text-success">
+                                        {formatarMoeda(dados.total)}
+                                      </p>
+                                    </div>
+                                    <Table aria-label="Vendas detalhadas">
+                                      <TableHeader>
+                                        <TableColumn>HORA</TableColumn>
+                                        <TableColumn>VENDA</TableColumn>
+                                        <TableColumn>CLIENTE</TableColumn>
+                                        <TableColumn align="end">
+                                          VALOR
+                                        </TableColumn>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {dados.vendas.map(
+                                          (venda: any, idx: number) => (
+                                            <TableRow key={idx}>
+                                              <TableCell>
+                                                <span className="text-sm font-mono">
+                                                  {venda.hora}
+                                                </span>
+                                              </TableCell>
+                                              <TableCell>
+                                                <Chip
+                                                  size="sm"
+                                                  variant="flat"
+                                                  color="primary"
+                                                >
+                                                  #{venda.numero_venda}
+                                                </Chip>
+                                              </TableCell>
+                                              <TableCell>
+                                                <div>
+                                                  <p className="text-sm font-medium">
+                                                    {venda.cliente_nome}
+                                                  </p>
+                                                  {venda.cliente_cpf && (
+                                                    <p className="text-xs text-default-400">
+                                                      {venda.cliente_cpf}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>
+                                                <span className="font-semibold text-success">
+                                                  {formatarMoeda(
+                                                    venda.valor_pago
+                                                  )}
+                                                </span>
+                                              </TableCell>
+                                            </TableRow>
+                                          )
+                                        )}
+                                      </TableBody>
+                                    </Table>
+                                  </CardBody>
+                                </Card>
+                              </Tab>
+                            );
+                          }
+                        )}
+                      </Tabs>
+                    </CardBody>
+                  </Card>
+                )}
+
                 {/* Movimentações */}
                 <Card>
                   <CardHeader>
@@ -1532,17 +1795,31 @@ export default function CaixaPage() {
                                       size="sm"
                                       color="primary"
                                       variant="flat"
+                                      startContent={
+                                        mov.forma_pagamento === "dinheiro" ? (
+                                          <Banknote className="w-3 h-3" />
+                                        ) : mov.forma_pagamento === "pix" ? (
+                                          <Smartphone className="w-3 h-3" />
+                                        ) : mov.forma_pagamento === "debito" ? (
+                                          <CreditCard className="w-3 h-3" />
+                                        ) : mov.forma_pagamento ===
+                                          "credito" ? (
+                                          <CreditCard className="w-3 h-3" />
+                                        ) : mov.forma_pagamento ===
+                                          "credito_loja" ? (
+                                          <Gift className="w-3 h-3" />
+                                        ) : undefined
+                                      }
                                     >
                                       {mov.forma_pagamento === "dinheiro" &&
-                                        "💵 Dinheiro"}
-                                      {mov.forma_pagamento === "pix" &&
-                                        "📱 PIX"}
+                                        "Dinheiro"}
+                                      {mov.forma_pagamento === "pix" && "PIX"}
                                       {mov.forma_pagamento === "debito" &&
-                                        "💳 Débito"}
+                                        "Débito"}
                                       {mov.forma_pagamento === "credito" &&
-                                        "💳 Crédito"}
+                                        "Crédito"}
                                       {mov.forma_pagamento === "credito_loja" &&
-                                        "🎁 Crédito Loja"}
+                                        "Crédito Loja"}
                                     </Chip>
                                   )}
                                 {mov.eh_credito_cliente && (
@@ -1550,8 +1827,9 @@ export default function CaixaPage() {
                                     size="sm"
                                     color="secondary"
                                     variant="flat"
+                                    startContent={<Gift className="w-3 h-3" />}
                                   >
-                                    🎁 Usou Crédito (não soma no caixa)
+                                    Usou Crédito (não soma no caixa)
                                   </Chip>
                                 )}
                               </div>
@@ -1591,8 +1869,11 @@ export default function CaixaPage() {
                                       size="sm"
                                       color="warning"
                                       variant="flat"
+                                      startContent={
+                                        <AlertTriangle className="w-3 h-3" />
+                                      }
                                     >
-                                      ⚠️ Não soma no caixa
+                                      Não soma no caixa
                                     </Chip>
                                   )}
                                 </div>

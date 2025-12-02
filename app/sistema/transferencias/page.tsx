@@ -8,6 +8,12 @@ import { Select, SelectItem } from "@heroui/select";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
 import { useDisclosure } from "@heroui/modal";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -33,6 +39,8 @@ import {
 import {
   exportarTransferenciasParaExcel,
   gerarRelatorioTransferenciaPDF,
+  gerarRelatorioTransferenciaDetalhado,
+  gerarRelatorioTransferenciaResumido,
 } from "@/lib/exportarTransferencias";
 
 interface Loja {
@@ -658,15 +666,49 @@ function TransferenciaCard({
             >
               Detalhes
             </Button>
-            <Button
-              size="sm"
-              variant="flat"
-              color="success"
-              startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-              onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
-            >
-              PDF
-            </Button>
+
+            <Dropdown>
+              <DropdownTrigger>
+                <Button
+                  size="sm"
+                  variant="flat"
+                  color="success"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                >
+                  Relatório
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu aria-label="Opções de relatório">
+                <DropdownItem
+                  key="completo"
+                  description="Relatório original completo"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
+                >
+                  Completo
+                </DropdownItem>
+                <DropdownItem
+                  key="detalhado"
+                  description="Com todas as informações e códigos"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() =>
+                    gerarRelatorioTransferenciaDetalhado(transferencia)
+                  }
+                >
+                  Detalhado
+                </DropdownItem>
+                <DropdownItem
+                  key="resumido"
+                  description="Versão compacta para impressão"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() =>
+                    gerarRelatorioTransferenciaResumido(transferencia)
+                  }
+                >
+                  Resumido
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
             {transferencia.status === "pendente" && (
               <>
                 <Button
@@ -818,14 +860,47 @@ function DetalhesTransferenciaModal({
           {/* Ações */}
           <Divider />
           <div className="flex gap-2 justify-end">
-            <Button
-              color="success"
-              variant="flat"
-              startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
-              onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
-            >
-              Baixar PDF
-            </Button>
+            <Dropdown>
+              <DropdownTrigger>
+                <Button
+                  color="success"
+                  variant="flat"
+                  startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+                >
+                  Baixar Relatório
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu aria-label="Opções de relatório">
+                <DropdownItem
+                  key="completo"
+                  description="Relatório original completo"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
+                >
+                  Completo
+                </DropdownItem>
+                <DropdownItem
+                  key="detalhado"
+                  description="Com todas as informações e códigos"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() =>
+                    gerarRelatorioTransferenciaDetalhado(transferencia)
+                  }
+                >
+                  Detalhado
+                </DropdownItem>
+                <DropdownItem
+                  key="resumido"
+                  description="Versão compacta para impressão"
+                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  onPress={() =>
+                    gerarRelatorioTransferenciaResumido(transferencia)
+                  }
+                >
+                  Resumido
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
             {transferencia.status === "pendente" && (
               <>
                 <Button

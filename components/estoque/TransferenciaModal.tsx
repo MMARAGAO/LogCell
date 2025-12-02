@@ -24,9 +24,15 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  PrinterIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { Progress } from "@heroui/progress";
 import { Produto as ProdutoSistema } from "@/types";
+import {
+  gerarRelatorioTransferenciaDetalhado,
+  gerarRelatorioTransferenciaResumido,
+} from "@/lib/exportarTransferencias";
 
 interface Loja {
   id: number;
@@ -40,6 +46,11 @@ interface Produto {
   quantidade_disponivel: number;
   modelos?: string;
   preco_venda?: number;
+  estoques_lojas?: Array<{
+    id_loja: number;
+    loja_nome: string;
+    quantidade: number;
+  }>;
 }
 
 interface TransferenciaModalProps {
@@ -93,6 +104,7 @@ export default function TransferenciaModal({
   const [produtosDisponiveis, setProdutosDisponiveis] = useState<Produto[]>([]);
   const [produtosFiltrados, setProdutosFiltrados] = useState<Produto[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [progressoCarregamento, setProgressoCarregamento] = useState(0);
   const [produtoSelecionado, setProdutoSelecionado] = useState<string>("");
   const [quantidade, setQuantidade] = useState<number>(1);
   const [buscaProduto, setBuscaProduto] = useState<string>("");
@@ -231,37 +243,79 @@ export default function TransferenciaModal({
   // Carregar produtos da loja origem
   const carregarProdutosLoja = async (idLoja: number) => {
     setLoadingProdutos(true);
+    setProgressoCarregamento(0);
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      const { data, error } = await supabase
-        .from("estoque_lojas")
-        .select(
+      let todosProdutos: Produto[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      // Carregar todos os produtos em lotes
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("estoque_lojas")
+          .select(
+            `
+            id_produto,
+            quantidade,
+            produto:produtos!inner(
+              descricao, 
+              marca, 
+              modelos, 
+              preco_venda, 
+              ativo,
+              estoques_lojas:estoque_lojas(
+                id_loja,
+                quantidade,
+                loja:lojas(nome)
+              )
+            )
           `
-          id_produto,
-          quantidade,
-          produto:produtos!inner(descricao, marca, modelos, preco_venda, ativo)
-        `
-        )
-        .eq("id_loja", idLoja)
-        .eq("produto.ativo", true)
-        .gt("quantidade", 0); // Apenas produtos com estoque
+          )
+          .eq("id_loja", idLoja)
+          .eq("produto.ativo", true)
+          .gt("quantidade", 0)
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .order("produto(descricao)", { ascending: true });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const produtos: Produto[] = (data || [])
-        .map((item: any) => ({
-          id: item.id_produto,
-          descricao: item.produto?.descricao || "Sem descrição",
-          marca: item.produto?.marca,
-          modelos: item.produto?.modelos,
-          preco_venda: item.produto?.preco_venda,
-          quantidade_disponivel: item.quantidade,
-        }))
-        .sort((a, b) => a.descricao.localeCompare(b.descricao)); // Ordenar alfabeticamente
+        if (data && data.length > 0) {
+          const produtosBatch: Produto[] = data.map((item: any) => ({
+            id: item.id_produto,
+            descricao: item.produto?.descricao || "Sem descrição",
+            marca: item.produto?.marca,
+            modelos: item.produto?.modelos,
+            preco_venda: item.produto?.preco_venda,
+            quantidade_disponivel: item.quantidade,
+            estoques_lojas:
+              item.produto?.estoques_lojas?.map((est: any) => ({
+                id_loja: est.id_loja,
+                loja_nome: est.loja?.nome || "Sem nome",
+                quantidade: est.quantidade,
+              })) || [],
+          }));
 
-      setProdutosDisponiveis(produtos);
-      setProdutosFiltrados(produtos);
+          todosProdutos = [...todosProdutos, ...produtosBatch];
+
+          // Atualizar progresso
+          setProgressoCarregamento(todosProdutos.length);
+
+          // Se retornou menos que o tamanho da página, não há mais dados
+          hasMore = data.length === pageSize;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      // Ordenar alfabeticamente após carregar todos
+      todosProdutos.sort((a, b) => a.descricao.localeCompare(b.descricao));
+
+      setProdutosDisponiveis(todosProdutos);
+      setProdutosFiltrados(todosProdutos);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
       toast.error("Erro ao carregar produtos da loja");
@@ -866,8 +920,15 @@ export default function TransferenciaModal({
 
                 {/* Lista de Produtos */}
                 {loadingProdutos ? (
-                  <div className="text-center py-8 text-default-400">
-                    Carregando produtos...
+                  <div className="text-center py-8">
+                    <div className="text-default-400 mb-2">
+                      Carregando produtos...
+                    </div>
+                    {progressoCarregamento > 0 && (
+                      <div className="text-sm text-primary">
+                        {progressoCarregamento} produtos carregados
+                      </div>
+                    )}
                   </div>
                 ) : produtosFiltrados.length === 0 ? (
                   <div className="text-center py-8 text-default-400">
@@ -1014,6 +1075,42 @@ export default function TransferenciaModal({
                                     </Chip>
                                   )}
                                 </div>
+
+                                {/* Estoque por Loja */}
+                                {produto.estoques_lojas &&
+                                  produto.estoques_lojas.length > 0 && (
+                                    <div className="pt-2 border-t border-divider">
+                                      <div className="text-xs text-default-500 mb-1.5 font-medium">
+                                        Estoque por Loja:
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5">
+                                        {produto.estoques_lojas.map(
+                                          (estoque) => (
+                                            <div
+                                              key={estoque.id_loja}
+                                              className="flex items-center gap-1 bg-default-100 dark:bg-default-100/10 rounded-md px-2 py-1"
+                                            >
+                                              <span className="text-[10px] text-default-600 truncate max-w-[70px]">
+                                                {estoque.loja_nome}
+                                              </span>
+                                              <Chip
+                                                size="sm"
+                                                variant="flat"
+                                                color={
+                                                  estoque.quantidade > 0
+                                                    ? "primary"
+                                                    : "danger"
+                                                }
+                                                className="h-4 min-w-[30px] text-[10px] px-1"
+                                              >
+                                                {estoque.quantidade}
+                                              </Chip>
+                                            </div>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
 
                                 {/* Valor total se selecionado */}
                                 {estaSelecionado &&
@@ -1425,6 +1522,72 @@ export default function TransferenciaModal({
         </ModalBody>
 
         <ModalFooter className="gap-2">
+          <div className="flex items-center gap-2 flex-1">
+            {/* Botões de Impressão */}
+            {itensTransferencia.length > 0 && lojaOrigem && lojaDestino && (
+              <>
+                <Button
+                  variant="flat"
+                  color="secondary"
+                  size="lg"
+                  startContent={<PrinterIcon className="h-5 w-5" />}
+                  onPress={() => {
+                    const transferenciaTemp = {
+                      id: "preview",
+                      loja_origem_nome: lojas.find(
+                        (l) => l.id === parseInt(lojaOrigem)
+                      )?.nome,
+                      loja_destino_nome: lojas.find(
+                        (l) => l.id === parseInt(lojaDestino)
+                      )?.nome,
+                      status: "pendente" as const,
+                      criado_em: new Date().toISOString(),
+                      usuario_nome: "Pré-visualização",
+                      observacao: observacao || undefined,
+                      itens: itensTransferencia.map((item) => ({
+                        produto_descricao: item.produto_descricao,
+                        produto_marca: item.produto_marca,
+                        quantidade: item.quantidade,
+                      })),
+                    };
+                    gerarRelatorioTransferenciaDetalhado(transferenciaTemp);
+                  }}
+                >
+                  Detalhado
+                </Button>
+                <Button
+                  variant="flat"
+                  color="secondary"
+                  size="lg"
+                  startContent={<DocumentTextIcon className="h-5 w-5" />}
+                  onPress={() => {
+                    const transferenciaTemp = {
+                      id: "preview",
+                      loja_origem_nome: lojas.find(
+                        (l) => l.id === parseInt(lojaOrigem)
+                      )?.nome,
+                      loja_destino_nome: lojas.find(
+                        (l) => l.id === parseInt(lojaDestino)
+                      )?.nome,
+                      status: "pendente" as const,
+                      criado_em: new Date().toISOString(),
+                      usuario_nome: "Pré-visualização",
+                      observacao: observacao || undefined,
+                      itens: itensTransferencia.map((item) => ({
+                        produto_descricao: item.produto_descricao,
+                        produto_marca: item.produto_marca,
+                        quantidade: item.quantidade,
+                      })),
+                    };
+                    gerarRelatorioTransferenciaResumido(transferenciaTemp);
+                  }}
+                >
+                  Resumido
+                </Button>
+              </>
+            )}
+          </div>
+
           <Button
             variant="light"
             onPress={onClose}

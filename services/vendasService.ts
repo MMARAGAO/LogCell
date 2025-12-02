@@ -663,6 +663,13 @@ export class VendasService {
               estoqueAtual.quantidade + quantidadeADevolver;
             console.log(`➕ Nova quantidade será: ${novaQuantidade}`);
 
+            // Setar flag para evitar duplicação no histórico
+            await supabase.rpc('set_config', {
+              setting_name: 'app.skip_ajuste_manual',
+              new_value: 'true',
+              is_local: true
+            });
+
             // Devolver ao estoque
             const { error: errorUpdate } = await supabase
               .from("estoque_lojas")
@@ -858,6 +865,13 @@ export class VendasService {
             .single();
 
           if (estoqueAtual) {
+            // Setar flag para evitar duplicação no histórico
+            await supabase.rpc('set_config', {
+              setting_name: 'app.skip_ajuste_manual',
+              new_value: 'true',
+              is_local: true
+            });
+
             await supabase
               .from("estoque_lojas")
               .update({
@@ -916,6 +930,13 @@ export class VendasService {
               error: `Estoque insuficiente para ${itemNovo.produto_nome}`,
             };
           }
+
+          // Setar flag para evitar duplicação no histórico
+          await supabase.rpc('set_config', {
+            setting_name: 'app.skip_ajuste_manual',
+            new_value: 'true',
+            is_local: true
+          });
 
           // Baixar estoque
           const { error: erroEstoque } = await supabase
@@ -1029,6 +1050,13 @@ export class VendasService {
                 error: `Estoque insuficiente para aumentar quantidade de ${itemNovo.produto_nome}`,
               };
             }
+
+            // Setar flag para evitar duplicação no histórico
+            await supabase.rpc('set_config', {
+              setting_name: 'app.skip_ajuste_manual',
+              new_value: 'true',
+              is_local: true
+            });
 
             const { error: erroEstoque } = await supabase
               .from("estoque_lojas")

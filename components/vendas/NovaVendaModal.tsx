@@ -28,12 +28,14 @@ import {
   CheckCircle,
   ArrowRight,
   ArrowLeft,
+  UserPlus,
 } from "lucide-react";
 import { ProdutoSearchGrid } from "./ProdutoSearchGrid";
 import { CarrinhoVenda } from "./CarrinhoVenda";
 import { PagamentosPanel } from "./PagamentosPanel";
 import { DescontoModal } from "./DescontoModal";
 import { CreditosClientePanel } from "./CreditosClientePanel";
+import ClienteFormModal from "../clientes/ClienteFormModal";
 import { DevolucoesService } from "@/services/devolucoesService";
 import { CaixaService } from "@/services/caixaService";
 import { useToast } from "@/components/Toast";
@@ -61,6 +63,7 @@ interface NovaVendaModalProps {
   }>;
   creditosDisponiveis?: number;
   vendaParaEditar?: VendaCompleta | null;
+  onClienteCriado?: () => void;
 }
 
 interface DadosVenda {
@@ -93,6 +96,7 @@ export function NovaVendaModal({
   produtos,
   creditosDisponiveis = 0,
   vendaParaEditar = null,
+  onClienteCriado,
 }: NovaVendaModalProps) {
   const toast = useToast();
   const { temPermissao } = usePermissoes();
@@ -139,6 +143,9 @@ export function NovaVendaModal({
     new Set()
   );
   const [loadingLojas, setLoadingLojas] = useState(false);
+
+  // Modal de cadastro de cliente
+  const [clienteModalOpen, setClienteModalOpen] = useState(false);
 
   // Função para calcular desconto de um item
   const calcularDescontoItem = (item: ItemCarrinho): number => {
@@ -681,32 +688,45 @@ export function NovaVendaModal({
                   Informações da Venda
                 </h3>
 
-                <Autocomplete
-                  label="Cliente *"
-                  placeholder="Busque pelo nome ou CPF"
-                  selectedKey={clienteSelecionado}
-                  onSelectionChange={(key) =>
-                    setClienteSelecionado(key as string)
-                  }
-                  allowsCustomValue={false}
-                  defaultItems={clientes}
-                >
-                  {(cliente) => (
-                    <AutocompleteItem
-                      key={cliente.id}
-                      textValue={`${cliente.nome} ${cliente.cpf || ""}`}
-                    >
-                      <div>
-                        <div className="font-medium">{cliente.nome}</div>
-                        {cliente.cpf && (
-                          <div className="text-xs text-gray-500">
-                            {cliente.cpf}
-                          </div>
-                        )}
-                      </div>
-                    </AutocompleteItem>
-                  )}
-                </Autocomplete>
+                <div className="flex gap-2 items-end">
+                  <Autocomplete
+                    label="Cliente *"
+                    placeholder="Busque pelo nome ou CPF"
+                    selectedKey={clienteSelecionado}
+                    onSelectionChange={(key) =>
+                      setClienteSelecionado(key as string)
+                    }
+                    allowsCustomValue={false}
+                    defaultItems={clientes}
+                    className="flex-1"
+                  >
+                    {(cliente) => (
+                      <AutocompleteItem
+                        key={cliente.id}
+                        textValue={`${cliente.nome} ${cliente.cpf || ""}`}
+                      >
+                        <div>
+                          <div className="font-medium">{cliente.nome}</div>
+                          {cliente.cpf && (
+                            <div className="text-xs text-default-500">
+                              {cliente.cpf}
+                            </div>
+                          )}
+                        </div>
+                      </AutocompleteItem>
+                    )}
+                  </Autocomplete>
+
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    isIconOnly
+                    onPress={() => setClienteModalOpen(true)}
+                    aria-label="Cadastrar novo cliente"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                  </Button>
+                </div>
 
                 <Select
                   label="Loja *"
@@ -1152,6 +1172,19 @@ export function NovaVendaModal({
           }
         />
       )}
+
+      {/* Modal de Cadastro de Cliente */}
+      <ClienteFormModal
+        isOpen={clienteModalOpen}
+        onClose={() => setClienteModalOpen(false)}
+        onSuccess={() => {
+          setClienteModalOpen(false);
+          toast.success("Cliente cadastrado com sucesso!");
+          if (onClienteCriado) {
+            onClienteCriado();
+          }
+        }}
+      />
     </React.Fragment>
   );
 }

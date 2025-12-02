@@ -28,6 +28,11 @@ import type {
   ClienteFormData,
   ESTADOS_BRASIL,
 } from "@/types/clientesTecnicos";
+import {
+  formatarCPF,
+  formatarCEP,
+  formatarTelefone,
+} from "@/types/clientesTecnicos";
 
 interface ClienteFormModalProps {
   isOpen: boolean;
@@ -265,7 +270,7 @@ export default function ClienteFormModal({
                     label="CPF"
                     placeholder="000.000.000-00"
                     value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
+                    onChange={(e) => setCpf(formatarCPF(e.target.value))}
                     maxLength={14}
                   />
 
@@ -301,8 +306,11 @@ export default function ClienteFormModal({
                   label="Telefone Principal"
                   placeholder="(00) 00000-0000"
                   value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
+                  onChange={(e) =>
+                    setTelefone(formatarTelefone(e.target.value))
+                  }
                   isRequired
+                  maxLength={15}
                   startContent={<Phone className="w-4 h-4 text-default-400" />}
                 />
 
@@ -310,7 +318,10 @@ export default function ClienteFormModal({
                   label="Telefone Secundário"
                   placeholder="(00) 00000-0000"
                   value={telefoneSecundario}
-                  onChange={(e) => setTelefoneSecundario(e.target.value)}
+                  onChange={(e) =>
+                    setTelefoneSecundario(formatarTelefone(e.target.value))
+                  }
+                  maxLength={15}
                   startContent={<Phone className="w-4 h-4 text-default-400" />}
                 />
 
@@ -340,9 +351,10 @@ export default function ClienteFormModal({
                   placeholder="00000-000"
                   value={cep}
                   onChange={(e) => {
-                    setCep(e.target.value);
-                    if (e.target.value.replace(/\D/g, "").length === 8) {
-                      buscarCep(e.target.value);
+                    const cepFormatado = formatarCEP(e.target.value);
+                    setCep(cepFormatado);
+                    if (cepFormatado.replace(/\D/g, "").length === 8) {
+                      buscarCep(cepFormatado);
                     }
                   }}
                   maxLength={9}

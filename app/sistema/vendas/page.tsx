@@ -1442,6 +1442,7 @@ export default function VendasPage() {
         produtos={produtos}
         creditosDisponiveis={0}
         vendaParaEditar={vendaParaEditar}
+        onClienteCriado={carregarClientes}
       />
 
       {/* Modal Adicionar Pagamento */}
