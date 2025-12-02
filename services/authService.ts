@@ -181,10 +181,10 @@ export class AuthService {
     try {
       // Verifica sessão do Supabase primeiro
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (!session) {
+      if (!user) {
         console.warn(
           "⚠️ [AuthService] Sem sessão ativa! Query pode falhar por RLS."
         );

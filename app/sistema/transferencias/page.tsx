@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
 import TransferenciaModal from "@/components/estoque/TransferenciaModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
@@ -52,6 +53,7 @@ export default function TransferenciasPage() {
   const toast = useToast();
   const { usuario } = useAuth();
   const { temPermissao } = usePermissoes();
+  const { lojaId, podeVerTodasLojas } = useLojaFilter();
 
   const {
     isOpen: isTransferenciaOpen,
@@ -85,9 +87,12 @@ export default function TransferenciasPage() {
     transferencia: null as TransferenciaCompleta | null,
   });
 
+  // Aguardar permissões serem carregadas antes de carregar dados
   useEffect(() => {
-    carregarDados();
-  }, []);
+    if (!loading) {
+      carregarDados();
+    }
+  }, [lojaId, podeVerTodasLojas]);
 
   const carregarDados = async () => {
     setLoading(true);
@@ -123,8 +128,14 @@ export default function TransferenciasPage() {
       }
 
       if (filtroLoja !== "todas") {
-        const lojaId = parseInt(filtroLoja);
-        filtros.lojaId = lojaId;
+        const lojaIdFiltro = parseInt(filtroLoja);
+        filtros.loja_id = lojaIdFiltro;
+      } else if (lojaId !== null && !podeVerTodasLojas) {
+        // Aplicar filtro de loja do usuário se não tiver acesso a todas
+        filtros.loja_id = lojaId;
+        console.log(
+          `🏪 Filtrando transferências da loja ${lojaId} (enviadas ou recebidas)`
+        );
       }
 
       const resultado = await buscarTransferencias(filtros);

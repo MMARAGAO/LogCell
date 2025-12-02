@@ -57,6 +57,7 @@ import { CaixaService } from "@/services/caixaService";
 import { CaixaCompleto, ResumoCaixa, MovimentacaoCaixa } from "@/types/caixa";
 import { supabase } from "@/lib/supabaseClient";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { toast } from "sonner";
 
 interface LojaComCaixa {
@@ -68,6 +69,7 @@ interface LojaComCaixa {
 export default function CaixaPage() {
   const { usuario } = useAuth();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
+  const { aplicarFiltroLoja, lojaId, podeVerTodasLojas } = useLojaFilter();
 
   const [lojas, setLojas] = useState<LojaComCaixa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -107,10 +109,13 @@ export default function CaixaPage() {
   );
   const [vendasDetalhadas, setVendasDetalhadas] = useState<any>({});
 
+  // Aguardar permissões serem carregadas antes de carregar dados
   useEffect(() => {
-    carregarLojas();
-    carregarHistorico();
-  }, []);
+    if (!loadingPermissoes) {
+      carregarLojas();
+      carregarHistorico();
+    }
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
 
   useEffect(() => {
     if (abaAtiva === "historico") {
@@ -121,11 +126,20 @@ export default function CaixaPage() {
   const carregarLojas = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      let query = supabase
         .from("lojas")
         .select("id, nome")
         .eq("ativo", true)
         .order("nome");
+
+      // Aplicar filtro de loja se usuário não tiver acesso a todas
+      if (lojaId !== null && !podeVerTodasLojas) {
+        query = query.eq("id", lojaId);
+        console.log(`🏪 Filtrando caixa da loja ${lojaId}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -158,6 +172,10 @@ export default function CaixaPage() {
 
       if (lojaFiltroHistorico !== "todos") {
         filtros.loja_id = parseInt(lojaFiltroHistorico);
+      } else if (lojaId !== null && !podeVerTodasLojas) {
+        // Aplicar filtro de loja do usuário se não tiver acesso a todas
+        filtros.loja_id = lojaId;
+        console.log(`🏪 Filtrando histórico de caixa da loja ${lojaId}`);
       }
 
       if (dataInicioHistorico) {

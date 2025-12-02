@@ -27,12 +27,12 @@ export function useAuth() {
       try {
         // Verifica sessão (middleware já gerencia isso)
         const {
-          data: { session },
-        } = await supabase.auth.getSession();
+          data: { user },
+        } = await supabase.auth.getUser();
 
         if (cancelled) return;
 
-        if (session) {
+        if (user) {
           const usuarioAtual = await AuthService.getUsuarioAtual();
           if (!cancelled) {
             setUsuario(usuarioAtual);
@@ -199,10 +199,10 @@ export function useAuth() {
   const carregarUsuario = useCallback(async () => {
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (session) {
+      if (user) {
         const usuarioAtual = await AuthService.getUsuarioAtual();
         setUsuario(usuarioAtual);
       }

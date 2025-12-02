@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConfiguracoesProvider } from "@/contexts/ConfiguracoesContext";
+import { PermissoesRealtimeProvider } from "@/contexts/PermissoesRealtimeContext";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -45,9 +46,11 @@ export function Providers({ children, themeProps }: ProvidersProps) {
   return (
     <NextThemesProvider {...themeProps}>
       <AuthProvider>
-        <ConfiguracoesProvider>
-          <HeroUIWrapper>{children}</HeroUIWrapper>
-        </ConfiguracoesProvider>
+        <PermissoesRealtimeProvider>
+          <ConfiguracoesProvider>
+            <HeroUIWrapper>{children}</HeroUIWrapper>
+          </ConfiguracoesProvider>
+        </PermissoesRealtimeProvider>
       </AuthProvider>
     </NextThemesProvider>
   );

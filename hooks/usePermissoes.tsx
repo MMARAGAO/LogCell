@@ -2,6 +2,7 @@
 
 import { useMemo, useEffect, useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { usePermissoesRealtime } from "@/contexts/PermissoesRealtimeContext";
 import { supabase } from "@/lib/supabaseClient";
 import type { Permissao, PerfilUsuario } from "@/types/permissoes";
 import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
@@ -9,6 +10,7 @@ import { toast } from "sonner";
 
 export function usePermissoes() {
   const { usuario } = useAuthContext();
+  const { versaoPermissoes } = usePermissoesRealtime(); // Usa contexto Realtime
   const [permissoesCustomizadas, setPermissoesCustomizadas] = useState<
     Permissao[] | null
   >(null);
@@ -21,7 +23,8 @@ export function usePermissoes() {
     if (!usuario) return "vendedor";
 
     // Verificar se é admin pelo email ou flag específica
-    const emailsAdmin = ["admin@logcell.com", "matheusmoxil@gmail.com"];
+    // IMPORTANTE: Se usuário tem loja_id configurado, NÃO é admin global
+    const emailsAdmin = ["admin@logcell.com"];
     if (usuario.email && emailsAdmin.includes(usuario.email.toLowerCase())) {
       return "admin";
     }
@@ -70,8 +73,14 @@ export function usePermissoes() {
       return;
     }
 
-    const buscarPermissoes = async () => {
+    const carregarPermissoes = async () => {
       try {
+        console.log(
+          "🔄 [PERMISSÕES] Recarregando do banco (versão:",
+          versaoPermissoes,
+          ")"
+        );
+
         // Tentar buscar permissões do banco
         const { data, error } = await supabase
           .from("permissoes")
@@ -93,13 +102,21 @@ export function usePermissoes() {
           setTodasLojas(false);
         } else if (data?.permissoes) {
           // Permissões customizadas encontradas
-          console.log("✅ Permissões customizadas carregadas do banco");
+          const novaLojaId = data.loja_id || null;
+          const novasTodasLojas = data.todas_lojas || false;
+
+          console.log("✅ [PERMISSÕES] Carregadas do banco:", {
+            loja_id: novaLojaId,
+            todas_lojas: novasTodasLojas,
+            usuario_id: usuario.id,
+            timestamp: new Date().toLocaleTimeString(),
+          });
 
           // Converter objeto JSONB para array de permissões
           const permissoesArray = converterObjetoParaArray(data.permissoes);
           setPermissoesCustomizadas(permissoesArray);
-          setLojaId(data.loja_id || null);
-          setTodasLojas(data.todas_lojas || false);
+          setLojaId(novaLojaId);
+          setTodasLojas(novasTodasLojas);
         } else {
           // Nenhuma permissão customizada, usar padrão
           console.log(
@@ -126,84 +143,9 @@ export function usePermissoes() {
       }
     };
 
-    buscarPermissoes();
-
-    // Configurar listener em tempo real para mudanças nas permissões
-    const channel = supabase
-      .channel(`permissoes_${usuario.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*", // INSERT, UPDATE, DELETE
-          schema: "public",
-          table: "permissoes",
-          filter: `usuario_id=eq.${usuario.id}`,
-        },
-        (payload) => {
-          console.log("🔄 Permissões atualizadas em tempo real:", payload);
-
-          if (payload.eventType === "DELETE") {
-            // Permissões removidas, voltar ao padrão
-            console.log("🗑️ Permissões customizadas removidas, usando padrão");
-            setPermissoesCustomizadas(null);
-            setLojaId(null);
-            setTodasLojas(false);
-
-            // Notificar usuário
-            toast.info("Permissões atualizadas", {
-              description: "Suas permissões foram redefinidas para o padrão.",
-            });
-          } else if (
-            payload.eventType === "INSERT" ||
-            payload.eventType === "UPDATE"
-          ) {
-            // Permissões criadas ou atualizadas
-            const newData = payload.new as any;
-            if (newData?.permissoes) {
-              console.log("✅ Aplicando novas permissões:", newData.permissoes);
-              const permissoesArray = converterObjetoParaArray(
-                newData.permissoes
-              );
-              setPermissoesCustomizadas(permissoesArray);
-              setLojaId(newData.loja_id || null);
-              setTodasLojas(newData.todas_lojas || false);
-
-              // Notificar usuário sobre mudança
-              if (payload.eventType === "UPDATE") {
-                toast.success("Permissões atualizadas!", {
-                  description: "Suas permissões de acesso foram modificadas.",
-                });
-              } else {
-                toast.success("Novas permissões atribuídas!", {
-                  description: "Você recebeu novas permissões de acesso.",
-                });
-              }
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("✅ Inscrito para updates de permissões em tempo real");
-        } else if (status === "CHANNEL_ERROR") {
-          console.info(
-            "ℹ️ Realtime não habilitado para permissões. Atualizações manuais necessárias."
-          );
-        } else if (status === "TIMED_OUT") {
-          console.info(
-            "ℹ️ Timeout ao conectar no Realtime de permissões. Sistema funcionando normalmente."
-          );
-        } else if (status === "CLOSED") {
-          console.log("🔌 Canal de permissões fechado");
-        }
-      });
-
-    // Cleanup: remover listener quando o componente desmontar
-    return () => {
-      console.log("🔌 Desconectando listener de permissões");
-      supabase.removeChannel(channel);
-    };
-  }, [usuario?.id, perfil]);
+    // Carregar permissões inicialmente e sempre que versaoPermissoes mudar
+    carregarPermissoes();
+  }, [usuario?.id, versaoPermissoes]); // Recarrega quando versaoPermissoes muda!
 
   // Obter todas as permissões do usuário
   const permissoes = useMemo((): Permissao[] => {
@@ -238,6 +180,14 @@ export function usePermissoes() {
 
   // Verificar se é admin
   const isAdmin = perfil === "admin";
+  console.log(
+    "👤 [PERFIL] Usuário:",
+    usuario?.email,
+    "| Perfil:",
+    perfil,
+    "| isAdmin:",
+    isAdmin
+  );
 
   // Verificar se é gerente ou admin
   const isGerente = perfil === "gerente" || perfil === "admin";

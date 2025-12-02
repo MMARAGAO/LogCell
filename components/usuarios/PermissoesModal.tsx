@@ -213,18 +213,29 @@ export function PermissoesModal({
 
     try {
       console.log("💾 Iniciando salvamento de permissões");
-      console.log("📊 Dados a salvar:", {
+      console.log("🔍 Estado atual do modal:", {
+        todasLojas,
+        lojaSelecionada,
+        lojaNome: lojas.find((l) => l.id === lojaSelecionada)?.nome,
+      });
+      console.log("📊 Dados que serão salvos no banco:", {
         usuarioId,
-        permissoes,
         loja_id: todasLojas ? null : lojaSelecionada,
         todas_lojas: todasLojas,
       });
 
-      const result = await salvarPermissoes(usuarioId, {
+      const dadosSalvar = {
         permissoes,
         loja_id: todasLojas ? null : lojaSelecionada,
         todas_lojas: todasLojas,
-      });
+      };
+
+      console.log(
+        "📤 Enviando para action:",
+        JSON.stringify(dadosSalvar, null, 2)
+      );
+
+      const result = await salvarPermissoes(usuarioId, dadosSalvar);
 
       console.log("📤 Resultado do salvamento:", result);
 
@@ -310,9 +321,20 @@ export function PermissoesModal({
                   <Checkbox
                     isSelected={todasLojas}
                     onValueChange={(checked) => {
+                      console.log(
+                        "🔄 Checkbox 'Todas as Lojas' alterado:",
+                        checked
+                      );
                       setTodasLojas(checked);
                       if (checked) {
+                        console.log(
+                          "✅ Marcado 'Todas as Lojas' - limpando loja específica"
+                        );
                         setLojaSelecionada(null);
+                      } else {
+                        console.log(
+                          "❌ Desmarcado 'Todas as Lojas' - selecione uma loja específica"
+                        );
                       }
                     }}
                   >
@@ -330,7 +352,15 @@ export function PermissoesModal({
                       placeholder="Selecione uma loja"
                       selectedKey={lojaSelecionada?.toString()}
                       onSelectionChange={(key) => {
-                        setLojaSelecionada(key ? Number(key) : null);
+                        const lojaId = key ? Number(key) : null;
+                        const lojaNome = lojas.find(
+                          (l) => l.id === lojaId
+                        )?.nome;
+                        console.log("🏪 Loja selecionada:", {
+                          id: lojaId,
+                          nome: lojaNome,
+                        });
+                        setLojaSelecionada(lojaId);
                       }}
                       isDisabled={todasLojas}
                       className="max-w-full"
@@ -344,16 +374,22 @@ export function PermissoesModal({
                   )}
 
                   {!todasLojas && !lojaSelecionada && (
-                    <p className="text-xs text-warning">
-                      ⚠️ Nenhuma loja selecionada. O usuário não terá acesso ao
-                      sistema.
+                    <p className="text-xs text-warning font-semibold">
+                      ⚠️ ATENÇÃO: Nenhuma loja selecionada! Você precisa
+                      selecionar uma loja ou marcar "Todas as Lojas".
                     </p>
                   )}
 
                   {lojaSelecionada && !todasLojas && (
-                    <p className="text-xs text-success">
+                    <p className="text-xs text-success font-semibold">
                       ✓ Acesso restrito à loja:{" "}
                       {lojas.find((l) => l.id === lojaSelecionada)?.nome}
+                    </p>
+                  )}
+
+                  {todasLojas && (
+                    <p className="text-xs text-primary font-semibold">
+                      ✓ Acesso a TODAS as lojas do sistema
                     </p>
                   )}
                 </div>

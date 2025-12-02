@@ -22,11 +22,13 @@ import { VendaCompleta } from "@/types/vendas";
 import { ModalDevolucao } from "@/components/devolucoes/ModalDevolucao";
 import { HistoricoDevolucoes } from "@/components/devolucoes/HistoricoDevolucoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { toast } from "sonner";
 
 export default function DevolucoesPage() {
   const { usuario } = useAuth();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
+  const { lojaId, podeVerTodasLojas } = useLojaFilter();
 
   const [vendas, setVendas] = useState<VendaCompleta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,15 +39,18 @@ export default function DevolucoesPage() {
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false);
   const [vendaHistorico, setVendaHistorico] = useState<string | null>(null);
 
+  // Aguardar permissões serem carregadas antes de carregar vendas
   useEffect(() => {
-    carregarVendas();
-  }, []);
+    if (!loadingPermissoes) {
+      carregarVendas();
+    }
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
 
   const carregarVendas = async () => {
     try {
       setLoading(true);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("vendas")
         .select(
           `
@@ -77,6 +82,14 @@ export default function DevolucoesPage() {
         .eq("status", "concluida")
         .order("criado_em", { ascending: false })
         .limit(50);
+
+      // Aplicar filtro de loja se usuário não tiver acesso a todas
+      if (lojaId !== null && !podeVerTodasLojas) {
+        query = query.eq("loja_id", lojaId);
+        console.log(`🏪 Filtrando devoluções da loja ${lojaId}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 

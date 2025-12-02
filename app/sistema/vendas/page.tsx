@@ -54,6 +54,8 @@ import { DevolucoesService } from "@/services/devolucoesService";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { useRealtime } from "@/hooks/useRealtime";
 import type {
   VendaCompleta,
   ItemCarrinho,
@@ -99,6 +101,7 @@ export default function VendasPage() {
     getDescontoMaximo,
     validarDesconto,
   } = usePermissoes();
+  const { aplicarFiltroLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
@@ -172,10 +175,57 @@ export default function VendasPage() {
     });
   };
 
-  // Carrega dados iniciais
+  // Carrega dados iniciais - AGUARDAR permissões serem carregadas
   useEffect(() => {
-    carregarDados();
-  }, []);
+    console.log("🔄 [VENDAS useEffect] Executando com:", {
+      loadingPermissoes,
+      lojaId,
+      podeVerTodasLojas,
+    });
+
+    // Só carregar quando as permissões já tiverem sido carregadas
+    if (!loadingPermissoes) {
+      console.log(
+        "✅ [VENDAS] Permissões carregadas, iniciando carregamento de dados"
+      );
+      carregarDados();
+    } else {
+      console.log("⏳ [VENDAS] Aguardando permissões serem carregadas...");
+    }
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas]); // Recarregar se mudar a loja
+
+  // 🔔 Realtime: atualizar vendas quando houver mudanças
+  useRealtime({
+    table: "vendas",
+    filter: lojaId && !podeVerTodasLojas ? `loja_id=eq.${lojaId}` : undefined,
+    enabled: !loadingPermissoes, // Só ativar após permissões carregarem
+    onEvent: (payload) => {
+      console.log("🔔 [REALTIME VENDAS] Evento:", payload.eventType, payload);
+
+      if (payload.eventType === "INSERT") {
+        toast.success("Nova venda registrada!", {
+          description: "A lista de vendas foi atualizada.",
+        });
+      } else if (payload.eventType === "UPDATE") {
+        toast.info("Venda atualizada", {
+          description: "Uma venda foi modificada.",
+        });
+      } else if (payload.eventType === "DELETE") {
+        toast.warning("Venda removida", {
+          description: "Uma venda foi excluída.",
+        });
+      }
+
+      // Recarregar vendas para refletir as mudanças
+      carregarVendas();
+    },
+    onSubscribed: () => {
+      console.log("✅ [REALTIME VENDAS] Conectado ao Realtime de vendas");
+    },
+    onError: (error) => {
+      console.warn("⚠️ [REALTIME VENDAS] Erro:", error);
+    },
+  });
 
   const carregarDados = async () => {
     setLoading(true);
@@ -194,8 +244,31 @@ export default function VendasPage() {
 
   const carregarVendas = async () => {
     console.log("📥 Carregando vendas do banco...");
-    const dados = await VendasService.listarVendas();
+    console.log("🔍 [VENDAS] Debug filtros:", {
+      lojaId,
+      podeVerTodasLojas,
+      "lojaId !== null": lojaId !== null,
+      "!podeVerTodasLojas": !podeVerTodasLojas,
+    });
+
+    // Aplicar filtro de loja se usuário não tiver acesso a todas
+    const filtros: any = {};
+    if (lojaId !== null && !podeVerTodasLojas) {
+      filtros.loja_id = lojaId;
+      console.log(`🏪 Filtrando vendas da loja ${lojaId}`);
+    } else {
+      console.log("⚠️ NENHUM FILTRO DE LOJA APLICADO!");
+    }
+
+    console.log("📤 Filtros que serão enviados:", filtros);
+    const dados = await VendasService.listarVendas(filtros);
     console.log("📦 Vendas carregadas:", dados.length, "vendas");
+
+    // Log das lojas das vendas carregadas
+    const lojasNasVendas = Array.from(
+      new Set(dados.map((v) => `${v.loja?.nome} (ID: ${v.loja_id})`))
+    );
+    console.log("🏪 Lojas presentes nas vendas:", lojasNasVendas);
 
     // Log detalhado de TODAS as vendas
     dados.forEach((venda) => {

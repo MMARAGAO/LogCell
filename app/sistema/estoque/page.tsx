@@ -46,6 +46,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
 import {
   ProdutoFormModal,
   EstoqueStats,
@@ -455,6 +456,7 @@ function ProdutoCard({
 export default function EstoquePage() {
   const { usuario: user } = useAuthContext();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
+  const { filtrarPorLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
@@ -521,16 +523,39 @@ export default function EstoquePage() {
   // Lojas
   const [lojas, setLojas] = useState<any[]>([]);
 
+  // Aguardar permissões serem carregadas antes de carregar dados
   useEffect(() => {
-    carregarDados();
-    carregarLojas();
-    carregarProdutosComEstoque();
-  }, []);
+    if (!loadingPermissoes) {
+      carregarDados();
+      carregarLojas();
+      carregarProdutosComEstoque();
+    }
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
 
   const carregarProdutosComEstoque = async () => {
     setLoading(true);
     try {
-      const dados = await getProdutosComEstoque();
+      let dados = await getProdutosComEstoque();
+
+      // Filtrar produtos por loja se usuário não tiver acesso a todas
+      if (lojaId !== null && !podeVerTodasLojas) {
+        console.log(`🏪 Filtrando estoque da loja ${lojaId}`);
+        dados = dados.map((produto) => {
+          // Manter apenas o estoque da loja do usuário
+          const estoquesFiltrados =
+            produto.estoques?.filter((e: any) => e.id_loja === lojaId) || [];
+
+          return {
+            ...produto,
+            estoques: estoquesFiltrados,
+            estoque_total: estoquesFiltrados.reduce(
+              (sum: number, e: any) => sum + (e.quantidade || 0),
+              0
+            ),
+          };
+        });
+      }
+
       setProdutosComEstoque(dados);
     } catch (error) {
       console.error("Erro ao carregar produtos com estoque:", error);

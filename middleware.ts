@@ -54,89 +54,41 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired - required for Server Components
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
   // Rotas protegidas
   const protectedRoutes = ["/sistema"];
   const isProtectedRoute = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
 
+  // Apenas verificar usuário se for rota protegida ou página de auth
+  const needsAuth = isProtectedRoute || request.nextUrl.pathname === "/auth";
+  
+  if (!needsAuth) {
+    return response;
+  }
+
+  // Refresh session if expired - required for Server Components
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   // Se não tem sessão e está tentando acessar rota protegida
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/auth";
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Se tem sessão, verificar tipo de usuário e permissões
-  if (session && isProtectedRoute) {
-    try {
-      // Verificar se é técnico usando query mais simples
-      const { data: tecnicos, error } = await supabase
-        .from("tecnicos")
-        .select("id, ativo")
-        .eq("usuario_id", session.user.id)
-        .eq("ativo", true)
-        .limit(1);
-
-      // Se encontrou técnico ativo
-      if (!error && tecnicos && tecnicos.length > 0) {
-        // É um técnico - restringir acesso
-        const rotasPermitidas = [
-          "/sistema/ordem-servico",
-          "/sistema/perfil",
-          "/sistema/dashboard", // Pode ver dashboard básico
-          "/sistema/configuracoes", // Pode alterar configurações próprias
-        ];
-
-        const temPermissao = rotasPermitidas.some((rota) =>
-          request.nextUrl.pathname.startsWith(rota)
-        );
-
-        if (!temPermissao) {
-          // Redirecionar para área permitida
-          const redirectUrl = request.nextUrl.clone();
-          redirectUrl.pathname = "/sistema/ordem-servico";
-          return NextResponse.redirect(redirectUrl);
-        }
-      }
-      // Se não é técnico ou não encontrou, é usuário administrativo - permite tudo
-    } catch (error) {
-      // Em caso de erro, permite acesso (fail-open para admin)
-      console.error("Erro ao verificar tipo de usuário:", error);
-    }
+  // Se tem sessão e está tentando acessar /auth, redirecionar
+  if (request.nextUrl.pathname === "/auth" && user) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/sistema/dashboard";
+    return NextResponse.redirect(redirectUrl);
   }
 
-  // Se tem sessão e está tentando acessar /auth
-  if (request.nextUrl.pathname === "/auth" && session) {
-    try {
-      // Verificar se é técnico para redirecionar para área correta
-      const { data: tecnicos, error } = await supabase
-        .from("tecnicos")
-        .select("id")
-        .eq("usuario_id", session.user.id)
-        .eq("ativo", true)
-        .limit(1);
-
-      const redirectUrl = request.nextUrl.clone();
-      if (!error && tecnicos && tecnicos.length > 0) {
-        redirectUrl.pathname = "/sistema/ordem-servico/tecnico";
-      } else {
-        redirectUrl.pathname = "/sistema/dashboard";
-      }
-      return NextResponse.redirect(redirectUrl);
-    } catch (error) {
-      // Em caso de erro, redireciona para dashboard
-      console.error("Erro ao verificar técnico:", error);
-      const redirectUrl = request.nextUrl.clone();
-      redirectUrl.pathname = "/sistema/dashboard";
-      return NextResponse.redirect(redirectUrl);
-    }
-  }
+  // NOTA: Verificação de tipo de usuário (técnico vs admin) foi removida do middleware
+  // para melhorar performance. A validação de permissões deve ser feita nas páginas
+  // individuais usando RLS do Supabase e componentes de permissão.
 
   return response;
 }
