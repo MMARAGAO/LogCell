@@ -338,7 +338,8 @@ export function NovaVendaModal({
         while (hasMore) {
           const { data, error } = await supabase
             .from("estoque_lojas")
-            .select(`
+            .select(
+              `
               id_produto,
               quantidade,
               produtos:id_produto (
@@ -349,7 +350,8 @@ export function NovaVendaModal({
                 categoria,
                 ativo
               )
-            `)
+            `
+            )
             .eq("id_loja", lojaSelecionada)
             .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -362,15 +364,16 @@ export function NovaVendaModal({
 
         // Mapear para o formato esperado
         const produtosAtualizados = allData
-          .filter((item: any) => 
-            item.produtos && 
-            item.produtos.ativo !== false && 
-            item.quantidade > 0
+          .filter(
+            (item: any) =>
+              item.produtos &&
+              item.produtos.ativo !== false &&
+              item.quantidade > 0
           )
           .map((item: any) => ({
             id: item.produtos.id,
             nome: item.produtos.descricao,
-            codigo: item.produtos.id.split('-')[0].toUpperCase(),
+            codigo: item.produtos.id.split("-")[0].toUpperCase(),
             preco_venda: item.produtos.preco_venda,
             categoria: item.produtos.categoria,
             estoque_disponivel: item.quantidade,
