@@ -155,6 +155,11 @@ export interface PermissoesModulos {
   dashboard?: {
     visualizar: boolean;
   };
+  dashboard_pessoal?: {
+    visualizar: boolean;
+    definir_metas: boolean;
+    visualizar_metas_outros: boolean;
+  };
   notificacoes?: {
     visualizar: boolean;
   };

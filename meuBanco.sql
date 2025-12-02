@@ -94,6 +94,14 @@ CREATE TABLE public.creditos_cliente (
   CONSTRAINT creditos_cliente_venda_origem_id_fkey FOREIGN KEY (venda_origem_id) REFERENCES public.vendas(id),
   CONSTRAINT creditos_cliente_devolucao_id_fkey FOREIGN KEY (devolucao_id) REFERENCES public.devolucoes_venda(id)
 );
+CREATE TABLE public.debug_logs (
+  id bigint NOT NULL DEFAULT nextval('debug_logs_id_seq'::regclass),
+  criado_em timestamp with time zone DEFAULT now(),
+  contexto text,
+  mensagem text,
+  dados jsonb,
+  CONSTRAINT debug_logs_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.descontos_venda (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   venda_id uuid NOT NULL,
@@ -114,6 +122,7 @@ CREATE TABLE public.devolucoes_venda (
   valor_total numeric NOT NULL,
   realizado_por uuid NOT NULL,
   criado_em timestamp without time zone DEFAULT now(),
+  forma_pagamento character varying CHECK (forma_pagamento::text = ANY (ARRAY['dinheiro'::character varying, 'pix'::character varying, 'debito'::character varying, 'credito'::character varying, 'credito_loja'::character varying]::text[])),
   CONSTRAINT devolucoes_venda_pkey PRIMARY KEY (id),
   CONSTRAINT devolucoes_venda_realizado_por_fkey FOREIGN KEY (realizado_por) REFERENCES public.usuarios(id),
   CONSTRAINT devolucoes_venda_venda_id_fkey FOREIGN KEY (venda_id) REFERENCES public.vendas(id)
@@ -351,6 +360,24 @@ CREATE TABLE public.lojas_fotos (
   atualizado_em timestamp with time zone DEFAULT now(),
   CONSTRAINT lojas_fotos_pkey PRIMARY KEY (id),
   CONSTRAINT fk_loja FOREIGN KEY (loja_id) REFERENCES public.lojas(id)
+);
+CREATE TABLE public.metas_usuarios (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NOT NULL,
+  loja_id integer,
+  meta_mensal_vendas numeric DEFAULT 10000,
+  meta_mensal_os integer DEFAULT 0,
+  dias_uteis_mes integer DEFAULT 26,
+  ativo boolean DEFAULT true,
+  criado_em timestamp with time zone DEFAULT now(),
+  atualizado_em timestamp with time zone DEFAULT now(),
+  criado_por uuid,
+  atualizado_por uuid,
+  CONSTRAINT metas_usuarios_pkey PRIMARY KEY (id),
+  CONSTRAINT metas_usuarios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id),
+  CONSTRAINT metas_usuarios_loja_id_fkey FOREIGN KEY (loja_id) REFERENCES public.lojas(id),
+  CONSTRAINT metas_usuarios_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES public.usuarios(id),
+  CONSTRAINT metas_usuarios_atualizado_por_fkey FOREIGN KEY (atualizado_por) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.notificacoes (
   id integer NOT NULL DEFAULT nextval('notificacoes_id_seq'::regclass),

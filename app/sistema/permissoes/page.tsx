@@ -30,6 +30,7 @@ import { useToast } from "@/components/Toast";
 import type { Permissao, PerfilUsuario } from "@/types/permissoes";
 import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { MetasService, type MetaUsuario } from "@/services/metasService";
 
 interface Usuario {
   id: string;
@@ -47,6 +48,141 @@ interface PermissoesUsuario {
   atualizado_em: string;
 }
 
+// Lista de todas as permissões disponíveis organizadas por módulo
+const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
+  Clientes: [
+    "clientes.visualizar",
+    "clientes.criar",
+    "clientes.editar",
+    "clientes.deletar",
+    "clientes.processar_creditos",
+  ],
+  "Ordem de Serviço": [
+    "os.visualizar",
+    "os.criar",
+    "os.editar",
+    "os.deletar",
+    "os.assumir",
+    "os.gerenciar_pecas",
+    "os.gerenciar_fotos",
+    "os.gerenciar_pagamentos",
+    "os.alterar_status",
+    "os.gerar_pdf",
+  ],
+  Estoque: [
+    "estoque.visualizar",
+    "estoque.adicionar",
+    "estoque.editar",
+    "estoque.deletar",
+    "estoque.transferir",
+    "estoque.ajustar",
+    "estoque.ver_estatisticas",
+    "estoque.ver_preco_custo",
+  ],
+  Vendas: [
+    "vendas.visualizar",
+    "vendas.criar",
+    "vendas.editar",
+    "vendas.editar_pagas",
+    "vendas.cancelar",
+    "vendas.aplicar_desconto",
+    "vendas.processar_pagamentos",
+    "vendas.ver_estatisticas_faturamento",
+    "vendas.ver_todas_vendas",
+    "vendas.devolver",
+  ],
+  Fornecedores: [
+    "fornecedores.visualizar",
+    "fornecedores.criar",
+    "fornecedores.editar",
+    "fornecedores.deletar",
+  ],
+  Usuários: [
+    "usuarios.visualizar",
+    "usuarios.criar",
+    "usuarios.editar",
+    "usuarios.deletar",
+    "usuarios.gerenciar_permissoes",
+  ],
+  Técnicos: [
+    "tecnicos.visualizar",
+    "tecnicos.criar",
+    "tecnicos.editar",
+    "tecnicos.deletar",
+  ],
+  Lojas: ["lojas.visualizar", "lojas.criar", "lojas.editar", "lojas.deletar"],
+  Caixa: [
+    "caixa.visualizar",
+    "caixa.abrir",
+    "caixa.fechar",
+    "caixa.sangria",
+    "caixa.suprimento",
+    "caixa.visualizar_movimentacoes",
+  ],
+  Dashboard: [
+    "dashboard.visualizar",
+    "dashboard.financeiro",
+    "dashboard.ver_relatorios",
+    "dashboard.exportar_dados",
+  ],
+  "Dashboard Pessoal": [
+    "dashboard_pessoal.visualizar",
+    "dashboard_pessoal.definir_metas",
+    "dashboard_pessoal.visualizar_metas_outros",
+  ],
+  Logs: [
+    "logs.visualizar",
+    "logs.filtrar",
+    "logs.ver_detalhes",
+    "logs.exportar",
+  ],
+  RMA: [
+    "rma.visualizar",
+    "rma.criar",
+    "rma.editar",
+    "rma.aprovar",
+    "rma.cancelar",
+  ],
+  "RMA Clientes": [
+    "rma_clientes.visualizar",
+    "rma_clientes.criar",
+    "rma_clientes.editar",
+    "rma_clientes.deletar",
+  ],
+  Quebras: [
+    "quebras.visualizar",
+    "quebras.registrar",
+    "quebras.aprovar",
+    "quebras.rejeitar",
+  ],
+  Devoluções: [
+    "devolucoes.visualizar",
+    "devolucoes.criar",
+    "devolucoes.editar",
+    "devolucoes.deletar",
+    "devolucoes.deletar_sem_restricao",
+    "devolucoes.aprovar",
+    "devolucoes.processar_creditos",
+  ],
+  Transferências: [
+    "transferencias.visualizar",
+    "transferencias.criar",
+    "transferencias.editar",
+    "transferencias.deletar",
+    "transferencias.confirmar",
+    "transferencias.aprovar",
+    "transferencias.cancelar",
+  ],
+  Configurações: ["configuracoes.gerenciar"],
+};
+
+// 🔍 DEBUG - Verificar módulos disponíveis
+console.log("📋 PERMISSOES_POR_MODULO:", Object.keys(PERMISSOES_POR_MODULO));
+console.log(
+  "🎯 Dashboard Pessoal existe?",
+  "Dashboard Pessoal" in PERMISSOES_POR_MODULO
+);
+
 export default function GerenciarPermissoesPage() {
   const toast = useToast();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
@@ -63,104 +199,11 @@ export default function GerenciarPermissoesPage() {
   const [salvando, setSalvando] = useState(false);
   const [busca, setBusca] = useState("");
 
-  // Lista de todas as permissões disponíveis organizadas por módulo
-  const PERMISSOES_POR_MODULO = {
-    Clientes: [
-      "clientes.criar",
-      "clientes.editar",
-      "clientes.visualizar",
-      "clientes.deletar",
-    ],
-    "Ordens de Serviço": [
-      "os.criar",
-      "os.editar",
-      "os.visualizar",
-      "os.deletar",
-      "os.concluir",
-      "os.cancelar",
-    ],
-    "OS - Peças": [
-      "os.pecas.adicionar",
-      "os.pecas.visualizar",
-      "os.pecas.remover",
-    ],
-    "OS - Fotos": [
-      "os.fotos.adicionar",
-      "os.fotos.visualizar",
-      "os.fotos.deletar",
-    ],
-    "OS - Outras": [
-      "os.historico.visualizar",
-      "os.laudo.editar",
-      "os.pagamentos.adicionar",
-      "os.pagamentos.visualizar",
-      "os.pagamentos.editar",
-    ],
-    Estoque: [
-      "estoque.visualizar",
-      "estoque.editar",
-      "estoque.transferir",
-      "estoque.ajustar",
-      "estoque.alertas.visualizar",
-      "estoque.alertas.editar",
-      "estoque.historico.visualizar",
-    ],
-    Vendas: [
-      "vendas.criar",
-      "vendas.editar",
-      "vendas.visualizar",
-      "vendas.deletar",
-      "vendas.descontos",
-      "vendas.devolucoes",
-      "vendas.pagamentos",
-    ],
-    Produtos: [
-      "produtos.criar",
-      "produtos.editar",
-      "produtos.visualizar",
-      "produtos.deletar",
-      "produtos.fotos.adicionar",
-      "produtos.fotos.deletar",
-    ],
-    Fornecedores: [
-      "fornecedores.criar",
-      "fornecedores.editar",
-      "fornecedores.visualizar",
-      "fornecedores.deletar",
-    ],
-    Usuários: [
-      "usuarios.criar",
-      "usuarios.editar",
-      "usuarios.visualizar",
-      "usuarios.deletar",
-    ],
-    Técnicos: [
-      "tecnicos.criar",
-      "tecnicos.editar",
-      "tecnicos.visualizar",
-      "tecnicos.deletar",
-    ],
-    Lojas: ["lojas.criar", "lojas.editar", "lojas.visualizar", "lojas.deletar"],
-    Caixa: [
-      "caixa.visualizar",
-      "caixa.abrir",
-      "caixa.fechar",
-      "caixa.sangrias",
-    ],
-    Dashboard: [
-      "dashboard.vendas",
-      "dashboard.os",
-      "dashboard.estoque",
-      "dashboard.financeiro",
-    ],
-    RMA: ["rma.criar", "rma.editar", "rma.visualizar", "rma.deletar"],
-    Quebras: [
-      "quebras.criar",
-      "quebras.editar",
-      "quebras.visualizar",
-      "quebras.aprovar",
-    ],
-  };
+  // Estados para metas do usuário
+  const [metaAtual, setMetaAtual] = useState<MetaUsuario | null>(null);
+  const [metaMensalVendas, setMetaMensalVendas] = useState("10000");
+  const [metaMensalOS, setMetaMensalOS] = useState("0");
+  const [diasUteis, setDiasUteis] = useState("26");
 
   useEffect(() => {
     carregarUsuarios();
@@ -203,9 +246,34 @@ export default function GerenciarPermissoesPage() {
     }
   };
 
-  const abrirModalEdicao = (usuario: Usuario) => {
+  const abrirModalEdicao = async (usuario: Usuario) => {
     setUsuarioSelecionado(usuario);
     setPermissoesSelecionadas(usuario.permissoes_customizadas || []);
+
+    // Carregar metas do usuário
+    try {
+      const meta = await MetasService.buscarMetaUsuario(usuario.id);
+      if (meta) {
+        setMetaAtual(meta);
+        setMetaMensalVendas(meta.meta_mensal_vendas.toString());
+        setMetaMensalOS(meta.meta_mensal_os.toString());
+        setDiasUteis(meta.dias_uteis_mes.toString());
+      } else {
+        // Valores padrão
+        setMetaAtual(null);
+        setMetaMensalVendas("10000");
+        setMetaMensalOS("0");
+        setDiasUteis("26");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar metas:", error);
+      // Usar valores padrão em caso de erro
+      setMetaAtual(null);
+      setMetaMensalVendas("10000");
+      setMetaMensalOS("0");
+      setDiasUteis("26");
+    }
+
     setModalAberto(true);
   };
 
@@ -218,17 +286,36 @@ export default function GerenciarPermissoesPage() {
 
     setSalvando(true);
     try {
-      const { error } = await supabase.from("permissoes").upsert({
-        usuario_id: usuarioSelecionado.id,
-        permissoes: permissoesSelecionadas,
-        atualizado_em: new Date().toISOString(),
-      });
+      // Salvar permissões
+      const { error: errorPermissoes } = await supabase
+        .from("permissoes")
+        .upsert({
+          usuario_id: usuarioSelecionado.id,
+          permissoes: permissoesSelecionadas,
+          atualizado_em: new Date().toISOString(),
+        });
 
-      if (error) throw error;
+      if (errorPermissoes) throw errorPermissoes;
 
-      toast.success(
-        "Permissões atualizadas com sucesso! Aplicadas em tempo real."
-      );
+      // Salvar metas
+      try {
+        await MetasService.salvarMeta({
+          usuario_id: usuarioSelecionado.id,
+          meta_mensal_vendas: parseFloat(metaMensalVendas) || 10000,
+          meta_mensal_os: parseInt(metaMensalOS) || 0,
+          dias_uteis_mes: parseInt(diasUteis) || 26,
+        });
+      } catch (errorMetas: any) {
+        console.error("Erro ao salvar metas:", errorMetas);
+        toast.error(
+          `Permissões salvas, mas erro nas metas: ${errorMetas.message}`,
+          {
+            description: "As permissões foram atualizadas com sucesso.",
+          }
+        );
+      }
+
+      toast.success("Permissões e metas atualizadas com sucesso!");
       setModalAberto(false);
       await carregarUsuarios();
     } catch (error: any) {
@@ -479,6 +566,70 @@ export default function GerenciarPermissoesPage() {
                     </div>
                   )
                 )}
+              </div>
+
+              <Divider />
+
+              {/* Configuração de Metas */}
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold text-md mb-1">
+                    Metas de Desempenho
+                  </h4>
+                  <p className="text-xs text-default-500">
+                    Defina as metas mensais para o dashboard pessoal do usuário
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Meta Mensal de Vendas (R$)"
+                    placeholder="10000"
+                    value={metaMensalVendas}
+                    onValueChange={setMetaMensalVendas}
+                    type="number"
+                    min="0"
+                    step="100"
+                    startContent={
+                      <div className="pointer-events-none flex items-center">
+                        <span className="text-default-400 text-small">R$</span>
+                      </div>
+                    }
+                    description="Valor em reais que o usuário deve atingir por mês"
+                  />
+
+                  <Input
+                    label="Meta Mensal de OS"
+                    placeholder="0"
+                    value={metaMensalOS}
+                    onValueChange={setMetaMensalOS}
+                    type="number"
+                    min="0"
+                    step="1"
+                    description="Quantidade de OS a concluir (para técnicos)"
+                  />
+
+                  <Input
+                    label="Dias Úteis do Mês"
+                    placeholder="26"
+                    value={diasUteis}
+                    onValueChange={setDiasUteis}
+                    type="number"
+                    min="1"
+                    max="31"
+                    description="Para cálculo da meta diária"
+                  />
+                </div>
+
+                <div className="bg-default-100 p-3 rounded-lg">
+                  <p className="text-xs text-default-600">
+                    <strong>Meta Diária Calculada:</strong> R${" "}
+                    {(
+                      parseFloat(metaMensalVendas || "0") /
+                      parseInt(diasUteis || "1")
+                    ).toFixed(2)}
+                  </p>
+                </div>
               </div>
             </div>
           </ModalBody>

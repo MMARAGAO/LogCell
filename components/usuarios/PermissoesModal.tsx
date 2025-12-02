@@ -16,6 +16,7 @@ import { Input } from "@heroui/input";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { PermissoesModulos, Loja } from "@/types";
 import { PermissoesService } from "@/services/permissoesService";
+import { MetasService } from "@/services/metasService";
 import {
   getPermissoes,
   salvarPermissoes,
@@ -45,6 +46,11 @@ export function PermissoesModal({
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaSelecionada, setLojaSelecionada] = useState<number | null>(null);
   const [todasLojas, setTodasLojas] = useState(false);
+
+  // Estados para metas do usuário
+  const [metaMensalVendas, setMetaMensalVendas] = useState("10000");
+  const [metaMensalOS, setMetaMensalOS] = useState("0");
+  const [diasUteis, setDiasUteis] = useState("26");
 
   useEffect(() => {
     if (isOpen) {
@@ -113,6 +119,22 @@ export function PermissoesModal({
           setPermissoes(permissoesMerged);
           setLojaSelecionada(result.data.loja_id || null);
           setTodasLojas(result.data.todas_lojas || false);
+
+          // Carregar metas do usuário
+          if (usuarioId) {
+            try {
+              const metas = await MetasService.buscarMetaUsuario(usuarioId);
+              if (metas) {
+                setMetaMensalVendas(
+                  metas.meta_mensal_vendas?.toString() || "10000"
+                );
+                setMetaMensalOS(metas.meta_mensal_os?.toString() || "0");
+                setDiasUteis(metas.dias_uteis_mes?.toString() || "26");
+              }
+            } catch (metaError) {
+              console.log("ℹ️ Nenhuma meta encontrada, usando valores padrão");
+            }
+          }
         } else {
           console.log("ℹ️ Nenhuma permissão customizada, usando padrão");
           setPermissoes(PermissoesService.getPermissoesPadrao());
@@ -241,6 +263,24 @@ export function PermissoesModal({
 
       if (result.success) {
         console.log("✅ Permissões salvas com sucesso!");
+
+        // Salvar metas do usuário
+        if (usuarioId) {
+          try {
+            await MetasService.salvarMeta({
+              usuario_id: usuarioId,
+              loja_id: todasLojas ? undefined : lojaSelecionada || undefined,
+              meta_mensal_vendas: parseFloat(metaMensalVendas || "0"),
+              meta_mensal_os: parseInt(metaMensalOS || "0"),
+              dias_uteis_mes: parseInt(diasUteis || "26"),
+            });
+            console.log("✅ Metas salvas com sucesso!");
+          } catch (metaError) {
+            console.error("❌ Erro ao salvar metas:", metaError);
+            // Não bloquear o salvamento de permissões por erro nas metas
+          }
+        }
+
         onSuccess();
         onClose();
       } else {
@@ -1295,6 +1335,125 @@ export function PermissoesModal({
                   >
                     Visualizar Dashboard
                   </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Dashboard Pessoal */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Dashboard Pessoal</h3>
+                    <Chip size="sm" variant="flat" color="success">
+                      Metas
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("dashboard_pessoal")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("dashboard_pessoal", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.dashboard_pessoal?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("dashboard_pessoal", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.dashboard_pessoal?.definir_metas}
+                    onValueChange={() =>
+                      handleTogglePermissao(
+                        "dashboard_pessoal",
+                        "definir_metas"
+                      )
+                    }
+                  >
+                    Definir Metas
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={
+                      permissoes.dashboard_pessoal?.visualizar_metas_outros
+                    }
+                    onValueChange={() =>
+                      handleTogglePermissao(
+                        "dashboard_pessoal",
+                        "visualizar_metas_outros"
+                      )
+                    }
+                  >
+                    Ver Metas de Outros
+                  </Checkbox>
+                </div>
+
+                {/* Campos de Metas */}
+                <div className="mt-4 pt-4 border-t border-divider">
+                  <h4 className="text-sm font-semibold mb-3 text-default-700">
+                    Configuração de Metas Mensais
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Input
+                      label="Meta Mensal de Vendas (R$)"
+                      placeholder="10000"
+                      value={metaMensalVendas}
+                      onValueChange={setMetaMensalVendas}
+                      type="number"
+                      min="0"
+                      step="100"
+                      size="sm"
+                      startContent={
+                        <div className="pointer-events-none flex items-center">
+                          <span className="text-default-400 text-small">
+                            R$
+                          </span>
+                        </div>
+                      }
+                      description="Valor em reais que o usuário deve atingir por mês"
+                    />
+
+                    <Input
+                      label="Meta Mensal de OS"
+                      placeholder="0"
+                      value={metaMensalOS}
+                      onValueChange={setMetaMensalOS}
+                      type="number"
+                      min="0"
+                      step="1"
+                      size="sm"
+                      description="Quantidade de OS a concluir (para técnicos)"
+                    />
+
+                    <Input
+                      label="Dias Úteis do Mês"
+                      placeholder="26"
+                      value={diasUteis}
+                      onValueChange={setDiasUteis}
+                      type="number"
+                      min="1"
+                      max="31"
+                      size="sm"
+                      description="Para cálculo da meta diária"
+                    />
+                  </div>
+
+                  <div className="mt-3 bg-success-50 dark:bg-success-100/10 p-3 rounded-lg">
+                    <p className="text-xs text-success-700 dark:text-success-600">
+                      <strong>Meta Diária Calculada:</strong> R${" "}
+                      {(
+                        parseFloat(metaMensalVendas || "0") /
+                        parseInt(diasUteis || "1")
+                      ).toFixed(2)}
+                    </p>
+                  </div>
                 </div>
               </div>
 

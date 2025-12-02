@@ -221,6 +221,11 @@ export class PermissoesService {
       notificacoes: {
         visualizar: false,
       },
+      dashboard_pessoal: {
+        visualizar: false,
+        definir_metas: false,
+        visualizar_metas_outros: false,
+      },
     };
   }
 
@@ -325,6 +330,11 @@ export class PermissoesService {
       },
       notificacoes: {
         visualizar: true,
+      },
+      dashboard_pessoal: {
+        visualizar: true,
+        definir_metas: true,
+        visualizar_metas_outros: true,
       },
     };
   }

@@ -70,6 +70,10 @@ export type Permissao =
   | "dashboard.financeiro"
   | "dashboard.ver_relatorios"
   | "dashboard.exportar_dados"
+  // Dashboard Pessoal
+  | "dashboard_pessoal.visualizar"
+  | "dashboard_pessoal.definir_metas"
+  | "dashboard_pessoal.visualizar_metas_outros"
   // Logs
   | "logs.visualizar"
   | "logs.filtrar"
@@ -177,6 +181,9 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "dashboard.financeiro",
     "dashboard.ver_relatorios",
     "dashboard.exportar_dados",
+    "dashboard_pessoal.visualizar",
+    "dashboard_pessoal.definir_metas",
+    "dashboard_pessoal.visualizar_metas_outros",
     "logs.visualizar",
     "logs.filtrar",
     "logs.ver_detalhes",
@@ -262,6 +269,9 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "dashboard.financeiro",
     "dashboard.ver_relatorios",
     "dashboard.exportar_dados",
+    "dashboard_pessoal.visualizar",
+    "dashboard_pessoal.definir_metas",
+    "dashboard_pessoal.visualizar_metas_outros",
     "logs.visualizar",
     "logs.filtrar",
     "logs.ver_detalhes",
@@ -306,6 +316,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.devolver",
     "caixa.visualizar",
     "dashboard.visualizar",
+    "dashboard_pessoal.visualizar",
     "rma.visualizar",
     "rma.criar",
     "rma_clientes.visualizar",
@@ -325,6 +336,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "os.gerar_pdf",
     "estoque.visualizar",
     "dashboard.visualizar",
+    "dashboard_pessoal.visualizar",
     "quebras.visualizar",
     "quebras.registrar",
   ],

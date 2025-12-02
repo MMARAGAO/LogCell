@@ -66,6 +66,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       permissao: "dashboard.visualizar" as const,
     },
     {
+      name: "Meu Dashboard",
+      href: "/sistema/dashboard-pessoal",
+      icon: UserCircleIcon,
+      iconSolid: UserCircleIconSolid,
+    },
+    {
       name: "Minhas Ordens",
       href: "/sistema/ordem-servico/tecnico",
       icon: WrenchScrewdriverIcon,
@@ -88,6 +94,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: HomeIcon,
       iconSolid: HomeIconSolid,
       permissao: "dashboard.visualizar" as const,
+    },
+    {
+      name: "Meu Dashboard",
+      href: "/sistema/dashboard-pessoal",
+      icon: UserCircleIcon,
+      iconSolid: UserCircleIconSolid,
     },
     {
       name: "Estoque",
