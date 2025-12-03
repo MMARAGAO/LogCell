@@ -12,6 +12,11 @@ import { Switch } from "@heroui/switch";
 import { useState, useEffect } from "react";
 import { Produto } from "@/types";
 import { useToast } from "@/components/Toast";
+import {
+  CurrencyDollarIcon,
+  SparklesIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 
 interface ProdutoFormModalProps {
   isOpen: boolean;
@@ -28,6 +33,7 @@ export default function ProdutoFormModal({
 }: ProdutoFormModalProps) {
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [porcentagemGanho, setPorcentagemGanho] = useState<string>("");
   const [formData, setFormData] = useState<Partial<Produto>>({
     descricao: "",
     grupo: "",
@@ -55,6 +61,7 @@ export default function ProdutoFormModal({
         quantidade_minima: produto.quantidade_minima,
         ativo: produto.ativo,
       });
+      setPorcentagemGanho("");
     } else {
       setFormData({
         descricao: "",
@@ -68,8 +75,23 @@ export default function ProdutoFormModal({
         quantidade_minima: 0,
         ativo: true,
       });
+      setPorcentagemGanho("");
     }
   }, [produto, isOpen]);
+
+  // Função para calcular o preço de venda com base na porcentagem
+  const calcularPrecoVendaPorPorcentagem = (porcentagem: string) => {
+    if (!formData.preco_compra || !porcentagem) return;
+
+    const percentual = parseFloat(porcentagem);
+    if (isNaN(percentual)) return;
+
+    const precoVenda = formData.preco_compra * (1 + percentual / 100);
+    setFormData({
+      ...formData,
+      preco_venda: parseFloat(precoVenda.toFixed(2)),
+    });
+  };
 
   const handleSubmit = async () => {
     setLoading(true);
@@ -180,12 +202,25 @@ export default function ProdutoFormModal({
               type="number"
               step="0.01"
               value={formData.preco_compra?.toString() || ""}
-              onValueChange={(value) =>
+              onValueChange={(value) => {
+                const precoCompra = value ? parseFloat(value) : undefined;
                 setFormData({
                   ...formData,
-                  preco_compra: value ? parseFloat(value) : undefined,
-                })
-              }
+                  preco_compra: precoCompra,
+                });
+                // Recalcular preço de venda se houver porcentagem
+                if (porcentagemGanho && precoCompra) {
+                  const percentual = parseFloat(porcentagemGanho);
+                  if (!isNaN(percentual)) {
+                    const precoVenda = precoCompra * (1 + percentual / 100);
+                    setFormData({
+                      ...formData,
+                      preco_compra: precoCompra,
+                      preco_venda: parseFloat(precoVenda.toFixed(2)),
+                    });
+                  }
+                }
+              }}
               variant="bordered"
               startContent={<span className="text-default-400">R$</span>}
             />
@@ -205,6 +240,61 @@ export default function ProdutoFormModal({
               variant="bordered"
               startContent={<span className="text-default-400">R$</span>}
             />
+
+            {/* Porcentagem de Ganho */}
+            <div className="md:col-span-2">
+              <div className="relative">
+                <Input
+                  label={
+                    <div className="flex items-center gap-2">
+                      <CurrencyDollarIcon className="w-4 h-4" />
+                      <span>Calcular Margem de Lucro</span>
+                    </div>
+                  }
+                  type="number"
+                  step="0.01"
+                  placeholder="Digite a porcentagem (ex: 30)"
+                  value={porcentagemGanho}
+                  onValueChange={(value) => {
+                    setPorcentagemGanho(value);
+                    if (value && formData.preco_compra) {
+                      calcularPrecoVendaPorPorcentagem(value);
+                    }
+                  }}
+                  variant="bordered"
+                  isDisabled={!formData.preco_compra}
+                  color={porcentagemGanho && formData.preco_compra ? "success" : "default"}
+                  classNames={{
+                    input: "text-lg font-semibold",
+                    inputWrapper: formData.preco_compra 
+                      ? "border-2 hover:border-success focus-within:border-success" 
+                      : "",
+                  }}
+                  endContent={
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-success">%</span>
+                    </div>
+                  }
+                  description={
+                    formData.preco_compra && porcentagemGanho ? (
+                      <div className="flex items-center gap-1 text-success">
+                        <SparklesIcon className="w-3 h-3" />
+                        <span>
+                          Preço calculado: R$ {formData.preco_venda?.toFixed(2) || '0,00'} (Lucro: R$ {((formData.preco_venda || 0) - (formData.preco_compra || 0)).toFixed(2)})
+                        </span>
+                      </div>
+                    ) : formData.preco_compra ? (
+                      "Digite a porcentagem de lucro desejada"
+                    ) : (
+                      <div className="flex items-center gap-1 text-warning">
+                        <ExclamationTriangleIcon className="w-3 h-3" />
+                        <span>Preencha o preço de compra primeiro</span>
+                      </div>
+                    )
+                  }
+                />
+              </div>
+            </div>
 
             {/* Quantidade Mínima */}
             <Input

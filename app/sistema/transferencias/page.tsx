@@ -87,12 +87,17 @@ export default function TransferenciasPage() {
     transferencia: null as TransferenciaCompleta | null,
   });
 
-  // Aguardar permissões serem carregadas antes de carregar dados
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    carregarDados();
+  }, []);
+
+  // Recarregar quando filtros de loja mudarem
   useEffect(() => {
     if (!loading) {
-      carregarDados();
+      carregarTransferencias();
     }
-  }, [lojaId, podeVerTodasLojas]);
+  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja]);
 
   const carregarDados = async () => {
     setLoading(true);

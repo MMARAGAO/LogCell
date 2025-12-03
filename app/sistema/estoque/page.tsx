@@ -455,11 +455,20 @@ function ProdutoCard({
 
 export default function EstoquePage() {
   const { usuario: user } = useAuthContext();
-  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
+  const { temPermissao, loading: loadingPermissoes, permissoes } = usePermissoes();
   const { filtrarPorLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
+
+  // Log de debug para permissões
+  useEffect(() => {
+    console.log("🔐 [ESTOQUE] Permissões carregadas:", {
+      loading: loadingPermissoes,
+      permissoes: permissoes,
+      temEstoqueCriar: temPermissao("estoque.criar"),
+    });
+  }, [loadingPermissoes, permissoes]);
 
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [produtosComEstoque, setProdutosComEstoque] = useState<any[]>([]);
@@ -1204,7 +1213,7 @@ export default function EstoquePage() {
               </Button>
 
               {/* Botão Novo Produto */}
-              {temPermissao("estoque.adicionar") && (
+              {temPermissao("estoque.criar") && (
                 <Button
                   color="primary"
                   startContent={<PlusIcon className="w-5 h-5" />}

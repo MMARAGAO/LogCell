@@ -19,9 +19,10 @@ export type Permissao =
   | "os.gerar_pdf"
   // Estoque
   | "estoque.visualizar"
-  | "estoque.adicionar"
+  | "estoque.criar"
   | "estoque.editar"
   | "estoque.deletar"
+  | "estoque.excluir"
   | "estoque.transferir"
   | "estoque.ajustar"
   | "estoque.ver_estatisticas"
@@ -137,9 +138,10 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "os.alterar_status",
     "os.gerar_pdf",
     "estoque.visualizar",
-    "estoque.adicionar",
+    "estoque.criar",
     "estoque.editar",
     "estoque.deletar",
+    "estoque.excluir",
     "estoque.transferir",
     "estoque.ajustar",
     "estoque.ver_estatisticas",
@@ -236,7 +238,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "os.alterar_status",
     "os.gerar_pdf",
     "estoque.visualizar",
-    "estoque.adicionar",
+    "estoque.criar",
     "estoque.editar",
     "estoque.transferir",
     "estoque.ajustar",

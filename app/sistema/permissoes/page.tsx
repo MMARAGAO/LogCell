@@ -71,7 +71,7 @@ const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
   ],
   Estoque: [
     "estoque.visualizar",
-    "estoque.adicionar",
+    "estoque.criar",
     "estoque.editar",
     "estoque.deletar",
     "estoque.transferir",
