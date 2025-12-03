@@ -455,7 +455,11 @@ function ProdutoCard({
 
 export default function EstoquePage() {
   const { usuario: user } = useAuthContext();
-  const { temPermissao, loading: loadingPermissoes, permissoes } = usePermissoes();
+  const {
+    temPermissao,
+    loading: loadingPermissoes,
+    permissoes,
+  } = usePermissoes();
   const { filtrarPorLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();

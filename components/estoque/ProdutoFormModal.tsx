@@ -263,11 +263,15 @@ export default function ProdutoFormModal({
                   }}
                   variant="bordered"
                   isDisabled={!formData.preco_compra}
-                  color={porcentagemGanho && formData.preco_compra ? "success" : "default"}
+                  color={
+                    porcentagemGanho && formData.preco_compra
+                      ? "success"
+                      : "default"
+                  }
                   classNames={{
                     input: "text-lg font-semibold",
-                    inputWrapper: formData.preco_compra 
-                      ? "border-2 hover:border-success focus-within:border-success" 
+                    inputWrapper: formData.preco_compra
+                      ? "border-2 hover:border-success focus-within:border-success"
                       : "",
                   }}
                   endContent={
@@ -280,7 +284,14 @@ export default function ProdutoFormModal({
                       <div className="flex items-center gap-1 text-success">
                         <SparklesIcon className="w-3 h-3" />
                         <span>
-                          Preço calculado: R$ {formData.preco_venda?.toFixed(2) || '0,00'} (Lucro: R$ {((formData.preco_venda || 0) - (formData.preco_compra || 0)).toFixed(2)})
+                          Preço calculado: R${" "}
+                          {formData.preco_venda?.toFixed(2) || "0,00"} (Lucro:
+                          R${" "}
+                          {(
+                            (formData.preco_venda || 0) -
+                            (formData.preco_compra || 0)
+                          ).toFixed(2)}
+                          )
                         </span>
                       </div>
                     ) : formData.preco_compra ? (

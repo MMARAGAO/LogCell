@@ -510,7 +510,9 @@ export default function TransferenciaModal({
     );
 
     if (itemExistente) {
-      toast.info(`${produto.descricao} já está na lista. Edite a quantidade na seção abaixo.`);
+      toast.info(
+        `${produto.descricao} já está na lista. Edite a quantidade na seção abaixo.`
+      );
       return;
     }
 
@@ -704,7 +706,8 @@ export default function TransferenciaModal({
       }
 
       // Agrupar itens por par de lojas (origem -> destino)
-      const transferenciasAgrupadas: Record<string, typeof itensTransferencia> = {};
+      const transferenciasAgrupadas: Record<string, typeof itensTransferencia> =
+        {};
 
       itensTransferencia.forEach((item) => {
         const chave = `${item.loja_origem}->${item.loja_destino}`;
@@ -836,7 +839,8 @@ export default function TransferenciaModal({
                 1. Configure as Lojas Padrão e Visualização
               </h3>
               <p className="text-xs text-default-500 -mt-2">
-                Defina lojas padrão para novos produtos e selecione lojas para visualizar estoque
+                Defina lojas padrão para novos produtos e selecione lojas para
+                visualizar estoque
               </p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -1058,7 +1062,8 @@ export default function TransferenciaModal({
                     2. Adicione os Produtos para Transferir
                   </h3>
                   <p className="text-xs text-default-500 mt-1">
-                    💡 Clique em um produto para adicioná-lo à lista. Você poderá editar a quantidade depois.
+                    💡 Clique em um produto para adicioná-lo à lista. Você
+                    poderá editar a quantidade depois.
                   </p>
                 </div>
 
@@ -1137,7 +1142,11 @@ export default function TransferenciaModal({
                                     {produto.descricao}
                                   </p>
                                   {jaAdicionado && (
-                                    <Chip size="sm" color="success" variant="flat">
+                                    <Chip
+                                      size="sm"
+                                      color="success"
+                                      variant="flat"
+                                    >
                                       ✓ Adicionado
                                     </Chip>
                                   )}
@@ -1494,7 +1503,10 @@ export default function TransferenciaModal({
                             value={item.quantidade.toString()}
                             onValueChange={(value) => {
                               const novaQtd = parseInt(value) || 1;
-                              if (novaQtd > 0 && novaQtd <= item.quantidade_disponivel) {
+                              if (
+                                novaQtd > 0 &&
+                                novaQtd <= item.quantidade_disponivel
+                              ) {
                                 setItensTransferencia((prev) =>
                                   prev.map((i) =>
                                     i.id_produto === item.id_produto
@@ -1541,13 +1553,18 @@ export default function TransferenciaModal({
                                   const estoqueLoja = item.estoques_lojas?.find(
                                     (e) => e.id_loja === lojaId
                                   );
-                                  const estoqueAtual = estoqueLoja?.quantidade || 0;
-                                  const estoquePrevisto = calcularEstoquePrevisto(
-                                    lojaId,
-                                    estoqueAtual
+                                  const estoqueAtual =
+                                    estoqueLoja?.quantidade || 0;
+                                  const estoquePrevisto =
+                                    calcularEstoquePrevisto(
+                                      lojaId,
+                                      estoqueAtual
+                                    );
+                                  const loja = lojas.find(
+                                    (l) => l.id === lojaId
                                   );
-                                  const loja = lojas.find((l) => l.id === lojaId);
-                                  const houveAlteracao = estoqueAtual !== estoquePrevisto;
+                                  const houveAlteracao =
+                                    estoqueAtual !== estoquePrevisto;
 
                                   return (
                                     <div
@@ -1566,7 +1583,9 @@ export default function TransferenciaModal({
                                       <div className="flex items-center gap-2">
                                         <Chip
                                           color={
-                                            estoqueAtual > 0 ? "default" : "danger"
+                                            estoqueAtual > 0
+                                              ? "default"
+                                              : "danger"
                                           }
                                           variant="flat"
                                           size="sm"
@@ -1581,7 +1600,8 @@ export default function TransferenciaModal({
                                               color={
                                                 estoquePrevisto > estoqueAtual
                                                   ? "success"
-                                                  : estoquePrevisto < estoqueAtual
+                                                  : estoquePrevisto <
+                                                      estoqueAtual
                                                     ? "warning"
                                                     : "default"
                                               }
@@ -1840,7 +1860,8 @@ export default function TransferenciaModal({
                   startContent={<PrinterIcon className="h-5 w-5" />}
                   onPress={() => {
                     // Agrupar itens por par de lojas
-                    const grupos: Record<string, typeof itensTransferencia> = {};
+                    const grupos: Record<string, typeof itensTransferencia> =
+                      {};
                     itensTransferencia.forEach((item) => {
                       const chave = `${item.loja_origem}->${item.loja_destino}`;
                       if (!grupos[chave]) {
@@ -1886,7 +1907,8 @@ export default function TransferenciaModal({
                   startContent={<DocumentTextIcon className="h-5 w-5" />}
                   onPress={() => {
                     // Agrupar itens por par de lojas
-                    const grupos: Record<string, typeof itensTransferencia> = {};
+                    const grupos: Record<string, typeof itensTransferencia> =
+                      {};
                     itensTransferencia.forEach((item) => {
                       const chave = `${item.loja_origem}->${item.loja_destino}`;
                       if (!grupos[chave]) {
