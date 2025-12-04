@@ -415,7 +415,7 @@ export default function OrdemServicoFormModal({
 
     if (cliente) {
       setClienteNome(cliente.nome);
-      setClienteTelefone(cliente.telefone);
+      setClienteTelefone(cliente.telefone || "");
       setClienteEmail(cliente.email || "");
     }
   };

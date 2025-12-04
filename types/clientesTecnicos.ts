@@ -10,14 +10,14 @@ export interface Cliente {
 
   // Dados Pessoais
   nome: string;
-  cpf?: string;
+  cpf?: string | null;
   rg?: string;
   data_nascimento?: string;
 
   // Contatos
-  telefone: string;
+  telefone?: string | null;
   telefone_secundario?: string;
-  email?: string;
+  email?: string | null;
 
   // Endereço
   cep?: string;
@@ -52,14 +52,14 @@ export interface Cliente {
 export interface ClienteFormData {
   // Dados Pessoais
   nome: string;
-  cpf?: string;
+  cpf?: string | null;
   rg?: string;
   data_nascimento?: string;
 
   // Contatos
-  telefone: string;
+  telefone?: string | null;
   telefone_secundario?: string;
-  email?: string;
+  email?: string | null;
 
   // Endereço
   cep?: string;

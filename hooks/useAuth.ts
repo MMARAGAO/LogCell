@@ -42,6 +42,14 @@ export function useAuth() {
         console.error("Erro ao carregar usuário:", err);
         if (!cancelled) {
           setUsuario(null);
+          // Se houver erro de autenticação, fazer logout
+          if (err && typeof err === 'object' && 'message' in err) {
+            const errorMessage = (err as any).message;
+            if (errorMessage?.includes('JWT') || errorMessage?.includes('session') || errorMessage?.includes('auth')) {
+              console.warn("⚠️ Sessão inválida detectada, fazendo logout...");
+              await supabase.auth.signOut();
+            }
+          }
         }
       } finally {
         if (!cancelled) {

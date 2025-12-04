@@ -184,21 +184,16 @@ export default function ClienteFormModal({
       return;
     }
 
-    if (!telefone.trim()) {
-      toast.error("Telefone é obrigatório");
-      return;
-    }
-
     setLoading(true);
 
     const dados: ClienteFormData = {
       nome: nome.trim(),
-      cpf: cpf.trim() || undefined,
+      cpf: cpf.trim() || null,
       rg: rg.trim() || undefined,
       data_nascimento: dataNascimento || undefined,
-      telefone: telefone.trim(),
+      telefone: telefone.trim() || null,
       telefone_secundario: telefoneSecundario.trim() || undefined,
-      email: email.trim() || undefined,
+      email: email.trim() || null,
       cep: cep.trim() || undefined,
       logradouro: logradouro.trim() || undefined,
       numero: numero.trim() || undefined,

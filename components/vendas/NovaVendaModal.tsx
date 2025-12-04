@@ -51,7 +51,7 @@ interface NovaVendaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmar: (dados: DadosVenda, vendaId?: string) => Promise<void>;
-  clientes: Array<{ id: string; nome: string; cpf?: string }>;
+  clientes: Array<{ id: string; nome: string; cpf?: string | null }>;
   lojas: Array<{ id: number; nome: string }>;
   produtos: Array<{
     id: string;
@@ -699,6 +699,7 @@ export function NovaVendaModal({
                     allowsCustomValue={false}
                     defaultItems={clientes}
                     className="flex-1"
+                    description={`${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} disponível${clientes.length !== 1 ? 'eis' : ''} para seleção`}
                   >
                     {(cliente) => (
                       <AutocompleteItem

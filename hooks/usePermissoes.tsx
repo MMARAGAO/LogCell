@@ -73,6 +73,8 @@ export function usePermissoes() {
       return;
     }
 
+    let isCancelled = false;
+
     const carregarPermissoes = async () => {
       try {
         console.log(
@@ -87,6 +89,8 @@ export function usePermissoes() {
           .select("permissoes, loja_id, todas_lojas")
           .eq("usuario_id", usuario.id)
           .maybeSingle();
+
+        if (isCancelled) return; // Não atualizar state se componente foi desmontado
 
         if (error) {
           // Qualquer erro: usar permissões padrão do perfil
@@ -128,6 +132,8 @@ export function usePermissoes() {
           setTodasLojas(false);
         }
       } catch (err: any) {
+        if (isCancelled) return; // Não atualizar state se componente foi desmontado
+        
         // Captura qualquer exceção JavaScript
         console.error("❌ Exceção ao buscar permissões:", {
           name: err?.name,
@@ -139,12 +145,19 @@ export function usePermissoes() {
         setLojaId(null);
         setTodasLojas(false);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     };
 
     // Carregar permissões inicialmente e sempre que versaoPermissoes mudar
     carregarPermissoes();
+
+    // Cleanup function para cancelar updates quando componente desmontar
+    return () => {
+      isCancelled = true;
+    };
   }, [usuario?.id, versaoPermissoes]); // Recarrega quando versaoPermissoes muda!
 
   // Obter todas as permissões do usuário

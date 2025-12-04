@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Button, Input, Card, CardBody, Spinner, Chip } from "@heroui/react";
+import { useState, useEffect, useCallback } from "react";
+import { Button, Input, Card, CardBody, Spinner, Chip, Pagination } from "@heroui/react";
 import { Plus, Search, Users, UserCheck, UserX } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -21,6 +21,23 @@ import {
 } from "@/services/clienteService";
 import type { Cliente } from "@/types/clientesTecnicos";
 
+// Hook para debounce
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function ClientesPage() {
   const { usuario } = useAuth();
   const toast = useToast();
@@ -32,6 +49,12 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>();
+
+  // Paginação
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalClientes, setTotalClientes] = useState(0);
+  const [pageSize] = useState(50);
 
   // Estado para créditos
   const [creditosPorCliente, setCreditosPorCliente] = useState<
@@ -54,6 +77,9 @@ export default function ClientesPage() {
   const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
     undefined
   );
+  
+  // Debounce da busca (500ms)
+  const buscaDebounced = useDebounce(busca, 500);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -71,18 +97,27 @@ export default function ClientesPage() {
   useEffect(() => {
     carregarClientes();
     carregarCreditos();
-  }, [filtroAtivo]);
+  }, [filtroAtivo, page, buscaDebounced]);
 
   const carregarClientes = async () => {
     setLoading(true);
 
-    const { data, error } = await buscarClientes({
+    const { data, error, count, totalPages: total } = await buscarClientes({
       ativo: filtroAtivo,
+      busca: buscaDebounced || undefined,
+      page,
+      pageSize,
     });
 
     if (data) {
       setClientes(data);
-      calcularEstatisticas(data);
+      setTotalClientes(count);
+      setTotalPages(total);
+      
+      // Calcular estatísticas totais (precisamos buscar sem filtro para stats corretas)
+      if (!filtroAtivo && !busca) {
+        calcularEstatisticas(count);
+      }
     } else if (error) {
       toast.error(error);
     }
@@ -90,11 +125,17 @@ export default function ClientesPage() {
     setLoading(false);
   };
 
-  const calcularEstatisticas = (dados: Cliente[]) => {
-    setStats({
-      total: dados.length,
-      ativos: dados.filter((c) => c.ativo).length,
-      inativos: dados.filter((c) => !c.ativo).length,
+  const calcularEstatisticas = (total: number) => {
+    // Para estatísticas completas, fazer queries separadas
+    Promise.all([
+      buscarClientes({ ativo: true, page: 1, pageSize: 1 }),
+      buscarClientes({ ativo: false, page: 1, pageSize: 1 }),
+    ]).then(([ativos, inativos]) => {
+      setStats({
+        total: total,
+        ativos: ativos.count,
+        inativos: inativos.count,
+      });
     });
   };
 
@@ -208,18 +249,10 @@ export default function ClientesPage() {
     setModalCreditosOpen(true);
   };
 
-  // Filtrar clientes por busca
-  const clientesFiltrados = clientes.filter((cliente) => {
-    if (!busca) return true;
-
-    const buscaLower = busca.toLowerCase();
-    return (
-      cliente.nome.toLowerCase().includes(buscaLower) ||
-      cliente.telefone.includes(busca) ||
-      cliente.cpf?.includes(busca) ||
-      cliente.email?.toLowerCase().includes(buscaLower)
-    );
-  });
+  // Resetar para página 1 quando mudar busca ou filtro
+  useEffect(() => {
+    setPage(1);
+  }, [buscaDebounced, filtroAtivo]);
 
   // Verificar estados de loading primeiro
   if (!usuario || loadingPermissoes) {
@@ -331,6 +364,13 @@ export default function ClientesPage() {
             startContent={<Search className="w-4 h-4 text-default-400" />}
             isClearable
             onClear={() => setBusca("")}
+            description={
+              busca !== buscaDebounced
+                ? "Aguardando digitação..."
+                : totalClientes > 0
+                  ? `${totalClientes} cliente${totalClientes !== 1 ? "s" : ""} encontrado${totalClientes !== 1 ? "s" : ""}`
+                  : undefined
+            }
           />
         </CardBody>
       </Card>
@@ -340,21 +380,21 @@ export default function ClientesPage() {
         <div className="flex justify-center items-center py-20">
           <Spinner size="lg" />
         </div>
-      ) : clientesFiltrados.length === 0 ? (
+      ) : clientes.length === 0 ? (
         <Card>
           <CardBody className="text-center py-12">
             <Users className="w-16 h-16 mx-auto mb-4 text-default-300" />
             <h3 className="text-xl font-semibold mb-2">
-              {clientes.length === 0
+              {totalClientes === 0
                 ? "Nenhum cliente cadastrado"
                 : "Nenhum cliente encontrado"}
             </h3>
             <p className="text-default-500 mb-6">
-              {clientes.length === 0
+              {totalClientes === 0
                 ? "Cadastre seu primeiro cliente clicando no botão acima"
                 : "Tente ajustar os filtros de busca"}
             </p>
-            {clientes.length === 0 && (
+            {totalClientes === 0 && (
               <Permissao permissao="clientes.criar">
                 <Button
                   color="primary"
@@ -368,20 +408,51 @@ export default function ClientesPage() {
           </CardBody>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {clientesFiltrados.map((cliente) => (
-            <ClienteCard
-              key={cliente.id}
-              cliente={cliente}
-              onEditar={handleEditarCliente}
-              onDeletar={handleDeletarCliente}
-              onVerHistorico={handleVerHistorico}
-              onToggleAtivo={handleToggleAtivo}
-              onGerenciarCreditos={handleGerenciarCreditos}
-              creditosDisponiveis={creditosPorCliente[cliente.id] || 0}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {clientes.map((cliente) => (
+              <ClienteCard
+                key={cliente.id}
+                cliente={cliente}
+                onEditar={handleEditarCliente}
+                onDeletar={handleDeletarCliente}
+                onVerHistorico={handleVerHistorico}
+                onToggleAtivo={handleToggleAtivo}
+                onGerenciarCreditos={handleGerenciarCreditos}
+                creditosDisponiveis={creditosPorCliente[cliente.id] || 0}
+              />
+            ))}
+          </div>
+
+          {/* Paginação */}
+          {totalPages > 1 && (
+            <div className="flex flex-col items-center gap-4 mt-6">
+              <Pagination
+                total={totalPages}
+                page={page}
+                onChange={setPage}
+                showControls
+                color="primary"
+                size="lg"
+              />
+              <p className="text-sm text-default-500">
+                Mostrando{" "}
+                <span className="font-semibold">
+                  {(page - 1) * pageSize + 1}
+                </span>
+                {" - "}
+                <span className="font-semibold">
+                  {Math.min(page * pageSize, totalClientes)}
+                </span>
+                {" de "}
+                <span className="font-semibold">{totalClientes}</span> clientes
+                {(buscaDebounced || filtroAtivo !== undefined) && (
+                  <span className="text-primary"> (filtrados)</span>
+                )}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal de Criar/Editar Cliente */}

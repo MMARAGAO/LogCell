@@ -32,6 +32,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { CarrosselFotos, CarrosselFoto } from "@/components/CarrosselFotos";
 import { rmaService } from "@/services/rmaService";
 import {
@@ -73,7 +74,7 @@ interface Loja {
 interface Cliente {
   id: string;
   nome: string;
-  cpf?: string;
+  cpf?: string | null;
 }
 
 interface Fornecedor {
@@ -160,11 +161,8 @@ export default function FormularioRMA({
         .select("id, nome")
         .order("nome");
 
-      // Carregar clientes
-      const { data: clientesData } = await supabase
-        .from("clientes")
-        .select("id, nome, cpf")
-        .order("nome");
+      // Carregar clientes ativos (com paginação automática)
+      const todosClientes = await buscarTodosClientesAtivos();
 
       // Carregar fornecedores
       const { data: fornecedoresData } = await supabase
@@ -174,7 +172,7 @@ export default function FormularioRMA({
 
       setProdutos(produtosData || []);
       setLojas(lojasData || []);
-      setClientes(clientesData || []);
+      setClientes(todosClientes);
       setFornecedores(fornecedoresData || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);

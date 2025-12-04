@@ -52,6 +52,7 @@ import { useToast } from "@/components/Toast";
 import { VendasService } from "@/services/vendasService";
 import { DevolucoesService } from "@/services/devolucoesService";
 import { supabase } from "@/lib/supabaseClient";
+import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
@@ -76,7 +77,7 @@ interface Estatisticas {
 interface Cliente {
   id: string;
   nome: string;
-  cpf?: string;
+  cpf?: string | null;
 }
 
 interface Loja {
@@ -374,13 +375,8 @@ export default function VendasPage() {
 
   const carregarClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id, nome, cpf")
-        .order("nome");
-
-      if (error) throw error;
-      setClientes(data || []);
+      const todosClientes = await buscarTodosClientesAtivos();
+      setClientes(todosClientes);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
     }

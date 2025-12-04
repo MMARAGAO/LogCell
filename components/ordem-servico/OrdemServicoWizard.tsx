@@ -179,7 +179,7 @@ export default function OrdemServicoWizard({
       if (cliente) {
         setClienteSelecionado(cliente);
         setClienteNome(cliente.nome);
-        setClienteTelefone(cliente.telefone);
+        setClienteTelefone(cliente.telefone || "");
         setClienteEmail(cliente.email || "");
         setClienteCpfCnpj(cliente.cpf || "");
         setClienteEndereco(

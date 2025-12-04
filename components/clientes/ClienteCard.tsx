@@ -164,10 +164,12 @@ export default function ClienteCard({
 
         {/* Contatos */}
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <Phone className="w-4 h-4 text-default-400" />
-            <span>{cliente.telefone}</span>
-          </div>
+          {cliente.telefone && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="w-4 h-4 text-default-400" />
+              <span>{cliente.telefone}</span>
+            </div>
+          )}
 
           {cliente.telefone_secundario && (
             <div className="flex items-center gap-2 text-sm">
