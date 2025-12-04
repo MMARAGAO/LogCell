@@ -1,16 +1,13 @@
 import { supabase } from "@/lib/supabaseClient";
+import { Cliente } from "@/types/clientesTecnicos";
 
 /**
  * Buscar todos os clientes ativos com paginação automática
  * Útil para selects/autocompletes que precisam de todos os clientes
  */
-export async function buscarTodosClientesAtivos(): Promise<Array<{
-  id: string;
-  nome: string;
-  cpf?: string | null;
-}>> {
+export async function buscarTodosClientesAtivos(): Promise<Cliente[]> {
   try {
-    let todosClientes: any[] = [];
+    let todosClientes: Cliente[] = [];
     let page = 0;
     const pageSize = 1000;
     let hasMore = true;
@@ -21,7 +18,7 @@ export async function buscarTodosClientesAtivos(): Promise<Array<{
 
       const { data, error } = await supabase
         .from("clientes")
-        .select("id, nome, cpf")
+        .select("*")
         .eq("ativo", true)
         .order("nome")
         .range(start, end);
@@ -55,19 +52,13 @@ export async function buscarTodosClientesAtivos(): Promise<Array<{
 export async function buscarClientesPorTermo(
   termo: string,
   limite: number = 50
-): Promise<Array<{
-  id: string;
-  nome: string;
-  cpf?: string | null;
-  telefone?: string | null;
-  email?: string | null;
-}>> {
+): Promise<Cliente[]> {
   try {
     const searchPattern = `%${termo}%`;
     
     const { data, error } = await supabase
       .from("clientes")
-      .select("id, nome, cpf, telefone, email")
+      .select("*")
       .eq("ativo", true)
       .or(
         `nome.ilike.${searchPattern},cpf.ilike.${searchPattern},telefone.ilike.${searchPattern},email.ilike.${searchPattern}`

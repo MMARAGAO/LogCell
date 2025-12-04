@@ -39,6 +39,8 @@ import {
   Camera,
   AlertTriangle,
   CheckCircle,
+  FileDown,
+  Printer,
 } from "lucide-react";
 import {
   OrdemServico,
@@ -51,6 +53,11 @@ import {
 import { useToast } from "@/components/Toast";
 import StatusProgressBar from "./StatusProgressBar";
 import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
+import {
+  gerarPDFOrdemServico,
+  gerarCupomTermicoOS,
+  imprimirCupomTermico,
+} from "@/lib/impressaoOS";
 
 interface OrdemServicoDetalhesModalProps {
   isOpen: boolean;
@@ -113,6 +120,8 @@ export default function OrdemServicoDetalhesModal({
   >(null);
   const [modalConfirmCancelar, setModalConfirmCancelar] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
+  const [loadingPDF, setLoadingPDF] = useState(false);
+  const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -125,6 +134,56 @@ export default function OrdemServicoDetalhesModal({
       carregarQuebras();
     }
   }, [isOpen, osAtual]);
+
+  const buscarDadosLoja = async () => {
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data, error } = await supabase
+        .from("lojas")
+        .select("nome, endereco, telefone, cnpj")
+        .eq("id", osAtual?.id_loja)
+        .single();
+
+      if (error) throw error;
+      return data || { nome: "Loja" };
+    } catch (error) {
+      console.error("Erro ao buscar dados da loja:", error);
+      return { nome: "Loja" };
+    }
+  };
+
+  const handleGerarPDF = async () => {
+    if (!osAtual) return;
+
+    setLoadingPDF(true);
+    try {
+      const dadosLoja = await buscarDadosLoja();
+      const doc = gerarPDFOrdemServico(osAtual, pecas, dadosLoja);
+      doc.save(`OS_${osAtual.numero_os || osAtual.id}.pdf`);
+      toast.success("PDF gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast.error("Erro ao gerar PDF");
+    } finally {
+      setLoadingPDF(false);
+    }
+  };
+
+  const handleImprimirCupom = async () => {
+    if (!osAtual) return;
+
+    setLoadingCupom(true);
+    try {
+      const dadosLoja = await buscarDadosLoja();
+      const cupom = gerarCupomTermicoOS(osAtual, pecas, dadosLoja);
+      imprimirCupomTermico(cupom);
+    } catch (error) {
+      console.error("Erro ao imprimir cupom:", error);
+      toast.error("Erro ao imprimir cupom");
+    } finally {
+      setLoadingCupom(false);
+    }
+  };
 
   const carregarPecas = async () => {
     if (!osAtual) return;
@@ -1156,6 +1215,24 @@ export default function OrdemServicoDetalhesModal({
             onPress={() => setModalFotos(true)}
           >
             Gerenciar Fotos
+          </Button>
+          <Button
+            color="success"
+            variant="flat"
+            startContent={<FileDown className="w-4 h-4" />}
+            onPress={handleGerarPDF}
+            isLoading={loadingPDF}
+          >
+            Gerar PDF
+          </Button>
+          <Button
+            color="secondary"
+            variant="flat"
+            startContent={<Printer className="w-4 h-4" />}
+            onPress={handleImprimirCupom}
+            isLoading={loadingCupom}
+          >
+            Cupom Térmico
           </Button>
           <Button color="default" variant="flat" onPress={onClose}>
             Fechar

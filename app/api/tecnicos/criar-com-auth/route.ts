@@ -92,11 +92,13 @@ export async function POST(request: NextRequest) {
 
     console.log("✅ Validações OK, verificando disponibilidade...");
 
-    // 1. Verificar se email já existe na autenticação (método mais eficiente)
-    const { data: authEmailCheck, error: emailCheckError } = 
-      await supabaseAdmin.auth.admin.getUserByEmail(email);
+    // 1. Verificar se email já existe na autenticação (usando listUsers)
+    const { data: { users }, error: emailCheckError } = 
+      await supabaseAdmin.auth.admin.listUsers();
     
-    if (authEmailCheck?.user && !emailCheckError) {
+    const emailJaExiste = users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    
+    if (emailJaExiste && !emailCheckError) {
       console.error("❌ Email já existe no sistema de autenticação");
       return NextResponse.json(
         { error: "Este email já está cadastrado no sistema. Use outro email ou recupere a senha." },
