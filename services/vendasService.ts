@@ -1242,175 +1242,23 @@ export class VendasService {
     }
   }
 
-  static async editarVenda(
-    vendaId: string,
-    dados: {
-      observacoes?: string;
-      data_prevista_pagamento?: string;
-      itens?: Array<{
-        id?: string;
-        produto_id: string;
-        produto_nome: string;
-        produto_codigo: string;
-        quantidade: number;
-        preco_unitario: number;
-        subtotal: number;
-        acao?: "adicionar" | "remover" | "alterar" | "manter";
-      }>;
-    },
-    usuarioId: string
-  ): Promise<{ success: boolean; error?: string }> {
-    try {
-      // Buscar venda para pegar loja_id
-      const { data: venda } = await supabase
-        .from("vendas")
-        .select("loja_id")
-        .eq("id", vendaId)
-        .single();
+  // ============================================================================
+  // FUNÇÃO REMOVIDA: editarVenda (antiga versão)
+  // ============================================================================
+  // MOTIVO: Fazia baixa manual de estoque duplicando com a trigger 
+  //         baixa_estoque_ao_adicionar_item que já executa automaticamente
+  //         após INSERT em itens_venda.
+  //
+  // SOLUÇÃO: Use editarVendaSeguro() que delega corretamente para a trigger
+  //          e evita duplicação de baixa de estoque.
+  // ============================================================================
 
-      if (!venda) {
-        return { success: false, error: "Venda não encontrada" };
-      }
-
-      // Processar alterações de itens se houver
-      if (dados.itens) {
-        for (const item of dados.itens) {
-          if (item.acao === "adicionar") {
-            // Adicionar novo item
-            await supabase.from("itens_venda").insert({
-              venda_id: vendaId,
-              produto_id: item.produto_id,
-              produto_nome: item.produto_nome,
-              produto_codigo: item.produto_codigo,
-              quantidade: item.quantidade,
-              preco_unitario: item.preco_unitario,
-              subtotal: item.subtotal,
-              devolvido: 0,
-            });
-
-            // Baixar estoque
-            const { data: estoqueAtual } = await supabase
-              .from("estoque_lojas")
-              .select("quantidade")
-              .eq("id_produto", item.produto_id)
-              .eq("id_loja", venda.loja_id)
-              .single();
-
-            if (estoqueAtual) {
-              await supabase
-                .from("estoque_lojas")
-                .update({
-                  quantidade: estoqueAtual.quantidade - item.quantidade,
-                  atualizado_por: usuarioId,
-                  atualizado_em: new Date().toISOString(),
-                })
-                .eq("id_produto", item.produto_id)
-                .eq("id_loja", venda.loja_id);
-            }
-          } else if (item.acao === "remover" && item.id) {
-            // Buscar quantidade original antes de remover
-            const { data: itemOriginal } = await supabase
-              .from("itens_venda")
-              .select("quantidade, produto_id")
-              .eq("id", item.id)
-              .single();
-
-            if (itemOriginal) {
-              // Devolver ao estoque
-              const { data: estoqueAtual } = await supabase
-                .from("estoque_lojas")
-                .select("quantidade")
-                .eq("id_produto", itemOriginal.produto_id)
-                .eq("id_loja", venda.loja_id)
-                .single();
-
-              if (estoqueAtual) {
-                await supabase
-                  .from("estoque_lojas")
-                  .update({
-                    quantidade:
-                      estoqueAtual.quantidade + itemOriginal.quantidade,
-                    atualizado_por: usuarioId,
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq("id_produto", itemOriginal.produto_id)
-                  .eq("id_loja", venda.loja_id);
-              }
-
-              // Remover item
-              await supabase.from("itens_venda").delete().eq("id", item.id);
-            }
-          } else if (item.acao === "alterar" && item.id) {
-            // Buscar quantidade original
-            const { data: itemOriginal } = await supabase
-              .from("itens_venda")
-              .select("quantidade, produto_id")
-              .eq("id", item.id)
-              .single();
-
-            if (itemOriginal) {
-              const diferenca = item.quantidade - itemOriginal.quantidade;
-
-              // Atualizar estoque (diferença positiva = mais vendido = menos estoque)
-              const { data: estoqueAtual } = await supabase
-                .from("estoque_lojas")
-                .select("quantidade")
-                .eq("id_produto", item.produto_id)
-                .eq("id_loja", venda.loja_id)
-                .single();
-
-              if (estoqueAtual) {
-                await supabase
-                  .from("estoque_lojas")
-                  .update({
-                    quantidade: estoqueAtual.quantidade - diferenca,
-                    atualizado_por: usuarioId,
-                    atualizado_em: new Date().toISOString(),
-                  })
-                  .eq("id_produto", item.produto_id)
-                  .eq("id_loja", venda.loja_id);
-              }
-
-              // Atualizar item
-              await supabase
-                .from("itens_venda")
-                .update({
-                  quantidade: item.quantidade,
-                  subtotal: item.subtotal,
-                })
-                .eq("id", item.id);
-            }
-          }
-        }
-
-        // Recalcular totais da venda
-        await this.recalcularTotais(vendaId);
-      }
-
-      // Atualizar outros dados da venda
-      const { error } = await supabase
-        .from("vendas")
-        .update({
-          data_prevista_pagamento: dados.data_prevista_pagamento,
-        })
-        .eq("id", vendaId);
-
-      if (error) throw error;
-
-      // Registrar no histórico
-      await this.registrarHistorico({
-        venda_id: vendaId,
-        tipo_acao: "edicao",
-        descricao: "Venda editada - itens e dados atualizados",
-        usuario_id: usuarioId,
-      });
-
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erro ao editar venda:", error);
-      return { success: false, error: error.message };
-    }
-  }
+  /*
+  // FUNÇÃO REMOVIDA: editarVenda (antiga versão com duplicação)
+  // Esta função foi removida porque fazia baixa manual de estoque,
+  // duplicando a ação da trigger baixa_estoque_ao_adicionar_item.
+  // Use editarVendaSeguro() ao invés desta função.
+  */
 
   /**
    * Exclui uma venda (apenas se não tiver pagamentos)

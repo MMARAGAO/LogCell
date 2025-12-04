@@ -1,191 +1,202 @@
--- ========================================
--- LISTAR TODAS AS TRIGGERS DO BANCO
--- ========================================
+-- ============================================================================
+-- LISTAR TODAS AS TRIGGERS E FUNÇÕES DO BANCO DE DADOS
+-- ============================================================================
+-- Este script lista todas as triggers ativas e suas funções associadas
+-- para identificar possíveis duplicações ou conflitos
+-- ============================================================================
 
--- Versão 1: Lista completa de triggers com detalhes
+-- ============================================================================
+-- 1. LISTAR TODAS AS TRIGGERS ATIVAS
+-- ============================================================================
 SELECT 
-    n.nspname AS schema_name,
     t.tgname AS trigger_name,
-    c.relname AS table_name,
+    tbl.relname AS table_name,
+    ns.nspname AS schema_name,
     p.proname AS function_name,
     CASE t.tgtype & 1
         WHEN 1 THEN 'ROW'
         ELSE 'STATEMENT'
     END AS trigger_level,
-    CASE 
-        WHEN t.tgtype & 2 = 2 THEN 'BEFORE'
-        WHEN t.tgtype & 64 = 64 THEN 'INSTEAD OF'
+    CASE t.tgtype & 66
+        WHEN 2 THEN 'BEFORE'
+        WHEN 64 THEN 'INSTEAD OF'
         ELSE 'AFTER'
     END AS trigger_timing,
-    ARRAY(
-        SELECT CASE 
+    CASE 
+        WHEN t.tgtype & 4 = 4 THEN 'INSERT'
+        WHEN t.tgtype & 8 = 8 THEN 'DELETE'
+        WHEN t.tgtype & 16 = 16 THEN 'UPDATE'
+        ELSE 'TRUNCATE'
+    END AS trigger_event,
+    CASE 
+        WHEN t.tgenabled = 'O' THEN 'ENABLED'
+        WHEN t.tgenabled = 'D' THEN 'DISABLED'
+        WHEN t.tgenabled = 'R' THEN 'REPLICA'
+        WHEN t.tgenabled = 'A' THEN 'ALWAYS'
+        ELSE 'UNKNOWN'
+    END AS trigger_status,
+    obj_description(t.oid, 'pg_trigger') AS trigger_description
+FROM pg_trigger t
+JOIN pg_class tbl ON tbl.oid = t.tgrelid
+JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+JOIN pg_proc p ON p.oid = t.tgfoid
+WHERE NOT t.tgisinternal  -- Excluir triggers internas do sistema
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')  -- Excluir schemas do sistema
+ORDER BY 
+    ns.nspname,
+    tbl.relname,
+    t.tgname;
+
+-- ============================================================================
+-- 2. LISTAR TRIGGERS POR TABELA (AGRUPADO)
+-- ============================================================================
+SELECT 
+    tbl.relname AS table_name,
+    COUNT(*) AS total_triggers,
+    string_agg(t.tgname, ', ' ORDER BY t.tgname) AS trigger_names
+FROM pg_trigger t
+JOIN pg_class tbl ON tbl.oid = t.tgrelid
+JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+WHERE NOT t.tgisinternal
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+GROUP BY tbl.relname
+ORDER BY total_triggers DESC, tbl.relname;
+
+-- ============================================================================
+-- 3. LISTAR FUNÇÕES ASSOCIADAS ÀS TRIGGERS
+-- ============================================================================
+SELECT DISTINCT
+    p.proname AS function_name,
+    pg_get_functiondef(p.oid) AS function_definition
+FROM pg_trigger t
+JOIN pg_proc p ON p.oid = t.tgfoid
+JOIN pg_namespace ns ON ns.oid = p.pronamespace
+WHERE NOT t.tgisinternal
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+ORDER BY p.proname;
+
+-- ============================================================================
+-- 4. TRIGGERS ESPECÍFICAS DE ESTOQUE E VENDAS (FOCO)
+-- ============================================================================
+SELECT 
+    t.tgname AS trigger_name,
+    tbl.relname AS table_name,
+    p.proname AS function_name,
+    CASE t.tgtype & 66
+        WHEN 2 THEN 'BEFORE'
+        WHEN 64 THEN 'INSTEAD OF'
+        ELSE 'AFTER'
+    END AS timing,
+    CASE 
+        WHEN t.tgtype & 4 = 4 THEN 'INSERT'
+        WHEN t.tgtype & 8 = 8 THEN 'DELETE'
+        WHEN t.tgtype & 16 = 16 THEN 'UPDATE'
+        ELSE 'TRUNCATE'
+    END AS event,
+    CASE 
+        WHEN t.tgenabled = 'O' THEN 'ENABLED'
+        ELSE 'DISABLED'
+    END AS status
+FROM pg_trigger t
+JOIN pg_class tbl ON tbl.oid = t.tgrelid
+JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+JOIN pg_proc p ON p.oid = t.tgfoid
+WHERE NOT t.tgisinternal
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND (
+      tbl.relname IN ('itens_venda', 'vendas', 'estoque_lojas', 'historico_estoque')
+      OR p.proname LIKE '%estoque%'
+      OR p.proname LIKE '%venda%'
+      OR p.proname LIKE '%baixa%'
+  )
+ORDER BY 
+    tbl.relname,
+    CASE t.tgtype & 66
+        WHEN 2 THEN 1  -- BEFORE primeiro
+        ELSE 2         -- AFTER depois
+    END,
+    t.tgname;
+
+-- ============================================================================
+-- 5. IDENTIFICAR TRIGGERS DUPLICADAS (MESMO EVENTO NA MESMA TABELA)
+-- ============================================================================
+WITH trigger_events AS (
+    SELECT 
+        tbl.relname AS table_name,
+        CASE 
             WHEN t.tgtype & 4 = 4 THEN 'INSERT'
             WHEN t.tgtype & 8 = 8 THEN 'DELETE'
             WHEN t.tgtype & 16 = 16 THEN 'UPDATE'
-            WHEN t.tgtype & 32 = 32 THEN 'TRUNCATE'
-        END
-    ) AS trigger_events,
-    CASE t.tgenabled
-        WHEN 'O' THEN 'ENABLED'
-        WHEN 'D' THEN 'DISABLED'
-        WHEN 'R' THEN 'REPLICA'
-        WHEN 'A' THEN 'ALWAYS'
-    END AS trigger_status,
-    obj_description(t.oid, 'pg_trigger') AS description
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-LEFT JOIN pg_proc p ON t.tgfoid = p.oid
-WHERE NOT t.tgisinternal
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-ORDER BY n.nspname, c.relname, t.tgname;
-
-
--- ========================================
--- Versão 2: Lista resumida e mais legível
--- ========================================
+            ELSE 'TRUNCATE'
+        END AS event,
+        CASE t.tgtype & 66
+            WHEN 2 THEN 'BEFORE'
+            ELSE 'AFTER'
+        END AS timing,
+        COUNT(*) AS trigger_count,
+        string_agg(t.tgname || ' → ' || p.proname, ' | ') AS triggers_functions
+    FROM pg_trigger t
+    JOIN pg_class tbl ON tbl.oid = t.tgrelid
+    JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+    JOIN pg_proc p ON p.oid = t.tgfoid
+    WHERE NOT t.tgisinternal
+      AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+    GROUP BY tbl.relname, event, timing
+)
 SELECT 
-    schemaname AS schema,
-    tablename AS tabela,
-    triggername AS trigger_nome,
+    table_name,
+    event,
+    timing,
+    trigger_count,
+    triggers_functions,
     CASE 
-        WHEN position('BEFORE' in actiontiming) > 0 THEN 'BEFORE'
-        WHEN position('AFTER' in actiontiming) > 0 THEN 'AFTER'
-        ELSE actiontiming
-    END AS quando,
-    CASE 
-        WHEN position('INSERT' in actionstatement) > 0 THEN 'INSERT'
-        WHEN position('UPDATE' in actionstatement) > 0 THEN 'UPDATE'
-        WHEN position('DELETE' in actionstatement) > 0 THEN 'DELETE'
-    END AS evento
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-JOIN information_schema.triggers it ON it.trigger_name = t.tgname
-WHERE n.nspname = 'public'
-  AND NOT t.tgisinternal
-ORDER BY tablename, triggername;
+        WHEN trigger_count > 1 THEN '⚠️ POSSÍVEL DUPLICAÇÃO'
+        ELSE '✓ OK'
+    END AS status
+FROM trigger_events
+WHERE trigger_count > 1
+ORDER BY trigger_count DESC, table_name;
 
-
--- ========================================
--- Versão 3: Agrupar por tabela
--- ========================================
+-- ============================================================================
+-- 6. TRIGGERS QUE PODEM CAUSAR BAIXA DE ESTOQUE
+-- ============================================================================
 SELECT 
-    c.relname AS tabela,
-    COUNT(*) AS total_triggers,
-    STRING_AGG(t.tgname, ', ' ORDER BY t.tgname) AS triggers
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-GROUP BY c.relname
-ORDER BY c.relname;
-
-
--- ========================================
--- Versão 4: Detalhes completos com código da função
--- ========================================
-SELECT 
-    n.nspname AS schema,
-    c.relname AS tabela,
-    t.tgname AS trigger_nome,
-    p.proname AS funcao,
-    pg_get_triggerdef(t.oid) AS definicao_completa,
-    pg_get_functiondef(p.oid) AS codigo_funcao
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-LEFT JOIN pg_proc p ON t.tgfoid = p.oid
-WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-ORDER BY c.relname, t.tgname;
-
-
--- ========================================
--- Versão 5: Buscar trigger específica por nome
--- ========================================
--- Descomente e substitua 'NOME_DA_TRIGGER' pelo nome que você procura
-/*
-SELECT 
-    n.nspname AS schema,
-    c.relname AS tabela,
-    t.tgname AS trigger_nome,
-    p.proname AS funcao,
-    CASE 
-        WHEN t.tgtype & 2 = 2 THEN 'BEFORE'
-        WHEN t.tgtype & 64 = 64 THEN 'INSTEAD OF'
+    t.tgname AS trigger_name,
+    tbl.relname AS table_name,
+    p.proname AS function_name,
+    CASE t.tgtype & 66
+        WHEN 2 THEN 'BEFORE'
         ELSE 'AFTER'
     END AS timing,
-    pg_get_triggerdef(t.oid) AS definicao,
-    pg_get_functiondef(p.oid) AS codigo_funcao
+    CASE 
+        WHEN t.tgtype & 4 = 4 THEN 'INSERT'
+        WHEN t.tgtype & 8 = 8 THEN 'DELETE'
+        WHEN t.tgtype & 16 = 16 THEN 'UPDATE'
+    END AS event,
+    '⚠️ VERIFICAR CÓDIGO DA FUNÇÃO' AS alerta
 FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
-LEFT JOIN pg_proc p ON t.tgfoid = p.oid
-WHERE t.tgname ILIKE '%NOME_DA_TRIGGER%'
-  AND NOT t.tgisinternal;
-*/
-
-
--- ========================================
--- Versão 6: Triggers desabilitadas
--- ========================================
-SELECT 
-    n.nspname AS schema,
-    c.relname AS tabela,
-    t.tgname AS trigger_nome,
-    CASE t.tgenabled
-        WHEN 'O' THEN 'ENABLED'
-        WHEN 'D' THEN 'DISABLED'
-        WHEN 'R' THEN 'REPLICA'
-        WHEN 'A' THEN 'ALWAYS'
-    END AS status
-FROM pg_trigger t
-JOIN pg_class c ON t.tgrelid = c.oid
-JOIN pg_namespace n ON c.relnamespace = n.oid
+JOIN pg_class tbl ON tbl.oid = t.tgrelid
+JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+JOIN pg_proc p ON p.oid = t.tgfoid
 WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-  AND t.tgenabled = 'D'  -- Apenas desabilitadas
-ORDER BY c.relname, t.tgname;
+  AND ns.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND (
+      p.proname LIKE '%baixa%estoque%'
+      OR p.proname LIKE '%atualiza%estoque%'
+      OR p.proname LIKE '%estoque%item%'
+      OR tbl.relname = 'itens_venda'
+  )
+ORDER BY tbl.relname, t.tgname;
 
+-- ============================================================================
+-- INSTRUÇÕES:
+-- ============================================================================
+-- 1. Execute este script completo no Supabase SQL Editor
+-- 2. Copie TODOS os resultados (todas as 6 queries)
+-- 3. Cole aqui para análise de possíveis duplicações
+-- 4. Focaremos especialmente nas queries #4, #5 e #6
+-- ============================================================================
 
--- ========================================
--- Versão 7: Estatísticas de triggers
--- ========================================
-SELECT 
-    'Total de Triggers' AS metrica,
-    COUNT(*) AS valor
-FROM pg_trigger t
-JOIN pg_namespace n ON t.tgrelid IN (
-    SELECT c.oid FROM pg_class c WHERE c.relnamespace = n.oid
-)
-WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-
-UNION ALL
-
-SELECT 
-    'Triggers BEFORE',
-    COUNT(*)
-FROM pg_trigger t
-JOIN pg_namespace n ON t.tgrelid IN (
-    SELECT c.oid FROM pg_class c WHERE c.relnamespace = n.oid
-)
-WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-  AND t.tgtype & 2 = 2
-
-UNION ALL
-
-SELECT 
-    'Triggers AFTER',
-    COUNT(*)
-FROM pg_trigger t
-JOIN pg_namespace n ON t.tgrelid IN (
-    SELECT c.oid FROM pg_class c WHERE c.relnamespace = n.oid
-)
-WHERE NOT t.tgisinternal
-  AND n.nspname = 'public'
-  AND t.tgtype & 2 != 2
-  AND t.tgtype & 64 != 64;
+-- ============================================================================
+-- FIM DO SCRIPT
+-- ============================================================================
