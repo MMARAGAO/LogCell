@@ -115,6 +115,12 @@ export interface OrdemServico {
   pecas?: OrdemServicoPeca[];
   historico?: HistoricoOrdemServico[];
   anexos?: OrdemServicoAnexo[];
+  pagamentos?: Array<{
+    id: string;
+    valor: number;
+    forma_pagamento: string;
+    criado_em: string;
+  }>;
 }
 
 // =====================================================

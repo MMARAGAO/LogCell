@@ -142,6 +142,7 @@ export default function VendasPage() {
   );
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
+  const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   const [busca, setBusca] = useState("");
   const [processando, setProcessando] = useState(false);
   const [visualizacao, setVisualizacao] = useState<"cards" | "tabela">("cards");
@@ -962,6 +963,8 @@ export default function VendasPage() {
 
     const matchStatus =
       filtroStatus === "todas" || venda.status === filtroStatus;
+    const matchLoja =
+      filtroLoja === "todas" || venda.loja_id === parseInt(filtroLoja);
     const numeroFormatado = `V${String(venda.numero_venda).padStart(6, "0")}`;
     const matchBusca =
       !busca ||
@@ -974,13 +977,28 @@ export default function VendasPage() {
         status: venda.status,
         filtroStatus,
         matchStatus,
+        loja_id: venda.loja_id,
+        filtroLoja,
+        matchLoja,
         matchBusca,
-        resultado: matchStatus && matchBusca,
+        resultado: matchStatus && matchLoja && matchBusca,
       });
     }
 
-    return matchStatus && matchBusca;
+    return matchStatus && matchLoja && matchBusca;
   });
+
+  // Calcular resumo de formas de pagamento das vendas filtradas
+  const resumoPagamentos = vendasFiltradas.reduce(
+    (acc, venda) => {
+      venda.pagamentos?.forEach((pag) => {
+        const tipo = pag.tipo_pagamento;
+        acc[tipo] = (acc[tipo] || 0) + Number(pag.valor);
+      });
+      return acc;
+    },
+    {} as { [key: string]: number }
+  );
 
   // Verificar permissão de visualizar
   if (!loadingPermissoes && !temPermissao("vendas.visualizar")) {
@@ -1151,6 +1169,23 @@ export default function VendasPage() {
               <SelectItem key="concluida">Concluídas</SelectItem>
               <SelectItem key="cancelada">Canceladas</SelectItem>
             </Select>
+            <Select
+              label="Loja"
+              selectedKeys={[filtroLoja]}
+              onChange={(e) => setFiltroLoja(e.target.value)}
+              className="w-full md:w-48"
+            >
+              {
+                [
+                  <SelectItem key="todas">Todas as Lojas</SelectItem>,
+                  ...lojas.map((loja) => (
+                    <SelectItem key={loja.id.toString()}>
+                      {loja.nome}
+                    </SelectItem>
+                  )),
+                ] as any
+              }
+            </Select>
 
             {/* Botões de visualização */}
             <div className="flex gap-2">
@@ -1174,6 +1209,77 @@ export default function VendasPage() {
           </div>
         </CardBody>
       </Card>
+
+      {/* Card de Resumo de Pagamentos */}
+      {Object.keys(resumoPagamentos).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-success" />
+              <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
+              <span className="text-sm text-default-500 ml-2">
+                ({vendasFiltradas.length}{" "}
+                {vendasFiltradas.length === 1 ? "venda" : "vendas"})
+              </span>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {Object.entries(resumoPagamentos)
+                .sort(([, a], [, b]) => b - a)
+                .map(([tipo, valor]) => (
+                  <div
+                    key={tipo}
+                    className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">
+                        {tipo === "dinheiro"
+                          ? "💵"
+                          : tipo === "pix"
+                            ? "📱"
+                            : tipo === "cartao_credito"
+                              ? "💳"
+                              : tipo === "cartao_debito"
+                                ? "💳"
+                                : tipo === "transferencia"
+                                  ? "🏦"
+                                  : tipo === "credito_cliente"
+                                    ? "🎁"
+                                    : tipo === "boleto"
+                                      ? "📄"
+                                      : "💰"}
+                      </span>
+                      <p className="text-xs text-default-600 font-medium uppercase">
+                        {tipo.replace("_", " ")}
+                      </p>
+                    </div>
+                    <p className="text-xl font-bold text-success">
+                      {formatarMoeda(valor)}
+                    </p>
+                  </div>
+                ))}
+              {/* Total Geral */}
+              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">💰</span>
+                  <p className="text-xs text-primary font-bold uppercase">
+                    Total Geral
+                  </p>
+                </div>
+                <p className="text-xl font-bold text-primary">
+                  {formatarMoeda(
+                    Object.values(resumoPagamentos).reduce(
+                      (sum, val) => sum + val,
+                      0
+                    )
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Lista de Vendas - Cards */}
       {visualizacao === "cards" && (
@@ -1341,6 +1447,7 @@ export default function VendasPage() {
                 <TableColumn>DEVOLUÇÕES</TableColumn>
                 <TableColumn align="end">TOTAL</TableColumn>
                 <TableColumn align="end">PAGO</TableColumn>
+                <TableColumn>PAGAMENTOS</TableColumn>
                 <TableColumn align="end">SALDO</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
@@ -1429,6 +1536,47 @@ export default function VendasPage() {
                       <span className="text-success font-medium">
                         {formatarMoeda(venda.valor_pago)}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      {venda.pagamentos && venda.pagamentos.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {venda.pagamentos.slice(0, 2).map((pag, idx) => (
+                            <div
+                              key={idx}
+                              className="text-xs whitespace-nowrap"
+                            >
+                              <span className="font-medium">
+                                {pag.tipo_pagamento === "dinheiro"
+                                  ? "💵"
+                                  : pag.tipo_pagamento === "pix"
+                                    ? "📱"
+                                    : pag.tipo_pagamento === "cartao_credito"
+                                      ? "💳"
+                                      : pag.tipo_pagamento === "cartao_debito"
+                                        ? "💳"
+                                        : pag.tipo_pagamento === "transferencia"
+                                          ? "🏦"
+                                          : pag.tipo_pagamento ===
+                                              "credito_cliente"
+                                            ? "🎁"
+                                            : "💰"}
+                              </span>
+                              <span className="text-gray-600 ml-1">
+                                {formatarMoeda(pag.valor)}
+                              </span>
+                            </div>
+                          ))}
+                          {venda.pagamentos.length > 2 && (
+                            <span className="text-xs text-gray-500 italic">
+                              +{venda.pagamentos.length - 2} mais
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">
+                          Sem pagamento
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {venda.saldo_devedor > 0 ? (

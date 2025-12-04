@@ -717,7 +717,9 @@ export default function CaixaPage() {
           return [
             formatarData(mov.data),
             tipo,
-            mov.tipo.includes("entrada") || mov.tipo === "venda"
+            mov.tipo.includes("entrada") ||
+            mov.tipo === "venda" ||
+            mov.tipo === "ordem_servico"
               ? formatarMoeda(mov.valor || 0)
               : `-${formatarMoeda(mov.valor || 0)}`,
             descricao,
@@ -760,7 +762,9 @@ export default function CaixaPage() {
           return [
             formatarData(mov.data),
             tipo,
-            mov.tipo.includes("entrada") || mov.tipo === "venda"
+            mov.tipo.includes("entrada") ||
+            mov.tipo === "venda" ||
+            mov.tipo === "ordem_servico"
               ? formatarMoeda(mov.valor || 0)
               : `-${formatarMoeda(mov.valor || 0)}`,
             descricao,

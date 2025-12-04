@@ -169,7 +169,10 @@ export class CaixaService {
         .eq("id", caixaId)
         .single();
 
-      if (erroCaixa) throw erroCaixa;
+      if (erroCaixa) {
+        console.error("❌ Erro ao buscar caixa:", erroCaixa);
+        throw new Error(`Erro ao buscar caixa: ${erroCaixa.message || JSON.stringify(erroCaixa)}`);
+      }
 
       console.log("🔍 DEBUG CAIXA - Dados do caixa:", {
         id: caixa.id,
@@ -214,7 +217,10 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroVendas) throw erroVendas;
+      if (erroVendas) {
+        console.error("❌ Erro ao buscar vendas:", erroVendas);
+        throw new Error(`Erro ao buscar vendas: ${erroVendas.message || JSON.stringify(erroVendas)}`);
+      }
 
       // Buscar devoluções do período
       const { data: devolucoes, error: erroDevolucoes } = await supabase
@@ -237,7 +243,10 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroDevolucoes) throw erroDevolucoes;
+      if (erroDevolucoes) {
+        console.error("❌ Erro ao buscar devoluções:", erroDevolucoes);
+        throw new Error(`Erro ao buscar devoluções: ${erroDevolucoes.message || JSON.stringify(erroDevolucoes)}`);
+      }
 
       // Filtrar devoluções da loja
       const devolucoesLoja =
@@ -245,6 +254,8 @@ export class CaixaService {
         [];
 
       // Buscar ordens de serviço pagas no período
+      console.log("🔍 Buscando OS do período:", { dataAbertura, dataFechamento });
+      
       const { data: ordensServico, error: erroOS } = await supabase
         .from("ordem_servico_pagamentos")
         .select(
@@ -259,6 +270,23 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
+      console.log("📊 Resultado busca OS:", { 
+        sucesso: !erroOS, 
+        totalOS: ordensServico?.length || 0,
+        erro: erroOS 
+      });
+
+      if (erroOS) {
+        console.error("❌ Erro COMPLETO ao buscar OS:", {
+          erro: erroOS,
+          message: erroOS.message,
+          details: erroOS.details,
+          hint: erroOS.hint,
+          code: erroOS.code,
+        });
+        throw new Error(`Erro ao buscar ordens de serviço: ${erroOS.message || erroOS.code || JSON.stringify(erroOS)}`);
+      }
+
       console.log("💰 DEBUG CAIXA - OS buscadas:", {
         total: ordensServico?.length || 0,
         ordensServico: ordensServico?.map((os: any) => ({
@@ -272,8 +300,6 @@ export class CaixaService {
           match: os.ordem_servico?.id_loja === caixa.loja_id,
         })),
       });
-
-      if (erroOS) throw erroOS;
 
       // Filtrar OS da loja
       const osLoja =
@@ -383,7 +409,10 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroSangrias) throw erroSangrias;
+      if (erroSangrias) {
+        console.error("❌ Erro ao buscar sangrias:", erroSangrias);
+        throw new Error(`Erro ao buscar sangrias: ${erroSangrias.message || JSON.stringify(erroSangrias)}`);
+      }
 
       const totalSangrias =
         sangrias?.reduce((sum: number, s: any) => sum + Number(s.valor), 0) ||
@@ -428,7 +457,10 @@ export class CaixaService {
         })),
       });
 
-      if (erroQuebras) throw erroQuebras;
+      if (erroQuebras) {
+        console.error("❌ Erro ao buscar quebras:", erroQuebras);
+        throw new Error(`Erro ao buscar quebras: ${erroQuebras.message || JSON.stringify(erroQuebras)}`);
+      }
 
       const totalQuebras =
         quebras?.reduce(
@@ -616,6 +648,7 @@ export class CaixaService {
               valor: 0,
               data: pag.criado_em,
               referencia_id: osId,
+              forma_pagamento: pag.forma_pagamento,
               pagamentos: [],
             };
           }

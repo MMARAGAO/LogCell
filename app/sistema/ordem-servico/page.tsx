@@ -10,6 +10,7 @@ import {
   Select,
   SelectItem,
   Card,
+  CardHeader,
   CardBody,
   Spinner,
   Chip,
@@ -36,6 +37,7 @@ import {
   AlertCircle,
   LayoutGrid,
   Table as TableIcon,
+  DollarSign,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -408,6 +410,18 @@ export default function OrdemServicoPage() {
     );
   });
 
+  // Calcular resumo de formas de pagamento das OS filtradas
+  const resumoPagamentos = ordensFiltradas.reduce(
+    (acc, os) => {
+      os.pagamentos?.forEach((pag) => {
+        const tipo = pag.forma_pagamento;
+        acc[tipo] = (acc[tipo] || 0) + Number(pag.valor);
+      });
+      return acc;
+    },
+    {} as { [key: string]: number }
+  );
+
   const getStatusColor = (
     status: StatusOS
   ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
@@ -737,6 +751,75 @@ export default function OrdemServicoPage() {
         </CardBody>
       </Card>
 
+      {/* Card de Resumo de Pagamentos */}
+      {Object.keys(resumoPagamentos).length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-success" />
+              <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
+              <span className="text-sm text-default-500 ml-2">
+                ({ordensFiltradas.length}{" "}
+                {ordensFiltradas.length === 1 ? "OS" : "OS's"})
+              </span>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {Object.entries(resumoPagamentos)
+                .sort(([, a], [, b]) => b - a)
+                .map(([tipo, valor]) => (
+                  <div
+                    key={tipo}
+                    className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">
+                        {tipo === "dinheiro"
+                          ? "💵"
+                          : tipo === "pix"
+                            ? "📱"
+                            : tipo === "cartao_credito"
+                              ? "💳"
+                              : tipo === "cartao_debito"
+                                ? "💳"
+                                : tipo === "transferencia"
+                                  ? "🏦"
+                                  : tipo === "cheque"
+                                    ? "📄"
+                                    : "💰"}
+                      </span>
+                      <p className="text-xs text-default-600 font-medium uppercase">
+                        {tipo.replace("_", " ")}
+                      </p>
+                    </div>
+                    <p className="text-xl font-bold text-success">
+                      {formatarMoeda(valor)}
+                    </p>
+                  </div>
+                ))}
+              {/* Total Geral */}
+              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">💰</span>
+                  <p className="text-xs text-primary font-bold uppercase">
+                    Total Geral
+                  </p>
+                </div>
+                <p className="text-xl font-bold text-primary">
+                  {formatarMoeda(
+                    Object.values(resumoPagamentos).reduce(
+                      (sum, val) => sum + val,
+                      0
+                    )
+                  )}
+                </p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Lista de OS */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -797,6 +880,7 @@ export default function OrdemServicoPage() {
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>ENTRADA</TableColumn>
                 <TableColumn>VALOR</TableColumn>
+                <TableColumn>PAGAMENTOS</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
@@ -846,6 +930,47 @@ export default function OrdemServicoPage() {
                       <span className="font-semibold text-success">
                         {formatarMoeda(os.valor_total || 0)}
                       </span>
+                    </TableCell>
+                    <TableCell>
+                      {os.pagamentos && os.pagamentos.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {os.pagamentos.slice(0, 2).map((pag, idx) => (
+                            <div
+                              key={idx}
+                              className="text-xs whitespace-nowrap"
+                            >
+                              <span className="font-medium">
+                                {pag.forma_pagamento === "dinheiro"
+                                  ? "💵"
+                                  : pag.forma_pagamento === "pix"
+                                    ? "📱"
+                                    : pag.forma_pagamento === "cartao_credito"
+                                      ? "💳"
+                                      : pag.forma_pagamento === "cartao_debito"
+                                        ? "💳"
+                                        : pag.forma_pagamento ===
+                                            "transferencia"
+                                          ? "🏦"
+                                          : pag.forma_pagamento === "cheque"
+                                            ? "📄"
+                                            : "💰"}
+                              </span>
+                              <span className="text-gray-600 ml-1">
+                                {formatarMoeda(pag.valor)}
+                              </span>
+                            </div>
+                          ))}
+                          {os.pagamentos.length > 2 && (
+                            <span className="text-xs text-gray-500 italic">
+                              +{os.pagamentos.length - 2} mais
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">
+                          Sem pagamento
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">

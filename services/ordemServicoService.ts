@@ -35,7 +35,8 @@ export async function buscarOrdensServico(filtros?: {
       .select(
         `
         *,
-        loja:lojas!id_loja(id, nome)
+        loja:lojas!id_loja(id, nome),
+        pagamentos:ordem_servico_pagamentos(id, valor, forma_pagamento, criado_em)
       `
       )
       .order("numero_os", { ascending: false });
