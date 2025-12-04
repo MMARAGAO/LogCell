@@ -90,9 +90,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Validações OK, criando usuário...");
+    console.log("✅ Validações OK, verificando disponibilidade...");
 
-    // 1. Verificar se email já existe
+    // 1. Verificar se email já existe na autenticação (método mais eficiente)
+    const { data: authEmailCheck, error: emailCheckError } = 
+      await supabaseAdmin.auth.admin.getUserByEmail(email);
+    
+    if (authEmailCheck?.user && !emailCheckError) {
+      console.error("❌ Email já existe no sistema de autenticação");
+      return NextResponse.json(
+        { error: "Este email já está cadastrado no sistema. Use outro email ou recupere a senha." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Verificar se email já existe na tabela tecnicos
     const { data: emailExiste } = await supabaseAdmin
       .from("tecnicos")
       .select("id")
@@ -100,14 +112,14 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (emailExiste) {
-      console.error("❌ Email já cadastrado");
+      console.error("❌ Email já cadastrado na tabela tecnicos");
       return NextResponse.json(
         { error: "Este email já está cadastrado" },
         { status: 400 }
       );
     }
 
-    // 2. Verificar se CPF já existe (se fornecido)
+    // 3. Verificar se CPF já existe (se fornecido)
     if (cpf) {
       const { data: cpfExiste } = await supabaseAdmin
         .from("tecnicos")
@@ -128,7 +140,7 @@ export async function POST(request: NextRequest) {
       "✅ Email e CPF disponíveis, criando usuário de autenticação..."
     );
 
-    // 3. Criar usuário no Supabase Auth usando Admin API
+    // 4. Criar usuário no Supabase Auth usando Admin API
     const { data: authUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email: email,

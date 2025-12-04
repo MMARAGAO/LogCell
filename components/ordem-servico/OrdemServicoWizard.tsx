@@ -36,7 +36,7 @@ import type {
   OrdemServico,
 } from "@/types/ordemServico";
 import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
-import { buscarClientes } from "@/services/clienteService";
+import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";
 import { useToast } from "@/components/Toast";
 
@@ -162,8 +162,13 @@ export default function OrdemServicoWizard({
   };
 
   const carregarClientes = async () => {
-    const { data } = await buscarClientes();
-    if (data) setClientes(data);
+    try {
+      const clientes = await buscarTodosClientesAtivos();
+      setClientes(clientes);
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+      setClientes([]);
+    }
   };
 
   const carregarTecnicos = async () => {
@@ -405,6 +410,7 @@ export default function OrdemServicoWizard({
                 onSelectionChange={handleClienteSelecionado}
                 defaultItems={clientes}
                 className="mb-4"
+                description={`${clientes.length} clientes disponíveis para seleção`}
               >
                 {(cliente) => (
                   <AutocompleteItem key={cliente.id} textValue={cliente.nome}>

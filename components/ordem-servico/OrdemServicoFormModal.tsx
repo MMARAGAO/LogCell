@@ -26,7 +26,7 @@ import {
   PRIORIDADE_OS_LABELS,
 } from "@/types/ordemServico";
 import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
-import { buscarClientes } from "@/services/clienteService";
+import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/Toast";
@@ -259,9 +259,15 @@ export default function OrdemServicoFormModal({
 
   const carregarClientes = async () => {
     setLoadingClientes(true);
-    const { data } = await buscarClientes({ ativo: true });
-    setClientes(data || []);
-    setLoadingClientes(false);
+    try {
+      const clientes = await buscarTodosClientesAtivos();
+      setClientes(clientes);
+    } catch (error) {
+      console.error("Erro ao carregar clientes:", error);
+      setClientes([]);
+    } finally {
+      setLoadingClientes(false);
+    }
   };
 
   const carregarProdutosEstoque = async (lojaId: number) => {
@@ -896,7 +902,7 @@ export default function OrdemServicoFormModal({
                     isLoading={loadingClientes}
                     variant="bordered"
                     startContent={<UserPlus className="w-4 h-4" />}
-                    description="Selecione um cliente cadastrado ou preencha os dados abaixo"
+                    description={`${clientes.length} clientes disponíveis para seleção`}
                   >
                     {clientes.map((cliente) => (
                       <AutocompleteItem

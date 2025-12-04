@@ -125,6 +125,21 @@ export default function TecnicoComLoginModal({
     return true;
   };
 
+  // Verifica se todos os campos obrigatórios estão preenchidos (sem mostrar toast)
+  const formularioValido = (): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    return (
+      nome.trim() !== "" &&
+      email.trim() !== "" &&
+      emailRegex.test(email) &&
+      telefone.trim() !== "" &&
+      senha !== "" &&
+      senha.length >= 6 &&
+      senha === confirmarSenha
+    );
+  };
+
   const handleSubmit = async () => {
     if (!usuario) {
       toast.error("Usuário não autenticado. Faça login novamente.");
@@ -403,6 +418,7 @@ export default function TecnicoComLoginModal({
             color="primary"
             onPress={handleSubmit}
             isLoading={loading}
+            isDisabled={!formularioValido() || loading}
             startContent={!loading && <UserPlus className="w-4 h-4" />}
           >
             Criar Técnico com Login

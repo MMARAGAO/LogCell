@@ -1438,12 +1438,40 @@ export default function TransferenciaModal({
                             classNames={{
                               trigger: "bg-content2",
                             }}
+                            disabledKeys={
+                              // Desabilitar lojas onde o produto tem estoque zerado
+                              item.estoques_lojas
+                                ?.filter((estoque) => estoque.quantidade === 0)
+                                .map((estoque) => estoque.id_loja.toString()) ||
+                              []
+                            }
                           >
-                            {lojas.map((loja) => (
-                              <SelectItem key={loja.id.toString()}>
-                                {loja.nome}
-                              </SelectItem>
-                            ))}
+                            {lojas.map((loja) => {
+                              const estoqueNaLoja = item.estoques_lojas?.find(
+                                (e) => e.id_loja === loja.id
+                              );
+                              const quantidade = estoqueNaLoja?.quantidade || 0;
+
+                              return (
+                                <SelectItem
+                                  key={loja.id.toString()}
+                                  textValue={loja.nome}
+                                >
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>{loja.nome}</span>
+                                    <Chip
+                                      size="sm"
+                                      color={
+                                        quantidade === 0 ? "danger" : "success"
+                                      }
+                                      variant="flat"
+                                    >
+                                      {quantidade}
+                                    </Chip>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })}
                           </Select>
 
                           <Select
