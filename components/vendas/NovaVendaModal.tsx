@@ -699,7 +699,7 @@ export function NovaVendaModal({
                     allowsCustomValue={false}
                     defaultItems={clientes}
                     className="flex-1"
-                    description={`${clientes.length} cliente${clientes.length !== 1 ? 's' : ''} disponível${clientes.length !== 1 ? 'eis' : ''} para seleção`}
+                    description={`${clientes.length} cliente${clientes.length !== 1 ? "s" : ""} disponível${clientes.length !== 1 ? "eis" : ""} para seleção`}
                   >
                     {(cliente) => (
                       <AutocompleteItem

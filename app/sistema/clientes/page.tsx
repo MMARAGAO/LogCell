@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Button, Input, Card, CardBody, Spinner, Chip, Pagination } from "@heroui/react";
+import {
+  Button,
+  Input,
+  Card,
+  CardBody,
+  Spinner,
+  Chip,
+  Pagination,
+} from "@heroui/react";
 import { Plus, Search, Users, UserCheck, UserX } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -77,7 +85,7 @@ export default function ClientesPage() {
   const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
     undefined
   );
-  
+
   // Debounce da busca (500ms)
   const buscaDebounced = useDebounce(busca, 500);
 
@@ -102,7 +110,12 @@ export default function ClientesPage() {
   const carregarClientes = async () => {
     setLoading(true);
 
-    const { data, error, count, totalPages: total } = await buscarClientes({
+    const {
+      data,
+      error,
+      count,
+      totalPages: total,
+    } = await buscarClientes({
       ativo: filtroAtivo,
       busca: buscaDebounced || undefined,
       page,
@@ -113,7 +126,7 @@ export default function ClientesPage() {
       setClientes(data);
       setTotalClientes(count);
       setTotalPages(total);
-      
+
       // Calcular estatísticas totais (precisamos buscar sem filtro para stats corretas)
       if (!filtroAtivo && !busca) {
         calcularEstatisticas(count);

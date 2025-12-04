@@ -133,7 +133,7 @@ export function usePermissoes() {
         }
       } catch (err: any) {
         if (isCancelled) return; // Não atualizar state se componente foi desmontado
-        
+
         // Captura qualquer exceção JavaScript
         console.error("❌ Exceção ao buscar permissões:", {
           name: err?.name,
