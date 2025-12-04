@@ -61,6 +61,8 @@ export function EditarVendaModal({
   const [quantidadesOriginais, setQuantidadesOriginais] = useState<
     Record<string, number>
   >({});
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const PRODUTOS_POR_PAGINA = 10;
 
   useEffect(() => {
     if (venda && isOpen) {
@@ -135,6 +137,14 @@ export function EditarVendaModal({
       p.nome?.toLowerCase().includes(busca.toLowerCase()) ||
       p.codigo?.toLowerCase().includes(busca.toLowerCase())
   );
+
+  // Produtos paginados
+  const produtosPaginados = produtosFiltrados.slice(
+    (paginaAtual - 1) * PRODUTOS_POR_PAGINA,
+    paginaAtual * PRODUTOS_POR_PAGINA
+  );
+
+  const totalPaginas = Math.ceil(produtosFiltrados.length / PRODUTOS_POR_PAGINA);
 
   const calcularTotal = () => {
     return itens.reduce((sum, item) => {
@@ -377,12 +387,27 @@ export function EditarVendaModal({
                   <Input
                     placeholder="Buscar produto por nome ou código..."
                     value={busca}
-                    onChange={(e) => setBusca(e.target.value)}
+                    onChange={(e) => {
+                      setBusca(e.target.value);
+                      setPaginaAtual(1); // Reset página ao buscar
+                    }}
                     disabled={salvando}
                   />
                   {busca && produtosFiltrados.length > 0 && (
-                    <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {produtosFiltrados.slice(0, 10).map((produto) => {
+                    <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-96 overflow-auto">
+                      {/* Info de resultados */}
+                      <div className="sticky top-0 bg-gray-50 dark:bg-gray-900 px-4 py-2 border-b text-sm text-gray-600 dark:text-gray-400 flex justify-between items-center">
+                        <span>
+                          {produtosFiltrados.length} produto(s) encontrado(s)
+                        </span>
+                        {totalPaginas > 1 && (
+                          <span>
+                            Página {paginaAtual} de {totalPaginas}
+                          </span>
+                        )}
+                      </div>
+
+                      {produtosPaginados.map((produto) => {
                         const estoqueDisponivel = getEstoqueDisponivel(
                           produto.id
                         );
@@ -425,6 +450,31 @@ export function EditarVendaModal({
                           </button>
                         );
                       })}
+
+                      {/* Paginação */}
+                      {totalPaginas > 1 && (
+                        <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t flex justify-between items-center">
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            isDisabled={paginaAtual === 1}
+                            onClick={() => setPaginaAtual(p => p - 1)}
+                          >
+                            Anterior
+                          </Button>
+                          <span className="text-sm">
+                            {paginaAtual} / {totalPaginas}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            isDisabled={paginaAtual === totalPaginas}
+                            onClick={() => setPaginaAtual(p => p + 1)}
+                          >
+                            Próxima
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

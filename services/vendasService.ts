@@ -516,13 +516,9 @@ export class VendasService {
       const valorTotalComDesconto = valorTotal - valorDesconto;
       const saldoDevedor = valorTotalComDesconto - valorPago;
 
-      // Determinar status da venda
-      let novoStatus = venda?.status;
-      if (saldoDevedor <= 0 && valorPago > 0) {
-        novoStatus = "concluida";
-      } else if (valorPago > 0 && saldoDevedor > 0) {
-        novoStatus = "em_andamento";
-      }
+      // Manter status atual da venda (não atualizar automaticamente)
+      // O status deve ser alterado manualmente pelo usuário
+      const novoStatus = venda?.status;
 
       console.log("📊 Totais calculados:", {
         subtotalItens: valorTotal,
@@ -662,13 +658,6 @@ export class VendasService {
             const novaQuantidade =
               estoqueAtual.quantidade + quantidadeADevolver;
             console.log(`➕ Nova quantidade será: ${novaQuantidade}`);
-
-            // Setar flag para evitar duplicação no histórico
-            await supabase.rpc('set_config', {
-              setting_name: 'app.skip_ajuste_manual',
-              new_value: 'true',
-              is_local: true
-            });
 
             // Devolver ao estoque
             const { error: errorUpdate } = await supabase
@@ -865,13 +854,6 @@ export class VendasService {
             .single();
 
           if (estoqueAtual) {
-            // Setar flag para evitar duplicação no histórico
-            await supabase.rpc('set_config', {
-              setting_name: 'app.skip_ajuste_manual',
-              new_value: 'true',
-              is_local: true
-            });
-
             await supabase
               .from("estoque_lojas")
               .update({
@@ -916,7 +898,7 @@ export class VendasService {
         const itemAntigo = mapaAntigos.get(itemNovo.produto_id);
 
         if (!itemAntigo) {
-          // Item novo - adicionar e baixar estoque
+          // Item novo - adicionar (a trigger vai baixar o estoque automaticamente)
           const { data: estoqueAtual } = await supabase
             .from("estoque_lojas")
             .select("quantidade")
@@ -924,59 +906,23 @@ export class VendasService {
             .eq("id_loja", vendaAtual.loja_id)
             .single();
 
+          console.log("📦 Verificando estoque para novo item:", {
+            produto: itemNovo.produto_nome,
+            quantidade_necessaria: itemNovo.quantidade,
+            estoque_disponivel: estoqueAtual?.quantidade || 0,
+            loja_id: vendaAtual.loja_id,
+          });
+
+          // Validar estoque ANTES de inserir
           if (!estoqueAtual || estoqueAtual.quantidade < itemNovo.quantidade) {
             return {
               success: false,
-              error: `Estoque insuficiente para ${itemNovo.produto_nome}`,
+              error: `Estoque insuficiente para ${itemNovo.produto_nome}. Disponível: ${estoqueAtual?.quantidade || 0}, Necessário: ${itemNovo.quantidade}`,
             };
           }
 
-          // Setar flag para evitar duplicação no histórico
-          await supabase.rpc('set_config', {
-            setting_name: 'app.skip_ajuste_manual',
-            new_value: 'true',
-            is_local: true
-          });
-
-          // Baixar estoque
-          const { error: erroEstoque } = await supabase
-            .from("estoque_lojas")
-            .update({
-              quantidade: estoqueAtual.quantidade - itemNovo.quantidade,
-              atualizado_por: usuarioId,
-              atualizado_em: new Date().toISOString(),
-            })
-            .eq("id_produto", itemNovo.produto_id)
-            .eq("id_loja", vendaAtual.loja_id);
-
-          if (erroEstoque) {
-            // Verifica se é erro de estoque negativo
-            if (
-              erroEstoque.code === "23514" ||
-              erroEstoque.message?.includes("estoque_lojas_quantidade_check")
-            ) {
-              return {
-                success: false,
-                error: `Estoque insuficiente para ${itemNovo.produto_nome}. Verifique a quantidade disponível.`,
-              };
-            }
-            throw erroEstoque;
-          }
-
-          // Registrar no histórico de estoque
-          await supabase.from("historico_estoque").insert({
-            id_produto: itemNovo.produto_id,
-            id_loja: vendaAtual.loja_id,
-            usuario_id: usuarioId,
-            quantidade: itemNovo.quantidade,
-            quantidade_anterior: estoqueAtual.quantidade,
-            quantidade_nova: estoqueAtual.quantidade - itemNovo.quantidade,
-            tipo_movimentacao: "baixa_edicao_venda",
-            motivo: `Baixa de estoque por adição de item na venda ${vendaAtual.numero_venda}`,
-          });
-
-          // Inserir item
-          await supabase.from("itens_venda").insert({
+          // Inserir item (trigger vai baixar estoque e registrar histórico automaticamente)
+          const { data: itemInserido, error: erroInsert } = await supabase.from("itens_venda").insert({
             venda_id: vendaId,
             produto_id: itemNovo.produto_id,
             produto_nome: itemNovo.produto_nome,
@@ -984,9 +930,32 @@ export class VendasService {
             quantidade: itemNovo.quantidade,
             preco_unitario: itemNovo.preco_unitario,
             subtotal: itemNovo.subtotal,
-            desconto_tipo: itemNovo.desconto_tipo,
-            desconto_valor: itemNovo.desconto_valor,
+            desconto_tipo: itemNovo.desconto_tipo || null,
+            desconto_valor: itemNovo.desconto_valor || 0,
+            valor_desconto: itemNovo.valor_desconto || 0,
             devolvido: 0,
+          });
+
+          if (erroInsert) {
+            console.error("❌ ERRO AO INSERIR ITEM:", {
+              produto: itemNovo.produto_nome,
+              erro: erroInsert,
+              dados: {
+                venda_id: vendaId,
+                produto_id: itemNovo.produto_id,
+                quantidade: itemNovo.quantidade,
+              }
+            });
+            return {
+              success: false,
+              error: `Erro ao adicionar item ${itemNovo.produto_nome}: ${erroInsert.message}`,
+            };
+          }
+
+          console.log("✅ Item inserido com sucesso:", {
+            produto: itemNovo.produto_nome,
+            quantidade: itemNovo.quantidade,
+            item: itemInserido,
           });
 
           alteracoes.push(
@@ -1050,13 +1019,6 @@ export class VendasService {
                 error: `Estoque insuficiente para aumentar quantidade de ${itemNovo.produto_nome}`,
               };
             }
-
-            // Setar flag para evitar duplicação no histórico
-            await supabase.rpc('set_config', {
-              setting_name: 'app.skip_ajuste_manual',
-              new_value: 'true',
-              is_local: true
-            });
 
             const { error: erroEstoque } = await supabase
               .from("estoque_lojas")

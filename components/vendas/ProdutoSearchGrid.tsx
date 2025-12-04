@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardBody, CardFooter, Input, Button, Chip } from "@heroui/react";
+import { Card, CardBody, CardFooter, Input, Button, Chip, Pagination } from "@heroui/react";
 import { Search, Plus, Package } from "lucide-react";
 
 interface Produto {
@@ -29,6 +29,8 @@ export function ProdutoSearchGrid({
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<
     string | null
   >(null);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const PRODUTOS_POR_PAGINA = 20;
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -68,6 +70,20 @@ export function ProdutoSearchGrid({
 
     return resultado;
   }, [produtos, busca, categoriaSelecionada]);
+
+  // Produtos da página atual
+  const produtosPaginados = useMemo(() => {
+    const inicio = (paginaAtual - 1) * PRODUTOS_POR_PAGINA;
+    const fim = inicio + PRODUTOS_POR_PAGINA;
+    return produtosFiltrados.slice(inicio, fim);
+  }, [produtosFiltrados, paginaAtual]);
+
+  const totalPaginas = Math.ceil(produtosFiltrados.length / PRODUTOS_POR_PAGINA);
+
+  // Resetar página ao filtrar
+  useMemo(() => {
+    setPaginaAtual(1);
+  }, [busca, categoriaSelecionada]);
 
   const categorias = useMemo(() => {
     const cats = new Set(produtos.map((p) => p.categoria).filter(Boolean));
@@ -121,8 +137,16 @@ export function ProdutoSearchGrid({
           <p className="text-gray-500">Nenhum produto encontrado</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {produtosFiltrados.map((produto) => (
+        <>
+          {/* Contador de resultados */}
+          <div className="text-sm text-gray-600 mb-2">
+            Mostrando {(paginaAtual - 1) * PRODUTOS_POR_PAGINA + 1} a{" "}
+            {Math.min(paginaAtual * PRODUTOS_POR_PAGINA, produtosFiltrados.length)} de{" "}
+            {produtosFiltrados.length} produtos
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {produtosPaginados.map((produto) => (
             <Card
               key={produto.id}
               className="hover:shadow-lg transition-shadow"
@@ -193,6 +217,20 @@ export function ProdutoSearchGrid({
             </Card>
           ))}
         </div>
+
+        {/* Paginação */}
+        {totalPaginas > 1 && (
+          <div className="flex justify-center mt-6">
+            <Pagination
+              total={totalPaginas}
+              page={paginaAtual}
+              onChange={setPaginaAtual}
+              showControls
+              color="primary"
+            />
+          </div>
+        )}
+      </>
       )}
     </div>
   );

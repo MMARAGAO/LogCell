@@ -280,6 +280,41 @@ export const gerarPDFOrdemServico = (
     y += obsLines.length * 5 + 10;
   }
 
+  // Termos de Garantia
+  if (y > 200) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("TERMOS DE GARANTIA", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  
+  const termos = [
+    "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
+    "(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data da entrega do aparelho ao cliente.",
+    "(3) - Esta garantia cobre defeitos de peças e mão de obra decorrentes dos serviços realizados e/ou peças substituídas pela AUTORIZADA CELL. Não cobrimos garantia de terceiros.",
+    "(4) - Defeitos causados por mau uso, quedas, contato com líquidos, umidade, oxidação, surtos de energia, ou instalação de software não autorizado serão excluídos da garantia.",
+    "(5) - Expirado o prazo da garantia, e apresentando esta ordem/garantia, poderá ser aplicado um desconto em caso de reparo no equipamento;",
+    "(6) - O aparelho não procurado em 90 (NOVENTA) dias após a data de execução da ordem de serviço não nos responsabilizamos mais pelo aparelho.",
+    "(7) - Brindes não estão sujeitos à garantia, e devem ser testados e conferidos no ato da entrega.",
+    "(8) - Eu cliente, declaro ter ciência do que foi descrito acima.",
+  ];
+
+  termos.forEach((termo) => {
+    const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+    doc.text(termoLines, 17, y);
+    y += termoLines.length * 4 + 2;
+  });
+
+  y += 5;
+
   // Assinaturas
   if (y > 240) {
     doc.addPage();
@@ -425,6 +460,38 @@ export const gerarCupomTermicoOS = (
     cupom += "OBSERVACOES:\n";
     cupom += os.observacoes_tecnicas + "\n\n";
   }
+
+  // Termos de Garantia
+  cupom += linhaDiv + "\n";
+  cupom += centralizar("TERMOS DE GARANTIA") + "\n";
+  cupom += linhaDiv + "\n\n";
+  
+  cupom += "(1) A garantia so e valida mediante\n";
+  cupom += "apresentacao desta OS/garantia.\n\n";
+  
+  cupom += "(2) Garantia conforme combinado no\n";
+  cupom += "cabecalho a partir da entrega.\n\n";
+  
+  cupom += "(3) Cobre defeitos de pecas e mao de\n";
+  cupom += "obra dos servicos realizados pela\n";
+  cupom += "AUTORIZADA CELL. Nao cobrimos\n";
+  cupom += "garantia de terceiros.\n\n";
+  
+  cupom += "(4) Excluidos da garantia: mau uso,\n";
+  cupom += "quedas, liquidos, umidade, oxidacao,\n";
+  cupom += "surtos, software nao autorizado.\n\n";
+  
+  cupom += "(5) Apos garantia, com esta OS,\n";
+  cupom += "pode ter desconto em reparos.\n\n";
+  
+  cupom += "(6) Aparelho nao procurado em 90\n";
+  cupom += "dias: nao nos responsabilizamos.\n\n";
+  
+  cupom += "(7) Brindes sem garantia, conferir\n";
+  cupom += "no ato da entrega.\n\n";
+  
+  cupom += "(8) Cliente declara ciencia do\n";
+  cupom += "descrito acima.\n\n";
 
   // Assinaturas
   cupom += "\n\n\n";

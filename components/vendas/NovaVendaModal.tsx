@@ -138,6 +138,11 @@ export function NovaVendaModal({
   // Produtos com estoque da loja selecionada
   const [produtosComEstoque, setProdutosComEstoque] = useState<any[]>([]);
 
+  // Paginação de produtos
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalProdutos, setTotalProdutos] = useState(0);
+  const PRODUTOS_POR_PAGINA = 50;
+
   // Lojas com caixa aberto
   const [lojasComCaixaAberto, setLojasComCaixaAberto] = useState<Set<number>>(
     new Set()

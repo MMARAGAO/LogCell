@@ -103,8 +103,6 @@ export default function TransferenciaModal({
 
   // Estados principais
   const [loading, setLoading] = useState(false);
-  const [lojaOrigem, setLojaOrigem] = useState<string>("");
-  const [lojaDestino, setLojaDestino] = useState<string>("");
   const [lojasParaVisualizar, setLojasParaVisualizar] = useState<string[]>([]); // Múltiplas lojas para visualizar estoque
   const [observacao, setObservacao] = useState("");
 
@@ -174,8 +172,6 @@ export default function TransferenciaModal({
   // Resetar estado ao abrir/fechar modal
   useEffect(() => {
     if (isOpen) {
-      setLojaOrigem("");
-      setLojaDestino("");
       setObservacao("");
       setProdutoSelecionado("");
       setQuantidade(1);
@@ -193,82 +189,60 @@ export default function TransferenciaModal({
     }
   }, [isOpen, produto]);
 
-  // Carregar produtos quando selecionar loja origem
+  // Carregar todos os produtos ao abrir o modal
   useEffect(() => {
-    if (lojaOrigem) {
-      carregarProdutosLoja(parseInt(lojaOrigem));
-      setPaginaAtual(1); // Resetar paginação ao mudar de loja
+    if (isOpen && lojas.length > 0) {
+      carregarTodosProdutos();
+      setPaginaAtual(1);
     } else {
       setProdutosDisponiveis([]);
       setProdutosFiltrados([]);
     }
-  }, [lojaOrigem]);
+  }, [isOpen, lojas]);
 
-  // Carregar histórico quando ambas as lojas forem selecionadas
-  useEffect(() => {
-    if (lojaOrigem && lojaDestino && mostrarHistorico) {
-      carregarHistorico();
-    } else {
-      setHistoricoTransferencias([]);
-    }
-  }, [lojaOrigem, lojaDestino, mostrarHistorico]);
+  // Histórico de transferências removido (será implementado de outra forma se necessário)
 
   // Filtrar produtos conforme busca (busca inteligente com palavras separadas)
   useEffect(() => {
-    if (buscaProduto.trim() === "") {
-      setProdutosFiltrados(produtosDisponiveis);
-    } else {
-      // Dividir busca em palavras individuais
-      const palavras = buscaProduto
-        .toLowerCase()
-        .split(/\s+/)
-        .filter((p) => p.length > 0);
+    const buscarProdutos = async () => {
+      if (buscaProduto.trim() === "") {
+        setProdutosFiltrados(produtosDisponiveis);
+        return;
+      }
 
-      const filtrados = produtosDisponiveis.filter((produto) => {
-        // Concatenar todos os campos pesquisáveis
-        const textoBusca = [produto.descricao, produto.marca, produto.modelos]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+      // Se a busca tem menos de 3 caracteres, filtrar apenas localmente
+      if (buscaProduto.trim().length < 3) {
+        const palavras = buscaProduto
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((p) => p.length > 0);
 
-        // Verificar se TODAS as palavras estão presentes (em qualquer ordem)
-        return palavras.every((palavra) => textoBusca.includes(palavra));
-      });
+        const filtrados = produtosDisponiveis.filter((produto) => {
+          const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
 
-      setProdutosFiltrados(filtrados);
-    }
+          return palavras.every((palavra) => textoBusca.includes(palavra));
+        });
 
-    // Resetar para primeira página quando buscar
-    setPaginaAtual(1);
-  }, [buscaProduto, produtosDisponiveis]);
+        setProdutosFiltrados(filtrados);
+        return;
+      }
 
-  // Calcular lojas disponíveis para destino (excluir origem)
-  const lojasDestinoDisponiveis = useMemo(() => {
-    if (!lojaOrigem) return lojas;
-    return lojas.filter((l) => l.id.toString() !== lojaOrigem);
-  }, [lojas, lojaOrigem]);
+      // Para buscas com 3+ caracteres, buscar no banco também
+      try {
+        const { supabase } = await import("@/lib/supabaseClient");
+        const searchPattern = `%${buscaProduto}%`;
 
-  // Carregar produtos da loja origem
-  const carregarProdutosLoja = async (idLoja: number) => {
-    setLoadingProdutos(true);
-    setProgressoCarregamento(0);
-    try {
-      const { supabase } = await import("@/lib/supabaseClient");
-
-      let todosProdutos: Produto[] = [];
-      let page = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-
-      // Carregar todos os produtos em lotes
-      while (hasMore) {
         const { data, error } = await supabase
           .from("estoque_lojas")
           .select(
             `
             id_produto,
+            id_loja,
             quantidade,
-            produto:produtos!inner(
+            produto:produtos(
               descricao, 
               marca, 
               modelos, 
@@ -282,16 +256,21 @@ export default function TransferenciaModal({
             )
           `
           )
-          .eq("id_loja", idLoja)
           .eq("produto.ativo", true)
           .gt("quantidade", 0)
-          .range(page * pageSize, (page + 1) * pageSize - 1)
-          .order("produto(descricao)", { ascending: true });
+          .or(
+            `descricao.ilike.${searchPattern},marca.ilike.${searchPattern},modelos.ilike.${searchPattern}`,
+            { foreignTable: "produto" }
+          )
+          .limit(100); // Limitar a 100 resultados na busca
 
-        if (error) throw error;
+        if (error) {
+          console.error("Erro ao buscar produtos no banco:", error);
+          throw error;
+        }
 
         if (data && data.length > 0) {
-          const produtosBatch: Produto[] = data.map((item: any) => ({
+          const produtosBusca: Produto[] = data.map((item: any) => ({
             id: item.id_produto,
             descricao: item.produto?.descricao || "Sem descrição",
             marca: item.produto?.marca,
@@ -306,24 +285,162 @@ export default function TransferenciaModal({
               })) || [],
           }));
 
-          todosProdutos = [...todosProdutos, ...produtosBatch];
+          // Mesclar com produtos já carregados (evitar duplicatas)
+          const idsExistentes = new Set(produtosDisponiveis.map((p) => p.id));
+          const produtosNovos = produtosBusca.filter(
+            (p) => !idsExistentes.has(p.id)
+          );
 
-          // Atualizar progresso
+          const todosProdutos = [...produtosDisponiveis, ...produtosNovos];
+          
+          // Filtrar localmente
+          const palavras = buscaProduto
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((p) => p.length > 0);
+
+          const filtrados = todosProdutos.filter((produto) => {
+            const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+            return palavras.every((palavra) => textoBusca.includes(palavra));
+          });
+
+          setProdutosFiltrados(filtrados);
+        } else {
+          // Nenhum resultado no banco, filtrar apenas localmente
+          const palavras = buscaProduto
+            .toLowerCase()
+            .split(/\s+/)
+            .filter((p) => p.length > 0);
+
+          const filtrados = produtosDisponiveis.filter((produto) => {
+            const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+            return palavras.every((palavra) => textoBusca.includes(palavra));
+          });
+
+          setProdutosFiltrados(filtrados);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar produtos:", error);
+        // Em caso de erro, filtrar apenas localmente
+        const palavras = buscaProduto
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((p) => p.length > 0);
+
+        const filtrados = produtosDisponiveis.filter((produto) => {
+          const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return palavras.every((palavra) => textoBusca.includes(palavra));
+        });
+
+        setProdutosFiltrados(filtrados);
+      }
+    };
+
+    // Debounce de 500ms para busca no banco
+    const timeoutId = setTimeout(() => {
+      buscarProdutos();
+    }, 500);
+
+    // Resetar para primeira página quando buscar
+    setPaginaAtual(1);
+
+    return () => clearTimeout(timeoutId);
+  }, [buscaProduto, produtosDisponiveis]);
+
+  // Calcular lojas disponíveis para destino (excluir origem)
+  // Lojas disponíveis para seleção individual em cada produto
+  const lojasDisponiveis = lojas;
+
+  // Carregar todos os produtos únicos (agrupados) com paginação
+  const carregarTodosProdutos = async () => {
+    setLoadingProdutos(true);
+    setProgressoCarregamento(0);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+
+      const BATCH_SIZE = 1000;
+      let todosProdutos: Produto[] = [];
+      let offset = 0;
+      let hasMore = true;
+
+      // Carregar produtos em lotes
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("produtos")
+          .select(
+            `
+            id,
+            descricao, 
+            marca, 
+            modelos, 
+            preco_venda, 
+            ativo,
+            estoques_lojas:estoque_lojas(
+              id_loja,
+              quantidade,
+              loja:lojas(nome)
+            )
+          `
+          )
+          .eq("ativo", true)
+          .order("descricao", { ascending: true })
+          .range(offset, offset + BATCH_SIZE - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          // Processar todos os produtos (incluindo sem estoque)
+          const produtosBatch: Produto[] = data.map((item: any) => {
+            const estoques = item.estoques_lojas || [];
+            const quantidadeTotal = estoques.reduce(
+              (acc: number, est: any) => acc + (est.quantidade || 0),
+              0
+            );
+
+            return {
+              id: item.id,
+              descricao: item.descricao || "Sem descrição",
+              marca: item.marca,
+              modelos: item.modelos,
+              preco_venda: item.preco_venda,
+              quantidade_disponivel: quantidadeTotal,
+              estoques_lojas: estoques.map((est: any) => ({
+                id_loja: est.id_loja,
+                loja_nome: est.loja?.nome || "Sem nome",
+                quantidade: est.quantidade || 0,
+              })),
+            };
+          });
+
+          todosProdutos = [...todosProdutos, ...produtosBatch];
           setProgressoCarregamento(todosProdutos.length);
 
-          // Se retornou menos que o tamanho da página, não há mais dados
-          hasMore = data.length === pageSize;
-          page++;
+          // Se retornou menos que o batch size, não há mais dados
+          hasMore = data.length === BATCH_SIZE;
+          offset += BATCH_SIZE;
         } else {
           hasMore = false;
         }
       }
 
-      // Ordenar alfabeticamente após carregar todos
-      todosProdutos.sort((a, b) => a.descricao.localeCompare(b.descricao));
-
       setProdutosDisponiveis(todosProdutos);
       setProdutosFiltrados(todosProdutos);
+
+      toast.success(
+        `${todosProdutos.length} produtos com estoque carregados.`
+      );
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
       toast.error("Erro ao carregar produtos da loja");
@@ -333,60 +450,10 @@ export default function TransferenciaModal({
     }
   };
 
-  // Carregar histórico de transferências
+  // Carregar histórico de transferências (desabilitado por enquanto)
   const carregarHistorico = async () => {
-    if (!lojaOrigem || !lojaDestino) return;
-
-    setLoadingHistorico(true);
-    try {
-      const { supabase } = await import("@/lib/supabaseClient");
-
-      // Buscar transferências de saída da loja origem para a loja destino
-      const { data, error } = await supabase
-        .from("historico_estoque")
-        .select(
-          `
-          id,
-          id_produto,
-          quantidade_alterada,
-          criado_em,
-          observacao,
-          usuario_id,
-          produto:produtos(descricao, marca)
-        `
-        )
-        .eq("id_loja", parseInt(lojaOrigem))
-        .eq("tipo_movimentacao", "transferencia_saida")
-        .ilike(
-          "observacao",
-          `%${lojas.find((l) => l.id === parseInt(lojaDestino))?.nome}%`
-        )
-        .order("criado_em", { ascending: false })
-        .limit(50); // Limitar a 50 registros mais recentes
-
-      if (error) throw error;
-
-      const historico: HistoricoTransferencia[] = (data || []).map(
-        (item: any) => ({
-          id: item.id,
-          id_produto: item.id_produto,
-          quantidade_alterada: Math.abs(item.quantidade_alterada),
-          criado_em: item.criado_em,
-          observacao: item.observacao,
-          usuario_id: item.usuario_id,
-          produto: item.produto,
-        })
-      );
-
-      setHistoricoTransferencias(historico);
-      setPaginaAtualHistorico(1); // Resetar para primeira página
-    } catch (error) {
-      console.error("Erro ao carregar histórico:", error);
-      toast.error("Erro ao carregar histórico de transferências");
-      setHistoricoTransferencias([]);
-    } finally {
-      setLoadingHistorico(false);
-    }
+    // Função desabilitada - histórico será implementado de outra forma
+    return;
   };
 
   // Produto selecionado completo
@@ -499,11 +566,6 @@ export default function TransferenciaModal({
 
   // Adicionar item à lista diretamente ao clicar no produto
   const adicionarProdutoDireto = (produto: Produto) => {
-    if (!lojaOrigem || !lojaDestino) {
-      toast.warning("Selecione as lojas de origem e destino primeiro");
-      return;
-    }
-
     // Verificar se já existe na lista
     const itemExistente = itensTransferencia.find(
       (i) => i.id_produto === produto.id
@@ -511,12 +573,12 @@ export default function TransferenciaModal({
 
     if (itemExistente) {
       toast.info(
-        `${produto.descricao} já está na lista. Edite a quantidade na seção abaixo.`
+        `${produto.descricao} já está na lista. Edite a quantidade e selecione as lojas na seção abaixo.`
       );
       return;
     }
 
-    // Adicionar novo item com quantidade 1
+    // Adicionar novo item com quantidade 1 (lojas serão selecionadas depois)
     const novoItem: ItemTransferencia = {
       id_produto: produto.id,
       produto_descricao: produto.descricao,
@@ -524,12 +586,12 @@ export default function TransferenciaModal({
       quantidade: 1,
       quantidade_disponivel: produto.quantidade_disponivel,
       preco_venda: produto.preco_venda,
-      loja_origem: lojaOrigem,
-      loja_destino: lojaDestino,
+      loja_origem: "", // Usuário selecionará depois
+      loja_destino: "", // Usuário selecionará depois
       estoques_lojas: produto.estoques_lojas,
     };
-    setItensTransferencia((prev) => [...prev, novoItem]);
-    toast.success(`${produto.descricao} adicionado à lista`);
+    setItensTransferencia((prev) => [novoItem, ...prev]);
+    toast.success(`${produto.descricao} adicionado à lista. Selecione as lojas de origem e destino.`);
   };
 
   // Adicionar item à lista
@@ -552,7 +614,7 @@ export default function TransferenciaModal({
       );
       toast.success("Quantidade atualizada");
     } else {
-      // Adicionar novo item
+      // Adicionar novo item (lojas serão selecionadas depois)
       const novoItem: ItemTransferencia = {
         id_produto: produtoAtual.id,
         produto_descricao: produtoAtual.descricao,
@@ -560,12 +622,12 @@ export default function TransferenciaModal({
         quantidade: quantidade,
         quantidade_disponivel: produtoAtual.quantidade_disponivel,
         preco_venda: produtoAtual.preco_venda,
-        loja_origem: lojaOrigem, // Usar loja origem padrão
-        loja_destino: lojaDestino, // Usar loja destino padrão
-        estoques_lojas: produtoAtual.estoques_lojas, // Incluir estoque em todas as lojas
+        loja_origem: "", // Usuário selecionará depois
+        loja_destino: "", // Usuário selecionará depois
+        estoques_lojas: produtoAtual.estoques_lojas,
       };
-      setItensTransferencia((prev) => [...prev, novoItem]);
-      toast.success("Produto adicionado à lista");
+      setItensTransferencia((prev) => [novoItem, ...prev]);
+      toast.success("Produto adicionado à lista. Selecione as lojas de origem e destino.");
     }
 
     // Resetar seleção
@@ -600,13 +662,13 @@ export default function TransferenciaModal({
         quantidade: quantidadeDisponivel,
         quantidade_disponivel: produtoAtual.quantidade_disponivel,
         preco_venda: produtoAtual.preco_venda,
-        loja_origem: lojaOrigem, // Usar loja origem padrão
-        loja_destino: lojaDestino, // Usar loja destino padrão
-        estoques_lojas: produtoAtual.estoques_lojas, // Incluir estoque em todas as lojas
+        loja_origem: "", // Usuário selecionará depois
+        loja_destino: "", // Usuário selecionará depois
+        estoques_lojas: produtoAtual.estoques_lojas,
       };
-      setItensTransferencia((prev) => [...prev, novoItem]);
+      setItensTransferencia((prev) => [novoItem, ...prev]);
       toast.success(
-        `Todo o estoque adicionado (${quantidadeDisponivel} unidades)`
+        `Todo o estoque adicionado (${quantidadeDisponivel} unidades). Selecione as lojas de origem e destino.`
       );
     }
 
@@ -832,102 +894,19 @@ export default function TransferenciaModal({
         </ModalHeader>
 
         <ModalBody className="gap-4">
-          {/* SEÇÃO 1: Seleção de Lojas */}
+          {/* SEÇÃO 1: Visualização de Estoque */}
           <Card className="bg-content2 shadow-md">
             <CardBody className="gap-4 p-6">
               <h3 className="text-base font-semibold text-default-700">
-                1. Configure as Lojas Padrão e Visualização
+                1. Visualizar Estoque nas Lojas (Opcional)
               </h3>
               <p className="text-xs text-default-500 -mt-2">
-                Defina lojas padrão para novos produtos e selecione lojas para
-                visualizar estoque
+                Selecione lojas para visualizar o estoque atual e previsto de cada produto
               </p>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Loja Origem */}
-                <div>
-                  <Select
-                    label="Loja de Origem Padrão"
-                    placeholder="Selecione a loja origem"
-                    selectedKeys={lojaOrigem ? [lojaOrigem] : []}
-                    onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as string;
-                      setLojaOrigem(selected);
-                      // Resetar destino se for igual à origem
-                      if (selected === lojaDestino) {
-                        setLojaDestino("");
-                      }
-                      // Limpar lista de produtos
-                      setItensTransferencia([]);
-                      setProdutoSelecionado("");
-                    }}
-                    classNames={{
-                      trigger: "bg-content1",
-                    }}
-                    description="Origem padrão para novos produtos adicionados"
-                  >
-                    {lojas && lojas.length > 0 ? (
-                      lojas.map((loja) => (
-                        <SelectItem key={loja.id.toString()}>
-                          {loja.nome}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem key="loading">Carregando...</SelectItem>
-                    )}
-                  </Select>
-                </div>
-
-                {/* Loja Destino */}
-                <div>
-                  <Select
-                    label="Loja de Destino Padrão"
-                    placeholder="Selecione a loja destino"
-                    selectedKeys={lojaDestino ? [lojaDestino] : []}
-                    onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as string;
-                      setLojaDestino(selected);
-                    }}
-                    isDisabled={!lojaOrigem}
-                    classNames={{
-                      trigger: "bg-content1",
-                    }}
-                    description="Destino padrão para novos produtos adicionados"
-                  >
-                    {lojasDestinoDisponiveis &&
-                    lojasDestinoDisponiveis.length > 0 ? (
-                      lojasDestinoDisponiveis.map((loja) => (
-                        <SelectItem key={loja.id.toString()}>
-                          {loja.nome}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem key="none">
-                        Nenhuma loja disponível
-                      </SelectItem>
-                    )}
-                  </Select>
-                </div>
-              </div>
-
-              {/* Indicador visual de transferência */}
-              {lojaOrigem && lojaDestino && (
-                <div className="flex items-center justify-center gap-3 py-2">
-                  <Chip color="primary" variant="flat" size="sm">
-                    {lojas.find((l) => l.id === parseInt(lojaOrigem))?.nome}
-                  </Chip>
-                  <ArrowRightIcon className="h-5 w-5 text-success" />
-                  <Chip color="success" variant="flat" size="sm">
-                    {lojas.find((l) => l.id === parseInt(lojaDestino))?.nome}
-                  </Chip>
-                </div>
-              )}
-
-              {/* Seleção de Lojas para Visualizar Estoque */}
-              <Divider className="my-2" />
               <div>
                 <Select
-                  label="Visualizar Estoque nas Lojas (Opcional)"
+                  label="Lojas para Visualizar Estoque"
                   placeholder="Selecione lojas para visualizar estoque"
                   selectionMode="multiple"
                   selectedKeys={lojasParaVisualizar}
@@ -1054,18 +1033,16 @@ export default function TransferenciaModal({
           )}
 
           {/* SEÇÃO 2: Adicionar Produtos */}
-          {lojaOrigem && lojaDestino && (
-            <Card className="bg-content2 shadow-md">
-              <CardBody className="gap-4 p-6">
-                <div>
-                  <h3 className="text-base font-semibold text-default-700">
-                    2. Adicione os Produtos para Transferir
-                  </h3>
-                  <p className="text-xs text-default-500 mt-1">
-                    💡 Clique em um produto para adicioná-lo à lista. Você
-                    poderá editar a quantidade depois.
-                  </p>
-                </div>
+          <Card className="bg-content2 shadow-md">
+            <CardBody className="gap-4 p-6">
+              <div>
+                <h3 className="text-base font-semibold text-default-700">
+                  2. Adicione os Produtos para Transferir
+                </h3>
+                <p className="text-xs text-default-500 mt-1">
+                  💡 Clique em um produto para adicioná-lo à lista. Depois selecione as lojas de origem e destino para cada produto.
+                </p>
+              </div>
 
                 {/* Campo de Busca */}
                 <Input
@@ -1248,16 +1225,22 @@ export default function TransferenciaModal({
                                   )}
                                 </div>
 
-                                {/* Estoque por Loja */}
+                                {/* Estoque por Loja - Apenas lojas selecionadas */}
                                 {produto.estoques_lojas &&
-                                  produto.estoques_lojas.length > 0 && (
+                                  produto.estoques_lojas.length > 0 &&
+                                  lojasParaVisualizar.length > 0 && (
                                     <div className="pt-2 border-t border-divider">
                                       <div className="text-xs text-default-500 mb-1.5 font-medium">
-                                        Estoque por Loja:
+                                        Estoque nas Lojas Selecionadas:
                                       </div>
                                       <div className="flex flex-wrap gap-1.5">
-                                        {produto.estoques_lojas.map(
-                                          (estoque) => (
+                                        {produto.estoques_lojas
+                                          .filter((estoque) =>
+                                            lojasParaVisualizar.includes(
+                                              estoque.id_loja.toString()
+                                            )
+                                          )
+                                          .map((estoque) => (
                                             <div
                                               key={estoque.id_loja}
                                               className="flex items-center gap-1 bg-default-100 dark:bg-default-100/10 rounded-md px-2 py-1"
@@ -1278,7 +1261,16 @@ export default function TransferenciaModal({
                                                 {estoque.quantidade}
                                               </Chip>
                                             </div>
-                                          )
+                                          ))}
+                                        {produto.estoques_lojas.filter(
+                                          (estoque) =>
+                                            lojasParaVisualizar.includes(
+                                              estoque.id_loja.toString()
+                                            )
+                                        ).length === 0 && (
+                                          <span className="text-xs text-default-400 italic">
+                                            Nenhuma das lojas selecionadas tem estoque
+                                          </span>
                                         )}
                                       </div>
                                     </div>
@@ -1329,7 +1321,6 @@ export default function TransferenciaModal({
                 )}
               </CardBody>
             </Card>
-          )}
 
           {/* SEÇÃO 3: Lista de Produtos a Transferir */}
           {itensTransferencia.length > 0 && (
@@ -1688,157 +1679,6 @@ export default function TransferenciaModal({
                     inputWrapper: "bg-content1",
                   }}
                 />
-              </CardBody>
-            </Card>
-          )}
-
-          {/* Histórico de Transferências */}
-          {lojaOrigem && lojaDestino && (
-            <Card className="bg-content2 shadow-md">
-              <CardBody className="p-6">
-                <Button
-                  fullWidth
-                  variant="flat"
-                  color={mostrarHistorico ? "primary" : "default"}
-                  size="lg"
-                  startContent={<ClockIcon className="h-5 w-5" />}
-                  endContent={
-                    <div className="flex items-center gap-2">
-                      {historicoTransferencias.length > 0 && (
-                        <Chip size="sm" color="primary" variant="solid">
-                          {historicoTransferencias.length}
-                        </Chip>
-                      )}
-                      {mostrarHistorico ? (
-                        <ChevronUpIcon className="h-5 w-5" />
-                      ) : (
-                        <ChevronDownIcon className="h-5 w-5" />
-                      )}
-                    </div>
-                  }
-                  onPress={() => {
-                    setMostrarHistorico(!mostrarHistorico);
-                    if (
-                      !mostrarHistorico &&
-                      historicoTransferencias.length === 0
-                    ) {
-                      carregarHistorico();
-                    }
-                  }}
-                >
-                  {mostrarHistorico ? "Ocultar" : "Ver"} Histórico de
-                  Transferências Entre Estas Lojas
-                </Button>
-
-                {mostrarHistorico && (
-                  <>
-                    {loadingHistorico ? (
-                      <div className="text-center py-8 text-default-400">
-                        Carregando histórico...
-                      </div>
-                    ) : historicoTransferencias.length === 0 ? (
-                      <div className="text-center py-8 text-default-400">
-                        Nenhuma transferência encontrada entre estas lojas
-                      </div>
-                    ) : (
-                      <>
-                        <div className="mt-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-medium text-default-600">
-                              Últimas Transferências
-                            </p>
-                            <Chip size="sm" variant="flat" color="primary">
-                              {historicoTransferencias.length} registro(s)
-                            </Chip>
-                          </div>
-
-                          <div className="space-y-2">
-                            {historicoPaginado.map((item) => (
-                              <div
-                                key={item.id}
-                                className="p-4 bg-content1 rounded-lg border border-divider"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="text-sm font-semibold text-default-800">
-                                        {item.produto?.descricao || "Produto"}
-                                      </p>
-                                      {item.produto?.marca && (
-                                        <Chip
-                                          size="sm"
-                                          variant="flat"
-                                          color="default"
-                                        >
-                                          {item.produto.marca}
-                                        </Chip>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center gap-3 flex-wrap text-xs text-default-500">
-                                      <span className="flex items-center gap-1">
-                                        <ClockIcon className="h-4 w-4" />
-                                        {new Date(
-                                          item.criado_em
-                                        ).toLocaleDateString("pt-BR", {
-                                          day: "2-digit",
-                                          month: "2-digit",
-                                          year: "numeric",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                    </div>
-
-                                    {item.observacao && (
-                                      <p className="text-xs text-default-400 mt-2 italic">
-                                        {item.observacao}
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <Chip
-                                    color="primary"
-                                    variant="flat"
-                                    size="md"
-                                  >
-                                    {item.quantidade_alterada}{" "}
-                                    {item.quantidade_alterada === 1
-                                      ? "unidade"
-                                      : "unidades"}
-                                  </Chip>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Paginação do Histórico */}
-                        {totalPaginasHistorico > 1 && (
-                          <div className="flex justify-center mt-4 pt-4 border-t border-divider">
-                            <Pagination
-                              total={totalPaginasHistorico}
-                              page={paginaAtualHistorico}
-                              onChange={setPaginaAtualHistorico}
-                              size="lg"
-                              showControls
-                              className="gap-2"
-                              classNames={{
-                                cursor: "bg-primary text-white",
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Contador de registros */}
-                        <div className="mt-3 text-center text-xs text-default-400">
-                          Mostrando {historicoPaginado.length} de{" "}
-                          {historicoTransferencias.length} transferência(s)
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
               </CardBody>
             </Card>
           )}

@@ -894,10 +894,7 @@ export default function VendasPage() {
       key: "visualizar",
       label: "Ver Detalhes",
       icon: <Eye className="w-4 h-4" />,
-      onClick: () => {
-        setVendaSelecionada(venda);
-        setModalDetalhesOpen(true);
-      },
+      onClick: () => handleAbrirDetalhes(venda),
     });
 
     // Editar
@@ -1556,7 +1553,18 @@ export default function VendasPage() {
           setVendaSelecionada(null);
         }}
         venda={vendaSelecionada}
-        onAtualizarVenda={carregarVendas}
+        onAtualizarVenda={async () => {
+          await carregarVendas();
+          if (vendaSelecionada) {
+            // Atualiza a venda selecionada com dados frescos
+            const vendaAtualizada = await VendasService.buscarVendaCompleta(
+              vendaSelecionada.id
+            );
+            if (vendaAtualizada) {
+              setVendaSelecionada(vendaAtualizada);
+            }
+          }
+        }}
       />
 
       {/* Modal de Motivo do Cancelamento */}
