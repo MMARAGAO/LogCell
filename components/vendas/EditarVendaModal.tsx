@@ -144,7 +144,9 @@ export function EditarVendaModal({
     paginaAtual * PRODUTOS_POR_PAGINA
   );
 
-  const totalPaginas = Math.ceil(produtosFiltrados.length / PRODUTOS_POR_PAGINA);
+  const totalPaginas = Math.ceil(
+    produtosFiltrados.length / PRODUTOS_POR_PAGINA
+  );
 
   const calcularTotal = () => {
     return itens.reduce((sum, item) => {
@@ -458,7 +460,7 @@ export function EditarVendaModal({
                             size="sm"
                             variant="flat"
                             isDisabled={paginaAtual === 1}
-                            onClick={() => setPaginaAtual(p => p - 1)}
+                            onClick={() => setPaginaAtual((p) => p - 1)}
                           >
                             Anterior
                           </Button>
@@ -469,7 +471,7 @@ export function EditarVendaModal({
                             size="sm"
                             variant="flat"
                             isDisabled={paginaAtual === totalPaginas}
-                            onClick={() => setPaginaAtual(p => p + 1)}
+                            onClick={() => setPaginaAtual((p) => p + 1)}
                           >
                             Próxima
                           </Button>

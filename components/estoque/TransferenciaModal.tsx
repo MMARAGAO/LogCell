@@ -292,7 +292,7 @@ export default function TransferenciaModal({
           );
 
           const todosProdutos = [...produtosDisponiveis, ...produtosNovos];
-          
+
           // Filtrar localmente
           const palavras = buscaProduto
             .toLowerCase()
@@ -300,7 +300,11 @@ export default function TransferenciaModal({
             .filter((p) => p.length > 0);
 
           const filtrados = todosProdutos.filter((produto) => {
-            const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+            const textoBusca = [
+              produto.descricao,
+              produto.marca,
+              produto.modelos,
+            ]
               .filter(Boolean)
               .join(" ")
               .toLowerCase();
@@ -317,7 +321,11 @@ export default function TransferenciaModal({
             .filter((p) => p.length > 0);
 
           const filtrados = produtosDisponiveis.filter((produto) => {
-            const textoBusca = [produto.descricao, produto.marca, produto.modelos]
+            const textoBusca = [
+              produto.descricao,
+              produto.marca,
+              produto.modelos,
+            ]
               .filter(Boolean)
               .join(" ")
               .toLowerCase();
@@ -438,9 +446,7 @@ export default function TransferenciaModal({
       setProdutosDisponiveis(todosProdutos);
       setProdutosFiltrados(todosProdutos);
 
-      toast.success(
-        `${todosProdutos.length} produtos com estoque carregados.`
-      );
+      toast.success(`${todosProdutos.length} produtos com estoque carregados.`);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
       toast.error("Erro ao carregar produtos da loja");
@@ -591,7 +597,9 @@ export default function TransferenciaModal({
       estoques_lojas: produto.estoques_lojas,
     };
     setItensTransferencia((prev) => [novoItem, ...prev]);
-    toast.success(`${produto.descricao} adicionado à lista. Selecione as lojas de origem e destino.`);
+    toast.success(
+      `${produto.descricao} adicionado à lista. Selecione as lojas de origem e destino.`
+    );
   };
 
   // Adicionar item à lista
@@ -627,7 +635,9 @@ export default function TransferenciaModal({
         estoques_lojas: produtoAtual.estoques_lojas,
       };
       setItensTransferencia((prev) => [novoItem, ...prev]);
-      toast.success("Produto adicionado à lista. Selecione as lojas de origem e destino.");
+      toast.success(
+        "Produto adicionado à lista. Selecione as lojas de origem e destino."
+      );
     }
 
     // Resetar seleção
@@ -901,7 +911,8 @@ export default function TransferenciaModal({
                 1. Visualizar Estoque nas Lojas (Opcional)
               </h3>
               <p className="text-xs text-default-500 -mt-2">
-                Selecione lojas para visualizar o estoque atual e previsto de cada produto
+                Selecione lojas para visualizar o estoque atual e previsto de
+                cada produto
               </p>
 
               <div>
@@ -1040,63 +1051,63 @@ export default function TransferenciaModal({
                   2. Adicione os Produtos para Transferir
                 </h3>
                 <p className="text-xs text-default-500 mt-1">
-                  💡 Clique em um produto para adicioná-lo à lista. Depois selecione as lojas de origem e destino para cada produto.
+                  💡 Clique em um produto para adicioná-lo à lista. Depois
+                  selecione as lojas de origem e destino para cada produto.
                 </p>
               </div>
 
-                {/* Campo de Busca */}
-                <Input
-                  label="Buscar Produto"
-                  placeholder="Ex: bat i 17, tela samsung, cabo usb..."
-                  value={buscaProduto}
-                  onValueChange={setBuscaProduto}
-                  isClearable
-                  onClear={() => setBuscaProduto("")}
-                  classNames={{
-                    inputWrapper: "bg-content1",
-                  }}
-                  description={
-                    totalPaginasProdutos > 1
-                      ? `${produtosFiltrados.length} produto(s) encontrado(s) - Página ${paginaAtual} de ${totalPaginasProdutos}`
-                      : `${produtosFiltrados.length} de ${produtosDisponiveis.length} produto(s) encontrado(s)`
-                  }
-                />
+              {/* Campo de Busca */}
+              <Input
+                label="Buscar Produto"
+                placeholder="Ex: bat i 17, tela samsung, cabo usb..."
+                value={buscaProduto}
+                onValueChange={setBuscaProduto}
+                isClearable
+                onClear={() => setBuscaProduto("")}
+                classNames={{
+                  inputWrapper: "bg-content1",
+                }}
+                description={
+                  totalPaginasProdutos > 1
+                    ? `${produtosFiltrados.length} produto(s) encontrado(s) - Página ${paginaAtual} de ${totalPaginasProdutos}`
+                    : `${produtosFiltrados.length} de ${produtosDisponiveis.length} produto(s) encontrado(s)`
+                }
+              />
 
-                {/* Lista de Produtos */}
-                {loadingProdutos ? (
-                  <div className="text-center py-8">
-                    <div className="text-default-400 mb-2">
-                      Carregando produtos...
+              {/* Lista de Produtos */}
+              {loadingProdutos ? (
+                <div className="text-center py-8">
+                  <div className="text-default-400 mb-2">
+                    Carregando produtos...
+                  </div>
+                  {progressoCarregamento > 0 && (
+                    <div className="text-sm text-primary">
+                      {progressoCarregamento} produtos carregados
                     </div>
-                    {progressoCarregamento > 0 && (
-                      <div className="text-sm text-primary">
-                        {progressoCarregamento} produtos carregados
-                      </div>
-                    )}
-                  </div>
-                ) : produtosFiltrados.length === 0 ? (
-                  <div className="text-center py-8 text-default-400">
-                    {buscaProduto
-                      ? "Nenhum produto encontrado"
-                      : "Nenhum produto disponível nesta loja"}
-                  </div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {produtosPaginados.map((produto) => {
-                        const jaAdicionado = itensTransferencia.find(
-                          (i) => i.id_produto === produto.id
-                        );
-                        const quantidadeDisponivel =
-                          produto.quantidade_disponivel -
-                          (jaAdicionado?.quantidade || 0);
-                        const estaSelecionado =
-                          produtoSelecionado === produto.id;
+                  )}
+                </div>
+              ) : produtosFiltrados.length === 0 ? (
+                <div className="text-center py-8 text-default-400">
+                  {buscaProduto
+                    ? "Nenhum produto encontrado"
+                    : "Nenhum produto disponível nesta loja"}
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {produtosPaginados.map((produto) => {
+                      const jaAdicionado = itensTransferencia.find(
+                        (i) => i.id_produto === produto.id
+                      );
+                      const quantidadeDisponivel =
+                        produto.quantidade_disponivel -
+                        (jaAdicionado?.quantidade || 0);
+                      const estaSelecionado = produtoSelecionado === produto.id;
 
-                        return (
-                          <div
-                            key={produto.id}
-                            className={`
+                      return (
+                        <div
+                          key={produto.id}
+                          className={`
                             p-4 rounded-lg border-2 cursor-pointer transition-all
                             ${
                               jaAdicionado
@@ -1105,222 +1116,221 @@ export default function TransferenciaModal({
                             }
                             ${quantidadeDisponivel <= 0 ? "opacity-50 cursor-not-allowed" : ""}
                           `}
-                            onClick={() => {
-                              if (quantidadeDisponivel > 0 && !jaAdicionado) {
-                                adicionarProdutoDireto(produto);
-                              }
-                            }}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 space-y-2">
-                                {/* Nome do Produto */}
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-semibold text-default-900">
-                                    {produto.descricao}
-                                  </p>
-                                  {jaAdicionado && (
-                                    <Chip
-                                      size="sm"
-                                      color="success"
-                                      variant="flat"
-                                    >
-                                      ✓ Adicionado
-                                    </Chip>
-                                  )}
-                                </div>
+                          onClick={() => {
+                            if (quantidadeDisponivel > 0 && !jaAdicionado) {
+                              adicionarProdutoDireto(produto);
+                            }
+                          }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 space-y-2">
+                              {/* Nome do Produto */}
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-default-900">
+                                  {produto.descricao}
+                                </p>
+                                {jaAdicionado && (
+                                  <Chip
+                                    size="sm"
+                                    color="success"
+                                    variant="flat"
+                                  >
+                                    ✓ Adicionado
+                                  </Chip>
+                                )}
+                              </div>
 
-                                {/* Informações Detalhadas */}
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                  {/* Marca */}
-                                  {produto.marca && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-default-500">
-                                        Marca:
-                                      </span>
-                                      <span className="font-medium text-default-700">
-                                        {produto.marca}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* Modelos */}
-                                  {produto.modelos && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-default-500">
-                                        Modelos:
-                                      </span>
-                                      <span className="font-medium text-default-700">
-                                        {produto.modelos}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* Preço */}
-                                  {produto.preco_venda && (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-default-500">
-                                        Preço:
-                                      </span>
-                                      <span className="font-medium text-success">
-                                        R$ {produto.preco_venda.toFixed(2)}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  {/* ID (últimos 8 caracteres) */}
+                              {/* Informações Detalhadas */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {/* Marca */}
+                                {produto.marca && (
                                   <div className="flex items-center gap-1">
                                     <span className="text-default-500">
-                                      ID:
+                                      Marca:
                                     </span>
-                                    <span className="font-mono text-xs text-default-600">
-                                      ...{produto.id.slice(-8)}
+                                    <span className="font-medium text-default-700">
+                                      {produto.marca}
                                     </span>
                                   </div>
-                                </div>
+                                )}
 
-                                {/* Chips de Status */}
-                                <div className="flex items-center gap-2 flex-wrap">
+                                {/* Modelos */}
+                                {produto.modelos && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-default-500">
+                                      Modelos:
+                                    </span>
+                                    <span className="font-medium text-default-700">
+                                      {produto.modelos}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Preço */}
+                                {produto.preco_venda && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-default-500">
+                                      Preço:
+                                    </span>
+                                    <span className="font-medium text-success">
+                                      R$ {produto.preco_venda.toFixed(2)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* ID (últimos 8 caracteres) */}
+                                <div className="flex items-center gap-1">
+                                  <span className="text-default-500">ID:</span>
+                                  <span className="font-mono text-xs text-default-600">
+                                    ...{produto.id.slice(-8)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Chips de Status */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Chip
+                                  size="sm"
+                                  variant="flat"
+                                  color={
+                                    quantidadeDisponivel > 10
+                                      ? "success"
+                                      : quantidadeDisponivel > 0
+                                        ? "warning"
+                                        : "danger"
+                                  }
+                                  startContent={
+                                    <span className="text-xs">📦</span>
+                                  }
+                                >
+                                  Disponível: {quantidadeDisponivel}
+                                </Chip>
+
+                                {jaAdicionado && (
                                   <Chip
                                     size="sm"
                                     variant="flat"
-                                    color={
-                                      quantidadeDisponivel > 10
-                                        ? "success"
-                                        : quantidadeDisponivel > 0
-                                          ? "warning"
-                                          : "danger"
-                                    }
+                                    color="primary"
                                     startContent={
-                                      <span className="text-xs">📦</span>
+                                      <span className="text-xs">📋</span>
                                     }
                                   >
-                                    Disponível: {quantidadeDisponivel}
+                                    Na lista: {jaAdicionado.quantidade}
                                   </Chip>
+                                )}
 
-                                  {jaAdicionado && (
-                                    <Chip
-                                      size="sm"
-                                      variant="flat"
-                                      color="primary"
-                                      startContent={
-                                        <span className="text-xs">📋</span>
-                                      }
-                                    >
-                                      Na lista: {jaAdicionado.quantidade}
-                                    </Chip>
-                                  )}
-
-                                  {produto.quantidade_disponivel > 0 && (
-                                    <Chip
-                                      size="sm"
-                                      variant="flat"
-                                      color="default"
-                                      startContent={
-                                        <span className="text-xs">🏪</span>
-                                      }
-                                    >
-                                      Estoque total:{" "}
-                                      {produto.quantidade_disponivel}
-                                    </Chip>
-                                  )}
-                                </div>
-
-                                {/* Estoque por Loja - Apenas lojas selecionadas */}
-                                {produto.estoques_lojas &&
-                                  produto.estoques_lojas.length > 0 &&
-                                  lojasParaVisualizar.length > 0 && (
-                                    <div className="pt-2 border-t border-divider">
-                                      <div className="text-xs text-default-500 mb-1.5 font-medium">
-                                        Estoque nas Lojas Selecionadas:
-                                      </div>
-                                      <div className="flex flex-wrap gap-1.5">
-                                        {produto.estoques_lojas
-                                          .filter((estoque) =>
-                                            lojasParaVisualizar.includes(
-                                              estoque.id_loja.toString()
-                                            )
-                                          )
-                                          .map((estoque) => (
-                                            <div
-                                              key={estoque.id_loja}
-                                              className="flex items-center gap-1 bg-default-100 dark:bg-default-100/10 rounded-md px-2 py-1"
-                                            >
-                                              <span className="text-[10px] text-default-600 truncate max-w-[70px]">
-                                                {estoque.loja_nome}
-                                              </span>
-                                              <Chip
-                                                size="sm"
-                                                variant="flat"
-                                                color={
-                                                  estoque.quantidade > 0
-                                                    ? "primary"
-                                                    : "danger"
-                                                }
-                                                className="h-4 min-w-[30px] text-[10px] px-1"
-                                              >
-                                                {estoque.quantidade}
-                                              </Chip>
-                                            </div>
-                                          ))}
-                                        {produto.estoques_lojas.filter(
-                                          (estoque) =>
-                                            lojasParaVisualizar.includes(
-                                              estoque.id_loja.toString()
-                                            )
-                                        ).length === 0 && (
-                                          <span className="text-xs text-default-400 italic">
-                                            Nenhuma das lojas selecionadas tem estoque
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                {/* Valor total se selecionado */}
-                                {estaSelecionado &&
-                                  produto.preco_venda &&
-                                  quantidade > 0 && (
-                                    <div className="pt-2 border-t border-divider">
-                                      <div className="flex items-center justify-between text-sm">
-                                        <span className="text-default-600">
-                                          Valor da transferência:
-                                        </span>
-                                        <span className="font-bold text-success">
-                                          R${" "}
-                                          {(
-                                            produto.preco_venda * quantidade
-                                          ).toFixed(2)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  )}
+                                {produto.quantidade_disponivel > 0 && (
+                                  <Chip
+                                    size="sm"
+                                    variant="flat"
+                                    color="default"
+                                    startContent={
+                                      <span className="text-xs">🏪</span>
+                                    }
+                                  >
+                                    Estoque total:{" "}
+                                    {produto.quantidade_disponivel}
+                                  </Chip>
+                                )}
                               </div>
+
+                              {/* Estoque por Loja - Apenas lojas selecionadas */}
+                              {produto.estoques_lojas &&
+                                produto.estoques_lojas.length > 0 &&
+                                lojasParaVisualizar.length > 0 && (
+                                  <div className="pt-2 border-t border-divider">
+                                    <div className="text-xs text-default-500 mb-1.5 font-medium">
+                                      Estoque nas Lojas Selecionadas:
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {produto.estoques_lojas
+                                        .filter((estoque) =>
+                                          lojasParaVisualizar.includes(
+                                            estoque.id_loja.toString()
+                                          )
+                                        )
+                                        .map((estoque) => (
+                                          <div
+                                            key={estoque.id_loja}
+                                            className="flex items-center gap-1 bg-default-100 dark:bg-default-100/10 rounded-md px-2 py-1"
+                                          >
+                                            <span className="text-[10px] text-default-600 truncate max-w-[70px]">
+                                              {estoque.loja_nome}
+                                            </span>
+                                            <Chip
+                                              size="sm"
+                                              variant="flat"
+                                              color={
+                                                estoque.quantidade > 0
+                                                  ? "primary"
+                                                  : "danger"
+                                              }
+                                              className="h-4 min-w-[30px] text-[10px] px-1"
+                                            >
+                                              {estoque.quantidade}
+                                            </Chip>
+                                          </div>
+                                        ))}
+                                      {produto.estoques_lojas.filter(
+                                        (estoque) =>
+                                          lojasParaVisualizar.includes(
+                                            estoque.id_loja.toString()
+                                          )
+                                      ).length === 0 && (
+                                        <span className="text-xs text-default-400 italic">
+                                          Nenhuma das lojas selecionadas tem
+                                          estoque
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {/* Valor total se selecionado */}
+                              {estaSelecionado &&
+                                produto.preco_venda &&
+                                quantidade > 0 && (
+                                  <div className="pt-2 border-t border-divider">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-default-600">
+                                        Valor da transferência:
+                                      </span>
+                                      <span className="font-bold text-success">
+                                        R${" "}
+                                        {(
+                                          produto.preco_venda * quantidade
+                                        ).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-                    {/* Paginação de Produtos */}
-                    {totalPaginasProdutos > 1 && (
-                      <div className="flex justify-center mt-4">
-                        <Pagination
-                          total={totalPaginasProdutos}
-                          page={paginaAtual}
-                          onChange={setPaginaAtual}
-                          size="lg"
-                          showControls
-                          className="gap-2"
-                          classNames={{
-                            cursor: "bg-primary text-white",
-                          }}
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardBody>
-            </Card>
+                  {/* Paginação de Produtos */}
+                  {totalPaginasProdutos > 1 && (
+                    <div className="flex justify-center mt-4">
+                      <Pagination
+                        total={totalPaginasProdutos}
+                        page={paginaAtual}
+                        onChange={setPaginaAtual}
+                        size="lg"
+                        showControls
+                        className="gap-2"
+                        classNames={{
+                          cursor: "bg-primary text-white",
+                        }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </CardBody>
+          </Card>
 
           {/* SEÇÃO 3: Lista de Produtos a Transferir */}
           {itensTransferencia.length > 0 && (

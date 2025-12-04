@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardBody, CardFooter, Input, Button, Chip, Pagination } from "@heroui/react";
+import {
+  Card,
+  CardBody,
+  CardFooter,
+  Input,
+  Button,
+  Chip,
+  Pagination,
+} from "@heroui/react";
 import { Search, Plus, Package } from "lucide-react";
 
 interface Produto {
@@ -78,7 +86,9 @@ export function ProdutoSearchGrid({
     return produtosFiltrados.slice(inicio, fim);
   }, [produtosFiltrados, paginaAtual]);
 
-  const totalPaginas = Math.ceil(produtosFiltrados.length / PRODUTOS_POR_PAGINA);
+  const totalPaginas = Math.ceil(
+    produtosFiltrados.length / PRODUTOS_POR_PAGINA
+  );
 
   // Resetar página ao filtrar
   useMemo(() => {
@@ -141,96 +151,99 @@ export function ProdutoSearchGrid({
           {/* Contador de resultados */}
           <div className="text-sm text-gray-600 mb-2">
             Mostrando {(paginaAtual - 1) * PRODUTOS_POR_PAGINA + 1} a{" "}
-            {Math.min(paginaAtual * PRODUTOS_POR_PAGINA, produtosFiltrados.length)} de{" "}
-            {produtosFiltrados.length} produtos
+            {Math.min(
+              paginaAtual * PRODUTOS_POR_PAGINA,
+              produtosFiltrados.length
+            )}{" "}
+            de {produtosFiltrados.length} produtos
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {produtosPaginados.map((produto) => (
-            <Card
-              key={produto.id}
-              className="hover:shadow-lg transition-shadow"
-            >
-              <CardBody className="p-4">
-                {/* Imagem do produto */}
-                {produto.imagem_url ? (
-                  <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-default-100">
-                    <img
-                      src={produto.imagem_url}
-                      alt={produto.nome}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="aspect-square mb-3 rounded-lg bg-default-100 flex items-center justify-center">
-                    <Package className="w-12 h-12 text-default-400" />
-                  </div>
-                )}
+              <Card
+                key={produto.id}
+                className="hover:shadow-lg transition-shadow"
+              >
+                <CardBody className="p-4">
+                  {/* Imagem do produto */}
+                  {produto.imagem_url ? (
+                    <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-default-100">
+                      <img
+                        src={produto.imagem_url}
+                        alt={produto.nome}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-square mb-3 rounded-lg bg-default-100 flex items-center justify-center">
+                      <Package className="w-12 h-12 text-default-400" />
+                    </div>
+                  )}
 
-                {/* Info do produto */}
-                <div className="space-y-2">
-                  <div>
-                    <p className="font-semibold text-sm line-clamp-2">
-                      {produto.nome}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Cód: {produto.codigo}
-                    </p>
-                  </div>
+                  {/* Info do produto */}
+                  <div className="space-y-2">
+                    <div>
+                      <p className="font-semibold text-sm line-clamp-2">
+                        {produto.nome}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Cód: {produto.codigo}
+                      </p>
+                    </div>
 
-                  <div className="flex justify-between items-center">
-                    <p className="text-lg font-bold text-primary">
-                      {formatarMoeda(produto.preco_venda)}
-                    </p>
-                  </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-lg font-bold text-primary">
+                        {formatarMoeda(produto.preco_venda)}
+                      </p>
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <Chip
-                      size="sm"
-                      color={
-                        produto.estoque_disponivel > 0 ? "success" : "danger"
-                      }
-                      variant="flat"
-                    >
-                      Estoque: {produto.estoque_disponivel}
-                    </Chip>
-                    {produto.categoria && (
-                      <Chip size="sm" variant="flat">
-                        {produto.categoria}
+                    <div className="flex items-center justify-between">
+                      <Chip
+                        size="sm"
+                        color={
+                          produto.estoque_disponivel > 0 ? "success" : "danger"
+                        }
+                        variant="flat"
+                      >
+                        Estoque: {produto.estoque_disponivel}
                       </Chip>
-                    )}
+                      {produto.categoria && (
+                        <Chip size="sm" variant="flat">
+                          {produto.categoria}
+                        </Chip>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardBody>
+                </CardBody>
 
-              <CardFooter className="p-4 pt-0">
-                <Button
-                  color="primary"
-                  className="w-full"
-                  startContent={<Plus className="w-4 h-4" />}
-                  onClick={() => onAdicionarProduto(produto)}
-                  isDisabled={produto.estoque_disponivel <= 0}
-                >
-                  Adicionar
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        {/* Paginação */}
-        {totalPaginas > 1 && (
-          <div className="flex justify-center mt-6">
-            <Pagination
-              total={totalPaginas}
-              page={paginaAtual}
-              onChange={setPaginaAtual}
-              showControls
-              color="primary"
-            />
+                <CardFooter className="p-4 pt-0">
+                  <Button
+                    color="primary"
+                    className="w-full"
+                    startContent={<Plus className="w-4 h-4" />}
+                    onClick={() => onAdicionarProduto(produto)}
+                    isDisabled={produto.estoque_disponivel <= 0}
+                  >
+                    Adicionar
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
-        )}
-      </>
+
+          {/* Paginação */}
+          {totalPaginas > 1 && (
+            <div className="flex justify-center mt-6">
+              <Pagination
+                total={totalPaginas}
+                page={paginaAtual}
+                onChange={setPaginaAtual}
+                showControls
+                color="primary"
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

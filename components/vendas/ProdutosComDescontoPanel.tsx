@@ -17,15 +17,15 @@ import {
   Select,
   SelectItem,
 } from "@heroui/react";
-import { 
-  Package, 
-  Percent, 
-  DollarSign, 
-  Edit2, 
-  TrendingDown, 
+import {
+  Package,
+  Percent,
+  DollarSign,
+  Edit2,
+  TrendingDown,
   TrendingUp,
   Calculator,
-  Info
+  Info,
 } from "lucide-react";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useToast } from "@/components/Toast";
@@ -48,7 +48,9 @@ export function ProdutosComDescontoPanel({
   const [produtoSelecionado, setProdutoSelecionado] = useState<string | null>(
     null
   );
-  const [tipoAjuste, setTipoAjuste] = useState<"desconto" | "acrescimo">("desconto");
+  const [tipoAjuste, setTipoAjuste] = useState<"desconto" | "acrescimo">(
+    "desconto"
+  );
   const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
     "valor"
   );
@@ -245,14 +247,17 @@ export function ProdutosComDescontoPanel({
                   </p>
                   {temAjuste && (
                     <div className="mt-1 flex items-center gap-2">
-                      <Chip 
-                        size="sm" 
-                        color={isAcrescimo ? "primary" : "warning"} 
+                      <Chip
+                        size="sm"
+                        color={isAcrescimo ? "primary" : "warning"}
                         variant="flat"
                       >
-                        {isAcrescimo ? "Acréscimo" : "Desconto"}: {formatarMoeda(Math.abs(descontoAplicado))}
+                        {isAcrescimo ? "Acréscimo" : "Desconto"}:{" "}
+                        {formatarMoeda(Math.abs(descontoAplicado))}
                       </Chip>
-                      <span className={`text-sm font-semibold ${isAcrescimo ? "text-primary" : "text-success"}`}>
+                      <span
+                        className={`text-sm font-semibold ${isAcrescimo ? "text-primary" : "text-success"}`}
+                      >
                         Total: {formatarMoeda(subtotalFinal)}
                       </span>
                     </div>
@@ -280,11 +285,7 @@ export function ProdutosComDescontoPanel({
       </Card>
 
       {/* Modal de Desconto/Acréscimo */}
-      <Modal 
-        isOpen={modalOpen} 
-        onClose={() => setModalOpen(false)}
-        size="2xl"
-      >
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} size="2xl">
         <ModalContent>
           <ModalHeader className="flex items-center gap-2 pb-2">
             <Calculator className="w-5 h-5 text-primary" />
@@ -297,11 +298,15 @@ export function ProdutosComDescontoPanel({
                 <CardBody className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-lg">{itemSelecionado.produto_nome}</p>
+                      <p className="font-semibold text-lg">
+                        {itemSelecionado.produto_nome}
+                      </p>
                       <div className="flex items-center gap-4 mt-2 text-sm text-default-600">
                         <span>Qtd: {itemSelecionado.quantidade}</span>
                         <span>•</span>
-                        <span>Unit: {formatarMoeda(itemSelecionado.preco_unitario)}</span>
+                        <span>
+                          Unit: {formatarMoeda(itemSelecionado.preco_unitario)}
+                        </span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -319,41 +324,51 @@ export function ProdutosComDescontoPanel({
 
             {/* Seleção do Tipo de Ajuste */}
             <div className="grid grid-cols-2 gap-3">
-              <Card 
+              <Card
                 isPressable
                 isHoverable
                 className={`cursor-pointer transition-all ${
-                  tipoAjuste === "desconto" 
-                    ? "border-2 border-success bg-success-50/50" 
+                  tipoAjuste === "desconto"
+                    ? "border-2 border-success bg-success-50/50"
                     : "border border-default-200"
                 }`}
                 onPress={() => setTipoAjuste("desconto")}
               >
                 <CardBody className="p-4 text-center">
-                  <TrendingDown className={`w-8 h-8 mx-auto mb-2 ${
-                    tipoAjuste === "desconto" ? "text-success" : "text-default-400"
-                  }`} />
+                  <TrendingDown
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      tipoAjuste === "desconto"
+                        ? "text-success"
+                        : "text-default-400"
+                    }`}
+                  />
                   <p className="font-semibold">Desconto</p>
                   <p className="text-xs text-default-500 mt-1">Reduzir valor</p>
                 </CardBody>
               </Card>
 
-              <Card 
+              <Card
                 isPressable
                 isHoverable
                 className={`cursor-pointer transition-all ${
-                  tipoAjuste === "acrescimo" 
-                    ? "border-2 border-primary bg-primary-50/50" 
+                  tipoAjuste === "acrescimo"
+                    ? "border-2 border-primary bg-primary-50/50"
                     : "border border-default-200"
                 }`}
                 onPress={() => setTipoAjuste("acrescimo")}
               >
                 <CardBody className="p-4 text-center">
-                  <TrendingUp className={`w-8 h-8 mx-auto mb-2 ${
-                    tipoAjuste === "acrescimo" ? "text-primary" : "text-default-400"
-                  }`} />
+                  <TrendingUp
+                    className={`w-8 h-8 mx-auto mb-2 ${
+                      tipoAjuste === "acrescimo"
+                        ? "text-primary"
+                        : "text-default-400"
+                    }`}
+                  />
                   <p className="font-semibold">Acréscimo</p>
-                  <p className="text-xs text-default-500 mt-1">Aumentar valor</p>
+                  <p className="text-xs text-default-500 mt-1">
+                    Aumentar valor
+                  </p>
                 </CardBody>
               </Card>
             </div>
@@ -363,9 +378,12 @@ export function ProdutosComDescontoPanel({
               <div className="flex items-start gap-3 bg-warning-50 border border-warning-200 rounded-lg p-3">
                 <Info className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-warning-700">Limite de Desconto</p>
+                  <p className="text-sm font-semibold text-warning-700">
+                    Limite de Desconto
+                  </p>
                   <p className="text-xs text-warning-600 mt-1">
-                    Seu perfil permite aplicar até <strong>{descontoMaximo}%</strong> de desconto neste item.
+                    Seu perfil permite aplicar até{" "}
+                    <strong>{descontoMaximo}%</strong> de desconto neste item.
                   </p>
                 </div>
               </div>
@@ -373,39 +391,47 @@ export function ProdutosComDescontoPanel({
 
             {/* Tipo de Cálculo */}
             <div className="grid grid-cols-2 gap-3">
-              <Card 
+              <Card
                 isPressable
                 isHoverable
                 className={`cursor-pointer transition-all ${
-                  tipoDesconto === "valor" 
-                    ? "border-2 border-default-900 bg-default-100" 
+                  tipoDesconto === "valor"
+                    ? "border-2 border-default-900 bg-default-100"
                     : "border border-default-200"
                 }`}
                 onPress={() => setTipoDesconto("valor")}
               >
                 <CardBody className="p-3 text-center">
-                  <DollarSign className={`w-6 h-6 mx-auto mb-1 ${
-                    tipoDesconto === "valor" ? "text-default-900" : "text-default-400"
-                  }`} />
+                  <DollarSign
+                    className={`w-6 h-6 mx-auto mb-1 ${
+                      tipoDesconto === "valor"
+                        ? "text-default-900"
+                        : "text-default-400"
+                    }`}
+                  />
                   <p className="text-sm font-semibold">Valor Fixo</p>
                   <p className="text-xs text-default-500">Em reais (R$)</p>
                 </CardBody>
               </Card>
 
-              <Card 
+              <Card
                 isPressable
                 isHoverable
                 className={`cursor-pointer transition-all ${
-                  tipoDesconto === "percentual" 
-                    ? "border-2 border-default-900 bg-default-100" 
+                  tipoDesconto === "percentual"
+                    ? "border-2 border-default-900 bg-default-100"
                     : "border border-default-200"
                 }`}
                 onPress={() => setTipoDesconto("percentual")}
               >
                 <CardBody className="p-3 text-center">
-                  <Percent className={`w-6 h-6 mx-auto mb-1 ${
-                    tipoDesconto === "percentual" ? "text-default-900" : "text-default-400"
-                  }`} />
+                  <Percent
+                    className={`w-6 h-6 mx-auto mb-1 ${
+                      tipoDesconto === "percentual"
+                        ? "text-default-900"
+                        : "text-default-400"
+                    }`}
+                  />
                   <p className="text-sm font-semibold">Percentual</p>
                   <p className="text-xs text-default-500">Em porcentagem (%)</p>
                 </CardBody>
@@ -415,7 +441,9 @@ export function ProdutosComDescontoPanel({
             {/* Input de Valor */}
             <Input
               label={`Informe o ${tipoAjuste === "desconto" ? "desconto" : "acréscimo"}`}
-              placeholder={tipoDesconto === "percentual" ? "Ex: 10" : "Ex: 50.00"}
+              placeholder={
+                tipoDesconto === "percentual" ? "Ex: 10" : "Ex: 50.00"
+              }
               type="number"
               step="0.01"
               min="0"
@@ -423,8 +451,8 @@ export function ProdutosComDescontoPanel({
                 tipoAjuste === "desconto" && tipoDesconto === "percentual"
                   ? descontoMaximo
                   : tipoAjuste === "desconto" && tipoDesconto === "valor"
-                  ? itemSelecionado?.subtotal
-                  : undefined
+                    ? itemSelecionado?.subtotal
+                    : undefined
               }
               value={valorDesconto}
               onChange={(e) => handleValorChange(e.target.value)}
@@ -446,58 +474,79 @@ export function ProdutosComDescontoPanel({
               }
               classNames={{
                 input: "text-lg font-semibold",
-                inputWrapper: tipoAjuste === "desconto" 
-                  ? "border-success-300 data-[hover=true]:border-success-400" 
-                  : "border-primary-300 data-[hover=true]:border-primary-400"
+                inputWrapper:
+                  tipoAjuste === "desconto"
+                    ? "border-success-300 data-[hover=true]:border-success-400"
+                    : "border-primary-300 data-[hover=true]:border-primary-400",
               }}
             />
 
             {/* Preview do Resultado */}
-            {itemSelecionado && valorDesconto && parseFloat(valorDesconto) > 0 && (
-              <Card className={`${
-                tipoAjuste === "desconto" 
-                  ? "bg-gradient-to-br from-success-50 to-success-100/50 border-2 border-success-200" 
-                  : "bg-gradient-to-br from-primary-50 to-primary-100/50 border-2 border-primary-200"
-              }`}>
-                <CardBody className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-default-600 font-medium">
-                        {tipoAjuste === "desconto" ? "Valor do Desconto" : "Valor do Acréscimo"}
-                      </p>
-                      <p className={`text-lg font-bold ${
-                        tipoAjuste === "desconto" ? "text-success-700" : "text-primary-700"
-                      }`}>
-                        {tipoAjuste === "desconto" ? "- " : "+ "}
-                        {formatarMoeda(
-                          tipoDesconto === "valor"
-                            ? parseFloat(valorDesconto)
-                            : (itemSelecionado.subtotal * parseFloat(valorDesconto)) / 100
-                        )}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-default-600 font-medium">Novo Subtotal</p>
-                      <p className={`text-2xl font-bold ${
-                        tipoAjuste === "desconto" ? "text-success-700" : "text-primary-700"
-                      }`}>
-                        {formatarMoeda(
-                          itemSelecionado.subtotal +
-                            (tipoAjuste === "acrescimo" ? 1 : -1) *
-                            (tipoDesconto === "valor"
+            {itemSelecionado &&
+              valorDesconto &&
+              parseFloat(valorDesconto) > 0 && (
+                <Card
+                  className={`${
+                    tipoAjuste === "desconto"
+                      ? "bg-gradient-to-br from-success-50 to-success-100/50 border-2 border-success-200"
+                      : "bg-gradient-to-br from-primary-50 to-primary-100/50 border-2 border-primary-200"
+                  }`}
+                >
+                  <CardBody className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-default-600 font-medium">
+                          {tipoAjuste === "desconto"
+                            ? "Valor do Desconto"
+                            : "Valor do Acréscimo"}
+                        </p>
+                        <p
+                          className={`text-lg font-bold ${
+                            tipoAjuste === "desconto"
+                              ? "text-success-700"
+                              : "text-primary-700"
+                          }`}
+                        >
+                          {tipoAjuste === "desconto" ? "- " : "+ "}
+                          {formatarMoeda(
+                            tipoDesconto === "valor"
                               ? parseFloat(valorDesconto)
-                              : (itemSelecionado.subtotal * parseFloat(valorDesconto)) / 100)
-                        )}
-                      </p>
+                              : (itemSelecionado.subtotal *
+                                  parseFloat(valorDesconto)) /
+                                  100
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-default-600 font-medium">
+                          Novo Subtotal
+                        </p>
+                        <p
+                          className={`text-2xl font-bold ${
+                            tipoAjuste === "desconto"
+                              ? "text-success-700"
+                              : "text-primary-700"
+                          }`}
+                        >
+                          {formatarMoeda(
+                            itemSelecionado.subtotal +
+                              (tipoAjuste === "acrescimo" ? 1 : -1) *
+                                (tipoDesconto === "valor"
+                                  ? parseFloat(valorDesconto)
+                                  : (itemSelecionado.subtotal *
+                                      parseFloat(valorDesconto)) /
+                                    100)
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardBody>
-              </Card>
-            )}
+                  </CardBody>
+                </Card>
+              )}
           </ModalBody>
           <ModalFooter className="gap-2">
-            <Button 
-              variant="light" 
+            <Button
+              variant="light"
               onPress={() => setModalOpen(false)}
               size="lg"
             >
@@ -510,9 +559,11 @@ export function ProdutosComDescontoPanel({
               size="lg"
               className="font-semibold"
               startContent={
-                tipoAjuste === "desconto" 
-                  ? <TrendingDown className="w-5 h-5" />
-                  : <TrendingUp className="w-5 h-5" />
+                tipoAjuste === "desconto" ? (
+                  <TrendingDown className="w-5 h-5" />
+                ) : (
+                  <TrendingUp className="w-5 h-5" />
+                )
               }
             >
               Confirmar {tipoAjuste === "desconto" ? "Desconto" : "Acréscimo"}
