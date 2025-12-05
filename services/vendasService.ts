@@ -753,6 +753,57 @@ export class VendasService {
   }
 
   /**
+   * Conclui uma venda manualmente
+   */
+  static async concluirVenda(
+    vendaId: string,
+    usuarioId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Buscar dados da venda
+      const { data: venda, error: erroVenda } = await supabase
+        .from("vendas")
+        .select("*, itens:itens_venda(*)")
+        .eq("id", vendaId)
+        .single();
+
+      if (erroVenda || !venda) {
+        return { success: false, error: "Venda não encontrada" };
+      }
+
+      // Verificar se já está concluída
+      if (venda.status === "concluida") {
+        return { success: false, error: "Venda já está concluída" };
+      }
+
+      // Atualizar status para concluída
+      const { error: erroUpdate } = await supabase
+        .from("vendas")
+        .update({
+          status: "concluida",
+        })
+        .eq("id", vendaId);
+
+      if (erroUpdate) {
+        return { success: false, error: erroUpdate.message };
+      }
+
+      // Registrar no histórico
+      await this.registrarHistorico({
+        venda_id: vendaId,
+        tipo_acao: "finalizacao",
+        descricao: "Venda concluída manualmente",
+        usuario_id: usuarioId,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Erro ao concluir venda:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Edita dados de uma venda
    */
   /**

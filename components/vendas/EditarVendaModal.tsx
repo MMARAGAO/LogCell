@@ -15,7 +15,7 @@ import {
   Divider,
   Chip,
 } from "@heroui/react";
-import { Plus, Trash2, Minus } from "lucide-react";
+import { Plus, Trash2, Minus, Edit2 } from "lucide-react";
 import type { VendaCompleta } from "@/types/vendas";
 
 interface EditarVendaModalProps {
@@ -63,6 +63,8 @@ export function EditarVendaModal({
   >({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const PRODUTOS_POR_PAGINA = 10;
+  const [precoEditando, setPrecoEditando] = useState<number | null>(null);
+  const [precoTemporario, setPrecoTemporario] = useState<string>("");
 
   useEffect(() => {
     if (venda && isOpen) {
@@ -283,6 +285,26 @@ export function EditarVendaModal({
     }
 
     setItens(novosItens);
+  };
+
+  const alterarPreco = (index: number, novoPreco: number) => {
+    if (novoPreco <= 0) {
+      alert("O preço deve ser maior que zero");
+      return;
+    }
+
+    const novosItens = [...itens];
+    novosItens[index].preco_unitario = novoPreco;
+    novosItens[index].subtotal = novosItens[index].quantidade * novoPreco;
+
+    // Marcar como alterado se for item existente
+    if (novosItens[index].id && novosItens[index].acao === "manter") {
+      novosItens[index].acao = "alterar";
+    }
+
+    setItens(novosItens);
+    setPrecoEditando(null);
+    setPrecoTemporario("");
   };
 
   const removerItem = (index: number) => {
@@ -588,13 +610,66 @@ export function EditarVendaModal({
                           </Button>
                         </div>
 
-                        <div className="text-right min-w-[100px]">
-                          <p className="text-sm text-gray-500">
-                            {formatarMoeda(item.preco_unitario)}
-                          </p>
-                          <p className="font-bold">
-                            {formatarMoeda(item.subtotal)}
-                          </p>
+                        <div className="text-right min-w-[150px]">
+                          {precoEditando === index ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                size="sm"
+                                value={precoTemporario}
+                                onChange={(e) =>
+                                  setPrecoTemporario(e.target.value)
+                                }
+                                className="w-24"
+                                startContent={
+                                  <span className="text-default-400 text-xs">
+                                    R$
+                                  </span>
+                                }
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                color="primary"
+                                onClick={() => {
+                                  const novoPreco = parseFloat(precoTemporario);
+                                  if (novoPreco > 0) {
+                                    alterarPreco(index, novoPreco);
+                                  }
+                                }}
+                              >
+                                OK
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 justify-end">
+                              <div>
+                                <p className="text-sm text-gray-500">
+                                  {formatarMoeda(item.preco_unitario)}
+                                </p>
+                                <p className="font-bold">
+                                  {formatarMoeda(item.subtotal)}
+                                </p>
+                              </div>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="flat"
+                                onClick={() => {
+                                  setPrecoEditando(index);
+                                  setPrecoTemporario(
+                                    item.preco_unitario.toString()
+                                  );
+                                }}
+                                isDisabled={salvando}
+                                title="Editar preço"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </>
                     )}

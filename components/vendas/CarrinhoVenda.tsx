@@ -13,13 +13,14 @@ import {
   TableCell,
   Input,
 } from "@heroui/react";
-import { Trash2, Minus, Plus, X } from "lucide-react";
+import { Trash2, Minus, Plus, X, Edit2 } from "lucide-react";
 import type { ItemCarrinho } from "@/types/vendas";
 
 interface CarrinhoVendaProps {
   itens: ItemCarrinho[];
   onRemoverItem: (produtoId: string) => void;
   onAtualizarQuantidade: (produtoId: string, quantidade: number) => void;
+  onAtualizarPreco?: (produtoId: string, novoPreco: number) => void;
   valorTotal: number;
   valorDesconto: number;
   onRemoverDescontoItem?: (produtoId: string) => void;
@@ -30,12 +31,16 @@ export function CarrinhoVenda({
   itens,
   onRemoverItem,
   onAtualizarQuantidade,
+  onAtualizarPreco,
   valorTotal,
   valorDesconto,
   onRemoverDescontoItem,
   onRemoverDescontoGeral,
 }: CarrinhoVendaProps) {
   const [quantidadesEditando, setQuantidadesEditando] = useState<
+    Record<string, number>
+  >({});
+  const [precosEditando, setPrecosEditando] = useState<
     Record<string, number>
   >({});
 
@@ -66,6 +71,14 @@ export function CarrinhoVenda({
     });
   };
 
+  const handlePrecoChange = (produtoId: string, valor: string) => {
+    const preco = parseFloat(valor) || 0;
+    setPrecosEditando({
+      ...precosEditando,
+      [produtoId]: preco,
+    });
+  };
+
   const handleConfirmarQuantidade = (produtoId: string) => {
     const quantidade = quantidadesEditando[produtoId];
     if (quantidade && quantidade > 0) {
@@ -73,6 +86,15 @@ export function CarrinhoVenda({
     }
     const { [produtoId]: _, ...resto } = quantidadesEditando;
     setQuantidadesEditando(resto);
+  };
+
+  const handleConfirmarPreco = (produtoId: string) => {
+    const preco = precosEditando[produtoId];
+    if (preco && preco > 0 && onAtualizarPreco) {
+      onAtualizarPreco(produtoId, preco);
+    }
+    const { [produtoId]: _, ...resto } = precosEditando;
+    setPrecosEditando(resto);
   };
 
   const incrementarQuantidade = (item: ItemCarrinho) => {
@@ -113,8 +135,10 @@ export function CarrinhoVenda({
           </TableHeader>
           <TableBody>
             {itens.map((item) => {
-              const editando =
+              const editandoQuantidade =
                 quantidadesEditando[item.produto_id] !== undefined;
+              const editandoPreco =
+                precosEditando[item.produto_id] !== undefined;
 
               return (
                 <TableRow key={item.produto_id}>
@@ -126,9 +150,70 @@ export function CarrinhoVenda({
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell>{formatarMoeda(item.preco_unitario)}</TableCell>
                   <TableCell>
-                    {editando ? (
+                    {editandoPreco ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          size="sm"
+                          value={precosEditando[item.produto_id].toString()}
+                          onChange={(e) =>
+                            handlePrecoChange(item.produto_id, e.target.value)
+                          }
+                          className="w-28"
+                          startContent={
+                            <span className="text-default-400 text-sm">
+                              R$
+                            </span>
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          color="primary"
+                          onClick={() =>
+                            handleConfirmarPreco(item.produto_id)
+                          }
+                        >
+                          OK
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          onClick={() => {
+                            const { [item.produto_id]: _, ...resto } =
+                              precosEditando;
+                            setPrecosEditando(resto);
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>{formatarMoeda(item.preco_unitario)}</span>
+                        {onAtualizarPreco && (
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="flat"
+                            onClick={() =>
+                              setPrecosEditando({
+                                ...precosEditando,
+                                [item.produto_id]: item.preco_unitario,
+                              })
+                            }
+                            title="Editar preço"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {editandoQuantidade ? (
                       <div className="flex items-center gap-2">
                         <Input
                           type="number"

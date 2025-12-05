@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardBody,
@@ -27,6 +27,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { PagamentoCarrinho, ItemCarrinho } from "@/types/vendas";
+import { usePermissoes } from "@/hooks/usePermissoes";
 
 interface PagamentosPanelProps {
   pagamentos: PagamentoCarrinho[];
@@ -43,6 +44,8 @@ interface PagamentosPanelProps {
   itens?: ItemCarrinho[];
   onAplicarDescontoGeral?: () => void;
   onAplicarDescontoItem?: (produtoId: string) => void;
+  onAplicarDescontoRapido?: (tipo: "valor" | "percentual", valor: number, motivo: string) => void;
+  descontoAplicado?: { tipo: "valor" | "percentual"; valor: number; motivo: string } | null;
 }
 
 const tiposPagamento = [
@@ -70,7 +73,10 @@ export function PagamentosPanel({
   itens = [],
   onAplicarDescontoGeral,
   onAplicarDescontoItem,
+  onAplicarDescontoRapido,
+  descontoAplicado,
 }: PagamentosPanelProps) {
+  const { getDescontoMaximo } = usePermissoes();
   const [tipoPagamento, setTipoPagamento] = useState("dinheiro");
   const [valor, setValor] = useState("");
   const [dataPagamento, setDataPagamento] = useState(
@@ -78,6 +84,20 @@ export function PagamentosPanel({
   );
   const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
   const [modalSeletorProdutoOpen, setModalSeletorProdutoOpen] = useState(false);
+  const [mostrarDesconto, setMostrarDesconto] = useState(false);
+  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">("percentual");
+  const [valorDesconto, setValorDesconto] = useState("");
+  const [motivoDesconto, setMotivoDesconto] = useState("");
+  const [descontoMaximo, setDescontoMaximo] = useState<number>(100);
+
+  // Buscar desconto máximo ao montar componente
+  React.useEffect(() => {
+    const carregarDescontoMaximo = async () => {
+      const maxDesconto = await getDescontoMaximo();
+      setDescontoMaximo(maxDesconto);
+    };
+    carregarDescontoMaximo();
+  }, []);
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -139,6 +159,58 @@ export function PagamentosPanel({
     }
   };
 
+  const handleValorDescontoChange = (valor: string) => {
+    const numerico = parseFloat(valor);
+    
+    if (tipoDesconto === "percentual") {
+      // Se for percentual, limitar ao desconto máximo
+      if (numerico > descontoMaximo) {
+        setValorDesconto(descontoMaximo.toString());
+        return;
+      }
+      
+      // Limitar a 100% se for percentual
+      if (numerico > 100) {
+        setValorDesconto("100");
+        return;
+      }
+    } else {
+      // Se for valor em R$, calcular o máximo baseado no percentual permitido
+      const baseCalculo = subtotalItens - descontosItens;
+      const maxDescontoReais = (baseCalculo * descontoMaximo) / 100;
+      
+      // Limitar ao menor valor entre o subtotal e o desconto máximo permitido em R$
+      const limiteReal = Math.min(baseCalculo, maxDescontoReais);
+      
+      if (numerico > limiteReal) {
+        setValorDesconto(limiteReal.toFixed(2));
+        return;
+      }
+    }
+    
+    setValorDesconto(valor);
+  };
+
+  const handleAplicarDescontoRapido = () => {
+    const valor = parseFloat(valorDesconto);
+    if (!valor || valor <= 0) {
+      alert("Informe um valor válido para o desconto");
+      return;
+    }
+
+    if (!motivoDesconto.trim()) {
+      alert("Informe o motivo do desconto");
+      return;
+    }
+
+    if (onAplicarDescontoRapido) {
+      onAplicarDescontoRapido(tipoDesconto, valor, motivoDesconto);
+      setValorDesconto("");
+      setMotivoDesconto("");
+      setMostrarDesconto(false);
+    }
+  };
+
   // Agrupar pagamentos por tipo
   const pagamentosAgrupados = pagamentos.reduce(
     (acc, pagamento) => {
@@ -158,6 +230,107 @@ export function PagamentosPanel({
 
   return (
     <div className="space-y-4">
+      {/* Desconto Rápido */}
+      {onAplicarDescontoRapido && (
+        <Card>
+          <CardBody className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Percent className="w-4 h-4" />
+                Desconto Rápido
+              </h4>
+              <Button
+                size="sm"
+                variant="light"
+                onClick={() => setMostrarDesconto(!mostrarDesconto)}
+              >
+                {mostrarDesconto ? "Ocultar" : "Mostrar"}
+              </Button>
+            </div>
+            
+            {mostrarDesconto && (
+              <div className="space-y-2 mt-3">
+                <div className="flex gap-2">
+                  <Select
+                    label="Tipo"
+                    size="sm"
+                    selectedKeys={[tipoDesconto]}
+                    onChange={(e) => setTipoDesconto(e.target.value as "valor" | "percentual")}
+                    className="max-w-[120px]"
+                  >
+                    <SelectItem key="percentual">
+                      %
+                    </SelectItem>
+                    <SelectItem key="valor">
+                      R$
+                    </SelectItem>
+                  </Select>
+                  <Input
+                    type="number"
+                    label="Valor"
+                    size="sm"
+                    value={valorDesconto}
+                    onChange={(e) => handleValorDescontoChange(e.target.value)}
+                    max={
+                      tipoDesconto === "percentual"
+                        ? descontoMaximo
+                        : Math.min(
+                            subtotalItens - descontosItens,
+                            ((subtotalItens - descontosItens) * descontoMaximo) / 100
+                          )
+                    }
+                    placeholder={
+                      tipoDesconto === "percentual"
+                        ? `Máx: ${descontoMaximo}%`
+                        : `Máx: R$ ${Math.min(
+                            subtotalItens - descontosItens,
+                            ((subtotalItens - descontosItens) * descontoMaximo) / 100
+                          ).toFixed(2)}`
+                    }
+                    startContent={
+                      tipoDesconto === "valor" ? (
+                        <span className="text-default-400 text-sm">R$</span>
+                      ) : (
+                        <span className="text-default-400 text-sm">%</span>
+                      )
+                    }
+                    className="flex-1"
+                  />
+                </div>
+                <Input
+                  label="Motivo"
+                  size="sm"
+                  value={motivoDesconto}
+                  onChange={(e) => setMotivoDesconto(e.target.value)}
+                  placeholder="Ex: Promoção, Cliente especial..."
+                />
+                <Button
+                  color="primary"
+                  size="sm"
+                  onClick={handleAplicarDescontoRapido}
+                  startContent={<Percent className="w-4 h-4" />}
+                  className="w-full"
+                >
+                  Aplicar Desconto
+                </Button>
+                
+                {descontoAplicado && (
+                  <div className="p-2 bg-success-50 dark:bg-success-900/20 rounded-lg">
+                    <p className="text-xs text-success-700 dark:text-success-300">
+                      <strong>Desconto aplicado:</strong>{" "}
+                      {descontoAplicado.tipo === "percentual"
+                        ? `${descontoAplicado.valor}%`
+                        : formatarMoeda(descontoAplicado.valor)}
+                      {" - "}{descontoAplicado.motivo}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
       {/* Botões de Desconto */}
       <div className="flex gap-2">
         {onAplicarDescontoGeral && (
@@ -168,7 +341,7 @@ export function PagamentosPanel({
             onClick={onAplicarDescontoGeral}
             className="flex-1"
           >
-            Desconto Geral
+            Desconto Avançado
           </Button>
         )}
         {onAplicarDescontoItem && itens.length > 0 && (

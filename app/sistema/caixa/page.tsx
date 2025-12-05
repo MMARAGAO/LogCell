@@ -525,30 +525,44 @@ export default function CaixaPage() {
       doc.setFont("helvetica", "bold");
       doc.text("Ordens de Serviço", 15, yPos);
 
-      // Agrupar ordens por forma de pagamento
-      const ordensPorFormaPagamento: {
-        [key: string]: { quantidade: number; total: number };
-      } = {};
+      yPos += 8;
+
+      // Criar lista detalhada de cada pagamento de OS
+      const ordensDetalhadas: any[] = [];
       ordensServico.forEach((mov) => {
-        const forma = mov.forma_pagamento || "Não informado";
-        if (!ordensPorFormaPagamento[forma]) {
-          ordensPorFormaPagamento[forma] = { quantidade: 0, total: 0 };
+        // Extrair número da OS e cliente da descrição
+        const descricaoParts = mov.descricao.split(" - ");
+        const numeroOS = descricaoParts[0] || "";
+        const cliente = descricaoParts[1] || "Cliente não informado";
+
+        // Se tem array de pagamentos (vários pagamentos na mesma OS)
+        if (mov.pagamentos && mov.pagamentos.length > 0) {
+          mov.pagamentos.forEach((pag: any) => {
+            ordensDetalhadas.push([
+              numeroOS,
+              cliente,
+              (pag.tipo_pagamento || "Não informado").toUpperCase(),
+              formatarMoeda(pag.valor),
+            ]);
+          });
+        } else {
+          // Caso antigo: um único pagamento
+          ordensDetalhadas.push([
+            numeroOS,
+            cliente,
+            (mov.forma_pagamento || "Não informado").toUpperCase(),
+            formatarMoeda(mov.valor || 0),
+          ]);
         }
-        ordensPorFormaPagamento[forma].quantidade++;
-        ordensPorFormaPagamento[forma].total += mov.valor || 0;
       });
 
-      yPos += 8;
       const ordensData = [
-        ["Forma de Pagamento", "Quantidade", "Total"],
-        ...Object.entries(ordensPorFormaPagamento).map(([forma, dados]) => [
-          forma.toUpperCase(),
-          dados.quantidade.toString(),
-          formatarMoeda(dados.total),
-        ]),
+        ["OS", "Cliente", "Forma de Pagamento", "Valor"],
+        ...ordensDetalhadas,
         [
           "TOTAL",
-          ordensServico.length.toString(),
+          `${ordensServico.length} OS`,
+          "",
           formatarMoeda(
             ordensServico.reduce((sum, mov) => sum + (mov.valor || 0), 0)
           ),
@@ -563,6 +577,12 @@ export default function CaixaPage() {
         headStyles: { fillColor: [147, 51, 234] },
         margin: { left: 15, right: 15 },
         footStyles: { fillColor: [120, 40, 200], fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 25 }, // OS
+          1: { cellWidth: 70 }, // Cliente
+          2: { cellWidth: 50 }, // Forma de Pagamento
+          3: { cellWidth: 35, halign: "right" }, // Valor
+        },
       });
 
       yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -787,6 +807,37 @@ export default function CaixaPage() {
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
+
+      // Linha azul clara apenas na primeira página
+      if (i === 1) {
+        doc.setDrawColor(135, 206, 235); // Azul claro (Sky Blue)
+        doc.setLineWidth(0.5);
+        doc.line(
+          15,
+          doc.internal.pageSize.height - 25,
+          pageWidth - 15,
+          doc.internal.pageSize.height - 25
+        );
+      }
+
+      // Logo (caso exista)
+      try {
+        const logoImg = new Image();
+        logoImg.src = "/logo.png";
+        // Adicionar logo no rodapé (esquerda)
+        doc.addImage(
+          logoImg,
+          "PNG",
+          15,
+          doc.internal.pageSize.height - 20,
+          15,
+          15
+        );
+      } catch (error) {
+        console.log("Logo não encontrado");
+      }
+
+      // Texto do rodapé (centro)
       doc.setFontSize(8);
       doc.setTextColor(128, 128, 128);
       doc.text(

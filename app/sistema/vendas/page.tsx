@@ -1673,6 +1673,7 @@ export default function VendasPage() {
           valorTotal={vendaSelecionada.valor_total}
           valorPago={vendaSelecionada.valor_pago}
           saldoDevedor={vendaSelecionada.saldo_devedor}
+          statusVenda={vendaSelecionada.status}
           onPagamentoAdicionado={handlePagamentoAdicionado}
         />
       )}

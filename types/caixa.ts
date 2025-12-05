@@ -46,6 +46,10 @@ export interface MovimentacaoCaixa {
   forma_pagamento?: string;
   gerou_credito?: boolean;
   usou_credito?: boolean;
+  pagamentos?: Array<{
+    tipo_pagamento: string;
+    valor: number;
+  }>;
 }
 
 export interface Sangria {

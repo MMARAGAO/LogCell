@@ -564,6 +564,26 @@ export function NovaVendaModal({
     );
   };
 
+  const atualizarPrecoItem = (produtoId: string, novoPreco: number) => {
+    if (novoPreco <= 0) {
+      toast.error("O preço deve ser maior que zero");
+      return;
+    }
+
+    setItensCarrinho(
+      itensCarrinho.map((item) =>
+        item.produto_id === produtoId
+          ? {
+              ...item,
+              preco_unitario: novoPreco,
+              subtotal: item.quantidade * novoPreco,
+            }
+          : item
+      )
+    );
+    toast.success("Preço atualizado com sucesso!");
+  };
+
   const aplicarDescontoItem = (
     produtoId: string,
     tipo: "valor" | "percentual",
@@ -808,6 +828,7 @@ export function NovaVendaModal({
                         )
                       }
                       onAtualizarQuantidade={atualizarQuantidadeItem}
+                      onAtualizarPreco={atualizarPrecoItem}
                       valorTotal={valorTotal}
                       valorDesconto={valorDesconto}
                       onRemoverDescontoItem={removerDescontoItem}
@@ -916,6 +937,27 @@ export function NovaVendaModal({
                       ? abrirDescontoItem
                       : undefined
                   }
+                  onAplicarDescontoRapido={
+                    temPermissao("vendas.aplicar_desconto")
+                      ? (tipo, valor, motivo) => {
+                          // Limpar descontos individuais se houver
+                          if (itensCarrinho.some((item) => item.desconto)) {
+                            toast.warning(
+                              "Descontos individuais foram removidos ao aplicar desconto geral"
+                            );
+                            setItensCarrinho(
+                              itensCarrinho.map((item) => ({
+                                ...item,
+                                desconto: undefined,
+                              }))
+                            );
+                          }
+                          setDescontoInfo({ tipo, valor, motivo });
+                          toast.success("Desconto aplicado com sucesso!");
+                        }
+                      : undefined
+                  }
+                  descontoAplicado={descontoInfo}
                 />
 
                 {/* Lista de itens com descontos */}

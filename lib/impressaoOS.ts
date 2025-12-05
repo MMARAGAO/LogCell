@@ -176,12 +176,10 @@ export const gerarPDFOrdemServico = (
 
     autoTable(doc, {
       startY: y,
-      head: [["Descrição", "Qtd", "Valor Unit.", "Total"]],
+      head: [["Descrição", "Qtd"]],
       body: pecas.map((peca) => [
         peca.descricao_peca,
         peca.quantidade.toString(),
-        `R$ ${peca.valor_venda.toFixed(2)}`,
-        `R$ ${(peca.quantidade * peca.valor_venda).toFixed(2)}`,
       ]),
       theme: "grid",
       headStyles: { fillColor: [100, 100, 100], fontSize: 9 },
@@ -189,72 +187,11 @@ export const gerarPDFOrdemServico = (
       columnStyles: {
         0: { cellWidth: "auto" },
         1: { cellWidth: 20, halign: "center" },
-        2: { cellWidth: 30, halign: "right" },
-        3: { cellWidth: 30, halign: "right" },
       },
     });
 
     y = (doc as any).lastAutoTable.finalY + 10;
   }
-
-  // Valores
-  if (y > 240) {
-    doc.addPage();
-    y = 20;
-  }
-
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("VALORES", 17, y + 5);
-  y += 12;
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-
-  const valorMaoDeObra = os.valor_orcamento || 0;
-  const valorPecas = pecas.reduce(
-    (acc, peca) => acc + peca.quantidade * peca.valor_venda,
-    0
-  );
-  const valorDesconto = os.valor_desconto || 0;
-  const valorTotal = valorMaoDeObra + valorPecas - valorDesconto;
-
-  doc.text(`Mão de Obra:`, 17, y);
-  doc.text(`R$ ${valorMaoDeObra.toFixed(2)}`, pageWidth - 17, y, {
-    align: "right",
-  });
-  y += 6;
-
-  if (valorPecas > 0) {
-    doc.text(`Peças:`, 17, y);
-    doc.text(`R$ ${valorPecas.toFixed(2)}`, pageWidth - 17, y, {
-      align: "right",
-    });
-    y += 6;
-  }
-
-  if (valorDesconto > 0) {
-    doc.text(`Desconto:`, 17, y);
-    doc.text(`- R$ ${valorDesconto.toFixed(2)}`, pageWidth - 17, y, {
-      align: "right",
-    });
-    y += 6;
-  }
-
-  y += 2;
-  doc.setLineWidth(0.3);
-  doc.line(15, y, pageWidth - 15, y);
-  y += 6;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(`TOTAL:`, 17, y);
-  doc.text(`R$ ${valorTotal.toFixed(2)}`, pageWidth - 17, y, {
-    align: "right",
-  });
-  y += 10;
 
   // Observações (se houver)
   if (os.observacoes_tecnicas) {
@@ -427,33 +364,11 @@ export const gerarCupomTermicoOS = (
     cupom += linhaTracejada + "\n";
 
     pecas.forEach((peca) => {
-      const total = peca.quantidade * peca.valor_venda;
       cupom += `${peca.descricao_peca}\n`;
-      cupom += `  ${peca.quantidade}x R$ ${peca.valor_venda.toFixed(2).padStart(10)} = R$ ${total.toFixed(2).padStart(10)}\n`;
+      cupom += `  Qtd: ${peca.quantidade}\n`;
     });
     cupom += "\n";
   }
-
-  // Valores
-  cupom += linhaDiv + "\n";
-  const valorMaoDeObra = os.valor_orcamento || 0;
-  const valorPecas = pecas.reduce(
-    (acc, peca) => acc + peca.quantidade * peca.valor_venda,
-    0
-  );
-  const valorDesconto = os.valor_desconto || 0;
-  const valorTotal = valorMaoDeObra + valorPecas - valorDesconto;
-
-  cupom += `Mao de Obra:${`R$ ${valorMaoDeObra.toFixed(2)}`.padStart(36)}\n`;
-  if (valorPecas > 0) {
-    cupom += `Pecas:${`R$ ${valorPecas.toFixed(2)}`.padStart(42)}\n`;
-  }
-  if (valorDesconto > 0) {
-    cupom += `Desconto:${`- R$ ${valorDesconto.toFixed(2)}`.padStart(39)}\n`;
-  }
-  cupom += linhaDiv + "\n";
-  cupom += `TOTAL:${`R$ ${valorTotal.toFixed(2)}`.padStart(42)}\n`;
-  cupom += linhaDiv + "\n\n";
 
   // Observações
   if (os.observacoes_tecnicas) {

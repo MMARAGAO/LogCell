@@ -16,10 +16,11 @@ import {
   CardBody,
   Chip,
 } from "@heroui/react";
-import { DollarSign, Plus, Trash2, Calendar, Edit2 } from "lucide-react";
+import { DollarSign, Plus, Trash2, Calendar, Edit2, Percent, CheckCircle } from "lucide-react";
 import { VendasService } from "@/services/vendasService";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
 
 interface AdicionarPagamentoModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface AdicionarPagamentoModalProps {
   valorTotal: number;
   valorPago: number;
   saldoDevedor: number;
+  statusVenda?: string;
   onPagamentoAdicionado: () => void;
 }
 
@@ -52,10 +54,12 @@ export function AdicionarPagamentoModal({
   valorTotal,
   valorPago,
   saldoDevedor,
+  statusVenda = "em_andamento",
   onPagamentoAdicionado,
 }: AdicionarPagamentoModalProps) {
   const toast = useToast();
   const { usuario } = useAuth();
+  const { getDescontoMaximo } = usePermissoes();
   const [loading, setLoading] = useState(false);
   const [tipoPagamento, setTipoPagamento] = useState("dinheiro");
   const [valor, setValor] = useState("");
@@ -63,6 +67,24 @@ export function AdicionarPagamentoModal({
   const [loadingCredito, setLoadingCredito] = useState(false);
   const [pagamentos, setPagamentos] = useState<any[]>([]);
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
+  const [mostrarDesconto, setMostrarDesconto] = useState(false);
+  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">("percentual");
+  const [valorDesconto, setValorDesconto] = useState("");
+  const [motivoDesconto, setMotivoDesconto] = useState("");
+  const [descontoAplicado, setDescontoAplicado] = useState<{tipo: string; valor: number; motivo: string} | null>(null);
+  const [loadingDesconto, setLoadingDesconto] = useState(false);
+  const [descontoMaximo, setDescontoMaximo] = useState<number>(100);
+
+  // Buscar desconto máximo ao abrir modal
+  useEffect(() => {
+    const carregarDescontoMaximo = async () => {
+      const maxDesconto = await getDescontoMaximo();
+      setDescontoMaximo(maxDesconto);
+    };
+    if (isOpen) {
+      carregarDescontoMaximo();
+    }
+  }, [isOpen]);
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -180,9 +202,108 @@ export function AdicionarPagamentoModal({
     }
   };
 
+  const handleValorDescontoChange = (valor: string) => {
+    const numerico = parseFloat(valor);
+    
+    if (tipoDesconto === "percentual") {
+      // Se for percentual, limitar ao desconto máximo
+      if (numerico > descontoMaximo) {
+        setValorDesconto(descontoMaximo.toString());
+        return;
+      }
+      
+      // Limitar a 100% se for percentual
+      if (numerico > 100) {
+        setValorDesconto("100");
+        return;
+      }
+    } else {
+      // Se for valor em R$, calcular o máximo baseado no percentual permitido
+      const maxDescontoReais = (saldoDevedor * descontoMaximo) / 100;
+      
+      // Limitar ao menor valor entre o saldo devedor e o desconto máximo permitido em R$
+      const limiteReal = Math.min(saldoDevedor, maxDescontoReais);
+      
+      if (numerico > limiteReal) {
+        setValorDesconto(limiteReal.toFixed(2));
+        return;
+      }
+    }
+    
+    setValorDesconto(valor);
+  };
+
+  const handleAplicarDesconto = async () => {
+    const valor = parseFloat(valorDesconto);
+    if (!valor || valor <= 0) {
+      toast.error("Informe um valor válido para o desconto");
+      return;
+    }
+
+    if (!motivoDesconto.trim()) {
+      toast.error("Informe o motivo do desconto");
+      return;
+    }
+
+    setLoadingDesconto(true);
+    try {
+      const resultado = await VendasService.aplicarDesconto(vendaId, {
+        tipo: tipoDesconto,
+        valor: valor,
+        motivo: motivoDesconto,
+        aplicado_por: usuario?.id || "",
+      });
+
+      if (resultado.success) {
+        toast.success("Desconto aplicado com sucesso!");
+        setDescontoAplicado({ tipo: tipoDesconto, valor, motivo: motivoDesconto });
+        setValorDesconto("");
+        setMotivoDesconto("");
+        setMostrarDesconto(false);
+        onPagamentoAdicionado(); // Atualizar dados da venda
+      } else {
+        toast.error(resultado.error || "Erro ao aplicar desconto");
+      }
+    } catch (error) {
+      console.error("Erro ao aplicar desconto:", error);
+      toast.error("Erro ao aplicar desconto");
+    } finally {
+      setLoadingDesconto(false);
+    }
+  };
+
+  const handleConcluirVenda = async () => {
+    if (saldoDevedor > 0) {
+      toast.error("Não é possível concluir a venda com saldo devedor pendente");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const resultado = await VendasService.concluirVenda(vendaId, usuario?.id || "");
+
+      if (resultado.success) {
+        toast.success("Venda concluída com sucesso!");
+        onPagamentoAdicionado();
+        handleFechar();
+      } else {
+        toast.error(resultado.error || "Erro ao concluir venda");
+      }
+    } catch (error) {
+      console.error("Erro ao concluir venda:", error);
+      toast.error("Erro ao concluir venda");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFechar = () => {
     setValor("");
     setTipoPagamento("dinheiro");
+    setMostrarDesconto(false);
+    setValorDesconto("");
+    setMotivoDesconto("");
+    setDescontoAplicado(null);
     onClose();
   };
 
@@ -253,6 +374,105 @@ export function AdicionarPagamentoModal({
                 </div>
               </CardBody>
             </Card>
+
+            {/* Painel de Desconto */}
+            {saldoDevedor > 0 && (
+              <Card>
+                <CardBody className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Percent className="w-4 h-4" />
+                      Aplicar Desconto
+                    </h4>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      onClick={() => setMostrarDesconto(!mostrarDesconto)}
+                    >
+                      {mostrarDesconto ? "Ocultar" : "Mostrar"}
+                    </Button>
+                  </div>
+
+                  {mostrarDesconto && (
+                    <div className="space-y-2 mt-3">
+                      <div className="flex gap-2">
+                        <Select
+                          label="Tipo"
+                          size="sm"
+                          selectedKeys={[tipoDesconto]}
+                          onChange={(e) => setTipoDesconto(e.target.value as "valor" | "percentual")}
+                          className="max-w-[120px]"
+                        >
+                          <SelectItem key="percentual">
+                            %
+                          </SelectItem>
+                          <SelectItem key="valor">
+                            R$
+                          </SelectItem>
+                        </Select>
+                        <Input
+                          type="number"
+                          label="Valor"
+                          size="sm"
+                          value={valorDesconto}
+                          onChange={(e) => handleValorDescontoChange(e.target.value)}
+                          max={
+                            tipoDesconto === "percentual"
+                              ? descontoMaximo
+                              : Math.min(saldoDevedor, (saldoDevedor * descontoMaximo) / 100)
+                          }
+                          placeholder={
+                            tipoDesconto === "percentual"
+                              ? `Máx: ${descontoMaximo}%`
+                              : `Máx: R$ ${Math.min(
+                                  saldoDevedor,
+                                  (saldoDevedor * descontoMaximo) / 100
+                                ).toFixed(2)}`
+                          }
+                          startContent={
+                            tipoDesconto === "valor" ? (
+                              <span className="text-default-400 text-sm">R$</span>
+                            ) : (
+                              <span className="text-default-400 text-sm">%</span>
+                            )
+                          }
+                          className="flex-1"
+                        />
+                      </div>
+                      <Input
+                        label="Motivo"
+                        size="sm"
+                        value={motivoDesconto}
+                        onChange={(e) => setMotivoDesconto(e.target.value)}
+                        placeholder="Ex: Promoção, Cliente especial..."
+                      />
+                      <Button
+                        color="primary"
+                        size="sm"
+                        onClick={handleAplicarDesconto}
+                        startContent={<Percent className="w-4 h-4" />}
+                        className="w-full"
+                        isLoading={loadingDesconto}
+                      >
+                        Aplicar Desconto
+                      </Button>
+
+                      {descontoAplicado && (
+                        <div className="p-2 bg-success-50 dark:bg-success-900/20 rounded-lg">
+                          <p className="text-xs text-success-700 dark:text-success-300">
+                            <strong>Desconto aplicado:</strong>{" "}
+                            {descontoAplicado.tipo === "percentual"
+                              ? `${descontoAplicado.valor}%`
+                              : formatarMoeda(descontoAplicado.valor)}
+                            {" - "}{descontoAplicado.motivo}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            )}
 
             {/* Lista de Pagamentos Adicionados */}
             {pagamentos.length > 0 && (
@@ -395,6 +615,16 @@ export function AdicionarPagamentoModal({
           </ModalBody>
 
           <ModalFooter>
+            {saldoDevedor <= 0 && statusVenda !== "concluida" && (
+              <Button
+                color="success"
+                onClick={handleConcluirVenda}
+                isLoading={loading}
+                startContent={!loading && <CheckCircle className="w-4 h-4" />}
+              >
+                Concluir Venda
+              </Button>
+            )}
             <Button variant="light" onClick={handleFechar}>
               {saldoDevedor > 0 ? "Fechar" : "OK"}
             </Button>
