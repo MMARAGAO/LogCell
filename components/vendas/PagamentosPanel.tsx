@@ -44,8 +44,16 @@ interface PagamentosPanelProps {
   itens?: ItemCarrinho[];
   onAplicarDescontoGeral?: () => void;
   onAplicarDescontoItem?: (produtoId: string) => void;
-  onAplicarDescontoRapido?: (tipo: "valor" | "percentual", valor: number, motivo: string) => void;
-  descontoAplicado?: { tipo: "valor" | "percentual"; valor: number; motivo: string } | null;
+  onAplicarDescontoRapido?: (
+    tipo: "valor" | "percentual",
+    valor: number,
+    motivo: string
+  ) => void;
+  descontoAplicado?: {
+    tipo: "valor" | "percentual";
+    valor: number;
+    motivo: string;
+  } | null;
 }
 
 const tiposPagamento = [
@@ -85,7 +93,9 @@ export function PagamentosPanel({
   const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
   const [modalSeletorProdutoOpen, setModalSeletorProdutoOpen] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
-  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">("percentual");
+  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
+    "percentual"
+  );
   const [valorDesconto, setValorDesconto] = useState("");
   const [motivoDesconto, setMotivoDesconto] = useState("");
   const [descontoMaximo, setDescontoMaximo] = useState<number>(100);
@@ -161,14 +171,14 @@ export function PagamentosPanel({
 
   const handleValorDescontoChange = (valor: string) => {
     const numerico = parseFloat(valor);
-    
+
     if (tipoDesconto === "percentual") {
       // Se for percentual, limitar ao desconto máximo
       if (numerico > descontoMaximo) {
         setValorDesconto(descontoMaximo.toString());
         return;
       }
-      
+
       // Limitar a 100% se for percentual
       if (numerico > 100) {
         setValorDesconto("100");
@@ -178,16 +188,16 @@ export function PagamentosPanel({
       // Se for valor em R$, calcular o máximo baseado no percentual permitido
       const baseCalculo = subtotalItens - descontosItens;
       const maxDescontoReais = (baseCalculo * descontoMaximo) / 100;
-      
+
       // Limitar ao menor valor entre o subtotal e o desconto máximo permitido em R$
       const limiteReal = Math.min(baseCalculo, maxDescontoReais);
-      
+
       if (numerico > limiteReal) {
         setValorDesconto(limiteReal.toFixed(2));
         return;
       }
     }
-    
+
     setValorDesconto(valor);
   };
 
@@ -247,7 +257,7 @@ export function PagamentosPanel({
                 {mostrarDesconto ? "Ocultar" : "Mostrar"}
               </Button>
             </div>
-            
+
             {mostrarDesconto && (
               <div className="space-y-2 mt-3">
                 <div className="flex gap-2">
@@ -255,15 +265,13 @@ export function PagamentosPanel({
                     label="Tipo"
                     size="sm"
                     selectedKeys={[tipoDesconto]}
-                    onChange={(e) => setTipoDesconto(e.target.value as "valor" | "percentual")}
+                    onChange={(e) =>
+                      setTipoDesconto(e.target.value as "valor" | "percentual")
+                    }
                     className="max-w-[120px]"
                   >
-                    <SelectItem key="percentual">
-                      %
-                    </SelectItem>
-                    <SelectItem key="valor">
-                      R$
-                    </SelectItem>
+                    <SelectItem key="percentual">%</SelectItem>
+                    <SelectItem key="valor">R$</SelectItem>
                   </Select>
                   <Input
                     type="number"
@@ -276,7 +284,9 @@ export function PagamentosPanel({
                         ? descontoMaximo
                         : Math.min(
                             subtotalItens - descontosItens,
-                            ((subtotalItens - descontosItens) * descontoMaximo) / 100
+                            ((subtotalItens - descontosItens) *
+                              descontoMaximo) /
+                              100
                           )
                     }
                     placeholder={
@@ -284,7 +294,9 @@ export function PagamentosPanel({
                         ? `Máx: ${descontoMaximo}%`
                         : `Máx: R$ ${Math.min(
                             subtotalItens - descontosItens,
-                            ((subtotalItens - descontosItens) * descontoMaximo) / 100
+                            ((subtotalItens - descontosItens) *
+                              descontoMaximo) /
+                              100
                           ).toFixed(2)}`
                     }
                     startContent={
@@ -313,7 +325,7 @@ export function PagamentosPanel({
                 >
                   Aplicar Desconto
                 </Button>
-                
+
                 {descontoAplicado && (
                   <div className="p-2 bg-success-50 dark:bg-success-900/20 rounded-lg">
                     <p className="text-xs text-success-700 dark:text-success-300">
@@ -321,7 +333,8 @@ export function PagamentosPanel({
                       {descontoAplicado.tipo === "percentual"
                         ? `${descontoAplicado.valor}%`
                         : formatarMoeda(descontoAplicado.valor)}
-                      {" - "}{descontoAplicado.motivo}
+                      {" - "}
+                      {descontoAplicado.motivo}
                     </p>
                   </div>
                 )}

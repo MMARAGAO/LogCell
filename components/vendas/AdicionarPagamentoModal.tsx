@@ -16,7 +16,15 @@ import {
   CardBody,
   Chip,
 } from "@heroui/react";
-import { DollarSign, Plus, Trash2, Calendar, Edit2, Percent, CheckCircle } from "lucide-react";
+import {
+  DollarSign,
+  Plus,
+  Trash2,
+  Calendar,
+  Edit2,
+  Percent,
+  CheckCircle,
+} from "lucide-react";
 import { VendasService } from "@/services/vendasService";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,10 +76,16 @@ export function AdicionarPagamentoModal({
   const [pagamentos, setPagamentos] = useState<any[]>([]);
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
-  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">("percentual");
+  const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
+    "percentual"
+  );
   const [valorDesconto, setValorDesconto] = useState("");
   const [motivoDesconto, setMotivoDesconto] = useState("");
-  const [descontoAplicado, setDescontoAplicado] = useState<{tipo: string; valor: number; motivo: string} | null>(null);
+  const [descontoAplicado, setDescontoAplicado] = useState<{
+    tipo: string;
+    valor: number;
+    motivo: string;
+  } | null>(null);
   const [loadingDesconto, setLoadingDesconto] = useState(false);
   const [descontoMaximo, setDescontoMaximo] = useState<number>(100);
 
@@ -204,14 +218,14 @@ export function AdicionarPagamentoModal({
 
   const handleValorDescontoChange = (valor: string) => {
     const numerico = parseFloat(valor);
-    
+
     if (tipoDesconto === "percentual") {
       // Se for percentual, limitar ao desconto máximo
       if (numerico > descontoMaximo) {
         setValorDesconto(descontoMaximo.toString());
         return;
       }
-      
+
       // Limitar a 100% se for percentual
       if (numerico > 100) {
         setValorDesconto("100");
@@ -220,16 +234,16 @@ export function AdicionarPagamentoModal({
     } else {
       // Se for valor em R$, calcular o máximo baseado no percentual permitido
       const maxDescontoReais = (saldoDevedor * descontoMaximo) / 100;
-      
+
       // Limitar ao menor valor entre o saldo devedor e o desconto máximo permitido em R$
       const limiteReal = Math.min(saldoDevedor, maxDescontoReais);
-      
+
       if (numerico > limiteReal) {
         setValorDesconto(limiteReal.toFixed(2));
         return;
       }
     }
-    
+
     setValorDesconto(valor);
   };
 
@@ -256,7 +270,11 @@ export function AdicionarPagamentoModal({
 
       if (resultado.success) {
         toast.success("Desconto aplicado com sucesso!");
-        setDescontoAplicado({ tipo: tipoDesconto, valor, motivo: motivoDesconto });
+        setDescontoAplicado({
+          tipo: tipoDesconto,
+          valor,
+          motivo: motivoDesconto,
+        });
         setValorDesconto("");
         setMotivoDesconto("");
         setMostrarDesconto(false);
@@ -280,7 +298,10 @@ export function AdicionarPagamentoModal({
 
     setLoading(true);
     try {
-      const resultado = await VendasService.concluirVenda(vendaId, usuario?.id || "");
+      const resultado = await VendasService.concluirVenda(
+        vendaId,
+        usuario?.id || ""
+      );
 
       if (resultado.success) {
         toast.success("Venda concluída com sucesso!");
@@ -400,26 +421,31 @@ export function AdicionarPagamentoModal({
                           label="Tipo"
                           size="sm"
                           selectedKeys={[tipoDesconto]}
-                          onChange={(e) => setTipoDesconto(e.target.value as "valor" | "percentual")}
+                          onChange={(e) =>
+                            setTipoDesconto(
+                              e.target.value as "valor" | "percentual"
+                            )
+                          }
                           className="max-w-[120px]"
                         >
-                          <SelectItem key="percentual">
-                            %
-                          </SelectItem>
-                          <SelectItem key="valor">
-                            R$
-                          </SelectItem>
+                          <SelectItem key="percentual">%</SelectItem>
+                          <SelectItem key="valor">R$</SelectItem>
                         </Select>
                         <Input
                           type="number"
                           label="Valor"
                           size="sm"
                           value={valorDesconto}
-                          onChange={(e) => handleValorDescontoChange(e.target.value)}
+                          onChange={(e) =>
+                            handleValorDescontoChange(e.target.value)
+                          }
                           max={
                             tipoDesconto === "percentual"
                               ? descontoMaximo
-                              : Math.min(saldoDevedor, (saldoDevedor * descontoMaximo) / 100)
+                              : Math.min(
+                                  saldoDevedor,
+                                  (saldoDevedor * descontoMaximo) / 100
+                                )
                           }
                           placeholder={
                             tipoDesconto === "percentual"
@@ -431,9 +457,13 @@ export function AdicionarPagamentoModal({
                           }
                           startContent={
                             tipoDesconto === "valor" ? (
-                              <span className="text-default-400 text-sm">R$</span>
+                              <span className="text-default-400 text-sm">
+                                R$
+                              </span>
                             ) : (
-                              <span className="text-default-400 text-sm">%</span>
+                              <span className="text-default-400 text-sm">
+                                %
+                              </span>
                             )
                           }
                           className="flex-1"
@@ -464,7 +494,8 @@ export function AdicionarPagamentoModal({
                             {descontoAplicado.tipo === "percentual"
                               ? `${descontoAplicado.valor}%`
                               : formatarMoeda(descontoAplicado.valor)}
-                            {" - "}{descontoAplicado.motivo}
+                            {" - "}
+                            {descontoAplicado.motivo}
                           </p>
                         </div>
                       )}

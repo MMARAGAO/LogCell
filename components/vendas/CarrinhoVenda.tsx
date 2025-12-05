@@ -40,9 +40,9 @@ export function CarrinhoVenda({
   const [quantidadesEditando, setQuantidadesEditando] = useState<
     Record<string, number>
   >({});
-  const [precosEditando, setPrecosEditando] = useState<
-    Record<string, number>
-  >({});
+  const [precosEditando, setPrecosEditando] = useState<Record<string, number>>(
+    {}
+  );
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -164,17 +164,13 @@ export function CarrinhoVenda({
                           }
                           className="w-28"
                           startContent={
-                            <span className="text-default-400 text-sm">
-                              R$
-                            </span>
+                            <span className="text-default-400 text-sm">R$</span>
                           }
                         />
                         <Button
                           size="sm"
                           color="primary"
-                          onClick={() =>
-                            handleConfirmarPreco(item.produto_id)
-                          }
+                          onClick={() => handleConfirmarPreco(item.produto_id)}
                         >
                           OK
                         </Button>
