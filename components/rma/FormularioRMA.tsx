@@ -115,10 +115,11 @@ export default function FormularioRMA({
 
   // Opções para selects
   const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [produtosFiltrados, setProdutosFiltrados] = useState<Produto[]>([]);
   const [buscaProduto, setBuscaProduto] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const itensPorPagina = 5;
+  const [totalProdutos, setTotalProdutos] = useState(0);
+  const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const itensPorPagina = 8;
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
@@ -179,12 +180,43 @@ export default function FormularioRMA({
     }
   };
 
-  const carregarProdutosComEstoque = async (lojaIdSelecionada: number) => {
+  const carregarProdutosComEstoque = async (
+    lojaIdSelecionada: number,
+    pagina: number = 1,
+    termoBusca: string = ""
+  ) => {
+    setLoadingProdutos(true);
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Buscar produtos com estoque na loja específica
-      const { data: estoqueData, error } = await supabase
+      // Primeiro, buscar IDs dos produtos que correspondem à busca
+      let produtoIds: string[] = [];
+
+      if (termoBusca.trim()) {
+        const termos = termoBusca
+          .toLowerCase()
+          .split(" ")
+          .filter((t) => t.length > 0);
+
+        // Buscar produtos que contenham os termos
+        let queryProdutos = supabase
+          .from("produtos")
+          .select("id")
+          .eq("ativo", true);
+
+        // Aplicar filtro para cada termo (OR entre termos)
+        termos.forEach((termo) => {
+          queryProdutos = queryProdutos.or(
+            `descricao.ilike.%${termo}%,marca.ilike.%${termo}%,categoria.ilike.%${termo}%,grupo.ilike.%${termo}%,modelos.ilike.%${termo}%,codigo_fabricante.ilike.%${termo}%`
+          );
+        });
+
+        const { data: produtosEncontrados } = await queryProdutos;
+        produtoIds = (produtosEncontrados || []).map((p: any) => p.id);
+      }
+
+      // Construir query principal do estoque
+      let query = supabase
         .from("estoque_lojas")
         .select(
           `
@@ -202,18 +234,39 @@ export default function FormularioRMA({
               url
             )
           )
-        `
+        `,
+          { count: "exact" }
         )
         .eq("id_loja", lojaIdSelecionada)
         .eq("produtos.fotos_produtos.is_principal", true)
         .gt("quantidade", 0);
 
+      // Se houver busca, filtrar pelos IDs encontrados
+      if (termoBusca.trim() && produtoIds.length > 0) {
+        query = query.in("id_produto", produtoIds);
+      } else if (termoBusca.trim() && produtoIds.length === 0) {
+        // Se buscou mas não encontrou nada, retornar vazio
+        setProdutos([]);
+        setTotalProdutos(0);
+        setLoadingProdutos(false);
+        return;
+      }
+
+      // Aplicar paginação
+      const inicio = (pagina - 1) * itensPorPagina;
+      const fim = inicio + itensPorPagina - 1;
+      query = query.range(inicio, fim);
+
+      const { data: estoqueData, error, count } = await query;
+
       if (error) {
         console.error("Erro ao carregar produtos:", error);
         setProdutos([]);
-        setProdutosFiltrados([]);
+        setTotalProdutos(0);
         return;
       }
+
+      setTotalProdutos(count || 0);
 
       // Transformar dados para o formato esperado
       const produtosComEstoque = (estoqueData || [])
@@ -232,42 +285,45 @@ export default function FormularioRMA({
         }));
 
       setProdutos(produtosComEstoque);
-      setProdutosFiltrados(produtosComEstoque);
     } catch (error) {
       console.error("Erro ao carregar produtos com estoque:", error);
+      setProdutos([]);
+      setTotalProdutos(0);
+    } finally {
+      setLoadingProdutos(false);
     }
   };
 
   // Atualizar produtos quando a loja for selecionada
   useEffect(() => {
     if (lojaId) {
-      carregarProdutosComEstoque(lojaId);
+      setPaginaAtual(1);
+      carregarProdutosComEstoque(lojaId, 1, "");
     } else {
       setProdutos([]);
-      setProdutosFiltrados([]);
+      setTotalProdutos(0);
     }
   }, [lojaId]);
 
-  // Filtrar produtos pela busca
+  // Busca dinâmica com debounce
   useEffect(() => {
-    setPaginaAtual(1); // Resetar para primeira página ao buscar
-    if (buscaProduto) {
-      const termo = buscaProduto.toLowerCase();
-      setProdutosFiltrados(
-        produtos.filter(
-          (p) =>
-            p.descricao.toLowerCase().includes(termo) ||
-            p.marca?.toLowerCase().includes(termo) ||
-            p.categoria?.toLowerCase().includes(termo) ||
-            p.grupo?.toLowerCase().includes(termo) ||
-            p.modelos?.toLowerCase().includes(termo) ||
-            p.codigo_fabricante?.toLowerCase().includes(termo)
-        )
-      );
-    } else {
-      setProdutosFiltrados(produtos);
-    }
-  }, [buscaProduto, produtos]);
+    if (!lojaId) return;
+
+    const timeoutId = setTimeout(() => {
+      setPaginaAtual(1);
+      carregarProdutosComEstoque(lojaId, 1, buscaProduto);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [buscaProduto, lojaId]);
+
+  const handleMudarPagina = (novaPagina: number) => {
+    if (!lojaId) return;
+    setPaginaAtual(novaPagina);
+    carregarProdutosComEstoque(lojaId, novaPagina, buscaProduto);
+  };
+
+  const totalPaginas = Math.ceil(totalProdutos / itensPorPagina);
 
   const resetarFormulario = () => {
     setEtapaAtual(1);
@@ -285,7 +341,7 @@ export default function FormularioRMA({
     setFotosPreview([]);
     setBuscaProduto("");
     setProdutos([]);
-    setProdutosFiltrados([]);
+    setTotalProdutos(0);
     setPaginaAtual(1);
     setErro(null);
   };
@@ -610,38 +666,36 @@ export default function FormularioRMA({
                   <Input
                     type="text"
                     label="Buscar Produto"
-                    placeholder="Digite para buscar..."
+                    placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
                     value={buscaProduto}
                     onChange={(e) => setBuscaProduto(e.target.value)}
-                    description={`${produtosFiltrados.length} produto(s) encontrado(s)`}
+                    description={`${totalProdutos} produto(s) encontrado(s) - Digite palavras-chave separadas por espaço`}
                     startContent={<Package className="w-4 h-4 text-gray-400" />}
+                    isClearable
+                    onClear={() => setBuscaProduto("")}
+                    disabled={loadingProdutos}
                   />
 
                   <div className="space-y-3">
-                    <div className="max-h-[400px] overflow-y-auto space-y-2">
-                      {produtosFiltrados.length === 0 ? (
-                        <Card className="bg-gray-50">
-                          <CardBody className="text-center py-8">
-                            <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500">
-                              Nenhum produto encontrado nesta loja
-                            </p>
-                          </CardBody>
-                        </Card>
-                      ) : (
-                        (() => {
-                          const totalPaginas = Math.ceil(
-                            produtosFiltrados.length / itensPorPagina
-                          );
-                          const indexInicio =
-                            (paginaAtual - 1) * itensPorPagina;
-                          const indexFim = indexInicio + itensPorPagina;
-                          const produtosPaginados = produtosFiltrados.slice(
-                            indexInicio,
-                            indexFim
-                          );
-
-                          return produtosPaginados.map((produto) => {
+                    {loadingProdutos ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : produtos.length === 0 ? (
+                      <Card className="bg-gray-50">
+                        <CardBody className="text-center py-8">
+                          <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                          <p className="text-gray-500">
+                            {buscaProduto
+                              ? "Nenhum produto encontrado com esse termo"
+                              : "Nenhum produto disponível nesta loja"}
+                          </p>
+                        </CardBody>
+                      </Card>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2">
+                          {produtos.map((produto) => {
                             const estoque =
                               produto.estoque_lojas?.[0]?.quantidade || 0;
                             const selecionado = produtoId === produto.id;
@@ -651,127 +705,121 @@ export default function FormularioRMA({
                                 key={produto.id}
                                 isPressable
                                 isHoverable
-                                className={`cursor-pointer transition-all ${
+                                className={`cursor-pointer transition-all h-full ${
                                   selecionado
                                     ? "ring-2 ring-primary border-primary bg-primary-50"
-                                    : "hover:bg-gray-50"
+                                    : "hover:bg-gray-50 hover:shadow-md"
                                 }`}
                                 onPress={() => setProdutoId(produto.id)}
                               >
-                                <CardBody>
-                                  <div className="flex gap-4">
-                                    {/* Foto do Produto */}
-                                    <div className="flex-shrink-0">
-                                      {produto.foto_url ? (
-                                        <img
-                                          src={produto.foto_url}
-                                          alt={produto.descricao}
-                                          className="w-24 h-24 object-cover rounded-lg border-2 border-gray-200"
-                                        />
+                                <CardBody className="p-3">
+                                  {/* Foto do Produto */}
+                                  <div className="w-full mb-3">
+                                    {produto.foto_url ? (
+                                      <img
+                                        src={produto.foto_url}
+                                        alt={produto.descricao}
+                                        className="w-full h-40 object-cover rounded-lg border-2 border-gray-200"
+                                      />
+                                    ) : (
+                                      <div className="w-full h-40 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
+                                        <Package className="w-16 h-16 text-gray-400" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Informações do Produto */}
+                                  <div className="space-y-2">
+                                    <h3
+                                      className={`font-semibold text-sm line-clamp-2 min-h-[2.5rem] ${
+                                        selecionado ? "text-primary" : ""
+                                      }`}
+                                      title={produto.descricao}
+                                    >
+                                      {produto.descricao}
+                                    </h3>
+
+                                    {/* Chips: Marca, Categoria */}
+                                    <div className="flex flex-wrap gap-1">
+                                      {produto.marca && (
+                                        <Chip
+                                          size="sm"
+                                          variant="flat"
+                                          color="primary"
+                                          className="text-xs"
+                                        >
+                                          {produto.marca}
+                                        </Chip>
+                                      )}
+                                      {produto.categoria && (
+                                        <Chip
+                                          size="sm"
+                                          variant="flat"
+                                          color="secondary"
+                                          className="text-xs"
+                                        >
+                                          {produto.categoria}
+                                        </Chip>
+                                      )}
+                                    </div>
+
+                                    {/* Grupo (se existir) */}
+                                    {produto.grupo && (
+                                      <p className="text-xs text-gray-600 line-clamp-1">
+                                        <span className="font-semibold">
+                                          Grupo:
+                                        </span>{" "}
+                                        {produto.grupo}
+                                      </p>
+                                    )}
+
+                                    {/* Modelos */}
+                                    {produto.modelos && (
+                                      <p className="text-xs text-gray-600 line-clamp-2">
+                                        <span className="font-semibold">
+                                          Modelos:
+                                        </span>{" "}
+                                        {produto.modelos}
+                                      </p>
+                                    )}
+
+                                    {/* Código */}
+                                    {produto.codigo_fabricante && (
+                                      <p className="text-xs text-gray-500">
+                                        <span className="font-semibold">
+                                          Cód:
+                                        </span>{" "}
+                                        {produto.codigo_fabricante}
+                                      </p>
+                                    )}
+
+                                    {/* Footer: Preço e Estoque */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                                      {produto.preco_venda ? (
+                                        <Chip
+                                          size="sm"
+                                          variant="flat"
+                                          color="success"
+                                        >
+                                          <span className="font-bold">
+                                            R$ {produto.preco_venda.toFixed(2)}
+                                          </span>
+                                        </Chip>
                                       ) : (
-                                        <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                                          <Package className="w-10 h-10 text-gray-400" />
-                                        </div>
+                                        <div></div>
                                       )}
-                                    </div>
 
-                                    {/* Informações do Produto */}
-                                    <div className="flex-1 min-w-0">
-                                      <p
-                                        className={`font-medium text-base ${
-                                          selecionado ? "text-primary" : ""
-                                        }`}
-                                      >
-                                        {produto.descricao}
-                                      </p>
-
-                                      {/* Linha 1: Marca, Categoria, Grupo */}
-                                      <div className="flex flex-wrap gap-2 mt-2">
-                                        {produto.marca && (
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color="primary"
-                                          >
-                                            <span className="font-semibold">
-                                              Marca:
-                                            </span>{" "}
-                                            {produto.marca}
-                                          </Chip>
-                                        )}
-                                        {produto.categoria && (
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color="secondary"
-                                          >
-                                            <span className="font-semibold">
-                                              Cat:
-                                            </span>{" "}
-                                            {produto.categoria}
-                                          </Chip>
-                                        )}
-                                        {produto.grupo && (
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color="default"
-                                          >
-                                            <span className="font-semibold">
-                                              Grupo:
-                                            </span>{" "}
-                                            {produto.grupo}
-                                          </Chip>
-                                        )}
-                                      </div>
-
-                                      {/* Linha 2: Modelos e Código */}
-                                      <div className="mt-2 space-y-1">
-                                        {produto.modelos && (
-                                          <p className="text-xs text-gray-600">
-                                            <span className="font-semibold">
-                                              Modelos:
-                                            </span>{" "}
-                                            {produto.modelos}
-                                          </p>
-                                        )}
-                                        {produto.codigo_fabricante && (
-                                          <p className="text-xs text-gray-600">
-                                            <span className="font-semibold">
-                                              Cód. Fab:
-                                            </span>{" "}
-                                            {produto.codigo_fabricante}
-                                          </p>
-                                        )}
-                                      </div>
-
-                                      {/* Linha 3: Preço */}
-                                      {produto.preco_venda && (
-                                        <div className="mt-2">
-                                          <Chip
-                                            size="sm"
-                                            variant="flat"
-                                            color="success"
-                                          >
-                                            <span className="font-semibold">
-                                              R${" "}
-                                              {produto.preco_venda.toFixed(2)}
-                                            </span>
-                                          </Chip>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {/* Estoque */}
-                                    <div className="text-right flex-shrink-0">
-                                      <p className="text-xs text-gray-500 mb-1">
-                                        Estoque
-                                      </p>
                                       <Chip
-                                        size="lg"
+                                        size="sm"
                                         variant="flat"
                                         color={
-                                          estoque > 0 ? "success" : "danger"
+                                          estoque > 10
+                                            ? "success"
+                                            : estoque > 5
+                                              ? "warning"
+                                              : estoque > 0
+                                                ? "danger"
+                                                : "default"
                                         }
                                       >
                                         <span className="font-bold">
@@ -784,25 +832,26 @@ export default function FormularioRMA({
                                 </CardBody>
                               </Card>
                             );
-                          });
-                        })()
-                      )}
-                    </div>
+                          })}
+                        </div>
 
-                    {/* Paginação */}
-                    {produtosFiltrados.length > itensPorPagina && (
-                      <div className="flex justify-center pt-2">
-                        <Pagination
-                          total={Math.ceil(
-                            produtosFiltrados.length / itensPorPagina
-                          )}
-                          page={paginaAtual}
-                          onChange={setPaginaAtual}
-                          showControls
-                          color="primary"
-                          size="sm"
-                        />
-                      </div>
+                        {/* Paginação */}
+                        {totalPaginas > 1 && (
+                          <div className="flex justify-center pt-2">
+                            <Pagination
+                              total={totalPaginas}
+                              page={paginaAtual}
+                              onChange={handleMudarPagina}
+                              size="sm"
+                              showControls
+                              color="primary"
+                              classNames={{
+                                cursor: "bg-primary text-white",
+                              }}
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   ModalContent,
@@ -15,8 +15,21 @@ import {
   AutocompleteItem,
   Divider,
   Chip,
+  Card,
+  CardBody,
+  CardFooter,
+  Pagination,
 } from "@heroui/react";
-import { PackagePlus, Package, Store, ShoppingBag } from "lucide-react";
+import {
+  PackagePlus,
+  Package,
+  Store,
+  ShoppingBag,
+  Search,
+  Tag,
+  Box,
+  TrendingUp,
+} from "lucide-react";
 import { useToast } from "@/components/Toast";
 import { adicionarPecaOS } from "@/services/ordemServicoService";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +66,12 @@ export default function AdicionarPecaModal({
   const [loading, setLoading] = useState(false);
   const [produtosEstoque, setProdutosEstoque] = useState<ProdutoEstoque[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [buscaProduto, setBuscaProduto] = useState("");
+
+  // Paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalProdutos, setTotalProdutos] = useState(0);
+  const itensPorPagina = 10;
 
   const [tipoPeca, setTipoPeca] = useState<"estoque" | "avulso">("estoque");
   const [idProdutoSelecionado, setIdProdutoSelecionado] = useState<
@@ -72,16 +91,55 @@ export default function AdicionarPecaModal({
 
   useEffect(() => {
     if (isOpen && tipoPeca === "estoque") {
-      carregarProdutosEstoque(idLoja);
+      setPaginaAtual(1);
+      carregarProdutosEstoque(idLoja, 1, "");
     }
   }, [isOpen, tipoPeca, idLoja]);
 
-  const carregarProdutosEstoque = async (lojaId: number) => {
+  useEffect(() => {
+    if (isOpen && tipoPeca === "estoque") {
+      const timeoutId = setTimeout(() => {
+        setPaginaAtual(1);
+        carregarProdutosEstoque(idLoja, 1, buscaProduto);
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [buscaProduto]);
+
+  const carregarProdutosEstoque = async (
+    lojaId: number,
+    pagina: number = 1,
+    termoBusca: string = ""
+  ) => {
     setLoadingProdutos(true);
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      const { data, error } = await supabase
+      // Primeiro, buscar IDs dos produtos que correspondem à busca
+      let produtoIds: string[] = [];
+
+      if (termoBusca.trim()) {
+        const termos = termoBusca
+          .toLowerCase()
+          .split(" ")
+          .filter((t) => t.length > 0);
+
+        // Buscar produtos que contenham TODOS os termos
+        let queryProdutos = supabase.from("produtos").select("id");
+
+        // Aplicar filtro para cada termo (AND entre termos)
+        termos.forEach((termo) => {
+          queryProdutos = queryProdutos.or(
+            `descricao.ilike.%${termo}%,marca.ilike.%${termo}%,categoria.ilike.%${termo}%`
+          );
+        });
+
+        const { data: produtosEncontrados } = await queryProdutos;
+        produtoIds = (produtosEncontrados || []).map((p: any) => p.id);
+      }
+
+      // Construir query principal do estoque
+      let query = supabase
         .from("estoque_lojas")
         .select(
           `
@@ -99,12 +157,33 @@ export default function AdicionarPecaModal({
             id,
             nome
           )
-        `
+        `,
+          { count: "exact" }
         )
         .eq("id_loja", lojaId)
         .gt("quantidade", 0);
 
+      // Se houver busca, filtrar pelos IDs encontrados
+      if (termoBusca.trim() && produtoIds.length > 0) {
+        query = query.in("id_produto", produtoIds);
+      } else if (termoBusca.trim() && produtoIds.length === 0) {
+        // Se buscou mas não encontrou nada, retornar vazio
+        setProdutosEstoque([]);
+        setTotalProdutos(0);
+        setLoadingProdutos(false);
+        return;
+      }
+
+      // Aplicar paginação
+      const inicio = (pagina - 1) * itensPorPagina;
+      const fim = inicio + itensPorPagina - 1;
+      query = query.range(inicio, fim);
+
+      const { data, error, count } = await query;
+
       if (error) throw error;
+
+      setTotalProdutos(count || 0);
 
       const produtosFormatados: ProdutoEstoque[] = (data || []).map(
         (item: any) => {
@@ -240,12 +319,21 @@ export default function AdicionarPecaModal({
     setQuantidadeAvulsa("1");
     setValorCustoEstoque("");
     setValorVendaEstoque("");
+    setBuscaProduto("");
+    setPaginaAtual(1);
   };
 
   const handleClose = () => {
     limparCampos();
     onClose();
   };
+
+  const handleMudarPagina = (novaPagina: number) => {
+    setPaginaAtual(novaPagina);
+    carregarProdutosEstoque(idLoja, novaPagina, buscaProduto);
+  };
+
+  const totalPaginas = Math.ceil(totalProdutos / itensPorPagina);
 
   const calcularTotal = () => {
     if (tipoPeca === "estoque" && valorVendaEstoque) {
@@ -260,8 +348,12 @@ export default function AdicionarPecaModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      size="2xl"
+      size="5xl"
       scrollBehavior="inside"
+      classNames={{
+        base: "max-h-[90vh]",
+        body: "gap-4",
+      }}
     >
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
@@ -309,119 +401,264 @@ export default function AdicionarPecaModal({
                 </p>
               </div>
 
-              <Autocomplete
-                label="Produto"
-                placeholder="Buscar produto no estoque"
-                selectedKey={idProdutoSelecionado}
-                onSelectionChange={(key) =>
-                  handleProdutoSelecionado(key as string)
-                }
-                isLoading={loadingProdutos}
-                isRequired
-                variant="bordered"
-                startContent={<Package className="w-4 h-4" />}
-                allowsCustomValue={false}
-                defaultItems={produtosEstoque}
-              >
-                {(produto) => (
-                  <AutocompleteItem
-                    key={produto.id}
-                    textValue={`${produto.descricao} ${produto.marca || ""}`}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{produto.descricao}</span>
-                      {produto.marca && (
-                        <span className="text-xs text-default-500">
-                          {produto.marca}
-                          {produto.categoria && ` • ${produto.categoria}`}
-                        </span>
-                      )}
-                      <span className="text-xs text-success">
-                        Disponível: {produto.quantidade} un.
-                      </span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Input
+                    placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
+                    value={buscaProduto}
+                    onChange={(e) => setBuscaProduto(e.target.value)}
+                    startContent={
+                      <Search className="w-4 h-4 text-default-400" />
+                    }
+                    isClearable
+                    onClear={() => setBuscaProduto("")}
+                    variant="bordered"
+                    size="lg"
+                    className="flex-1"
+                    classNames={{
+                      input: "text-sm",
+                    }}
+                    description="Digite palavras-chave separadas por espaço para busca inteligente"
+                  />
+                  {totalProdutos > 0 && (
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      className="ml-3"
+                    >
+                      {totalProdutos} produto{totalProdutos !== 1 ? "s" : ""}
+                    </Chip>
+                  )}
+                </div>
+
+                {loadingProdutos ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : produtosEstoque.length === 0 ? (
+                  <div className="text-center py-8 text-default-500">
+                    <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">
+                      {buscaProduto
+                        ? "Nenhum produto encontrado com esse termo"
+                        : "Nenhum produto disponível no estoque"}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                      {produtosEstoque.map((produto) => (
+                        <Card
+                          key={produto.id}
+                          isPressable
+                          isHoverable
+                          onPress={() => handleProdutoSelecionado(produto.id)}
+                          className={`${
+                            idProdutoSelecionado === produto.id
+                              ? "border-2 border-primary bg-primary-50 dark:bg-primary-900/20"
+                              : "border border-default-200 hover:border-primary-300"
+                          } transition-all`}
+                        >
+                          <CardBody className="p-3 gap-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-sm line-clamp-2 mb-1">
+                                  {produto.descricao}
+                                </h4>
+                                {(produto.marca || produto.categoria) && (
+                                  <div className="flex flex-wrap gap-1 mb-2">
+                                    {produto.marca && (
+                                      <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        color="default"
+                                        startContent={
+                                          <Tag className="w-3 h-3" />
+                                        }
+                                      >
+                                        {produto.marca}
+                                      </Chip>
+                                    )}
+                                    {produto.categoria && (
+                                      <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        color="secondary"
+                                        startContent={
+                                          <Box className="w-3 h-3" />
+                                        }
+                                      >
+                                        {produto.categoria}
+                                      </Chip>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <Chip
+                                size="sm"
+                                color={
+                                  produto.quantidade > 10
+                                    ? "success"
+                                    : produto.quantidade > 5
+                                      ? "warning"
+                                      : "danger"
+                                }
+                                variant="flat"
+                              >
+                                {produto.quantidade} un.
+                              </Chip>
+                            </div>
+
+                            <Divider />
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-default-500">Custo</span>
+                                <span className="font-semibold text-default-700">
+                                  R$ {produto.preco_compra.toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-default-500">Venda</span>
+                                <span className="font-semibold text-success">
+                                  R$ {produto.preco_venda.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {produto.preco_venda > produto.preco_compra && (
+                              <div className="flex items-center gap-1 text-xs text-success">
+                                <TrendingUp className="w-3 h-3" />
+                                <span>
+                                  Margem:{" "}
+                                  {(
+                                    ((produto.preco_venda -
+                                      produto.preco_compra) /
+                                      produto.preco_compra) *
+                                    100
+                                  ).toFixed(1)}
+                                  %
+                                </span>
+                              </div>
+                            )}
+                          </CardBody>
+                          {idProdutoSelecionado === produto.id && (
+                            <CardFooter className="bg-primary-100 dark:bg-primary-900/30 py-2 px-3">
+                              <p className="text-xs font-medium text-primary">
+                                ✓ Produto Selecionado
+                              </p>
+                            </CardFooter>
+                          )}
+                        </Card>
+                      ))}
                     </div>
-                  </AutocompleteItem>
+
+                    {totalPaginas > 1 && (
+                      <div className="flex justify-center items-center gap-2 pt-2">
+                        <Pagination
+                          total={totalPaginas}
+                          page={paginaAtual}
+                          onChange={handleMudarPagina}
+                          size="sm"
+                          showControls
+                          color="primary"
+                          classNames={{
+                            cursor: "bg-primary text-white",
+                          }}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
-              </Autocomplete>
+              </div>
 
               {produtoSelecionado && (
                 <>
-                  <div className="p-3 bg-default-100 dark:bg-default-50/10 rounded-lg space-y-2">
-                    <p className="text-xs font-semibold text-default-600 mb-2">
-                      Valores do Produto (editáveis para esta OS)
-                    </p>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-default-600">
-                        Valor Padrão Custo:
-                      </span>
-                      <span className="font-medium text-default-500">
-                        R$ {produtoSelecionado.preco_compra.toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-default-600">
-                        Valor Padrão Venda:
-                      </span>
-                      <span className="font-medium text-default-500">
-                        R$ {produtoSelecionado.preco_venda.toFixed(2)}
-                      </span>
-                    </div>
-                    <Divider />
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-default-600">
-                        Estoque Disponível:
-                      </span>
-                      <Chip size="sm" color="success" variant="flat">
-                        {produtoSelecionado.quantidade} un.
-                      </Chip>
-                    </div>
-                  </div>
+                  <Divider className="my-2" />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label="Valor Custo para esta OS"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={valorCustoEstoque}
-                      onChange={(e) => setValorCustoEstoque(e.target.value)}
-                      startContent={
-                        <span className="text-default-400 text-sm">R$</span>
-                      }
-                      variant="bordered"
-                      description="Ajuste se necessário"
-                      color="primary"
-                    />
+                  <div className="bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 p-4 rounded-lg">
+                    <h3 className="text-sm font-bold mb-3 text-primary">
+                      Configurações do Produto Selecionado
+                    </h3>
 
-                    <Input
-                      label="Valor Venda para esta OS"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={valorVendaEstoque}
-                      onChange={(e) => setValorVendaEstoque(e.target.value)}
-                      isRequired
-                      startContent={
-                        <span className="text-default-400 text-sm">R$</span>
-                      }
-                      variant="bordered"
-                      description="Ajuste se necessário"
-                      color="success"
-                    />
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                        <p className="text-xs text-default-500 mb-1">
+                          Custo Padrão
+                        </p>
+                        <p className="font-bold text-default-700">
+                          R$ {produtoSelecionado.preco_compra.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                        <p className="text-xs text-default-500 mb-1">
+                          Venda Padrão
+                        </p>
+                        <p className="font-bold text-success">
+                          R$ {produtoSelecionado.preco_venda.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                        <p className="text-xs text-default-500 mb-1">
+                          Disponível
+                        </p>
+                        <p className="font-bold text-primary">
+                          {produtoSelecionado.quantidade} un.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <Input
+                        label="Valor Custo (OS)"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={valorCustoEstoque}
+                        onChange={(e) => setValorCustoEstoque(e.target.value)}
+                        startContent={
+                          <span className="text-default-400 text-sm">R$</span>
+                        }
+                        variant="bordered"
+                        description="Ajuste se necessário"
+                        size="sm"
+                      />
+
+                      <Input
+                        label="Valor Venda (OS)"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={valorVendaEstoque}
+                        onChange={(e) => setValorVendaEstoque(e.target.value)}
+                        isRequired
+                        startContent={
+                          <span className="text-default-400 text-sm">R$</span>
+                        }
+                        variant="bordered"
+                        description="Ajuste se necessário"
+                        color="success"
+                        size="sm"
+                      />
+
+                      <Input
+                        label="Quantidade"
+                        type="number"
+                        min="1"
+                        max={produtoSelecionado.quantidade}
+                        step="1"
+                        value={quantidadePeca}
+                        onChange={(e) => setQuantidadePeca(e.target.value)}
+                        isRequired
+                        variant="bordered"
+                        size="sm"
+                        description={`Máx: ${produtoSelecionado.quantidade}`}
+                      />
+                    </div>
                   </div>
                 </>
               )}
-
-              <Input
-                label="Quantidade"
-                type="number"
-                min="1"
-                step="1"
-                value={quantidadePeca}
-                onChange={(e) => setQuantidadePeca(e.target.value)}
-                isRequired
-                variant="bordered"
-              />
             </>
           ) : (
             <>

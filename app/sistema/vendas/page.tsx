@@ -1285,14 +1285,17 @@ export default function VendasPage() {
       {visualizacao === "cards" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {vendasFiltradas.map((venda) => (
-            <Card key={venda.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="flex justify-between items-start">
-                <div>
-                  <p className="text-lg font-bold">
-                    {`V${String(venda.numero_venda).padStart(6, "0")}`}
-                  </p>
-                  <p className="text-sm text-gray-600">
+            <Card
+              key={venda.id}
+              className="hover:shadow-lg transition-shadow border border-default-200"
+            >
+              <CardHeader className="flex justify-between items-start pb-3">
+                <div className="space-y-1">
+                  <p className="text-lg font-bold text-default-900 dark:text-white">
                     {venda.cliente?.nome || "Cliente"}
+                  </p>
+                  <p className="text-sm font-semibold text-primary">
+                    {`V${String(venda.numero_venda).padStart(6, "0")}`}
                   </p>
                 </div>
                 <Chip
@@ -1304,6 +1307,8 @@ export default function VendasPage() {
                         : "warning"
                   }
                   size="sm"
+                  variant="flat"
+                  className="font-semibold"
                 >
                   {venda.status === "concluida"
                     ? "Concluída"
@@ -1312,46 +1317,69 @@ export default function VendasPage() {
                       : "Em Andamento"}
                 </Chip>
               </CardHeader>
-              <CardBody>
-                <div className="space-y-2 mb-4">
+              <CardBody className="pt-0">
+                <div className="space-y-3 mb-4 bg-default-100 dark:bg-default-200/30 rounded-lg p-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Loja:</span>
-                    <span className="font-medium">{venda.loja?.nome}</span>
+                    <span className="text-default-700 dark:text-gray-100 font-bold">
+                      Loja:
+                    </span>
+                    <span className="font-bold text-default-900 dark:text-white">
+                      {venda.loja?.nome}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Vendedor:</span>
-                    <span className="font-medium">{venda.vendedor?.nome}</span>
+                    <span className="text-default-700 dark:text-gray-100 font-bold">
+                      Vendedor:
+                    </span>
+                    <span className="font-bold text-default-900 dark:text-white">
+                      {venda.vendedor?.nome}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Data:</span>
-                    <span className="font-medium">
+                    <span className="text-default-700 dark:text-gray-100 font-bold">
+                      Data:
+                    </span>
+                    <span className="font-bold text-default-900 dark:text-white">
                       {venda.criado_em && formatarData(venda.criado_em)}
                     </span>
                   </div>
                   {venda.tipo === "fiada" && (
-                    <Chip color="warning" size="sm" variant="flat">
-                      Venda Fiada
-                    </Chip>
+                    <div className="pt-2">
+                      <Chip
+                        color="warning"
+                        size="sm"
+                        variant="flat"
+                        className="font-semibold"
+                      >
+                        Venda Fiada
+                      </Chip>
+                    </div>
                   )}
                 </div>
 
-                <div className="border-t pt-3 space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Total:</span>
-                    <span className="font-bold text-lg">
+                <div className="border-t border-default-300 dark:border-default-500 pt-3 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-default-800 dark:text-gray-100">
+                      Total:
+                    </span>
+                    <span className="font-bold text-xl text-primary">
                       {formatarMoeda(venda.valor_total)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Pago:</span>
-                    <span className="text-success font-medium">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="font-bold text-default-800 dark:text-gray-100">
+                      Pago:
+                    </span>
+                    <span className="text-success-700 dark:text-green-400 font-bold text-lg">
                       {formatarMoeda(venda.valor_pago)}
                     </span>
                   </div>
                   {venda.saldo_devedor > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Saldo:</span>
-                      <span className="text-danger font-medium">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-default-800 dark:text-gray-100">
+                        Saldo:
+                      </span>
+                      <span className="text-danger-700 dark:text-red-400 font-bold text-lg">
                         {formatarMoeda(venda.saldo_devedor)}
                       </span>
                     </div>

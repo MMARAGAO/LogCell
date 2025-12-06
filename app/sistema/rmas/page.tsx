@@ -17,6 +17,7 @@ import {
   Chip,
   Spinner,
   Tooltip,
+  Pagination,
 } from "@heroui/react";
 import {
   Plus,
@@ -66,6 +67,11 @@ export default function RMAsPage() {
   });
   const [loading, setLoading] = useState(true);
 
+  // Paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const itensPorPagina = 10;
+
   // Modais
   const [modalNovoRMA, setModalNovoRMA] = useState(false);
   const [modalDetalhes, setModalDetalhes] = useState(false);
@@ -80,24 +86,133 @@ export default function RMAsPage() {
   const [lojas, setLojas] = useState<{ id: number; nome: string }[]>([]);
 
   useEffect(() => {
-    carregarDados();
     carregarLojas();
   }, []);
 
   useEffect(() => {
-    aplicarFiltros();
-  }, [rmas, busca, filtroTipoOrigem, filtroStatus]);
+    carregarDados();
+  }, [paginaAtual, filtroTipoOrigem, filtroStatus]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setPaginaAtual(1);
+      carregarDados();
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [busca]);
 
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const dados = await rmaService.buscarRMAs();
-      setRmas(dados);
-      calcularEstatisticas(dados);
+      const { supabase } = await import("@/lib/supabaseClient");
+
+      // Construir query base
+      let query = supabase.from("rmas").select(
+        `
+          *,
+          produtos (
+            id,
+            descricao,
+            marca,
+            categoria
+          ),
+          clientes (
+            id,
+            nome
+          ),
+          fornecedores (
+            id,
+            nome
+          ),
+          lojas (
+            id,
+            nome
+          )
+        `,
+        { count: "exact" }
+      );
+
+      // Filtro de busca dinâmica
+      if (busca.trim()) {
+        const termos = busca
+          .toLowerCase()
+          .split(" ")
+          .filter((t) => t.length > 0);
+
+        // Buscar em múltiplos campos
+        const condicoes = termos
+          .map((termo) => {
+            return `numero_rma.ilike.%${termo}%,motivo.ilike.%${termo}%`;
+          })
+          .join(",");
+
+        query = query.or(condicoes);
+      }
+
+      // Filtro de tipo de origem
+      if (filtroTipoOrigem) {
+        query = query.eq("tipo_origem", filtroTipoOrigem);
+      }
+
+      // Filtro de status
+      if (filtroStatus) {
+        query = query.eq("status", filtroStatus);
+      }
+
+      // Aplicar paginação
+      const inicio = (paginaAtual - 1) * itensPorPagina;
+      const fim = inicio + itensPorPagina - 1;
+      query = query.range(inicio, fim).order("criado_em", { ascending: false });
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      setRmas(data || []);
+      setRmasFiltrados(data || []);
+      setTotalRegistros(count || 0);
+
+      // Carregar estatísticas separadamente (sem paginação)
+      await carregarEstatisticas();
     } catch (error) {
       console.error("Erro ao carregar RMAs:", error);
+      setRmas([]);
+      setRmasFiltrados([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarEstatisticas = async () => {
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+
+      let queryStats = supabase
+        .from("rmas")
+        .select("status", { count: "exact" });
+
+      // Aplicar mesmos filtros (exceto paginação)
+      if (filtroTipoOrigem) {
+        queryStats = queryStats.eq("tipo_origem", filtroTipoOrigem);
+      }
+
+      if (filtroStatus) {
+        queryStats = queryStats.eq("status", filtroStatus);
+      }
+
+      const { data } = await queryStats;
+
+      if (data) {
+        setEstatisticas({
+          total: data.length,
+          pendentes: data.filter((r) => r.status === "pendente").length,
+          emAnalise: data.filter((r) => r.status === "em_analise").length,
+          aprovados: data.filter((r) => r.status === "aprovado").length,
+          concluidos: data.filter((r) => r.status === "concluido").length,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar estatísticas:", error);
     }
   };
 
@@ -114,46 +229,11 @@ export default function RMAsPage() {
     }
   };
 
-  const calcularEstatisticas = (dados: RMA[]) => {
-    setEstatisticas({
-      total: dados.length,
-      pendentes: dados.filter((r) => r.status === "pendente").length,
-      emAnalise: dados.filter((r) => r.status === "em_analise").length,
-      aprovados: dados.filter((r) => r.status === "aprovado").length,
-      concluidos: dados.filter((r) => r.status === "concluido").length,
-    });
+  const handleMudarPagina = (novaPagina: number) => {
+    setPaginaAtual(novaPagina);
   };
 
-  const aplicarFiltros = () => {
-    let filtrados = [...rmas];
-
-    // Filtro de busca
-    if (busca) {
-      const termo = busca.toLowerCase();
-      filtrados = filtrados.filter(
-        (rma) =>
-          rma.numero_rma.toLowerCase().includes(termo) ||
-          rma.produtos?.descricao.toLowerCase().includes(termo) ||
-          rma.clientes?.nome.toLowerCase().includes(termo) ||
-          rma.fornecedores?.nome.toLowerCase().includes(termo) ||
-          rma.motivo.toLowerCase().includes(termo)
-      );
-    }
-
-    // Filtro de tipo de origem
-    if (filtroTipoOrigem) {
-      filtrados = filtrados.filter(
-        (rma) => rma.tipo_origem === filtroTipoOrigem
-      );
-    }
-
-    // Filtro de status
-    if (filtroStatus) {
-      filtrados = filtrados.filter((rma) => rma.status === filtroStatus);
-    }
-
-    setRmasFiltrados(filtrados);
-  };
+  const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
 
   const handleVerDetalhes = (rmaId: string) => {
     setRmaIdSelecionado(rmaId);
@@ -174,6 +254,7 @@ export default function RMAsPage() {
     setBusca("");
     setFiltroTipoOrigem("");
     setFiltroStatus("");
+    setPaginaAtual(1);
   };
 
   // Verificar permissão de visualizar
@@ -284,13 +365,23 @@ export default function RMAsPage() {
       <Card>
         <CardBody>
           <div className="flex flex-col md:flex-row gap-4">
-            <Input
-              placeholder="Buscar por número, produto, cliente..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              startContent={<Search className="w-4 h-4 text-gray-400" />}
-              className="flex-1"
-            />
+            <div className="flex-1 space-y-2">
+              <Input
+                placeholder="Ex: rma cliente produto (busca inteligente)"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                startContent={<Search className="w-4 h-4 text-gray-400" />}
+                isClearable
+                onClear={() => setBusca("")}
+                description="Digite palavras-chave separadas por espaço"
+              />
+              {totalRegistros > 0 && (
+                <p className="text-xs text-default-500">
+                  {totalRegistros} registro{totalRegistros !== 1 ? "s" : ""}{" "}
+                  encontrado{totalRegistros !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
 
             <Select
               placeholder="Tipo de Origem"
@@ -407,6 +498,22 @@ export default function RMAsPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+
+          {totalPaginas > 1 && (
+            <div className="flex justify-center items-center gap-2 pt-4">
+              <Pagination
+                total={totalPaginas}
+                page={paginaAtual}
+                onChange={handleMudarPagina}
+                size="sm"
+                showControls
+                color="primary"
+                classNames={{
+                  cursor: "bg-primary text-white",
+                }}
+              />
+            </div>
           )}
         </CardBody>
       </Card>
