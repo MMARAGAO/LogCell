@@ -368,14 +368,14 @@ export default function CaixaPage() {
     doc.text("Relatório de Caixa", pageWidth / 2, 20, { align: "center" });
 
     // Informações do Caixa
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Loja: ${caixaDetalhes.loja?.nome || "N/A"}`, 15, 35);
-    doc.text(
-      `Aberto por: ${caixaDetalhes.usuario_abertura_info?.nome || "N/A"}`,
-      15,
-      42
-    );
+    const lojaTexto = `Loja: ${caixaDetalhes.loja?.nome || "N/A"}`;
+    doc.text(lojaTexto, 15, 35, { maxWidth: pageWidth - 30 });
+
+    const abertoTexto = `Aberto por: ${caixaDetalhes.usuario_abertura_info?.nome || "N/A"}`;
+    doc.text(abertoTexto, 15, 42, { maxWidth: pageWidth - 30 });
+
     doc.text(
       `Data Abertura: ${formatarData(caixaDetalhes.data_abertura)}`,
       15,
@@ -387,19 +387,16 @@ export default function CaixaPage() {
         15,
         56
       );
-      doc.text(
-        `Fechado por: ${caixaDetalhes.usuario_fechamento_info?.nome || "N/A"}`,
-        15,
-        63
-      );
+      const fechadoTexto = `Fechado por: ${caixaDetalhes.usuario_fechamento_info?.nome || "N/A"}`;
+      doc.text(fechadoTexto, 15, 63, { maxWidth: pageWidth - 30 });
     }
 
     // Resumo Financeiro
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.text("Resumo Financeiro", 15, caixaDetalhes.data_fechamento ? 80 : 73);
 
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     let yPos = caixaDetalhes.data_fechamento ? 88 : 81;
     doc.text(`Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`, 15, yPos);
@@ -499,14 +496,14 @@ export default function CaixaPage() {
       }
 
       yPos += 10;
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setFillColor(34, 197, 94);
-      doc.rect(15, yPos - 6, pageWidth - 30, 10, "F");
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
       doc.setTextColor(255, 255, 255);
       doc.text("VENDAS", pageWidth / 2, yPos, { align: "center" });
       doc.setTextColor(0, 0, 0);
-      yPos += 15;
+      yPos += 13;
 
       // Formas de pagamento das vendas
       const formasOrdenadas = [
@@ -537,16 +534,16 @@ export default function CaixaPage() {
         }
 
         yPos += 2;
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.setFillColor(220, 252, 231); // Verde claro
-        doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+        doc.rect(18, yPos - 4, pageWidth - 36, 6, "F");
         doc.setTextColor(0, 0, 0);
         doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
-        yPos += 9;
+        yPos += 8;
 
         // Lista de clientes
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         vendas.forEach((venda) => {
           if (yPos > 275) {
@@ -555,13 +552,13 @@ export default function CaixaPage() {
           }
           // Limitar tamanho do nome do cliente
           const nomeCliente =
-            venda.cliente.length > 50
-              ? venda.cliente.substring(0, 47) + "..."
+            venda.cliente.length > 55
+              ? venda.cliente.substring(0, 52) + "..."
               : venda.cliente;
           doc.text(`#${venda.numero} - ${nomeCliente}`, 25, yPos, {
-            maxWidth: pageWidth - 65,
+            maxWidth: pageWidth - 60,
           });
-          doc.text(formatarMoeda(venda.valor), pageWidth - 22, yPos, {
+          doc.text(formatarMoeda(venda.valor), pageWidth - 20, yPos, {
             align: "right",
           });
           yPos += 4.5;
@@ -637,14 +634,14 @@ export default function CaixaPage() {
       }
 
       yPos += 10;
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
       doc.setFillColor(147, 51, 234);
-      doc.rect(15, yPos - 6, pageWidth - 30, 10, "F");
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
       doc.setTextColor(255, 255, 255);
       doc.text("ORDENS DE SERVIÇO", pageWidth / 2, yPos, { align: "center" });
       doc.setTextColor(0, 0, 0);
-      yPos += 15;
+      yPos += 13;
 
       // Formas de pagamento das OS
       const formasOrdenadas = [
@@ -675,16 +672,16 @@ export default function CaixaPage() {
         }
 
         yPos += 2;
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.setFillColor(233, 213, 255); // Roxo claro
-        doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+        doc.rect(18, yPos - 4, pageWidth - 36, 6, "F");
         doc.setTextColor(0, 0, 0);
         doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
-        yPos += 9;
+        yPos += 8;
 
         // Lista de clientes
-        doc.setFontSize(8.5);
+        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         ordens.forEach((ordem) => {
           if (yPos > 275) {
@@ -693,13 +690,13 @@ export default function CaixaPage() {
           }
           // Limitar tamanho do nome do cliente
           const nomeCliente =
-            ordem.cliente.length > 50
-              ? ordem.cliente.substring(0, 47) + "..."
+            ordem.cliente.length > 55
+              ? ordem.cliente.substring(0, 52) + "..."
               : ordem.cliente;
           doc.text(`${ordem.numero} - ${nomeCliente}`, 25, yPos, {
-            maxWidth: pageWidth - 65,
+            maxWidth: pageWidth - 60,
           });
-          doc.text(formatarMoeda(ordem.valor), pageWidth - 22, yPos, {
+          doc.text(formatarMoeda(ordem.valor), pageWidth - 20, yPos, {
             align: "right",
           });
           yPos += 4.5;
