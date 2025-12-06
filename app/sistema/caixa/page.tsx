@@ -497,7 +497,7 @@ export default function CaixaPage() {
         doc.addPage();
         yPos = 20;
       }
-      
+
       yPos += 10;
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
@@ -529,51 +529,52 @@ export default function CaixaPage() {
       formasOrdenadas.forEach((forma) => {
         const vendas = vendasPorFormaPagamento[forma] || [];
         const total = vendas.reduce((sum, v) => sum + v.valor, 0);
-        
+
         // Verificar se precisa de nova página para o subtítulo
         if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        yPos += 2;
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(220, 252, 231); // Verde claro
+        doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
+        yPos += 9;
+
+        // Lista de clientes
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        vendas.forEach((venda) => {
+          if (yPos > 275) {
             doc.addPage();
             yPos = 20;
           }
-
-          yPos += 2;
-          doc.setFontSize(11);
-          doc.setFont("helvetica", "bold");
-          doc.setFillColor(220, 252, 231); // Verde claro
-          doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
-          doc.setTextColor(0, 0, 0);
-          doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
-          yPos += 9;
-
-          // Lista de clientes
-          doc.setFontSize(8.5);
-          doc.setFont("helvetica", "normal");
-          vendas.forEach((venda) => {
-            if (yPos > 275) {
-              doc.addPage();
-              yPos = 20;
-            }
-            // Limitar tamanho do nome do cliente
-            const nomeCliente = venda.cliente.length > 50 
-              ? venda.cliente.substring(0, 47) + "..." 
+          // Limitar tamanho do nome do cliente
+          const nomeCliente =
+            venda.cliente.length > 50
+              ? venda.cliente.substring(0, 47) + "..."
               : venda.cliente;
-            doc.text(`#${venda.numero} - ${nomeCliente}`, 25, yPos, {
-              maxWidth: pageWidth - 65
-            });
-            doc.text(formatarMoeda(venda.valor), pageWidth - 22, yPos, {
-              align: "right",
-            });
-            yPos += 4.5;
+          doc.text(`#${venda.numero} - ${nomeCliente}`, 25, yPos, {
+            maxWidth: pageWidth - 65,
           });
+          doc.text(formatarMoeda(venda.valor), pageWidth - 22, yPos, {
+            align: "right",
+          });
+          yPos += 4.5;
+        });
 
-          yPos += 4;
+        yPos += 4;
       });
 
       if (yPos > 270) {
         doc.addPage();
         yPos = 20;
       }
-      
+
       yPos += 3;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
@@ -666,51 +667,52 @@ export default function CaixaPage() {
       formasOrdenadas.forEach((forma) => {
         const ordens = osPorFormaPagamento[forma] || [];
         const total = ordens.reduce((sum, o) => sum + o.valor, 0);
-        
+
         // Verificar se precisa de nova página para o subtítulo
         if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        yPos += 2;
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(233, 213, 255); // Roxo claro
+        doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
+        yPos += 9;
+
+        // Lista de clientes
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        ordens.forEach((ordem) => {
+          if (yPos > 275) {
             doc.addPage();
             yPos = 20;
           }
-
-          yPos += 2;
-          doc.setFontSize(11);
-          doc.setFont("helvetica", "bold");
-          doc.setFillColor(233, 213, 255); // Roxo claro
-          doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
-          doc.setTextColor(0, 0, 0);
-          doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
-          yPos += 9;
-
-          // Lista de clientes
-          doc.setFontSize(8.5);
-          doc.setFont("helvetica", "normal");
-          ordens.forEach((ordem) => {
-            if (yPos > 275) {
-              doc.addPage();
-              yPos = 20;
-            }
-            // Limitar tamanho do nome do cliente
-            const nomeCliente = ordem.cliente.length > 50 
-              ? ordem.cliente.substring(0, 47) + "..." 
+          // Limitar tamanho do nome do cliente
+          const nomeCliente =
+            ordem.cliente.length > 50
+              ? ordem.cliente.substring(0, 47) + "..."
               : ordem.cliente;
-            doc.text(`${ordem.numero} - ${nomeCliente}`, 25, yPos, {
-              maxWidth: pageWidth - 65
-            });
-            doc.text(formatarMoeda(ordem.valor), pageWidth - 22, yPos, {
-              align: "right",
-            });
-            yPos += 4.5;
+          doc.text(`${ordem.numero} - ${nomeCliente}`, 25, yPos, {
+            maxWidth: pageWidth - 65,
           });
+          doc.text(formatarMoeda(ordem.valor), pageWidth - 22, yPos, {
+            align: "right",
+          });
+          yPos += 4.5;
+        });
 
-          yPos += 4;
+        yPos += 4;
       });
 
       if (yPos > 270) {
         doc.addPage();
         yPos = 20;
       }
-      
+
       yPos += 3;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
