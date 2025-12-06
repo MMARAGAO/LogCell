@@ -9,10 +9,6 @@ const DISABLE_CONSOLE_LOGS = true;
 // ============================================
 
 const nextConfig = {
-  eslint: {
-    // Desabilita ESLint durante build de produção
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     // Ignora erros de TypeScript durante build (use com cuidado!)
     ignoreBuildErrors: false,
