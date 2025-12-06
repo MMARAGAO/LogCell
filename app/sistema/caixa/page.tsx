@@ -359,10 +359,6 @@ export default function CaixaPage() {
   const gerarPDFCaixa = async () => {
     if (!caixaDetalhes || !resumo) return;
 
-    // Buscar vendas detalhadas por forma de pagamento
-    const vendasDetalhadas =
-      await CaixaService.buscarVendasDetalhadasPorPagamento(caixaDetalhes.id);
-
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
@@ -464,135 +460,280 @@ export default function CaixaPage() {
       doc.setTextColor(0, 0, 0);
     }
 
-    // Agrupar movimentações por forma de pagamento
-    const vendasPorFormaPagamento: {
-      [key: string]: { quantidade: number; total: number };
-    } = {};
-    movimentacoes.forEach((mov) => {
-      if (mov.tipo === "venda" && mov.forma_pagamento) {
-        const forma = mov.forma_pagamento;
-        if (!vendasPorFormaPagamento[forma]) {
-          vendasPorFormaPagamento[forma] = { quantidade: 0, total: 0 };
-        }
-        vendasPorFormaPagamento[forma].quantidade++;
-        vendasPorFormaPagamento[forma].total += mov.valor || 0;
-      }
-    });
-
-    // Detalhamento por Forma de Pagamento
-    if (Object.keys(vendasPorFormaPagamento).length > 0) {
-      yPos += 15;
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Vendas por Forma de Pagamento", 15, yPos);
-
-      yPos += 8;
-      const formasPagamentoData = [
-        ["Forma de Pagamento", "Quantidade", "Total"],
-        ...Object.entries(vendasPorFormaPagamento).map(([forma, dados]) => [
-          forma.toUpperCase(),
-          dados.quantidade.toString(),
-          formatarMoeda(dados.total),
-        ]),
-      ];
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [formasPagamentoData[0]],
-        body: formasPagamentoData.slice(1),
-        theme: "striped",
-        headStyles: { fillColor: [34, 197, 94] },
-        margin: { left: 15, right: 15 },
-      });
-
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+    // Verificar se precisa de nova página
+    if (yPos > 240) {
+      doc.addPage();
+      yPos = 20;
     }
 
-    // Seção de Ordens de Serviço
+    // ===== VENDAS =====
+    const vendas = movimentacoes.filter((mov) => mov.tipo === "venda");
+    const vendasPorFormaPagamento: {
+      [key: string]: Array<{ cliente: string; valor: number; numero: string }>;
+    } = {};
+
+    vendas.forEach((mov) => {
+      const forma = mov.forma_pagamento || "nao_informado";
+      if (!vendasPorFormaPagamento[forma]) {
+        vendasPorFormaPagamento[forma] = [];
+      }
+
+      // Extrair número da venda e cliente da descrição
+      const match = mov.descricao.match(/Venda #(\d+)/);
+      const numeroVenda = match ? match[1] : "N/A";
+      const clienteMatch = mov.descricao.match(/- (.+)$/);
+      const cliente = clienteMatch ? clienteMatch[1] : "Cliente";
+
+      vendasPorFormaPagamento[forma].push({
+        cliente,
+        valor: mov.valor || 0,
+        numero: numeroVenda,
+      });
+    });
+
+    if (vendas.length > 0) {
+      // Verificar se precisa de nova página antes da seção
+      if (yPos > 230) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      yPos += 10;
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(34, 197, 94);
+      doc.rect(15, yPos - 6, pageWidth - 30, 10, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("VENDAS", pageWidth / 2, yPos, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      yPos += 15;
+
+      // Formas de pagamento das vendas
+      const formasOrdenadas = [
+        "pix",
+        "dinheiro",
+        "debito",
+        "credito",
+        "credito_cliente",
+        "nao_informado",
+      ];
+      const nomesFormas: any = {
+        pix: "PIX",
+        dinheiro: "Dinheiro",
+        debito: "Cartão de Débito",
+        credito: "Cartão de Crédito",
+        credito_cliente: "Crédito do Cliente",
+        nao_informado: "Não Informado",
+      };
+
+      formasOrdenadas.forEach((forma) => {
+        const vendas = vendasPorFormaPagamento[forma] || [];
+        const total = vendas.reduce((sum, v) => sum + v.valor, 0);
+        
+        // Verificar se precisa de nova página para o subtítulo
+        if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+          }
+
+          yPos += 2;
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.setFillColor(220, 252, 231); // Verde claro
+          doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
+          yPos += 9;
+
+          // Lista de clientes
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          vendas.forEach((venda) => {
+            if (yPos > 275) {
+              doc.addPage();
+              yPos = 20;
+            }
+            // Limitar tamanho do nome do cliente
+            const nomeCliente = venda.cliente.length > 50 
+              ? venda.cliente.substring(0, 47) + "..." 
+              : venda.cliente;
+            doc.text(`#${venda.numero} - ${nomeCliente}`, 25, yPos, {
+              maxWidth: pageWidth - 65
+            });
+            doc.text(formatarMoeda(venda.valor), pageWidth - 22, yPos, {
+              align: "right",
+            });
+            yPos += 4.5;
+          });
+
+          yPos += 4;
+      });
+
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      yPos += 3;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(34, 197, 94);
+      doc.setTextColor(34, 197, 94);
+      doc.text(
+        `Total de Vendas: ${formatarMoeda(vendas.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
+        20,
+        yPos
+      );
+      doc.setTextColor(0, 0, 0);
+      yPos += 12;
+    }
+
+    // ===== ORDENS DE SERVIÇO =====
     const ordensServico = movimentacoes.filter(
       (mov) => mov.tipo === "ordem_servico"
     );
-    if (ordensServico.length > 0) {
-      yPos += 5;
+    const osPorFormaPagamento: {
+      [key: string]: Array<{ cliente: string; valor: number; numero: string }>;
+    } = {};
 
-      // Verificar se precisa de nova página
-      if (yPos > 240) {
+    // Processar OS e seus pagamentos
+    ordensServico.forEach((mov) => {
+      // Extrair número da OS e cliente da descrição
+      const descricaoParts = mov.descricao.split(" - ");
+      const numeroOS = descricaoParts[0] || "";
+      const cliente = descricaoParts[1] || "Cliente não informado";
+
+      if (mov.pagamentos && mov.pagamentos.length > 0) {
+        mov.pagamentos.forEach((pag: any) => {
+          const forma = pag.tipo_pagamento || "nao_informado";
+          if (!osPorFormaPagamento[forma]) {
+            osPorFormaPagamento[forma] = [];
+          }
+          osPorFormaPagamento[forma].push({
+            cliente,
+            valor: pag.valor || 0,
+            numero: numeroOS,
+          });
+        });
+      } else {
+        const forma = mov.forma_pagamento || "nao_informado";
+        if (!osPorFormaPagamento[forma]) {
+          osPorFormaPagamento[forma] = [];
+        }
+        osPorFormaPagamento[forma].push({
+          cliente,
+          valor: mov.valor || 0,
+          numero: numeroOS,
+        });
+      }
+    });
+
+    if (ordensServico.length > 0) {
+      // Verificar se precisa de nova página antes da seção
+      if (yPos > 230) {
         doc.addPage();
         yPos = 20;
       }
 
-      doc.setFontSize(14);
+      yPos += 10;
+      doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Ordens de Serviço", 15, yPos);
+      doc.setFillColor(147, 51, 234);
+      doc.rect(15, yPos - 6, pageWidth - 30, 10, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("ORDENS DE SERVIÇO", pageWidth / 2, yPos, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      yPos += 15;
 
-      yPos += 8;
-
-      // Criar lista detalhada de cada pagamento de OS
-      const ordensDetalhadas: any[] = [];
-      ordensServico.forEach((mov) => {
-        // Extrair número da OS e cliente da descrição
-        const descricaoParts = mov.descricao.split(" - ");
-        const numeroOS = descricaoParts[0] || "";
-        const cliente = descricaoParts[1] || "Cliente não informado";
-
-        // Se tem array de pagamentos (vários pagamentos na mesma OS)
-        if (mov.pagamentos && mov.pagamentos.length > 0) {
-          mov.pagamentos.forEach((pag: any) => {
-            ordensDetalhadas.push([
-              numeroOS,
-              cliente,
-              (pag.tipo_pagamento || "Não informado").toUpperCase(),
-              formatarMoeda(pag.valor),
-            ]);
-          });
-        } else {
-          // Caso antigo: um único pagamento
-          ordensDetalhadas.push([
-            numeroOS,
-            cliente,
-            (mov.forma_pagamento || "Não informado").toUpperCase(),
-            formatarMoeda(mov.valor || 0),
-          ]);
-        }
-      });
-
-      const ordensData = [
-        ["OS", "Cliente", "Forma de Pagamento", "Valor"],
-        ...ordensDetalhadas,
-        [
-          "TOTAL",
-          `${ordensServico.length} OS`,
-          "",
-          formatarMoeda(
-            ordensServico.reduce((sum, mov) => sum + (mov.valor || 0), 0)
-          ),
-        ],
+      // Formas de pagamento das OS
+      const formasOrdenadas = [
+        "pix",
+        "dinheiro",
+        "debito",
+        "credito",
+        "credito_cliente",
+        "nao_informado",
       ];
+      const nomesFormas: any = {
+        pix: "PIX",
+        dinheiro: "Dinheiro",
+        debito: "Cartão de Débito",
+        credito: "Cartão de Crédito",
+        credito_cliente: "Crédito do Cliente",
+        nao_informado: "Não Informado",
+      };
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [ordensData[0]],
-        body: ordensData.slice(1),
-        theme: "striped",
-        headStyles: { fillColor: [147, 51, 234] },
-        margin: { left: 15, right: 15 },
-        footStyles: { fillColor: [120, 40, 200], fontStyle: "bold" },
-        columnStyles: {
-          0: { cellWidth: 25 }, // OS
-          1: { cellWidth: 70 }, // Cliente
-          2: { cellWidth: 50 }, // Forma de Pagamento
-          3: { cellWidth: 35, halign: "right" }, // Valor
-        },
+      formasOrdenadas.forEach((forma) => {
+        const ordens = osPorFormaPagamento[forma] || [];
+        const total = ordens.reduce((sum, o) => sum + o.valor, 0);
+        
+        // Verificar se precisa de nova página para o subtítulo
+        if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+          }
+
+          yPos += 2;
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.setFillColor(233, 213, 255); // Roxo claro
+          doc.rect(18, yPos - 4, pageWidth - 36, 7, "F");
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
+          yPos += 9;
+
+          // Lista de clientes
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          ordens.forEach((ordem) => {
+            if (yPos > 275) {
+              doc.addPage();
+              yPos = 20;
+            }
+            // Limitar tamanho do nome do cliente
+            const nomeCliente = ordem.cliente.length > 50 
+              ? ordem.cliente.substring(0, 47) + "..." 
+              : ordem.cliente;
+            doc.text(`${ordem.numero} - ${nomeCliente}`, 25, yPos, {
+              maxWidth: pageWidth - 65
+            });
+            doc.text(formatarMoeda(ordem.valor), pageWidth - 22, yPos, {
+              align: "right",
+            });
+            yPos += 4.5;
+          });
+
+          yPos += 4;
       });
 
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      yPos += 3;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(147, 51, 234);
+      doc.text(
+        `Total de OS: ${ordensServico.length} - ${formatarMoeda(ordensServico.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
+        20,
+        yPos
+      );
+      doc.setTextColor(0, 0, 0);
+      yPos += 12;
     }
 
     // Detalhamento por Tipo
-    yPos += 5;
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    yPos += 10;
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.text("Detalhamento por Tipo de Movimentação", 15, yPos);
+    doc.text("Resumo por Tipo", 15, yPos);
 
     yPos += 8;
     const detalhamentoData = [
@@ -603,14 +744,14 @@ export default function CaixaPage() {
         formatarMoeda(resumo.vendas?.total || 0),
       ],
       [
-        "Sangrias",
-        (resumo.sangrias?.quantidade || 0).toString(),
-        formatarMoeda(resumo.sangrias?.total || 0),
-      ],
-      [
         "Ordens de Serviço",
         (resumo.ordens_servico?.quantidade || 0).toString(),
         formatarMoeda(resumo.ordens_servico?.total || 0),
+      ],
+      [
+        "Sangrias",
+        (resumo.sangrias?.quantidade || 0).toString(),
+        formatarMoeda(resumo.sangrias?.total || 0),
       ],
       [
         "Quebras",
@@ -628,180 +769,7 @@ export default function CaixaPage() {
       margin: { left: 15, right: 15 },
     });
 
-    // Nova seção: Vendas Detalhadas por Forma de Pagamento
-    if (Object.keys(vendasDetalhadas).length > 0) {
-      yPos = (doc as any).lastAutoTable.finalY + 15;
-
-      // Verificar se precisa de nova página
-      if (yPos > 250) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Vendas Detalhadas por Forma de Pagamento", 15, yPos);
-
-      // Mapear nomes das formas de pagamento
-      const nomesFormasPagamento: { [key: string]: string } = {
-        dinheiro: "DINHEIRO",
-        pix: "PIX",
-        credito: "CARTÃO DE CRÉDITO",
-        debito: "CARTÃO DE DÉBITO",
-        credito_cliente: "CRÉDITO DO CLIENTE",
-        nao_informado: "NÃO INFORMADO",
-      };
-
-      // Iterar por cada forma de pagamento
-      for (const [formaPagamento, dados] of Object.entries(vendasDetalhadas)) {
-        yPos += 10;
-
-        // Verificar se precisa de nova página
-        if (yPos > 260) {
-          doc.addPage();
-          yPos = 20;
-        }
-
-        // Título da forma de pagamento
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setFillColor(34, 197, 94);
-        doc.rect(15, yPos - 5, pageWidth - 30, 8, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.text(
-          `${nomesFormasPagamento[formaPagamento] || formaPagamento.toUpperCase()} - Total: ${formatarMoeda(dados.total)}`,
-          pageWidth / 2,
-          yPos,
-          { align: "center" }
-        );
-        doc.setTextColor(0, 0, 0);
-
-        yPos += 10;
-
-        // Tabela de vendas
-        const vendasData = dados.vendas.map((venda) => [
-          venda.hora,
-          `#${venda.numero_venda}`,
-          venda.cliente_nome,
-          formatarMoeda(venda.valor_pago),
-        ]);
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [["Hora", "Venda", "Cliente", "Valor"]],
-          body: vendasData,
-          theme: "striped",
-          headStyles: { fillColor: [34, 197, 94] },
-          margin: { left: 15, right: 15 },
-          styles: { fontSize: 9 },
-          didDrawPage: (data) => {
-            // Atualizar yPos após cada página
-            yPos = data.cursor ? data.cursor.y : yPos;
-          },
-        });
-
-        yPos = (doc as any).lastAutoTable.finalY + 5;
-      }
-    }
-
-    // Movimentações Detalhadas
-    if (movimentacoes.length > 0) {
-      const finalY = (doc as any).lastAutoTable.finalY || yPos + 40;
-
-      // Verificar se precisa de nova página
-      if (finalY > 250) {
-        doc.addPage();
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Movimentações Detalhadas", 15, 20);
-
-        const movimentacoesData = movimentacoes.map((mov) => {
-          const formaPagamento = mov.forma_pagamento
-            ? ` (${mov.forma_pagamento.toUpperCase()})`
-            : "";
-          const tipo =
-            mov.tipo.replace("_", " ").toUpperCase() + formaPagamento;
-
-          // Adicionar indicação de crédito e forma de pagamento para devoluções
-          let descricao = mov.descricao || "-";
-          if (mov.tipo === "devolucao") {
-            const creditoInfo = mov.gerou_credito
-              ? " [COM CRÉDITO]"
-              : " [SEM CRÉDITO]";
-            const formaPgto = mov.forma_pagamento
-              ? ` (${mov.forma_pagamento.toUpperCase()})`
-              : "";
-            descricao = descricao + creditoInfo + formaPgto;
-          }
-
-          return [
-            formatarData(mov.data),
-            tipo,
-            mov.tipo.includes("entrada") ||
-            mov.tipo === "venda" ||
-            mov.tipo === "ordem_servico"
-              ? formatarMoeda(mov.valor || 0)
-              : `-${formatarMoeda(mov.valor || 0)}`,
-            descricao,
-          ];
-        });
-
-        autoTable(doc, {
-          startY: 25,
-          head: [["Data/Hora", "Tipo", "Valor", "Descrição"]],
-          body: movimentacoesData,
-          theme: "striped",
-          headStyles: { fillColor: [59, 130, 246] },
-          margin: { left: 15, right: 15 },
-          styles: { fontSize: 8 },
-        });
-      } else {
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.text("Movimentações Detalhadas", 15, finalY + 10);
-
-        const movimentacoesData = movimentacoes.map((mov) => {
-          const formaPagamento = mov.forma_pagamento
-            ? ` (${mov.forma_pagamento.toUpperCase()})`
-            : "";
-          const tipo =
-            mov.tipo.replace("_", " ").toUpperCase() + formaPagamento;
-
-          // Adicionar indicação de crédito e forma de pagamento para devoluções
-          let descricao = mov.descricao || "-";
-          if (mov.tipo === "devolucao") {
-            const creditoInfo = mov.gerou_credito
-              ? " [COM CRÉDITO]"
-              : " [SEM CRÉDITO]";
-            const formaPgto = mov.forma_pagamento
-              ? ` (${mov.forma_pagamento.toUpperCase()})`
-              : "";
-            descricao = descricao + creditoInfo + formaPgto;
-          }
-
-          return [
-            formatarData(mov.data),
-            tipo,
-            mov.tipo.includes("entrada") ||
-            mov.tipo === "venda" ||
-            mov.tipo === "ordem_servico"
-              ? formatarMoeda(mov.valor || 0)
-              : `-${formatarMoeda(mov.valor || 0)}`,
-            descricao,
-          ];
-        });
-
-        autoTable(doc, {
-          startY: finalY + 15,
-          head: [["Data/Hora", "Tipo", "Valor", "Descrição"]],
-          body: movimentacoesData,
-          theme: "striped",
-          headStyles: { fillColor: [59, 130, 246] },
-          margin: { left: 15, right: 15 },
-          styles: { fontSize: 8 },
-        });
-      }
-    }
+    yPos = (doc as any).lastAutoTable.finalY;
 
     // Rodapé
     const pageCount = doc.getNumberOfPages();
