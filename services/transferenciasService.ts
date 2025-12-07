@@ -17,7 +17,15 @@ export class TransferenciasService {
           *,
           itens:transferencias_itens(
             *,
-            produto:produtos(descricao, codigo_fabricante, marca)
+            produto:produtos(
+              descricao, 
+              codigo_fabricante, 
+              marca,
+              estoque_lojas(
+                id_loja,
+                quantidade
+              )
+            )
           ),
           loja_origem:lojas!loja_origem_id(nome),
           loja_destino:lojas!loja_destino_id(nome),
@@ -57,6 +65,7 @@ export class TransferenciasService {
               produto_descricao: item.produto?.descricao,
               produto_codigo: item.produto?.codigo_fabricante,
               produto_marca: item.produto?.marca,
+              produtos: item.produto, // Incluir produto completo com estoque_lojas
             })) || [],
           loja_origem_nome: t.loja_origem?.nome,
           loja_origem: t.loja_origem?.nome, // Alias

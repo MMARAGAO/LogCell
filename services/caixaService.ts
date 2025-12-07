@@ -254,7 +254,7 @@ export class CaixaService {
         [];
 
       // Buscar ordens de serviço pagas no período
-      console.log("🔍 Buscando OS do período:", { dataAbertura, dataFechamento });
+      console.log("🔍 Buscando OS do período:", { dataAbertura, dataFechamento, lojaId: caixa.loja_id });
       
       const { data: ordensServico, error: erroOS } = await supabase
         .from("ordem_servico_pagamentos")
@@ -268,7 +268,8 @@ export class CaixaService {
         `
         )
         .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
+        .lte("criado_em", dataFechamento)
+        .eq("ordem_servico.id_loja", caixa.loja_id);
 
       console.log("📊 Resultado busca OS:", { 
         sucesso: !erroOS, 
@@ -633,13 +634,12 @@ export class CaixaService {
         `
         )
         .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
+        .lte("criado_em", dataFechamento)
+        .eq("ordem_servico.id_loja", caixa.loja_id);
 
       // Agrupar pagamentos de OS por id_ordem_servico
       const osAgrupadas: { [key: string]: any } = {};
-      pagamentosOS
-        ?.filter((p: any) => p.ordem_servico?.id_loja === caixa.loja_id)
-        .forEach((pag: any) => {
+      pagamentosOS?.forEach((pag: any) => {
           const osId = pag.id_ordem_servico;
           if (!osAgrupadas[osId]) {
             osAgrupadas[osId] = {

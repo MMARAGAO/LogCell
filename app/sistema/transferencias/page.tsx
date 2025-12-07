@@ -21,6 +21,7 @@ import { useLojaFilter } from "@/hooks/useLojaFilter";
 import TransferenciaModal from "@/components/estoque/TransferenciaModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
+import { supabase } from "@/lib/supabaseClient";
 import type { TransferenciaCompleta } from "@/types";
 import {
   ArrowRightIcon,
@@ -179,6 +180,43 @@ export default function TransferenciasPage() {
     if (!usuario || !confirmarModal.transferencia) return;
 
     const transferencia = confirmarModal.transferencia;
+    
+    // Verificar estoque antes de confirmar
+    const itensComProblema = [];
+    for (const item of transferencia.itens) {
+      const { data: estoque } = await supabase
+        .from("estoque_lojas")
+        .select("quantidade")
+        .eq("id_produto", item.produto_id)
+        .eq("id_loja", transferencia.loja_origem_id)
+        .single();
+
+      if (!estoque || estoque.quantidade < item.quantidade) {
+        itensComProblema.push({
+          produto: item.produtos?.descricao || "Produto",
+          disponivel: estoque?.quantidade || 0,
+          necessario: item.quantidade,
+        });
+      }
+    }
+
+    // Se há problemas, mostrar mensagem detalhada
+    if (itensComProblema.length > 0) {
+      const mensagem = itensComProblema
+        .map(
+          (item) =>
+            `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}`
+        )
+        .join("\n");
+
+      toast.error(
+        `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nVerifique o estoque antes de confirmar a transferência.`
+      );
+      setConfirmarModal({ isOpen: false, transferencia: null });
+      setProcessando(null);
+      return;
+    }
+
     setConfirmarModal({ isOpen: false, transferencia: null });
     setProcessando(transferencia.id);
 
@@ -842,22 +880,56 @@ function DetalhesTransferenciaModal({
               Produtos ({transferencia.itens.length})
             </h4>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {transferencia.itens.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 bg-default-100 rounded-lg"
-                >
-                  <div>
-                    <div className="font-medium">{item.produto_descricao}</div>
-                    {item.produto_marca && (
-                      <div className="text-sm text-default-500">
-                        {item.produto_marca}
+              {transferencia.itens.map((item) => {
+                // Calcular estoque disponível na origem
+                const estoqueOrigem = item.produtos?.estoque_lojas?.find(
+                  (e: any) => e.id_loja === transferencia.loja_origem_id
+                );
+                const qtdDisponivel = estoqueOrigem?.quantidade || 0;
+                const suficiente = qtdDisponivel >= item.quantidade;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between p-3 rounded-lg ${
+                      suficiente
+                        ? "bg-default-100"
+                        : "bg-danger-50 dark:bg-danger-900/20"
+                    }`}
+                  >
+                    <div className="flex-1">
+                      <div className="font-medium">
+                        {item.produto_descricao}
                       </div>
-                    )}
+                      {item.produto_marca && (
+                        <div className="text-sm text-default-500">
+                          {item.produto_marca}
+                        </div>
+                      )}
+                      {transferencia.status === "pendente" && (
+                        <div
+                          className={`text-xs mt-1 ${
+                            suficiente
+                              ? "text-success-600 dark:text-success-400"
+                              : "text-danger-600 dark:text-danger-400 font-semibold"
+                          }`}
+                        >
+                          {suficiente ? "✓" : "⚠"} Estoque na origem:{" "}
+                          {qtdDisponivel} un
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Chip
+                        color={suficiente ? "primary" : "danger"}
+                        variant={suficiente ? "flat" : "solid"}
+                      >
+                        {item.quantidade} un
+                      </Chip>
+                    </div>
                   </div>
-                  <Chip color="primary">{item.quantidade} un</Chip>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

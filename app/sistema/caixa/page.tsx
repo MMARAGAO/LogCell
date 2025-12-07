@@ -645,20 +645,20 @@ export default function CaixaPage() {
 
       // Formas de pagamento das OS
       const formasOrdenadas = [
-        "pix",
         "dinheiro",
-        "debito",
-        "credito",
-        "credito_cliente",
-        "nao_informado",
+        "pix",
+        "cartao_credito",
+        "cartao_debito",
+        "transferencia",
+        "cheque",
       ];
       const nomesFormas: any = {
-        pix: "PIX",
         dinheiro: "Dinheiro",
-        debito: "Cartão de Débito",
-        credito: "Cartão de Crédito",
-        credito_cliente: "Crédito do Cliente",
-        nao_informado: "Não Informado",
+        pix: "PIX",
+        cartao_credito: "Cartão de Crédito",
+        cartao_debito: "Cartão de Débito",
+        transferencia: "Transferência",
+        cheque: "Cheque",
       };
 
       formasOrdenadas.forEach((forma) => {
