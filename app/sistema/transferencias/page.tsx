@@ -180,7 +180,7 @@ export default function TransferenciasPage() {
     if (!usuario || !confirmarModal.transferencia) return;
 
     const transferencia = confirmarModal.transferencia;
-    
+
     // Verificar estoque antes de confirmar
     const itensComProblema = [];
     for (const item of transferencia.itens) {

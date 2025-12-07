@@ -754,7 +754,7 @@ export default function TransferenciaModal({
 
       // Verificar estoque disponível antes de criar a transferência
       const itensComProblema = [];
-      
+
       for (const item of itensTransferencia) {
         const { data: estoqueOrigemData, error: errorOrigem } = await supabase
           .from("estoque_lojas")
@@ -768,7 +768,7 @@ export default function TransferenciaModal({
             produto: item.produto_descricao,
             disponivel: 0,
             necessario: item.quantidade,
-            erro: "Produto não encontrado no estoque da loja de origem"
+            erro: "Produto não encontrado no estoque da loja de origem",
           });
           continue;
         }
@@ -779,7 +779,7 @@ export default function TransferenciaModal({
             produto: item.produto_descricao,
             disponivel: estoqueOrigemData.quantidade,
             necessario: item.quantidade,
-            erro: null
+            erro: null,
           });
         }
       }
@@ -789,7 +789,7 @@ export default function TransferenciaModal({
         const mensagem = itensComProblema
           .map(
             (item) =>
-              `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}${item.erro ? ' (' + item.erro + ')' : ''}`
+              `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}${item.erro ? " (" + item.erro + ")" : ""}`
           )
           .join("\n");
 
@@ -1443,25 +1443,28 @@ export default function TransferenciaModal({
                             selectedKeys={[item.loja_origem]}
                             onSelectionChange={(keys) => {
                               const novaOrigem = Array.from(keys)[0] as string;
-                              
+
                               // Verificar se a loja tem estoque disponível
                               const estoqueNaLoja = item.estoques_lojas?.find(
                                 (e) => e.id_loja === parseInt(novaOrigem)
                               );
-                              const quantidadeDisponivel = estoqueNaLoja?.quantidade || 0;
-                              
+                              const quantidadeDisponivel =
+                                estoqueNaLoja?.quantidade || 0;
+
                               if (quantidadeDisponivel === 0) {
-                                toast.error(`Esta loja não tem estoque de ${item.produto_descricao}`);
+                                toast.error(
+                                  `Esta loja não tem estoque de ${item.produto_descricao}`
+                                );
                                 return;
                               }
-                              
+
                               // Verificar se a quantidade solicitada é maior que o disponível
                               if (item.quantidade > quantidadeDisponivel) {
                                 toast.warning(
                                   `Quantidade ajustada de ${item.quantidade} para ${quantidadeDisponivel} (disponível na loja)`
                                 );
                               }
-                              
+
                               setItensTransferencia((prev) =>
                                 prev.map((i) =>
                                   i.id_produto === item.id_produto
@@ -1469,7 +1472,10 @@ export default function TransferenciaModal({
                                         ...i,
                                         loja_origem: novaOrigem,
                                         // Ajustar quantidade se necessário
-                                        quantidade: Math.min(item.quantidade, quantidadeDisponivel),
+                                        quantidade: Math.min(
+                                          item.quantidade,
+                                          quantidadeDisponivel
+                                        ),
                                         // Resetar destino se igual à origem
                                         loja_destino:
                                           novaOrigem === i.loja_destino
@@ -1494,17 +1500,23 @@ export default function TransferenciaModal({
                               item.loja_origem && item.estoques_lojas ? (
                                 <span className="text-xs">
                                   {(() => {
-                                    const estoqueOrigem = item.estoques_lojas.find(
-                                      (e) => e.id_loja === parseInt(item.loja_origem)
-                                    );
-                                    const qtdDisp = estoqueOrigem?.quantidade || 0;
+                                    const estoqueOrigem =
+                                      item.estoques_lojas.find(
+                                        (e) =>
+                                          e.id_loja ===
+                                          parseInt(item.loja_origem)
+                                      );
+                                    const qtdDisp =
+                                      estoqueOrigem?.quantidade || 0;
                                     return qtdDisp < item.quantidade ? (
                                       <span className="text-danger">
-                                        ⚠ Disponível: {qtdDisp} | Necessário: {item.quantidade}
+                                        ⚠ Disponível: {qtdDisp} | Necessário:{" "}
+                                        {item.quantidade}
                                       </span>
                                     ) : (
                                       <span className="text-success">
-                                        ✓ Estoque suficiente ({qtdDisp} disponíveis)
+                                        ✓ Estoque suficiente ({qtdDisp}{" "}
+                                        disponíveis)
                                       </span>
                                     );
                                   })()}
@@ -1597,19 +1609,20 @@ export default function TransferenciaModal({
                             value={item.quantidade.toString()}
                             onValueChange={(value) => {
                               const novaQtd = parseInt(value) || 1;
-                              
+
                               // Verificar estoque na loja de origem se já foi selecionada
                               let maxQtd = item.quantidade_disponivel;
                               if (item.loja_origem && item.estoques_lojas) {
                                 const estoqueOrigem = item.estoques_lojas.find(
-                                  (e) => e.id_loja === parseInt(item.loja_origem)
+                                  (e) =>
+                                    e.id_loja === parseInt(item.loja_origem)
                                 );
                                 maxQtd = estoqueOrigem?.quantidade || 0;
                               }
-                              
+
                               if (novaQtd > maxQtd) {
                                 toast.warning(
-                                  `Quantidade ajustada para ${maxQtd} (máximo disponível${item.loja_origem ? ' na loja de origem' : ''})`
+                                  `Quantidade ajustada para ${maxQtd} (máximo disponível${item.loja_origem ? " na loja de origem" : ""})`
                                 );
                                 setItensTransferencia((prev) =>
                                   prev.map((i) =>
@@ -1620,7 +1633,7 @@ export default function TransferenciaModal({
                                 );
                                 return;
                               }
-                              
+
                               if (novaQtd > 0) {
                                 setItensTransferencia((prev) =>
                                   prev.map((i) =>
@@ -1635,7 +1648,8 @@ export default function TransferenciaModal({
                             max={
                               item.loja_origem && item.estoques_lojas
                                 ? item.estoques_lojas.find(
-                                    (e) => e.id_loja === parseInt(item.loja_origem)
+                                    (e) =>
+                                      e.id_loja === parseInt(item.loja_origem)
                                   )?.quantidade || 0
                                 : item.quantidade_disponivel
                             }
@@ -1643,17 +1657,19 @@ export default function TransferenciaModal({
                               inputWrapper: "bg-content2",
                             }}
                             description={
-                              item.loja_origem && item.estoques_lojas ? (
-                                (() => {
-                                  const estoqueOrigem = item.estoques_lojas.find(
-                                    (e) => e.id_loja === parseInt(item.loja_origem)
-                                  );
-                                  const maxDisp = estoqueOrigem?.quantidade || 0;
-                                  return `Máx: ${maxDisp} (na loja de origem)`;
-                                })()
-                              ) : (
-                                `Máx: ${item.quantidade_disponivel}`
-                              )
+                              item.loja_origem && item.estoques_lojas
+                                ? (() => {
+                                    const estoqueOrigem =
+                                      item.estoques_lojas.find(
+                                        (e) =>
+                                          e.id_loja ===
+                                          parseInt(item.loja_origem)
+                                      );
+                                    const maxDisp =
+                                      estoqueOrigem?.quantidade || 0;
+                                    return `Máx: ${maxDisp} (na loja de origem)`;
+                                  })()
+                                : `Máx: ${item.quantidade_disponivel}`
                             }
                           />
                         </div>
