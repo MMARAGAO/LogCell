@@ -193,7 +193,7 @@ export default function TransferenciasPage() {
 
       if (!estoque || estoque.quantidade < item.quantidade) {
         itensComProblema.push({
-          produto: item.produtos?.descricao || "Produto",
+          produto: item.produto_descricao || "Produto",
           disponivel: estoque?.quantidade || 0,
           necessario: item.quantidade,
         });
@@ -881,21 +881,10 @@ function DetalhesTransferenciaModal({
             </h4>
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {transferencia.itens.map((item) => {
-                // Calcular estoque disponível na origem
-                const estoqueOrigem = item.produtos?.estoque_lojas?.find(
-                  (e: any) => e.id_loja === transferencia.loja_origem_id
-                );
-                const qtdDisponivel = estoqueOrigem?.quantidade || 0;
-                const suficiente = qtdDisponivel >= item.quantidade;
-
                 return (
                   <div
                     key={item.id}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      suficiente
-                        ? "bg-default-100"
-                        : "bg-danger-50 dark:bg-danger-900/20"
-                    }`}
+                    className="flex items-center justify-between p-3 rounded-lg bg-default-100"
                   >
                     <div className="flex-1">
                       <div className="font-medium">
@@ -906,24 +895,9 @@ function DetalhesTransferenciaModal({
                           {item.produto_marca}
                         </div>
                       )}
-                      {transferencia.status === "pendente" && (
-                        <div
-                          className={`text-xs mt-1 ${
-                            suficiente
-                              ? "text-success-600 dark:text-success-400"
-                              : "text-danger-600 dark:text-danger-400 font-semibold"
-                          }`}
-                        >
-                          {suficiente ? "✓" : "⚠"} Estoque na origem:{" "}
-                          {qtdDisponivel} un
-                        </div>
-                      )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Chip
-                        color={suficiente ? "primary" : "danger"}
-                        variant={suficiente ? "flat" : "solid"}
-                      >
+                      <Chip color="primary" variant="flat">
                         {item.quantidade} un
                       </Chip>
                     </div>
