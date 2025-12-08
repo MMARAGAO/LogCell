@@ -41,6 +41,7 @@ import {
   Grid,
   List,
   Wallet,
+  Printer,
 } from "lucide-react";
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
@@ -57,6 +58,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { useRealtime } from "@/hooks/useRealtime";
+import { imprimirNotaVenda } from "@/lib/imprimirNotaVenda";
 import type {
   VendaCompleta,
   ItemCarrinho,
@@ -897,6 +899,16 @@ export default function VendasPage() {
       icon: <Eye className="w-4 h-4" />,
       onClick: () => handleAbrirDetalhes(venda),
     });
+
+    // Imprimir Nota
+    if (venda.status === "concluida") {
+      items.push({
+        key: "imprimir",
+        label: "Imprimir Nota",
+        icon: <Printer className="w-4 h-4" />,
+        onClick: () => imprimirNotaVenda(venda),
+      });
+    }
 
     // Editar
     if (venda.status !== "cancelada") {

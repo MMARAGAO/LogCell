@@ -81,13 +81,22 @@ export function PermissoesRealtimeProvider({
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
         console.log("📡 [PERMISSÕES REALTIME] Status:", status);
 
         if (status === "SUBSCRIBED") {
           console.log("✅ [PERMISSÕES REALTIME] Conectado!");
         } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ [PERMISSÕES REALTIME] Erro no canal");
+          console.error("❌ [PERMISSÕES REALTIME] Erro no canal:", err);
+          // Tentar reconectar após 3 segundos
+          setTimeout(() => {
+            console.log("🔄 [PERMISSÕES REALTIME] Tentando reconectar...");
+            channel.subscribe();
+          }, 3000);
+        } else if (status === "TIMED_OUT") {
+          console.warn("⏱️ [PERMISSÕES REALTIME] Timeout na conexão");
+        } else if (status === "CLOSED") {
+          console.log("🔒 [PERMISSÕES REALTIME] Canal fechado");
         }
       });
 

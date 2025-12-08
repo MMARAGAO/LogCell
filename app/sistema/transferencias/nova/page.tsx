@@ -685,7 +685,7 @@ export default function NovaTransferenciaPage() {
                       <TableColumn width={50}>AÇÕES</TableColumn>
                     </TableHeader>
                     <TableBody>
-                      {itensTransferencia.map((item) => {
+                      {[...itensTransferencia].reverse().map((item) => {
                         const estoqueDestino = item.estoques_todas_lojas.find(
                           (e) => e.id_loja === item.loja_destino_id
                         );
