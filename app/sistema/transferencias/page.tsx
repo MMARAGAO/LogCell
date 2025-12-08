@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
@@ -18,7 +19,6 @@ import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
-import TransferenciaModal from "@/components/estoque/TransferenciaModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
 import { supabase } from "@/lib/supabaseClient";
@@ -55,12 +55,7 @@ export default function TransferenciasPage() {
   const { usuario } = useAuth();
   const { temPermissao } = usePermissoes();
   const { lojaId, podeVerTodasLojas } = useLojaFilter();
-
-  const {
-    isOpen: isTransferenciaOpen,
-    onOpen: onTransferenciaOpen,
-    onClose: onTransferenciaClose,
-  } = useDisclosure();
+  const router = useRouter();
 
   const [transferencias, setTransferencias] = useState<TransferenciaCompleta[]>(
     []
@@ -346,7 +341,7 @@ export default function TransferenciasPage() {
               color="primary"
               size="lg"
               startContent={<PlusIcon className="h-5 w-5" />}
-              onPress={onTransferenciaOpen}
+              onPress={() => router.push("/sistema/transferencias/nova")}
             >
               Nova Transferência
             </Button>
@@ -528,16 +523,6 @@ export default function TransferenciasPage() {
           processando={processando === transferenciaSelecionada.id}
         />
       )}
-
-      {/* Modal de Nova Transferência */}
-      <TransferenciaModal
-        isOpen={isTransferenciaOpen}
-        onClose={onTransferenciaClose}
-        onSuccess={() => {
-          carregarTransferencias();
-          toast.success("Transferência criada com sucesso!");
-        }}
-      />
 
       {/* Modal de Confirmação */}
       <ConfirmModal
