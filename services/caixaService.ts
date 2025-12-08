@@ -201,26 +201,36 @@ export class CaixaService {
           (1000 * 60 * 60),
       });
 
-      // Buscar vendas do período
-      const { data: vendas, error: erroVendas } = await supabase
-        .from("vendas")
+      // Buscar pagamentos de vendas do período (buscar pelo momento do pagamento)
+      const { data: pagamentosVendas, error: erroPagamentos } = await supabase
+        .from("pagamentos_venda")
         .select(
           `
           id,
-          valor_total,
-          valor_pago,
+          tipo_pagamento,
+          valor,
           criado_em,
-          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+          venda:vendas!pagamentos_venda_venda_id_fkey(
+            id,
+            numero_venda,
+            loja_id,
+            valor_total,
+            status
+          )
         `
         )
-        .eq("loja_id", caixa.loja_id)
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroVendas) {
-        console.error("❌ Erro ao buscar vendas:", erroVendas);
-        throw new Error(`Erro ao buscar vendas: ${erroVendas.message || JSON.stringify(erroVendas)}`);
+      if (erroPagamentos) {
+        console.error("❌ Erro ao buscar pagamentos:", erroPagamentos);
+        throw new Error(`Erro ao buscar pagamentos: ${erroPagamentos.message || JSON.stringify(erroPagamentos)}`);
       }
+
+      // Filtrar apenas pagamentos de vendas da loja correta
+      const pagamentosLoja = pagamentosVendas?.filter(
+        (pag: any) => pag.venda?.loja_id === caixa.loja_id && pag.venda?.status === "concluida"
+      ) || [];
 
       // Buscar devoluções do período
       const { data: devolucoes, error: erroDevolucoes } = await supabase
@@ -351,27 +361,24 @@ export class CaixaService {
         valores: valorVendasDevolvidasMesmoDia,
       });
 
-      vendas?.forEach((venda: any) => {
-        const vendaDevolvida = vendasDevolvidasMesmoDia.has(venda.id);
+      pagamentosLoja.forEach((pag: any) => {
+        const vendaDevolvida = vendasDevolvidasMesmoDia.has(pag.venda?.id);
+        const forma = pag.tipo_pagamento;
+        const valor = Number(pag.valor);
 
-        venda.pagamentos?.forEach((pag: any) => {
-          const forma = pag.tipo_pagamento;
-          const valor = Number(pag.valor);
+        // Se não foi devolvida no mesmo dia, conta normalmente
+        if (!vendaDevolvida) {
+          porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
+          totalVendas += valor;
+        }
 
-          // Se não foi devolvida no mesmo dia, conta normalmente
-          if (!vendaDevolvida) {
-            porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
-            totalVendas += valor;
-          }
-
-          // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
-          // E se não foi venda devolvida no mesmo dia
-          // credito = cartão de crédito (conta no caixa)
-          // credito_cliente = crédito da loja (NÃO conta no caixa)
-          if (forma !== "credito_cliente" && !vendaDevolvida) {
-            totalVendasDinheiro += valor;
-          }
-        });
+        // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
+        // E se não foi venda devolvida no mesmo dia
+        // credito = cartão de crédito (conta no caixa)
+        // credito_cliente = crédito da loja (NÃO conta no caixa)
+        if (forma !== "credito_cliente" && !vendaDevolvida) {
+          totalVendasDinheiro += valor;
+        }
       });
 
       // Calcular totais de devoluções separados por tipo
@@ -482,7 +489,7 @@ export class CaixaService {
 
       return {
         vendas: {
-          quantidade: vendas?.length || 0,
+          quantidade: pagamentosLoja.length,
           total: totalVendas,
           por_forma_pagamento: porFormaPagamento,
         },
@@ -544,43 +551,48 @@ export class CaixaService {
 
       const movimentacoes: MovimentacaoCaixa[] = [];
 
-      // Buscar vendas
-      const { data: vendas } = await supabase
-        .from("vendas")
+      // Buscar pagamentos de vendas (buscar pelo momento do pagamento)
+      const { data: pagamentosVendas } = await supabase
+        .from("pagamentos_venda")
         .select(
           `
           id,
-          numero_venda,
-          valor_pago,
+          tipo_pagamento,
+          valor,
           criado_em,
-          cliente:clientes(nome),
-          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+          venda:vendas!pagamentos_venda_venda_id_fkey(
+            id,
+            numero_venda,
+            loja_id,
+            status,
+            cliente:clientes(nome)
+          )
         `
         )
-        .eq("loja_id", caixa.loja_id)
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      vendas?.forEach((venda: any) => {
-        const usouCredito = venda.pagamentos?.some(
-          (pag: any) => pag.tipo_pagamento === "credito_cliente"
-        );
-
-        venda.pagamentos?.forEach((pag: any) => {
+      // Filtrar apenas pagamentos de vendas concluídas da loja correta
+      pagamentosVendas
+        ?.filter(
+          (pag: any) =>
+            pag.venda?.loja_id === caixa.loja_id &&
+            pag.venda?.status === "concluida"
+        )
+        .forEach((pag: any) => {
           // Não incluir crédito de cliente como movimentação de caixa
           if (pag.tipo_pagamento === "credito_cliente") return;
 
           movimentacoes.push({
             tipo: "venda",
-            descricao: `Venda #${venda.numero_venda} - ${venda.cliente?.nome || "Cliente"}`,
+            descricao: `Venda #${pag.venda?.numero_venda} - ${pag.venda?.cliente?.nome || "Cliente"}`,
             valor: Number(pag.valor),
-            data: venda.criado_em,
-            referencia_id: venda.id,
+            data: pag.criado_em,
+            referencia_id: pag.venda?.id,
             forma_pagamento: pag.tipo_pagamento,
-            usou_credito: usouCredito,
+            usou_credito: false, // Não temos essa informação no nível de pagamento
           });
         });
-      });
 
       // Buscar devoluções
       const { data: devolucoes } = await supabase
@@ -795,30 +807,42 @@ export class CaixaService {
         new Date(dataFechamentoBase).getTime() + 12 * 60 * 60 * 1000
       ).toISOString();
 
-      // Buscar todas as vendas do período com pagamentos e clientes
-      const { data: vendas, error } = await supabase
-        .from("vendas")
+      // Buscar todos os pagamentos do período
+      const { data: pagamentosVendas, error } = await supabase
+        .from("pagamentos_venda")
         .select(
           `
           id,
-          numero_venda,
-          valor_total,
-          valor_desconto,
-          valor_pago,
+          tipo_pagamento,
+          valor,
           criado_em,
-          cliente_id,
-          cliente:clientes(id, nome, cpf),
-          pagamentos:pagamentos_venda(tipo_pagamento, valor)
+          venda:vendas!pagamentos_venda_venda_id_fkey(
+            id,
+            numero_venda,
+            valor_total,
+            valor_desconto,
+            valor_pago,
+            criado_em,
+            loja_id,
+            status,
+            cliente:clientes(id, nome, cpf)
+          )
         `
         )
-        .eq("loja_id", caixa.loja_id)
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento)
         .order("criado_em", { ascending: true });
 
       if (error) throw error;
 
-      // Agrupar vendas por forma de pagamento
+      // Filtrar apenas pagamentos de vendas concluídas da loja correta
+      const pagamentosLoja = pagamentosVendas?.filter(
+        (pag: any) =>
+          pag.venda?.loja_id === caixa.loja_id &&
+          pag.venda?.status === "concluida"
+      ) || [];
+
+      // Agrupar pagamentos por forma de pagamento
       const vendasPorFormaPagamento: {
         [key: string]: {
           vendas: Array<{
@@ -835,37 +859,35 @@ export class CaixaService {
         };
       } = {};
 
-      vendas?.forEach((venda: any) => {
-        venda.pagamentos?.forEach((pag: any) => {
-          const formaPagamento = pag.tipo_pagamento || "nao_informado";
+      pagamentosLoja.forEach((pag: any) => {
+        const formaPagamento = pag.tipo_pagamento || "nao_informado";
 
-          if (!vendasPorFormaPagamento[formaPagamento]) {
-            vendasPorFormaPagamento[formaPagamento] = {
-              vendas: [],
-              total: 0,
-            };
-          }
+        if (!vendasPorFormaPagamento[formaPagamento]) {
+          vendasPorFormaPagamento[formaPagamento] = {
+            vendas: [],
+            total: 0,
+          };
+        }
 
-          // Extrair hora da venda
-          const dataVenda = new Date(venda.criado_em);
-          const hora = dataVenda.toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          vendasPorFormaPagamento[formaPagamento].vendas.push({
-            numero_venda: venda.numero_venda,
-            cliente_nome: venda.cliente?.nome || "Cliente não informado",
-            cliente_cpf: venda.cliente?.cpf,
-            valor_total: Number(venda.valor_total),
-            valor_desconto: Number(venda.valor_desconto || 0),
-            valor_pago: Number(pag.valor),
-            criado_em: venda.criado_em,
-            hora: hora,
-          });
-
-          vendasPorFormaPagamento[formaPagamento].total += Number(pag.valor);
+        // Extrair hora do pagamento
+        const dataPagamento = new Date(pag.criado_em);
+        const hora = dataPagamento.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
         });
+
+        vendasPorFormaPagamento[formaPagamento].vendas.push({
+          numero_venda: pag.venda?.numero_venda || "",
+          cliente_nome: pag.venda?.cliente?.nome || "Cliente não informado",
+          cliente_cpf: pag.venda?.cliente?.cpf,
+          valor_total: Number(pag.venda?.valor_total || 0),
+          valor_desconto: Number(pag.venda?.valor_desconto || 0),
+          valor_pago: Number(pag.valor),
+          criado_em: pag.criado_em,
+          hora: hora,
+        });
+
+        vendasPorFormaPagamento[formaPagamento].total += Number(pag.valor);
       });
 
       return vendasPorFormaPagamento;

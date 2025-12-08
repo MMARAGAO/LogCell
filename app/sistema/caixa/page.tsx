@@ -509,16 +509,20 @@ export default function CaixaPage() {
       const formasOrdenadas = [
         "pix",
         "dinheiro",
-        "debito",
-        "credito",
+        "cartao_debito",
+        "cartao_credito",
+        "transferencia",
+        "boleto",
         "credito_cliente",
         "nao_informado",
       ];
       const nomesFormas: any = {
         pix: "PIX",
         dinheiro: "Dinheiro",
-        debito: "Cartão de Débito",
-        credito: "Cartão de Crédito",
+        cartao_debito: "Cartão de Débito",
+        cartao_credito: "Cartão de Crédito",
+        transferencia: "Transferência",
+        boleto: "Boleto",
         credito_cliente: "Crédito do Cliente",
         nao_informado: "Não Informado",
       };
