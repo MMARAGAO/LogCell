@@ -5,7 +5,7 @@
 // ============================================
 // true  = Remove console.log em DEV E PROD
 // false = Mantém todos os logs (padrão)
-const DISABLE_CONSOLE_LOGS = true;
+const DISABLE_CONSOLE_LOGS = false;
 // ============================================
 
 const nextConfig = {
@@ -34,6 +34,11 @@ const nextConfig = {
             exclude: ["error", "warn", "info"], // Remove só em produção
           }
         : false, // Mantém tudo em dev
+  },
+  // Configuração experimental para melhorar performance
+  experimental: {
+    // Otimizar carregamento de pacotes
+    optimizePackageImports: ["@heroui/react"],
   },
 };
 

@@ -29,6 +29,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { Progress } from "@heroui/progress";
 import { Produto as ProdutoSistema } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
 import {
   gerarRelatorioTransferenciaDetalhado,
   gerarRelatorioTransferenciaResumido,
@@ -96,6 +97,7 @@ export default function TransferenciaModal({
   produto,
 }: TransferenciaModalProps) {
   const toast = useToast();
+  const { verificarSessao, usuario } = useAuth();
 
   // Buscar lojas e usuário
   const [lojas, setLojas] = useState<Loja[]>([]);
@@ -146,6 +148,12 @@ export default function TransferenciaModal({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
+      // Verificar sessão primeiro
+      const sessaoValida = await verificarSessao();
+      if (!sessaoValida) {
+        return; // verificarSessao já redireciona para login
+      }
+
       // Buscar lojas ativas
       const { data: lojasData, error: lojasError } = await supabase
         .from("lojas")
@@ -156,12 +164,13 @@ export default function TransferenciaModal({
       if (lojasError) throw lojasError;
       setLojas(lojasData || []);
 
-      // Buscar usuário atual
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
+      // Usar ID do usuário do contexto
+      if (usuario?.id) {
+        console.log("✅ Usuário autenticado:", {
+          id: usuario.id,
+          email: usuario.email,
+        });
+        setUserId(usuario.id);
       }
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
@@ -717,6 +726,20 @@ export default function TransferenciaModal({
       return;
     }
 
+    // Verificar sessão antes de processar
+    const sessaoValida = await verificarSessao();
+    if (!sessaoValida) {
+      return; // verificarSessao já redireciona para login
+    }
+
+    // Validar usuário autenticado
+    if (!userId) {
+      toast.error("Sessão expirada. Redirecionando para login...");
+      console.error("❌ userId vazio - sessão expirada ou não autenticado");
+      await verificarSessao(); // Redireciona para login
+      return;
+    }
+
     // Validar se todos os itens têm origem e destino
     const itensSemOrigem = itensTransferencia.filter((i) => !i.loja_origem);
     const itensSemDestino = itensTransferencia.filter((i) => !i.loja_destino);
@@ -822,6 +845,13 @@ export default function TransferenciaModal({
           .split("->")
           .map((id) => parseInt(id));
 
+        console.log("📦 Criando transferência:", {
+          loja_origem_id: lojaOrigemId,
+          loja_destino_id: lojaDestinoId,
+          usuario_id: userId,
+          total_itens: itens.length,
+        });
+
         // Criar transferência pendente
         const { data: transferencia, error: errorTransferencia } =
           await supabase
@@ -836,9 +866,19 @@ export default function TransferenciaModal({
             .select()
             .single();
 
-        if (errorTransferencia || !transferencia) {
-          throw new Error("Erro ao criar transferência");
+        if (errorTransferencia) {
+          console.error("❌ Erro ao criar transferência:", errorTransferencia);
+          throw new Error(
+            `Erro ao criar transferência: ${errorTransferencia.message || JSON.stringify(errorTransferencia)}`
+          );
         }
+
+        if (!transferencia) {
+          console.error("❌ Transferência criada mas data retornou null");
+          throw new Error("Erro ao criar transferência - dados não retornados");
+        }
+
+        console.log("✅ Transferência criada:", transferencia.id);
 
         // Inserir itens da transferência
         const itensParaInserir = itens.map((item) => ({

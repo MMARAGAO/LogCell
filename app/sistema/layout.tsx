@@ -1,5 +1,6 @@
 import { ProtectedRoute } from "@/components/auth";
 import { SistemaLayoutClient } from "@/components/sistema/SistemaLayoutClient";
+import { SessionGuard } from "@/components/SessionGuard";
 
 /**
  * Layout do sistema (Server Component)
@@ -12,7 +13,9 @@ export default function SistemaLayout({
 }) {
   return (
     <ProtectedRoute>
-      <SistemaLayoutClient>{children}</SistemaLayoutClient>
+      <SessionGuard>
+        <SistemaLayoutClient>{children}</SistemaLayoutClient>
+      </SessionGuard>
     </ProtectedRoute>
   );
 }

@@ -25,6 +25,10 @@ export const metadata: Metadata = {
     title: siteConfig.name,
   },
   manifest: "/manifest.json",
+  other: {
+    // Otimizar carregamento de recursos
+    "resource-hints": "preconnect",
+  },
 };
 
 export const viewport: Viewport = {

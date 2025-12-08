@@ -219,6 +219,33 @@ export function useAuth() {
     }
   }, []);
 
+  /**
+   * Verifica se a sessão está válida e redireciona para login se expirada
+   * @returns true se a sessão é válida, false se está expirada
+   */
+  const verificarSessao = useCallback(async (): Promise<boolean> => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+
+      if (error || !session) {
+        console.error("❌ Sessão expirada ou inválida");
+        await supabase.auth.signOut();
+        router.push("/auth/login");
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error("Erro ao verificar sessão:", err);
+      await supabase.auth.signOut();
+      router.push("/auth/login");
+      return false;
+    }
+  }, [router]);
+
   return {
     usuario,
     loading,
@@ -227,6 +254,7 @@ export function useAuth() {
     logout,
     atualizarDados,
     carregarUsuario,
+    verificarSessao,
     isAuthenticated: !!usuario,
   };
 }
