@@ -224,6 +224,7 @@ export default function EstoqueLojaModal({
                             const numero = parseInt(value) || 0;
                             handleAjusteChange(loja.lojaId, numero);
                           }}
+                          onWheel={(e) => e.currentTarget.blur()}
                           variant="bordered"
                           size="sm"
                           startContent={
