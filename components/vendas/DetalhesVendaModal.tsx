@@ -12,6 +12,8 @@ import {
   CardBody,
   Chip,
   Divider,
+  Accordion,
+  AccordionItem,
 } from "@heroui/react";
 import {
   X,
@@ -32,10 +34,14 @@ import {
   Receipt,
   RefreshCw,
   ArrowRightLeft,
+  Download,
+  Printer,
+  Info,
 } from "lucide-react";
 import type { VendaCompleta } from "@/types/vendas";
 import { TrocarProdutoModal } from "./TrocarProdutoModal";
 import { supabase } from "@/lib/supabaseClient";
+import { salvarPDFNota, imprimirNotaVenda } from "@/lib/imprimirNotaVenda";
 
 interface DetalhesVendaModalProps {
   isOpen: boolean;
@@ -162,7 +168,7 @@ export function DetalhesVendaModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="3xl"
+      size="2xl"
       scrollBehavior="outside"
     >
       <ModalContent>
@@ -178,11 +184,23 @@ export function DetalhesVendaModal({
         </ModalHeader>
 
         <ModalBody>
-          {/* Informações Gerais */}
-          <Card>
-            <div className="p-4">
-              <h3 className="text-lg font-semibold mb-3">Informações Gerais</h3>
-              <div className="grid grid-cols-2 gap-4">
+          <Accordion
+            variant="splitted"
+            selectionMode="multiple"
+            defaultExpandedKeys={["info", "itens2", "financeiro"]}
+          >
+            {/* Informações Gerais */}
+            <AccordionItem
+              key="info"
+              aria-label="Informações Gerais"
+              title={
+                <div className="flex items-center gap-2">
+                  <Info className="w-5 h-5" />
+                  <span className="font-semibold">Informações Gerais</span>
+                </div>
+              }
+            >
+              <div className="grid grid-cols-2 gap-4 pb-2">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-500" />
                   <div>
@@ -229,16 +247,19 @@ export function DetalhesVendaModal({
                   </div>
                 )}
               </div>
-            </div>
-          </Card>
+            </AccordionItem>
 
-          {/* Itens da Venda */}
-          <Card className="mt-4">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Itens da Venda
-              </h3>
+            {/* Itens da Venda */}
+            <AccordionItem
+              key="itens2"
+              aria-label="Itens da Venda"
+              title={
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  <span className="font-semibold">Itens da Venda</span>
+                </div>
+              }
+            >
               <div className="space-y-2">
                 {venda.itens && venda.itens.length > 0 ? (
                   venda.itens.map((item: any, index: number) => (
@@ -291,16 +312,19 @@ export function DetalhesVendaModal({
                   </p>
                 )}
               </div>
-            </div>
-          </Card>
+            </AccordionItem>
 
-          {/* Resumo Financeiro */}
-          <Card className="mt-4">
-            <div className="p-4">
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Resumo Financeiro
-              </h3>
+            {/* Resumo Financeiro */}
+            <AccordionItem
+              key="financeiro"
+              aria-label="Resumo Financeiro"
+              title={
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  <span className="font-semibold">Resumo Financeiro</span>
+                </div>
+              }
+            >
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Subtotal</span>
@@ -340,17 +364,20 @@ export function DetalhesVendaModal({
                   </div>
                 )}
               </div>
-            </div>
-          </Card>
+            </AccordionItem>
 
-          {/* Pagamentos */}
-          {venda.pagamentos && venda.pagamentos.length > 0 && (
-            <Card className="mt-4">
-              <div className="p-4">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Pagamentos
-                </h3>
+            {/* Pagamentos */}
+            {venda.pagamentos && venda.pagamentos.length > 0 ? (
+              <AccordionItem
+                key="pagamentos"
+                aria-label="Pagamentos"
+                title={
+                  <div className="flex items-center gap-2">
+                    <Wallet className="w-5 h-5" />
+                    <span className="font-semibold">Pagamentos</span>
+                  </div>
+                }
+              >
                 <div className="space-y-2">
                   {venda.pagamentos.map((pagamento: any, index: number) => {
                     const getTipoPagamentoLabel = (tipo: string) => {
@@ -429,14 +456,21 @@ export function DetalhesVendaModal({
                     );
                   })}
                 </div>
-              </div>
-            </Card>
-          )}
+              </AccordionItem>
+            ) : null}
 
-          {/* Trocas de Produtos */}
-          {trocas.length > 0 && (
-            <Card className="mt-4">
-              <div className="p-4">
+            {/* Trocas de Produtos */}
+            {trocas.length > 0 ? (
+              <AccordionItem
+                key="trocas"
+                aria-label="Trocas de Produtos"
+                title={
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="w-5 h-5" />
+                    <span className="font-semibold">Trocas de Produtos</span>
+                  </div>
+                }
+              >
                 <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
                   <RefreshCw className="w-5 h-5" />
                   Trocas de Produtos
@@ -598,28 +632,37 @@ export function DetalhesVendaModal({
                     );
                   })}
                 </div>
-              </div>
-            </Card>
-          )}
+              </AccordionItem>
+            ) : null}
 
-          {/* Observações */}
-          {venda.observacoes && (
-            <Card className="mt-4">
-              <div className="p-4">
-                <h3 className="text-lg font-semibold mb-2">Observações</h3>
+            {/* Observações */}
+            {venda.observacoes ? (
+              <AccordionItem
+                key="observacoes"
+                aria-label="Observações"
+                title={
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    <span className="font-semibold">Observações</span>
+                  </div>
+                }
+              >
                 <p className="text-gray-600">{venda.observacoes}</p>
-              </div>
-            </Card>
-          )}
+              </AccordionItem>
+            ) : null}
 
-          {/* Histórico */}
-          {venda.historico && venda.historico.length > 0 && (
-            <Card className="mt-4">
-              <div className="p-4">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Histórico da Venda
-                </h3>
+            {/* Histórico */}
+            {venda.historico && venda.historico.length > 0 ? (
+              <AccordionItem
+                key="historico"
+                aria-label="Histórico da Venda"
+                title={
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5" />
+                    <span className="font-semibold">Histórico da Venda</span>
+                  </div>
+                }
+              >
                 <div className="space-y-3">
                   {venda.historico
                     .sort(
@@ -717,12 +760,30 @@ export function DetalhesVendaModal({
                       );
                     })}
                 </div>
-              </div>
-            </Card>
-          )}
+              </AccordionItem>
+            ) : null}
+          </Accordion>
         </ModalBody>
 
-        <ModalFooter>
+        <ModalFooter className="flex justify-between">
+          <div className="flex gap-2">
+            <Button
+              color="success"
+              variant="flat"
+              startContent={<Download className="w-4 h-4" />}
+              onPress={() => salvarPDFNota(venda)}
+            >
+              Salvar PDF
+            </Button>
+            <Button
+              color="primary"
+              variant="flat"
+              startContent={<Printer className="w-4 h-4" />}
+              onPress={() => imprimirNotaVenda(venda)}
+            >
+              Imprimir
+            </Button>
+          </div>
           <Button color="default" variant="flat" onPress={onClose}>
             Fechar
           </Button>

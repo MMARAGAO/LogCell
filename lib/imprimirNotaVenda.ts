@@ -1,7 +1,8 @@
 import jsPDF from "jspdf";
 import type { VendaCompleta } from "@/types/vendas";
 
-export function imprimirNotaVenda(venda: VendaCompleta) {
+// Função principal que gera o PDF
+function gerarPDFNota(venda: VendaCompleta): jsPDF {
   const doc = new jsPDF({
     format: [80, 297], // 80mm de largura (padrão de impressora térmica)
   });
@@ -171,8 +172,21 @@ export function imprimirNotaVenda(venda: VendaCompleta) {
   yPosition += lineHeight;
   centerText("Volte sempre!", yPosition, 8);
 
-  // Salvar ou abrir
+  // Retornar o documento PDF gerado
+  return doc;
+}
+
+// Função para salvar PDF
+export function salvarPDFNota(venda: VendaCompleta) {
+  const doc = gerarPDFNota(venda);
   doc.save(`venda_${venda.numero_venda}.pdf`);
+}
+
+// Função para imprimir PDF
+export function imprimirNotaVenda(venda: VendaCompleta) {
+  const doc = gerarPDFNota(venda);
+  doc.autoPrint();
+  window.open(doc.output('bloburl'), '_blank');
 }
 
 function formatarMoeda(valor: number): string {

@@ -7,6 +7,7 @@ import { Button } from "@heroui/button";
 import { Select, SelectItem } from "@heroui/select";
 import { Input, Textarea } from "@heroui/input";
 import { Chip } from "@heroui/chip";
+import { Tooltip } from "@heroui/tooltip";
 import {
   Table,
   TableHeader,
@@ -280,26 +281,25 @@ export default function NovaTransferenciaPage() {
     );
   };
 
-  const handleCriarTransferencia = async () => {
-    // Validações
+  // Validação para habilitar/desabilitar botão de criar transferência
+  const errosValidacao = useMemo(() => {
+    const erros: string[] = [];
+
     if (!lojaOrigemId) {
-      toast.error("Selecione a loja de origem");
-      return;
+      erros.push("Selecione a loja de origem");
     }
 
     if (itensTransferencia.length === 0) {
-      toast.error("Adicione pelo menos um produto");
-      return;
+      erros.push("Adicione pelo menos um produto");
     }
 
     const itensSemDestino = itensTransferencia.filter(
-      (i) => !i.loja_destino_id
+      (i) => !i.loja_destino_id || i.loja_destino_id === 0
     );
     if (itensSemDestino.length > 0) {
-      toast.error(
+      erros.push(
         `${itensSemDestino.length} produto(s) sem loja de destino definida`
       );
-      return;
     }
 
     const itensComQuantidadeInvalida = itensTransferencia.filter(
@@ -309,18 +309,20 @@ export default function NovaTransferenciaPage() {
         i.quantidade_transferir > i.estoque_origem
     );
     if (itensComQuantidadeInvalida.length > 0) {
-      toast.error("Verifique as quantidades dos produtos");
-      return;
+      erros.push("Verifique as quantidades dos produtos");
     }
 
     const itensOrigemDestinoIgual = itensTransferencia.filter(
-      (i) => i.loja_destino_id === parseInt(lojaOrigemId)
+      (i) => i.loja_destino_id === parseInt(lojaOrigemId || "0")
     );
     if (itensOrigemDestinoIgual.length > 0) {
-      toast.error("Loja de origem e destino não podem ser iguais");
-      return;
+      erros.push("Loja de origem e destino não podem ser iguais");
     }
 
+    return erros;
+  }, [lojaOrigemId, itensTransferencia]);
+
+  const handleCriarTransferencia = async () => {
     const sessaoValida = await verificarSessao();
     if (!sessaoValida || !usuario?.id) {
       return;
@@ -861,17 +863,38 @@ export default function NovaTransferenciaPage() {
               >
                 Cancelar
               </Button>
-              <Button
-                color="primary"
-                size="lg"
-                onPress={handleCriarTransferencia}
-                isLoading={loading}
-                startContent={
-                  !loading && <CheckCircleIcon className="h-5 w-5" />
+              <Tooltip
+                content={
+                  <div className="px-1 py-2 max-w-xs">
+                    <div className="text-small font-bold mb-1">
+                      Requisitos pendentes:
+                    </div>
+                    <ul className="text-tiny space-y-1">
+                      {errosValidacao.map((erro, index) => (
+                        <li key={index}>• {erro}</li>
+                      ))}
+                    </ul>
+                  </div>
                 }
+                isDisabled={errosValidacao.length === 0 || loading}
+                placement="top"
+                showArrow
               >
-                Criar Transferência
-              </Button>
+                <div>
+                  <Button
+                    color="primary"
+                    size="lg"
+                    onPress={handleCriarTransferencia}
+                    isLoading={loading}
+                    isDisabled={loading || errosValidacao.length > 0}
+                    startContent={
+                      !loading && <CheckCircleIcon className="h-5 w-5" />
+                    }
+                  >
+                    Criar Transferência
+                  </Button>
+                </div>
+              </Tooltip>
             </div>
           </>
         )}

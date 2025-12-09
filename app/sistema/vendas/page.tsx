@@ -22,6 +22,8 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  Pagination,
+  Checkbox,
 } from "@heroui/react";
 import {
   ShoppingCart,
@@ -42,6 +44,9 @@ import {
   List,
   Wallet,
   Printer,
+  Filter,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
@@ -145,9 +150,25 @@ export default function VendasPage() {
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const [filtroFormaPagamento, setFiltroFormaPagamento] =
+    useState<string>("todas");
+  const [filtroCliente, setFiltroCliente] = useState<string>("todos");
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(
+    new Date().toISOString().split("T")[0] // Data de hoje como padrão
+  );
+  const [filtroDataFim, setFiltroDataFim] = useState<string>(
+    new Date().toISOString().split("T")[0] // Data de hoje como padrão
+  );
+  const [filtroVencidas, setFiltroVencidas] = useState<boolean>(false);
+  const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
   const [busca, setBusca] = useState("");
   const [processando, setProcessando] = useState(false);
   const [visualizacao, setVisualizacao] = useState<"cards" | "tabela">("cards");
+
+  // Estados de paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [itensPorPagina, setItensPorPagina] = useState(12);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
   // Preencher busca vinda da URL
   useEffect(() => {
@@ -977,6 +998,51 @@ export default function VendasPage() {
       filtroStatus === "todas" || venda.status === filtroStatus;
     const matchLoja =
       filtroLoja === "todas" || venda.loja_id === parseInt(filtroLoja);
+
+    // Filtro de forma de pagamento
+    let matchFormaPagamento = true;
+    if (filtroFormaPagamento === "fiada") {
+      matchFormaPagamento = venda.tipo === "fiada";
+    } else if (filtroFormaPagamento !== "todas") {
+      // Verificar se a venda tem pagamento do tipo selecionado
+      matchFormaPagamento =
+        venda.pagamentos?.some(
+          (p) => p.tipo_pagamento === filtroFormaPagamento
+        ) || false;
+    }
+
+    // Filtro de cliente
+    const matchCliente =
+      filtroCliente === "todos" || venda.cliente_id === filtroCliente;
+
+    // Filtro de data
+    let matchData = true;
+    if (filtroDataInicio || filtroDataFim) {
+      const dataVenda = new Date(venda.criado_em).toISOString().split("T")[0];
+      if (filtroDataInicio && dataVenda < filtroDataInicio) {
+        matchData = false;
+      }
+      if (filtroDataFim && dataVenda > filtroDataFim) {
+        matchData = false;
+      }
+    }
+
+    // Filtro de vendas vencidas/pendentes (apenas para vendas fiadas)
+    let matchVencida = true;
+    if (filtroVencidas && venda.tipo === "fiada") {
+      const hoje = new Date().toISOString().split("T")[0];
+      const dataVencimento = venda.data_prevista_pagamento;
+      matchVencida = Boolean(
+        venda.status === "concluida" &&
+          venda.saldo_devedor > 0 &&
+          dataVencimento &&
+          dataVencimento < hoje
+      );
+    } else if (filtroVencidas) {
+      // Se filtro de vencidas está ativo mas não é fiada, não mostrar
+      matchVencida = false;
+    }
+
     const numeroFormatado = `V${String(venda.numero_venda).padStart(6, "0")}`;
     const matchBusca =
       !busca ||
@@ -993,15 +1059,105 @@ export default function VendasPage() {
         filtroLoja,
         matchLoja,
         matchBusca,
-        resultado: matchStatus && matchLoja && matchBusca,
+        matchFormaPagamento,
+        matchCliente,
+        matchData,
+        matchVencida,
+        resultado:
+          matchStatus &&
+          matchLoja &&
+          matchBusca &&
+          matchFormaPagamento &&
+          matchCliente &&
+          matchData &&
+          matchVencida,
       });
     }
 
-    return matchStatus && matchLoja && matchBusca;
+    return (
+      matchStatus &&
+      matchLoja &&
+      matchBusca &&
+      matchFormaPagamento &&
+      matchCliente &&
+      matchData &&
+      matchVencida
+    );
   });
 
+  // Ordenar vendas conforme a opção selecionada
+  const vendasOrdenadas = [...vendasFiltradas].sort((a, b) => {
+    switch (ordenacao) {
+      case "cliente_az":
+        // Ordem alfabética A-Z pelo nome do cliente
+        const nomeA = a.cliente?.nome || "";
+        const nomeB = b.cliente?.nome || "";
+        return nomeA.localeCompare(nomeB, "pt-BR");
+
+      case "cliente_za":
+        // Ordem alfabética Z-A pelo nome do cliente
+        const nomeZA = a.cliente?.nome || "";
+        const nomeZB = b.cliente?.nome || "";
+        return nomeZB.localeCompare(nomeZA, "pt-BR");
+
+      case "valor_maior":
+        // Maior valor primeiro
+        return b.valor_total - a.valor_total;
+
+      case "valor_menor":
+        // Menor valor primeiro
+        return a.valor_total - b.valor_total;
+
+      case "mais_antigas":
+        // Mais antigas primeiro
+        return (
+          new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime()
+        );
+
+      case "numero_crescente":
+        // Número da venda crescente
+        return a.numero_venda - b.numero_venda;
+
+      case "numero_decrescente":
+        // Número da venda decrescente
+        return b.numero_venda - a.numero_venda;
+
+      case "saldo_devedor":
+        // Maior saldo devedor primeiro
+        return b.saldo_devedor - a.saldo_devedor;
+
+      case "mais_recentes":
+      default:
+        // Mais recentes primeiro (padrão)
+        return (
+          new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
+        );
+    }
+  });
+
+  // Paginação
+  const totalPaginas = Math.ceil(vendasOrdenadas.length / itensPorPagina);
+  const indiceInicio = (paginaAtual - 1) * itensPorPagina;
+  const indiceFim = indiceInicio + itensPorPagina;
+  const vendasPaginadas = vendasOrdenadas.slice(indiceInicio, indiceFim);
+
+  // Resetar para página 1 quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [
+    filtroStatus,
+    filtroLoja,
+    filtroFormaPagamento,
+    filtroCliente,
+    filtroDataInicio,
+    filtroDataFim,
+    filtroVencidas,
+    busca,
+    ordenacao,
+  ]);
+
   // Calcular resumo de formas de pagamento das vendas filtradas
-  const resumoPagamentos = vendasFiltradas.reduce(
+  const resumoPagamentos = vendasOrdenadas.reduce(
     (acc, venda) => {
       venda.pagamentos?.forEach((pag) => {
         const tipo = pag.tipo_pagamento;
@@ -1162,62 +1318,222 @@ export default function VendasPage() {
       {/* Filtros */}
       <Card className="mb-6">
         <CardBody>
-          <div className="flex flex-col md:flex-row gap-4">
-            <Input
-              placeholder="Buscar por número ou cliente..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              startContent={<Search className="w-4 h-4 text-gray-400" />}
-              className="flex-1"
-            />
-            <Select
-              label="Status"
-              selectedKeys={[filtroStatus]}
-              onChange={(e) => setFiltroStatus(e.target.value)}
-              className="w-full md:w-48"
-            >
-              <SelectItem key="todas">Todas</SelectItem>
-              <SelectItem key="em_andamento">Em Andamento</SelectItem>
-              <SelectItem key="concluida">Concluídas</SelectItem>
-              <SelectItem key="cancelada">Canceladas</SelectItem>
-            </Select>
-            <Select
-              label="Loja"
-              selectedKeys={[filtroLoja]}
-              onChange={(e) => setFiltroLoja(e.target.value)}
-              className="w-full md:w-48"
-            >
-              {
-                [
-                  <SelectItem key="todas">Todas as Lojas</SelectItem>,
-                  ...lojas.map((loja) => (
-                    <SelectItem key={loja.id.toString()}>
-                      {loja.nome}
-                    </SelectItem>
-                  )),
-                ] as any
-              }
-            </Select>
-
-            {/* Botões de visualização */}
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-4">
+            {/* Linha de busca e botão de filtros */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <Input
+                placeholder="Buscar por número ou cliente..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                startContent={<Search className="w-4 h-4 text-gray-400" />}
+                className="flex-1"
+              />
               <Button
-                isIconOnly
-                variant={visualizacao === "cards" ? "solid" : "flat"}
-                color={visualizacao === "cards" ? "primary" : "default"}
-                onClick={() => setVisualizacao("cards")}
+                variant="flat"
+                color="primary"
+                startContent={<Filter className="w-4 h-4" />}
+                endContent={
+                  mostrarFiltros ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )
+                }
+                onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                className="w-full md:w-auto"
               >
-                <Grid className="w-4 h-4" />
-              </Button>
-              <Button
-                isIconOnly
-                variant={visualizacao === "tabela" ? "solid" : "flat"}
-                color={visualizacao === "tabela" ? "primary" : "default"}
-                onClick={() => setVisualizacao("tabela")}
-              >
-                <List className="w-4 h-4" />
+                {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
               </Button>
             </div>
+
+            {/* Filtros avançados (colapsáveis) */}
+            {mostrarFiltros && (
+              <>
+                {/* Primeira linha de filtros */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <Select
+                    label="Status"
+                    selectedKeys={[filtroStatus]}
+                    onChange={(e) => setFiltroStatus(e.target.value)}
+                    className="w-full md:w-48"
+                  >
+                    <SelectItem key="todas">Todas</SelectItem>
+                    <SelectItem key="em_andamento">Em Andamento</SelectItem>
+                    <SelectItem key="concluida">Concluídas</SelectItem>
+                    <SelectItem key="cancelada">Canceladas</SelectItem>
+                  </Select>
+                  <Select
+                    label="Loja"
+                    selectedKeys={[filtroLoja]}
+                    onChange={(e) => setFiltroLoja(e.target.value)}
+                    className="w-full md:w-48"
+                  >
+                    {
+                      [
+                        <SelectItem key="todas">Todas as Lojas</SelectItem>,
+                        ...lojas.map((loja) => (
+                          <SelectItem key={loja.id.toString()}>
+                            {loja.nome}
+                          </SelectItem>
+                        )),
+                      ] as any
+                    }
+                  </Select>
+
+                  {/* Botões de visualização */}
+                  <div className="flex gap-2">
+                    <Button
+                      isIconOnly
+                      variant={visualizacao === "cards" ? "solid" : "flat"}
+                      color={visualizacao === "cards" ? "primary" : "default"}
+                      onClick={() => setVisualizacao("cards")}
+                    >
+                      <Grid className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      variant={visualizacao === "tabela" ? "solid" : "flat"}
+                      color={visualizacao === "tabela" ? "primary" : "default"}
+                      onClick={() => setVisualizacao("tabela")}
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Segunda linha de filtros */}
+                <div className="flex flex-col md:flex-row gap-4">
+                  <Select
+                    label="Forma de Pagamento"
+                    selectedKeys={[filtroFormaPagamento]}
+                    onChange={(e) => setFiltroFormaPagamento(e.target.value)}
+                    className="w-full md:w-56"
+                  >
+                    <SelectItem key="todas">Todas</SelectItem>
+                    <SelectItem key="fiada">Fiada</SelectItem>
+                    <SelectItem key="dinheiro">Dinheiro</SelectItem>
+                    <SelectItem key="pix">PIX</SelectItem>
+                    <SelectItem key="cartao_credito">
+                      Cartão de Crédito
+                    </SelectItem>
+                    <SelectItem key="cartao_debito">
+                      Cartão de Débito
+                    </SelectItem>
+                    <SelectItem key="transferencia">Transferência</SelectItem>
+                    <SelectItem key="boleto">Boleto</SelectItem>
+                    <SelectItem key="credito_cliente">
+                      Crédito do Cliente
+                    </SelectItem>
+                  </Select>
+
+                  <Select
+                    label="Cliente"
+                    selectedKeys={[filtroCliente]}
+                    onChange={(e) => setFiltroCliente(e.target.value)}
+                    className="w-full md:w-64"
+                  >
+                    {
+                      [
+                        <SelectItem key="todos">Todos os Clientes</SelectItem>,
+                        ...clientes.map((cliente) => (
+                          <SelectItem key={cliente.id}>
+                            {cliente.nome}
+                          </SelectItem>
+                        )),
+                      ] as any
+                    }
+                  </Select>
+
+                  <Input
+                    type="date"
+                    label="Data Início"
+                    value={filtroDataInicio}
+                    onChange={(e) => setFiltroDataInicio(e.target.value)}
+                    className="w-full md:w-48"
+                  />
+
+                  <Input
+                    type="date"
+                    label="Data Fim"
+                    value={filtroDataFim}
+                    onChange={(e) => setFiltroDataFim(e.target.value)}
+                    className="w-full md:w-48"
+                  />
+
+                  <Button
+                    size="md"
+                    variant="flat"
+                    color="default"
+                    onClick={() => {
+                      setFiltroDataInicio("");
+                      setFiltroDataFim("");
+                    }}
+                    className="whitespace-nowrap"
+                  >
+                    Limpar Datas
+                  </Button>
+
+                  <Checkbox
+                    isSelected={filtroVencidas}
+                    onValueChange={setFiltroVencidas}
+                    color="primary"
+                    size="md"
+                  >
+                    Apenas Vencidas
+                  </Checkbox>
+                </div>
+
+                {/* Terceira linha - Ordenação */}
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <Select
+                    label="Ordenar por"
+                    selectedKeys={[ordenacao]}
+                    onChange={(e) => setOrdenacao(e.target.value)}
+                    className="w-full md:w-64"
+                  >
+                    <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
+                    <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
+                    <SelectItem key="cliente_az">Cliente (A-Z)</SelectItem>
+                    <SelectItem key="cliente_za">Cliente (Z-A)</SelectItem>
+                    <SelectItem key="valor_maior">Maior Valor</SelectItem>
+                    <SelectItem key="valor_menor">Menor Valor</SelectItem>
+                    <SelectItem key="numero_crescente">
+                      Número Crescente
+                    </SelectItem>
+                    <SelectItem key="numero_decrescente">
+                      Número Decrescente
+                    </SelectItem>
+                    <SelectItem key="saldo_devedor">
+                      Maior Saldo Devedor
+                    </SelectItem>
+                  </Select>
+
+                  <Select
+                    label="Itens por página"
+                    selectedKeys={[itensPorPagina.toString()]}
+                    onChange={(e) => {
+                      setItensPorPagina(Number(e.target.value));
+                      setPaginaAtual(1);
+                    }}
+                    className="w-full md:w-40"
+                  >
+                    <SelectItem key="12">12</SelectItem>
+                    <SelectItem key="24">24</SelectItem>
+                    <SelectItem key="48">48</SelectItem>
+                    <SelectItem key="96">96</SelectItem>
+                  </Select>
+
+                  <div className="text-sm text-gray-600 px-2 py-2">
+                    <span className="font-semibold">
+                      {vendasOrdenadas.length}
+                    </span>{" "}
+                    {vendasOrdenadas.length === 1
+                      ? "venda encontrada"
+                      : "vendas encontradas"}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </CardBody>
       </Card>
@@ -1230,8 +1546,8 @@ export default function VendasPage() {
               <DollarSign className="w-5 h-5 text-success" />
               <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
               <span className="text-sm text-default-500 ml-2">
-                ({vendasFiltradas.length}{" "}
-                {vendasFiltradas.length === 1 ? "venda" : "vendas"})
+                ({vendasOrdenadas.length}{" "}
+                {vendasOrdenadas.length === 1 ? "venda" : "vendas"})
               </span>
             </div>
           </CardHeader>
@@ -1296,7 +1612,7 @@ export default function VendasPage() {
       {/* Lista de Vendas - Cards */}
       {visualizacao === "cards" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {vendasFiltradas.map((venda) => (
+          {vendasPaginadas.map((venda) => (
             <Card
               key={venda.id}
               className="hover:shadow-lg transition-shadow border border-default-200"
@@ -1492,7 +1808,7 @@ export default function VendasPage() {
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
-                {vendasFiltradas.map((venda) => (
+                {vendasPaginadas.map((venda) => (
                   <TableRow key={venda.id}>
                     <TableCell>
                       <span className="font-bold">
@@ -1671,7 +1987,7 @@ export default function VendasPage() {
         </Card>
       )}
 
-      {vendasFiltradas.length === 0 && (
+      {vendasOrdenadas.length === 0 && (
         <Card>
           <CardBody className="text-center py-12">
             <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -1681,6 +1997,20 @@ export default function VendasPage() {
             </p>
           </CardBody>
         </Card>
+      )}
+
+      {/* Paginação */}
+      {vendasOrdenadas.length > 0 && totalPaginas > 1 && (
+        <div className="flex justify-center mt-6">
+          <Pagination
+            total={totalPaginas}
+            page={paginaAtual}
+            onChange={setPaginaAtual}
+            showControls
+            showShadow
+            color="primary"
+          />
+        </div>
       )}
 
       {/* Modal Nova Venda */}
