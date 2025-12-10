@@ -158,7 +158,7 @@ export default function OrdemServicoDetalhesModal({
     setLoadingPDF(true);
     try {
       const dadosLoja = await buscarDadosLoja();
-      const doc = gerarPDFOrdemServico(osAtual, pecas, dadosLoja);
+      const doc = await gerarPDFOrdemServico(osAtual, pecas, dadosLoja);
       doc.save(`OS_${osAtual.numero_os || osAtual.id}.pdf`);
       toast.success("PDF gerado com sucesso!");
     } catch (error) {
@@ -175,7 +175,7 @@ export default function OrdemServicoDetalhesModal({
     setLoadingCupom(true);
     try {
       const dadosLoja = await buscarDadosLoja();
-      const cupom = gerarCupomTermicoOS(osAtual, pecas, dadosLoja);
+      const cupom = await gerarCupomTermicoOS(osAtual, pecas, dadosLoja);
       imprimirCupomTermico(cupom);
     } catch (error) {
       console.error("Erro ao imprimir cupom:", error);

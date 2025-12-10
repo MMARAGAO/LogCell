@@ -1,6 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { OrdemServico } from "@/types/ordemServico";
+import { supabase } from "@/lib/supabaseClient";
+import { TipoServicoGarantia } from "@/types/garantia";
 
 interface DadosLoja {
   nome: string;
@@ -15,7 +17,7 @@ interface PecaOS {
   valor_venda: number;
 }
 
-export const gerarPDFOrdemServico = (
+export const gerarPDFOrdemServico = async (
   os: OrdemServico,
   pecas: PecaOS[],
   dadosLoja: DadosLoja
@@ -223,17 +225,10 @@ export const gerarPDFOrdemServico = (
     y = 20;
   }
 
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("TERMOS DE GARANTIA", 17, y + 5);
-  y += 12;
-
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  
-  const termos = [
+  // Buscar texto de garantia do banco de dados
+  let textoGarantia = null;
+  let tituloGarantia = "TERMOS DE GARANTIA";
+  let termos = [
     "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
     "(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data da entrega do aparelho ao cliente.",
     "(3) - Esta garantia cobre defeitos de peças e mão de obra decorrentes dos serviços realizados e/ou peças substituídas pela AUTORIZADA CELL. Não cobrimos garantia de terceiros.",
@@ -243,6 +238,36 @@ export const gerarPDFOrdemServico = (
     "(7) - Brindes não estão sujeitos à garantia, e devem ser testados e conferidos no ato da entrega.",
     "(8) - Eu cliente, declaro ter ciência do que foi descrito acima.",
   ];
+
+  if (os.tipo_garantia) {
+    try {
+      const { data } = await supabase
+        .from("textos_garantia")
+        .select("titulo, clausulas")
+        .eq("tipo_servico", os.tipo_garantia)
+        .eq("ativo", true)
+        .single();
+
+      if (data) {
+        textoGarantia = data;
+        tituloGarantia = data.titulo.toUpperCase();
+        termos = data.clausulas.map((c: any) => `(${c.numero}) - ${c.texto}`);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar texto de garantia:", error);
+      // Usar termos padrão em caso de erro
+    }
+  }
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(tituloGarantia, 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
 
   termos.forEach((termo) => {
     const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
@@ -272,11 +297,11 @@ export const gerarPDFOrdemServico = (
   return doc;
 };
 
-export const gerarCupomTermicoOS = (
+export const gerarCupomTermicoOS = async (
   os: OrdemServico,
   pecas: PecaOS[],
   dadosLoja: DadosLoja
-): string => {
+): Promise<string> => {
   const largura = 80; // 80mm
   const linhaDiv = "=".repeat(48);
   const linhaTracejada = "-".repeat(48);
@@ -378,35 +403,66 @@ export const gerarCupomTermicoOS = (
 
   // Termos de Garantia
   cupom += linhaDiv + "\n";
-  cupom += centralizar("TERMOS DE GARANTIA") + "\n";
+  
+  // Buscar texto de garantia do banco de dados
+  let tituloGarantia = "TERMOS DE GARANTIA";
+  let termosTexto = [
+    "(1) A garantia so e valida mediante\napresentacao desta OS/garantia.",
+    "(2) Garantia conforme combinado no\ncabecalho a partir da entrega.",
+    "(3) Cobre defeitos de pecas e mao de\nobra dos servicos realizados pela\nAUTORIZADA CELL. Nao cobrimos\ngarantia de terceiros.",
+    "(4) Excluidos da garantia: mau uso,\nquedas, liquidos, umidade, oxidacao,\nsurtos, software nao autorizado.",
+    "(5) Apos garantia, com esta OS,\npode ter desconto em reparos.",
+    "(6) Aparelho nao procurado em 90\ndias: nao nos responsabilizamos.",
+    "(7) Brindes sem garantia, conferir\nno ato da entrega.",
+    "(8) Cliente declara ciencia do\ndescrito acima."
+  ];
+
+  if (os.tipo_garantia) {
+    try {
+      const { data } = await supabase
+        .from("textos_garantia")
+        .select("titulo, clausulas")
+        .eq("tipo_servico", os.tipo_garantia)
+        .eq("ativo", true)
+        .single();
+
+      if (data) {
+        tituloGarantia = data.titulo.toUpperCase();
+        // Formatar as cláusulas para cupom térmico (quebrar linhas longas)
+        termosTexto = data.clausulas.map((c: any) => {
+          const texto = `(${c.numero}) ${c.texto}`;
+          // Quebrar linhas a cada 46 caracteres aproximadamente
+          const palavras = texto.split(' ');
+          let linhaAtual = '';
+          const linhas = [];
+          
+          palavras.forEach(palavra => {
+            if ((linhaAtual + palavra).length > 46) {
+              linhas.push(linhaAtual.trim());
+              linhaAtual = palavra + ' ';
+            } else {
+              linhaAtual += palavra + ' ';
+            }
+          });
+          if (linhaAtual.trim()) {
+            linhas.push(linhaAtual.trim());
+          }
+          
+          return linhas.join('\n');
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar texto de garantia para cupom:", error);
+      // Usar termos padrão em caso de erro
+    }
+  }
+
+  cupom += centralizar(tituloGarantia) + "\n";
   cupom += linhaDiv + "\n\n";
   
-  cupom += "(1) A garantia so e valida mediante\n";
-  cupom += "apresentacao desta OS/garantia.\n\n";
-  
-  cupom += "(2) Garantia conforme combinado no\n";
-  cupom += "cabecalho a partir da entrega.\n\n";
-  
-  cupom += "(3) Cobre defeitos de pecas e mao de\n";
-  cupom += "obra dos servicos realizados pela\n";
-  cupom += "AUTORIZADA CELL. Nao cobrimos\n";
-  cupom += "garantia de terceiros.\n\n";
-  
-  cupom += "(4) Excluidos da garantia: mau uso,\n";
-  cupom += "quedas, liquidos, umidade, oxidacao,\n";
-  cupom += "surtos, software nao autorizado.\n\n";
-  
-  cupom += "(5) Apos garantia, com esta OS,\n";
-  cupom += "pode ter desconto em reparos.\n\n";
-  
-  cupom += "(6) Aparelho nao procurado em 90\n";
-  cupom += "dias: nao nos responsabilizamos.\n\n";
-  
-  cupom += "(7) Brindes sem garantia, conferir\n";
-  cupom += "no ato da entrega.\n\n";
-  
-  cupom += "(8) Cliente declara ciencia do\n";
-  cupom += "descrito acima.\n\n";
+  termosTexto.forEach(termo => {
+    cupom += termo + "\n\n";
+  });
 
   // Assinaturas
   cupom += "\n\n\n";

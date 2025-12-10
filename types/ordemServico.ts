@@ -75,6 +75,7 @@ export interface OrdemServico {
   laudo_recomendacoes?: string;
   laudo_garantia_dias?: number;
   laudo_condicao_final?: string;
+  tipo_garantia?: string; // Tipo de garantia: servico_geral, troca_vidro, troca_tampa, venda_aparelho
 
   // Valores
   valor_orcamento?: number;
@@ -255,6 +256,7 @@ export interface OrdemServicoFormData {
   diagnostico?: string;
   servico_realizado?: string;
   observacoes_tecnicas?: string;
+  tipo_garantia?: string; // Tipo de garantia aplicada
 
   // Valores
   valor_orcamento?: number;
