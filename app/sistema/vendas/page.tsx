@@ -1018,12 +1018,22 @@ export default function VendasPage() {
     // Filtro de data
     let matchData = true;
     if (filtroDataInicio || filtroDataFim) {
-      const dataVenda = new Date(venda.criado_em).toISOString().split("T")[0];
-      if (filtroDataInicio && dataVenda < filtroDataInicio) {
-        matchData = false;
-      }
-      if (filtroDataFim && dataVenda > filtroDataFim) {
-        matchData = false;
+      // Converter para data local (não UTC) para evitar problemas de fuso horário
+      const dataVendaObj = new Date(venda.criado_em);
+      const ano = dataVendaObj.getFullYear();
+      const mes = String(dataVendaObj.getMonth() + 1).padStart(2, "0");
+      const dia = String(dataVendaObj.getDate()).padStart(2, "0");
+      const dataVenda = `${ano}-${mes}-${dia}`;
+
+      if (filtroDataInicio && filtroDataFim) {
+        // Quando ambos os filtros estão definidos, a data deve estar no intervalo
+        matchData = dataVenda >= filtroDataInicio && dataVenda <= filtroDataFim;
+      } else if (filtroDataInicio) {
+        // Apenas data de início: mostrar vendas a partir desta data
+        matchData = dataVenda >= filtroDataInicio;
+      } else if (filtroDataFim) {
+        // Apenas data de fim: mostrar vendas até esta data
+        matchData = dataVenda <= filtroDataFim;
       }
     }
 
