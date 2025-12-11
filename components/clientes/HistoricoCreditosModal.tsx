@@ -44,11 +44,7 @@ export function HistoricoCreditosModal({
   };
 
   const formatarData = (data: string) => {
-    // Adiciona 'Z' para indicar que é UTC, se não tiver
-    const dataComTimezone =
-      data.includes("Z") || data.includes("+") ? data : data + "Z";
-
-    return new Date(dataComTimezone).toLocaleString("pt-BR", {
+    return new Date(data).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

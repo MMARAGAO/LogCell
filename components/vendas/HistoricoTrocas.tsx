@@ -92,8 +92,7 @@ export function HistoricoTrocas({ vendaId, lojaId }: HistoricoTrocasProps) {
   };
 
   const formatarData = (data: string) => {
-    const dataUTC = data.endsWith("Z") ? data : data + "Z";
-    return new Date(dataUTC).toLocaleString("pt-BR", {
+    return new Date(data).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",

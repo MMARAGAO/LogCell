@@ -185,11 +185,7 @@ export default function VendasPage() {
   };
 
   const formatarData = (data: string) => {
-    // PostgreSQL now() retorna UTC mas timestamp without timezone não indica isso
-    // Supabase retorna como '2025-11-14T20:28:04' (que é UTC)
-    // Adiciona 'Z' para indicar que é UTC e deixar o JavaScript converter para local
-    const dataUTC = data.endsWith("Z") ? data : data + "Z";
-    const dataLocal = new Date(dataUTC);
+    const dataLocal = new Date(data);
 
     return dataLocal.toLocaleString("pt-BR", {
       day: "2-digit",
@@ -1018,7 +1014,7 @@ export default function VendasPage() {
     // Filtro de data
     let matchData = true;
     if (filtroDataInicio || filtroDataFim) {
-      // Converter para data local (não UTC) para evitar problemas de fuso horário
+      // Extrair componentes de data para comparação
       const dataVendaObj = new Date(venda.criado_em);
       const ano = dataVendaObj.getFullYear();
       const mes = String(dataVendaObj.getMonth() + 1).padStart(2, "0");

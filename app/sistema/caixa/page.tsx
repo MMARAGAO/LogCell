@@ -334,8 +334,7 @@ export default function CaixaPage() {
 
   const formatarData = (data: string | null | undefined) => {
     if (!data) return "N/A";
-    const d = data.includes("Z") || data.includes("+") ? data : data + "Z";
-    return new Date(d).toLocaleString("pt-BR", {
+    return new Date(data).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -345,10 +344,7 @@ export default function CaixaPage() {
   };
 
   const calcularDuracao = (dataAbertura: string) => {
-    const abertura =
-      dataAbertura.includes("Z") || dataAbertura.includes("+")
-        ? new Date(dataAbertura)
-        : new Date(dataAbertura + "Z");
+    const abertura = new Date(dataAbertura);
     const agora = new Date();
     const diff = agora.getTime() - abertura.getTime();
     const horas = Math.floor(diff / (1000 * 60 * 60));
@@ -466,7 +462,12 @@ export default function CaixaPage() {
     // ===== VENDAS =====
     const vendas = movimentacoes.filter((mov) => mov.tipo === "venda");
     const vendasPorFormaPagamento: {
-      [key: string]: Array<{ cliente: string; valor: number; numero: string }>;
+      [key: string]: Array<{
+        cliente: string;
+        valor: number;
+        numero: string;
+        data: string;
+      }>;
     } = {};
 
     vendas.forEach((mov) => {
@@ -481,10 +482,19 @@ export default function CaixaPage() {
       const clienteMatch = mov.descricao.match(/- (.+)$/);
       const cliente = clienteMatch ? clienteMatch[1] : "Cliente";
 
+      // Formatar data e hora
+      const dataHora = new Date(mov.data).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
       vendasPorFormaPagamento[forma].push({
         cliente,
         valor: mov.valor || 0,
         numero: numeroVenda,
+        data: dataHora,
       });
     });
 
@@ -556,12 +566,17 @@ export default function CaixaPage() {
           }
           // Limitar tamanho do nome do cliente
           const nomeCliente =
-            venda.cliente.length > 55
-              ? venda.cliente.substring(0, 52) + "..."
+            venda.cliente.length > 40
+              ? venda.cliente.substring(0, 37) + "..."
               : venda.cliente;
-          doc.text(`#${venda.numero} - ${nomeCliente}`, 25, yPos, {
-            maxWidth: pageWidth - 60,
-          });
+          doc.text(
+            `${venda.data} - #${venda.numero} - ${nomeCliente}`,
+            25,
+            yPos,
+            {
+              maxWidth: pageWidth - 60,
+            }
+          );
           doc.text(formatarMoeda(venda.valor), pageWidth - 20, yPos, {
             align: "right",
           });
@@ -595,7 +610,12 @@ export default function CaixaPage() {
       (mov) => mov.tipo === "ordem_servico"
     );
     const osPorFormaPagamento: {
-      [key: string]: Array<{ cliente: string; valor: number; numero: string }>;
+      [key: string]: Array<{
+        cliente: string;
+        valor: number;
+        numero: string;
+        data: string;
+      }>;
     } = {};
 
     // Processar OS e seus pagamentos
@@ -604,6 +624,14 @@ export default function CaixaPage() {
       const descricaoParts = mov.descricao.split(" - ");
       const numeroOS = descricaoParts[0] || "";
       const cliente = descricaoParts[1] || "Cliente não informado";
+
+      // Formatar data e hora
+      const dataHora = new Date(mov.data).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
       if (mov.pagamentos && mov.pagamentos.length > 0) {
         mov.pagamentos.forEach((pag: any) => {
@@ -615,6 +643,7 @@ export default function CaixaPage() {
             cliente,
             valor: pag.valor || 0,
             numero: numeroOS,
+            data: dataHora,
           });
         });
       } else {
@@ -626,6 +655,7 @@ export default function CaixaPage() {
           cliente,
           valor: mov.valor || 0,
           numero: numeroOS,
+          data: dataHora,
         });
       }
     });
@@ -694,12 +724,17 @@ export default function CaixaPage() {
           }
           // Limitar tamanho do nome do cliente
           const nomeCliente =
-            ordem.cliente.length > 55
-              ? ordem.cliente.substring(0, 52) + "..."
+            ordem.cliente.length > 40
+              ? ordem.cliente.substring(0, 37) + "..."
               : ordem.cliente;
-          doc.text(`${ordem.numero} - ${nomeCliente}`, 25, yPos, {
-            maxWidth: pageWidth - 60,
-          });
+          doc.text(
+            `${ordem.data} - ${ordem.numero} - ${nomeCliente}`,
+            25,
+            yPos,
+            {
+              maxWidth: pageWidth - 60,
+            }
+          );
           doc.text(formatarMoeda(ordem.valor), pageWidth - 20, yPos, {
             align: "right",
           });
