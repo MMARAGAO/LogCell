@@ -181,25 +181,8 @@ export class CaixaService {
         loja_id: caixa.loja_id,
       });
 
-      // Expandir o range de busca para compensar diferenças de fuso horário
-      // Adiciona 12 horas antes e depois para garantir que pegue todos os registros
-      const dataAbertura = new Date(
-        new Date(caixa.data_abertura).getTime() - 12 * 60 * 60 * 1000
-      ).toISOString();
-      const dataFechamentoBase =
-        caixa.data_fechamento || new Date().toISOString();
-      const dataFechamento = new Date(
-        new Date(dataFechamentoBase).getTime() + 12 * 60 * 60 * 1000
-      ).toISOString();
-
-      console.log("📅 DEBUG CAIXA - Range de busca:", {
-        dataAbertura,
-        dataFechamento,
-        diferenca_horas:
-          (new Date(dataFechamento).getTime() -
-            new Date(dataAbertura).getTime()) /
-          (1000 * 60 * 60),
-      });
+      const dataAbertura = caixa.data_abertura;
+      const dataFechamento = caixa.data_fechamento || new Date().toISOString();
 
       // Buscar pagamentos de vendas do período (buscar pelo momento do pagamento)
       const { data: pagamentosVendas, error: erroPagamentos } = await supabase
@@ -231,6 +214,18 @@ export class CaixaService {
       const pagamentosLoja = pagamentosVendas?.filter(
         (pag: any) => pag.venda?.loja_id === caixa.loja_id && pag.venda?.status === "concluida"
       ) || [];
+
+      console.log("💰 DEBUG CAIXA - Pagamentos encontrados:", {
+        total: pagamentosLoja.length,
+        soma_valores: pagamentosLoja.reduce((sum: number, p: any) => sum + Number(p.valor), 0),
+        pagamentos: pagamentosLoja.map((p: any) => ({
+          venda_id: p.venda?.id,
+          numero_venda: p.venda?.numero_venda,
+          valor_pagamento: p.valor,
+          tipo_pagamento: p.tipo_pagamento,
+          criado_em: p.criado_em
+        }))
+      });
 
       // Buscar devoluções do período
       const { data: devolucoes, error: erroDevolucoes } = await supabase
@@ -366,6 +361,14 @@ export class CaixaService {
         const forma = pag.tipo_pagamento;
         const valor = Number(pag.valor);
 
+        console.log(`🔍 Processando pagamento:`, {
+          numero_venda: pag.venda?.numero_venda,
+          valor,
+          forma,
+          vendaDevolvida,
+          vai_contar: !vendaDevolvida
+        });
+
         // Se não foi devolvida no mesmo dia, conta normalmente
         if (!vendaDevolvida) {
           porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
@@ -380,6 +383,17 @@ export class CaixaService {
           totalVendasDinheiro += valor;
         }
       });
+
+      console.log("📊 DEBUG CAIXA - Totais calculados de vendas:", {
+        totalVendas,
+        totalVendasDinheiro,
+        porFormaPagamento
+      });
+
+      // Contar apenas pagamentos que não são credito_cliente
+      const quantidadePagamentosReais = pagamentosLoja.filter(
+        (pag: any) => pag.tipo_pagamento !== "credito_cliente" && !vendasDevolvidasMesmoDia.has(pag.venda?.id)
+      ).length;
 
       // Calcular totais de devoluções separados por tipo
       const devolucoesComCredito = devolucoesLoja.filter(
@@ -489,8 +503,8 @@ export class CaixaService {
 
       return {
         vendas: {
-          quantidade: pagamentosLoja.length,
-          total: totalVendas,
+          quantidade: quantidadePagamentosReais, // Apenas pagamentos que geram entrada de dinheiro
+          total: totalVendasDinheiro, // Apenas vendas que geram entrada de dinheiro (exclui credito_cliente)
           por_forma_pagamento: porFormaPagamento,
         },
         devolucoes: {
@@ -518,7 +532,7 @@ export class CaixaService {
           total: totalQuebras,
         },
         saldo_inicial: Number(caixa.saldo_inicial),
-        total_entradas: totalVendasDinheiro + totalOS, // Apenas dinheiro físico
+        total_entradas: totalVendasDinheiro + totalOS, // Apenas dinheiro que entrou (exclui credito_cliente)
         total_saidas: totalDevolucoesDinheiro + totalSangrias, // Devoluções sem crédito + sangrias
         saldo_esperado: saldoEsperado,
         saldo_informado: caixa.saldo_final
@@ -580,7 +594,7 @@ export class CaixaService {
             pag.venda?.status === "concluida"
         )
         .forEach((pag: any) => {
-          // Não incluir crédito de cliente como movimentação de caixa
+          // Não incluir crédito de cliente como movimentação de caixa (não entra dinheiro)
           if (pag.tipo_pagamento === "credito_cliente") return;
 
           movimentacoes.push({
@@ -798,14 +812,8 @@ export class CaixaService {
 
       if (erroCaixa) throw erroCaixa;
 
-      const dataAbertura = new Date(
-        new Date(caixa.data_abertura).getTime() - 12 * 60 * 60 * 1000
-      ).toISOString();
-      const dataFechamentoBase =
-        caixa.data_fechamento || new Date().toISOString();
-      const dataFechamento = new Date(
-        new Date(dataFechamentoBase).getTime() + 12 * 60 * 60 * 1000
-      ).toISOString();
+      const dataAbertura = caixa.data_abertura;
+      const dataFechamento = caixa.data_fechamento || new Date().toISOString();
 
       // Buscar todos os pagamentos do período
       const { data: pagamentosVendas, error } = await supabase

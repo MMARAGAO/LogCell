@@ -623,16 +623,13 @@ function TransferenciaCard({
               <div>Criado por: {transferencia.usuario_nome}</div>
               <div>
                 Data:{" "}
-                {new Date(transferencia.criado_em + "Z").toLocaleString(
-                  "pt-BR",
-                  {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }
-                )}
+                {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
               {transferencia.observacao && (
                 <div className="text-xs italic">
@@ -642,7 +639,7 @@ function TransferenciaCard({
               {transferencia.confirmado_em && (
                 <div className="text-success">
                   Confirmado em:{" "}
-                  {new Date(transferencia.confirmado_em + "Z").toLocaleString(
+                  {new Date(transferencia.confirmado_em).toLocaleString(
                     "pt-BR",
                     {
                       day: "2-digit",
@@ -659,7 +656,7 @@ function TransferenciaCard({
               {transferencia.cancelado_em && (
                 <div className="text-danger">
                   Cancelado em:{" "}
-                  {new Date(transferencia.cancelado_em + "Z").toLocaleString(
+                  {new Date(transferencia.cancelado_em).toLocaleString(
                     "pt-BR",
                     {
                       day: "2-digit",
@@ -843,16 +840,13 @@ function DetalhesTransferenciaModal({
               </div>
               <div>
                 <span className="text-default-500">Data:</span>{" "}
-                {new Date(transferencia.criado_em + "Z").toLocaleString(
-                  "pt-BR",
-                  {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }
-                )}
+                {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </div>
             </div>
           </div>

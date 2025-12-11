@@ -127,10 +127,7 @@ export default function HistoricoOSModal({
   };
 
   const formatarData = (data: string) => {
-    // Garantir que a data seja tratada como UTC se não tiver timezone
-    const dataUTC = data.endsWith("Z") ? data : data + "Z";
-    return new Date(dataUTC).toLocaleString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
+    return new Date(data).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -152,17 +149,9 @@ export default function HistoricoOSModal({
         /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
       if (dataISORegex.test(valor)) {
         try {
-          // Garantir que a data seja tratada como UTC
-          const dataUTC =
-            valor.endsWith("Z") ||
-            valor.includes("+") ||
-            (valor.includes("-") && valor.lastIndexOf("-") > 10)
-              ? valor
-              : valor + "Z";
-          const date = new Date(dataUTC);
+          const date = new Date(valor);
           if (!isNaN(date.getTime())) {
             return date.toLocaleString("pt-BR", {
-              timeZone: "America/Sao_Paulo",
               day: "2-digit",
               month: "2-digit",
               year: "numeric",

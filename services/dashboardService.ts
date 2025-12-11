@@ -311,13 +311,11 @@ export class DashboardService {
     }
 
     // Filtrar por data no lado do cliente para garantir flexibilidade
-    // Adiciona 1 dia ao fim para compensar diferenças de timezone
     const vendasFiadas =
       todasVendasFiadas?.filter((v) => {
         const dataVenda = new Date(v.criado_em);
         const dataInicioObj = new Date(dataInicio + "T00:00:00");
         const dataFimObj = new Date(dataFim + "T23:59:59.999");
-        dataFimObj.setDate(dataFimObj.getDate() + 1); // Adiciona 1 dia para compensar timezone
 
         return dataVenda >= dataInicioObj && dataVenda <= dataFimObj;
       }) || [];

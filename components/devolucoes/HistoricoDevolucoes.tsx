@@ -118,10 +118,7 @@ export function HistoricoDevolucoes({
   };
 
   const formatarData = (data: string) => {
-    // O banco retorna timestamp sem timezone, adicionar 'Z' para tratar como UTC
-    const dataComTimezone =
-      data.includes("Z") || data.includes("+") ? data : data + "Z";
-    const dataObj = new Date(dataComTimezone);
+    const dataObj = new Date(data);
 
     return dataObj.toLocaleString("pt-BR", {
       day: "2-digit",

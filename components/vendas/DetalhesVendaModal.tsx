@@ -105,19 +105,7 @@ export function DetalhesVendaModal({
     if (!data) return "Data não disponível";
 
     try {
-      // Remove timezone se tiver e cria data diretamente
-      // Formato do banco: "2025-11-25 18:44:11.953503+00"
-      // ou "2025-11-25T18:44:11.953503Z"
-      let dataString = data.replace(" ", "T"); // Substitui espaço por T
-
-      // Se terminar com +00, substitui por Z
-      if (dataString.includes("+")) {
-        dataString = dataString.split("+")[0] + "Z";
-      } else if (!dataString.endsWith("Z")) {
-        dataString = dataString + "Z";
-      }
-
-      const dataLocal = new Date(dataString);
+      const dataLocal = new Date(data);
 
       // Verifica se a data é válida
       if (isNaN(dataLocal.getTime())) {
