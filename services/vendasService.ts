@@ -1183,19 +1183,53 @@ export class VendasService {
         }
       }
 
-      // 3. Ajustar PAGAMENTOS (deletar e recriar)
+      // 3. Ajustar PAGAMENTOS (comparar e atualizar ao invés de deletar e recriar)
       console.log("💳 Atualizando pagamentos...");
-      await supabase.from("pagamentos_venda").delete().eq("venda_id", vendaId);
+      
+      const pagamentosAntigos = (vendaAtual.pagamentos as any[]) || [];
+      const pagamentosNovos = dados.pagamentos;
 
-      for (const pag of dados.pagamentos) {
-        await supabase.from("pagamentos_venda").insert({
-          venda_id: vendaId,
-          tipo_pagamento: pag.tipo_pagamento,
-          valor: pag.valor,
-          data_pagamento:
-            pag.data_pagamento || new Date().toISOString().split("T")[0],
-          criado_por: usuarioId,
-        });
+      console.log("💰 Comparando pagamentos:", {
+        antigos: pagamentosAntigos.length,
+        novos: pagamentosNovos.length,
+      });
+
+      // Criar identificador único para pagamento baseado em tipo + valor + data
+      const criarChavePagamento = (pag: any) => 
+        `${pag.tipo_pagamento}-${pag.valor}-${pag.data_pagamento || new Date().toISOString().split("T")[0]}`;
+
+      const mapaPagamentosAntigos = new Map(
+        pagamentosAntigos.map((pag) => [criarChavePagamento(pag), pag])
+      );
+      const mapaPagamentosNovos = new Map(
+        pagamentosNovos.map((pag) => [criarChavePagamento(pag), pag])
+      );
+
+      // Remover pagamentos que não existem mais
+      for (const pagAntigo of pagamentosAntigos) {
+        const chave = criarChavePagamento(pagAntigo);
+        if (!mapaPagamentosNovos.has(chave)) {
+          console.log("🗑️ Removendo pagamento:", pagAntigo);
+          await supabase.from("pagamentos_venda").delete().eq("id", pagAntigo.id);
+        }
+      }
+
+      // Adicionar novos pagamentos (que não existiam antes)
+      for (const pagNovo of pagamentosNovos) {
+        const chave = criarChavePagamento(pagNovo);
+        if (!mapaPagamentosAntigos.has(chave)) {
+          console.log("➕ Adicionando novo pagamento:", pagNovo);
+          await supabase.from("pagamentos_venda").insert({
+            venda_id: vendaId,
+            tipo_pagamento: pagNovo.tipo_pagamento,
+            valor: pagNovo.valor,
+            data_pagamento:
+              pagNovo.data_pagamento || new Date().toISOString().split("T")[0],
+            criado_por: usuarioId,
+          });
+        } else {
+          console.log("✓ Pagamento já existe, mantendo:", pagNovo);
+        }
       }
 
       // 4. Ajustar DESCONTOS (deletar e recriar se houver)
