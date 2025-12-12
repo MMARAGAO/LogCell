@@ -4,7 +4,7 @@
 
 *Erro:*
 O Total Geral do Caixa aparece como R$ 9.473,00, mas o total real de vendas do dia foi R$ 4.225,00.
-Informações de pagamentos: Estão corretas.
+Informações de pagamentos: Estão corretas. ✅
 
 
 valor comparado e esta certo conforme os cadastros realizados no sistema.
@@ -13,7 +13,7 @@ valor comparado e esta certo conforme os cadastros realizados no sistema.
 Período: Aberto 05/12 e fechado 06/12.
 
 *Erros:*
-Venda #163 – Igor Lojista (R$ 600,00) não aparece no relatório do caixa.
+Venda #163 – Igor Lojista (R$ 600,00) não aparece no relatório do caixa.✅
 
 O Total Geral do Caixa consta R$ 12.862,00, mas o total real de vendas foi R$ 6.359,00.
 Informações de pagamentos: Estão corretas.
@@ -23,52 +23,108 @@ Período: Aberto 06/12 e fechado 07/12.
 
 *Erros:*
 Venda #215 – Kleber Big Apple, recebida dia 06/12, foi editada para 11/12.
-✔️ Precisa voltar para o caixa do dia 06/12.
+✔️ Precisa voltar para o caixa do dia 06/12.✅
 
 O Total Geral do Caixa mostra R$ 17.849,00, mas o total real de vendas foi R$ 5.428,00.
-Informações de pagamentos: Estão corretas.
+Informações de pagamentos: Estão corretas.✅
 
 *📌 CAIXA 07/12*
 
 *Erros:*
 Venda #266 → apagar, lançamento errado.
 
-OS #66 duplicada → aparece uma no crédito e uma no débito.
+OS #66 duplicada → aparece uma no crédito e uma no débito.✅
 
-O Total Geral do Caixa aparece como R$ 12.705,00, mas o total real de vendas foi R$ 12.425,00.
+O Total Geral do Caixa aparece como R$ 12.705,00, mas o total real de vendas foi R$ 12.425,00.✅
 Informações de pagamentos: Estão corretas.
 
 *📌 CAIXA 08/12*
 
 *Erro:*
-O Total Geral do relatório mostra R$ 4.270,00, porém o total real de vendas foi R$ 870,00.
+O Total Geral do relatório mostra R$ 4.270,00, porém o total real de vendas foi R$ 870,00.✅
 
 *📌 CAIXA 09/12*
 
 *Erros:*
 Vendas que sumiram ou mudaram de data e precisam voltar para 09/12:
 
-#269 → recebida 09/12, editada para 11/12.
+#269 → recebida 09/12, editada para 11/12.✅
 
-#327 → recebida 09/12, não aparece no relatório.
+327 → recebida 09/12, não aparece no relatório.✅
 
-#133 → recebida 09/12, editada para 11/12.
+133 → recebida 09/12, editada para 11/12.✅
 
-#283 → recebida 09/12, editada para 11/12.
+283 → recebida 09/12, editada para 11/12.✅
 
-#190 → recebida 09/12, editada para 11/12.
+190 → recebida 09/12, editada para 11/12.✅
 
-#017 → recebida 09/12, editada para 10/12.
+017 → recebida 09/12, editada para 10/12.✅
 
-✔️ Todas devem voltar para o caixa do dia 09/12.
-
+ Todas devem voltar para o caixa do dia 09/12.✅
 Total Geral do Caixa:
 
-Relatório mostra R$ 4.210,00, mas o total real do dia foi R$ 4.140,00.
+Relatório mostra R$ 4.210,00, mas o total real do dia foi R$ 4.140,00.✅
 
 *📌 CAIXA 10/12*
 
 *Erro:*
+Venda #181 → recebida 10/12, editada para 11/12 → voltar para o dia 10/12.✅
+
+Total Geral no relatório: R$ 6.035,00, mas o total real foi R$ 6.240,00.✅
+
+
+
+
+loja atacado
+
+📌 CAIXA 05/12
+
+Venda #163 – Igor Lojista (R$ 600,00) não ta no relatório do caixa e nem somando.
+O Total do Caixa DE ENTRADAS mostra  R$ 5.759,00, mas o total real de vendas (entradas) foi R$ 6.359,00.
+
+
+📌 CAIXA 06/12
+
+
+Venda #215 – Kleber Big Apple, recebida dia 06/12, foi editada para 11/12.
+✔️ Precisa voltar para o caixa do dia 06/12.
+
+O Total Geral do Caixa mostra R$ 5.048,00, mas o total real de vendas (entradas) foi R$ 5.428,00.
+
+Informações de pagamentos:
+PIX: R$4.140,00 +90,00 (VENDA #215)= R$4.230,00 
+DINHEIRO: R$308,00 
+CRÉDITO: R$890,00 
+
+TOTAL: R$5.428,00 
+
+
+📌 CAIXA 09/12
+
+Vendas que sumiram ou mudaram de data e precisam voltar para 09/12:
+
+IMPORT CELL VENDA #269 → recebida 09/12, editada para 11/12. (dinheiro)
+
+WENDEL VENDA #327 → recebida 09/12, não aparece no relatório. (pix)
+
+ELETRO ART VENDA #133 → recebida 09/12, editada para 11/12. (pix)
+
+ELI FEIRA VENDA #283 → recebida 09/12, editada para 11/12. (pix)
+
+ELI FEIRA VENDA #190 → recebida 09/12, editada para 11/12. (pix)
+
+WIN STORE VENDA #017 → recebida 09/12, editada para 10/12. (pix)
+
+✔️ Todas devem voltar para o caixa do dia 09/12.
+
+Total Geral do Caixa:
+Relatório mostra  R$ 3.340,00, mas o total real do dia foi R$ 4.140,00 de entradas.
+
+
+📌 CAIXA 10/12
+
+
 Venda #181 → recebida 10/12, editada para 11/12 → voltar para o dia 10/12.
+WIN STORE VENDA #017 → ESSA VENDA É DO DIA 09/12 RETIRAR DO DIA 10/12.
 
 Total Geral no relatório: R$ 6.035,00, mas o total real foi R$ 6.240,00.
