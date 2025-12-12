@@ -586,12 +586,11 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      // Filtrar apenas pagamentos de vendas concluídas da loja correta
+      // Filtrar apenas pagamentos da loja correta (independente do status da venda)
       pagamentosVendas
         ?.filter(
           (pag: any) =>
-            pag.venda?.loja_id === caixa.loja_id &&
-            pag.venda?.status === "concluida"
+            pag.venda?.loja_id === caixa.loja_id
         )
         .forEach((pag: any) => {
           // Não incluir crédito de cliente como movimentação de caixa (não entra dinheiro)
