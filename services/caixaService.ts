@@ -210,9 +210,9 @@ export class CaixaService {
         throw new Error(`Erro ao buscar pagamentos: ${erroPagamentos.message || JSON.stringify(erroPagamentos)}`);
       }
 
-      // Filtrar apenas pagamentos de vendas da loja correta
+      // Filtrar apenas pagamentos de vendas da loja correta (independente do status da venda)
       const pagamentosLoja = pagamentosVendas?.filter(
-        (pag: any) => pag.venda?.loja_id === caixa.loja_id && pag.venda?.status === "concluida"
+        (pag: any) => pag.venda?.loja_id === caixa.loja_id
       ) || [];
 
       console.log("💰 DEBUG CAIXA - Pagamentos encontrados:", {
@@ -842,11 +842,10 @@ export class CaixaService {
 
       if (error) throw error;
 
-      // Filtrar apenas pagamentos de vendas concluídas da loja correta
+      // Filtrar apenas pagamentos da loja correta (independente do status da venda)
       const pagamentosLoja = pagamentosVendas?.filter(
         (pag: any) =>
-          pag.venda?.loja_id === caixa.loja_id &&
-          pag.venda?.status === "concluida"
+          pag.venda?.loja_id === caixa.loja_id
       ) || [];
 
       // Agrupar pagamentos por forma de pagamento

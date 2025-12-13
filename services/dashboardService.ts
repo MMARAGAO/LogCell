@@ -105,6 +105,25 @@ export class DashboardService {
             ? 100
             : 0;
 
+      // Calcular variação de ganhos
+      const variacaoGanhoVendas =
+        metricasAnterior.ganho_vendas > 0
+          ? ((metricasAtual.ganho_vendas - metricasAnterior.ganho_vendas) /
+              metricasAnterior.ganho_vendas) *
+            100
+          : metricasAtual.ganho_vendas > 0
+            ? 100
+            : 0;
+
+      const variacaoGanhoOS =
+        metricasAnterior.ganho_os > 0
+          ? ((metricasAtual.ganho_os - metricasAnterior.ganho_os) /
+              metricasAnterior.ganho_os) *
+            100
+          : metricasAtual.ganho_os > 0
+            ? 100
+            : 0;
+
       console.log("✅ [DASHBOARD] Dados compilados com sucesso!");
       console.log("📊 [DASHBOARD] Resumo das métricas:", {
         faturamento: metricasAtual.faturamento,
@@ -114,6 +133,8 @@ export class DashboardService {
         osConcluidas: metricasAtual.os_concluidas,
         vendasFiadas: metricasAtual.vendas_fiadas,
         novosClientes: metricasAtual.novos_clientes,
+        ganhoVendas: metricasAtual.ganho_vendas,
+        ganhoOS: metricasAtual.ganho_os,
       });
 
       return {
@@ -149,6 +170,13 @@ export class DashboardService {
           valor_vendas_fiadas: metricasAtual.valor_vendas_fiadas || 0,
           valor_vendas_fiadas_periodo_anterior:
             metricasAnterior.valor_vendas_fiadas || 0,
+
+          ganho_vendas: metricasAtual.ganho_vendas || 0,
+          ganho_vendas_periodo_anterior: metricasAnterior.ganho_vendas || 0,
+          variacao_ganho_vendas: variacaoGanhoVendas,
+          ganho_os: metricasAtual.ganho_os || 0,
+          ganho_os_periodo_anterior: metricasAnterior.ganho_os || 0,
+          variacao_ganho_os: variacaoGanhoOS,
 
           caixas_abertos: caixasAbertos.length,
         },
@@ -190,10 +218,10 @@ export class DashboardService {
       lojaId,
     });
 
-    // Faturamento e vendas
+    // Faturamento e vendas (considerando todas as vendas finalizadas)
     let queryVendas = supabase
       .from("vendas")
-      .select("valor_total, criado_em, finalizado_em, loja_id")
+      .select("id, valor_total, criado_em, finalizado_em, loja_id")
       .eq("status", "concluida");
 
     if (lojaId) {
@@ -211,9 +239,12 @@ export class DashboardService {
       );
     }
 
-    // Filtrar por data usando finalizado_em ou criado_em como fallback
+    // Filtrar por data usando finalizado_em com fallback para criado_em (comparação apenas da parte de data)
     const vendas = todasVendas?.filter((v) => {
-      const dataVenda = v.finalizado_em || v.criado_em;
+      // Se finalizado_em existe, usar ele, senão usar criado_em
+      const dataVendaCompleta = v.finalizado_em ? v.finalizado_em : v.criado_em;
+      // Extrair apenas YYYY-MM-DD para comparação correta
+      const dataVenda = dataVendaCompleta.split('T')[0];
       return dataVenda >= dataInicio && dataVenda <= dataFim;
     });
 
@@ -230,12 +261,10 @@ export class DashboardService {
       totalVendas
     );
 
-    // OS abertas e concluídas
+    // OS abertas e concluídas (TOTAL GERAL, não por período)
     let queryOS = supabase
       .from("ordem_servico")
-      .select("status, id_loja")
-      .gte("criado_em", dataInicio)
-      .lte("criado_em", dataFim);
+      .select("status, id_loja");
 
     if (lojaId) {
       queryOS = queryOS.eq("id_loja", lojaId);
@@ -250,8 +279,10 @@ export class DashboardService {
     }
 
     const osAbertas =
-      os?.filter((o) => o.status !== "entregue" && o.status !== "cancelado")
-        .length || 0;
+      os?.filter((o) => 
+        o.status !== "entregue" && 
+        o.status !== "cancelado"
+      ).length || 0;
     const osConcluidas = os?.filter((o) => o.status === "entregue").length || 0;
 
     console.log(
@@ -310,17 +341,17 @@ export class DashboardService {
       );
     }
 
-    // Filtrar por data no lado do cliente para garantir flexibilidade
+    // Filtrar por data de criação (extraindo apenas YYYY-MM-DD para comparação correta)
     const vendasFiadas =
       todasVendasFiadas?.filter((v) => {
-        const dataVenda = new Date(v.criado_em);
-        const dataInicioObj = new Date(dataInicio + "T00:00:00");
-        const dataFimObj = new Date(dataFim + "T23:59:59.999");
-
-        return dataVenda >= dataInicioObj && dataVenda <= dataFimObj;
+        // Extrair apenas a parte da data (YYYY-MM-DD) para comparação
+        const dataCriacao = v.criado_em.split('T')[0];
+        return dataCriacao >= dataInicio && dataCriacao <= dataFim;
       }) || [];
 
     const totalVendasFiadas = vendasFiadas.length;
+
+    console.log("💳 [VENDAS FIADAS] Filtradas no período:", totalVendasFiadas);
 
     // Inicializar array vazio para detalhes
     let vendasFiadasComDetalhes: any[] = [];
@@ -419,11 +450,67 @@ export class DashboardService {
           };
         }) || [];
 
+      // Somar o valor PENDENTE (saldo devedor real), não o valor_total
       valorTotalVendasFiadas = vendasFiadasComDetalhes.reduce(
-        (sum, v) => sum + v.valor_total,
+        (sum, v) => sum + Number(v.valor_pendente || 0),
         0
       );
+
+      console.log("💳 [VENDAS FIADAS] Detalhadas encontradas:", vendasFiadasComDetalhes.length);
+      console.log("💳 [VENDAS FIADAS] Valor total calculado:", valorTotalVendasFiadas);
+    } else {
+      console.log("💳 [VENDAS FIADAS] Nenhuma venda fiada no período");
     }
+
+    // Buscar ganhos reais com vendas (DINHEIRO RECEBIDO no período)
+    // Pagamentos que foram RECEBIDOS no período, independente de quando a venda foi feita
+    let queryPagamentosVendas = supabase
+      .from("pagamentos_venda")
+      .select("valor, data_pagamento, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)")
+      .gte("data_pagamento", dataInicio)
+      .lte("data_pagamento", dataFim);
+
+    const { data: pagamentosVendas, error: errorPagVendas } = await queryPagamentosVendas;
+
+    console.log("💰 [GANHO VENDAS] Pagamentos no período:", pagamentosVendas?.length);
+    console.log("💰 [GANHO VENDAS] Erro:", errorPagVendas);
+
+    // Filtrar por loja se necessário
+    const pagamentosVendasFiltrados = pagamentosVendas?.filter((p: any) => {
+      return !lojaId || p.venda?.loja_id === lojaId;
+    });
+
+    const ganhoVendas = pagamentosVendasFiltrados?.reduce(
+      (sum, p) => sum + Number(p.valor),
+      0
+    ) || 0;
+
+    console.log("💵 [GANHO VENDAS] Total calculado:", ganhoVendas);
+
+    // Buscar ganhos reais com OS (DINHEIRO RECEBIDO no período)
+    // Pagamentos que foram RECEBIDOS no período, independente de quando a OS foi criada
+    let queryPagamentosOS = supabase
+      .from("ordem_servico_pagamentos")
+      .select("valor, data_pagamento, ordem_servico:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)")
+      .gte("data_pagamento", dataInicio)
+      .lte("data_pagamento", dataFim);
+
+    const { data: pagamentosOS, error: errorPagOS } = await queryPagamentosOS;
+
+    console.log("🔧 [GANHO OS] Pagamentos no período:", pagamentosOS?.length);
+    console.log("🔧 [GANHO OS] Erro:", errorPagOS);
+
+    // Filtrar por loja se necessário
+    const pagamentosOSFiltrados = pagamentosOS?.filter((p: any) => {
+      return !lojaId || p.ordem_servico?.id_loja === lojaId;
+    });
+
+    const ganhoOS = pagamentosOSFiltrados?.reduce(
+      (sum, p) => sum + Number(p.valor),
+      0
+    ) || 0;
+
+    console.log("💵 [GANHO OS] Total calculado:", ganhoOS);
 
     return {
       faturamento,
@@ -434,6 +521,8 @@ export class DashboardService {
       vendas_fiadas: totalVendasFiadas,
       valor_vendas_fiadas: valorTotalVendasFiadas,
       vendas_fiadas_detalhadas: vendasFiadasComDetalhes,
+      ganho_vendas: ganhoVendas,
+      ganho_os: ganhoOS,
     };
   }
 
@@ -445,7 +534,6 @@ export class DashboardService {
     let queryVendasDias = supabase
       .from("vendas")
       .select("valor_total, finalizado_em, criado_em, loja_id")
-      .eq("status", "concluida")
       .order("criado_em", { ascending: true });
 
     if (lojaId) {
@@ -506,8 +594,7 @@ export class DashboardService {
           loja_id
         )
       `
-      )
-      .eq("venda.status", "concluida");
+      );
 
     if (lojaId) {
       query = query.eq("venda.loja_id", lojaId);
@@ -569,8 +656,7 @@ export class DashboardService {
           loja_id
         )
       `
-      )
-      .eq("venda.status", "concluida");
+      );
 
     if (lojaId) {
       query = query.eq("venda.loja_id", lojaId);
@@ -789,6 +875,7 @@ export class DashboardService {
   // ========== NOVOS MÉTODOS ==========
 
   private static async buscarContasReceber(lojaId?: number) {
+    // filtro de loja aplicado via parâmetro
     let query = supabase
       .from("vendas")
       .select(
@@ -822,10 +909,7 @@ export class DashboardService {
       return [];
     }
 
-    console.log(
-      "✅ [DASHBOARD] Contas a receber encontradas:",
-      vendas?.length || 0
-    );
+    // métricas calculadas serão agregadas na camada superior
 
     return (
       vendas?.map((venda: any) => {
@@ -867,8 +951,7 @@ export class DashboardService {
         loja_id,
         cliente:clientes!vendas_cliente_id_fkey(nome)
       `
-      )
-      .eq("status", "concluida");
+      );
 
     if (lojaId) {
       query = query.eq("loja_id", lojaId);
@@ -932,8 +1015,7 @@ export class DashboardService {
         loja_id,
         vendedor:usuarios!vendas_vendedor_id_fkey(nome)
       `
-      )
-      .eq("status", "concluida");
+      );
 
     if (lojaId) {
       query = query.eq("loja_id", lojaId);
@@ -1179,8 +1261,7 @@ export class DashboardService {
           loja_id
         )
       `
-      )
-      .eq("venda.status", "concluida");
+      );
 
     if (lojaId) {
       query = query.eq("venda.loja_id", lojaId);
@@ -1258,7 +1339,6 @@ export class DashboardService {
     let queryVendas = supabase
       .from("vendas")
       .select("valor_total, finalizado_em, criado_em, loja_id")
-      .eq("status", "concluida")
       .gte("criado_em", seisMesesAtras.toISOString());
 
     if (lojaId) {
@@ -1441,6 +1521,7 @@ export class DashboardService {
 
     const contasReceberTotal =
       contasReceber?.reduce((sum, v) => sum + Number(v.saldo_devedor), 0) || 0;
+    const contasReceberQtd = contasReceber?.length || 0;
 
     console.log("💰 [DASHBOARD] Total contas a receber:", contasReceberTotal);
 
@@ -1639,43 +1720,47 @@ export class DashboardService {
     const valorDevolucoesMes =
       devolucoes.reduce((sum, d) => sum + Number(d.valor_total || 0), 0) || 0;
 
-    // Movimentações de caixa do dia (usando sangrias_caixa)
-    console.log("💰 [DASHBOARD] Buscando movimentações de caixa (sangrias)...");
-    const hoje = new Date().toISOString().split("T")[0];
-    let querySangriasDia = supabase
+    // Todas as sangrias (filtradas por período)
+    console.log("💰 [DASHBOARD] Buscando todas as sangrias do período...");
+    let querySangriasPeriodo = supabase
       .from("sangrias_caixa")
       .select(
         `
         id,
         valor,
         motivo,
-        caixa:caixas!sangrias_caixa_caixa_id_fkey(loja_id),
+        caixa_id,
         criado_em
       `
       )
-      .gte("criado_em", `${hoje}T00:00:00`)
-      .lte("criado_em", `${hoje}T23:59:59`);
+      .gte("criado_em", `${dataInicio}T00:00:00`)
+      .lte("criado_em", `${dataFim}T23:59:59`);
 
-    const { data: sangriasDia, error: sangriasError } = await querySangriasDia;
+    const { data: sangriasDia, error: sangriasError } = await querySangriasPeriodo;
 
     if (sangriasError) {
       console.error("❌ [DASHBOARD] Erro ao buscar sangrias:", sangriasError);
-    } else {
-      console.log(
-        "✅ [DASHBOARD] Sangrias encontradas:",
-        sangriasDia?.length || 0
-      );
     }
 
     let sangriasFiltradas = sangriasDia || [];
-    if (lojaId && sangriasDia) {
-      sangriasFiltradas = sangriasDia.filter(
-        (s: any) => s.caixa?.loja_id === lojaId
-      );
+    
+    // Se precisar filtrar por loja, buscar os caixas separadamente
+    if (lojaId && sangriasDia && sangriasDia.length > 0) {
+      const caixaIds = sangriasDia.map((s: any) => s.caixa_id).filter(Boolean);
+      
+      if (caixaIds.length > 0) {
+        const { data: caixas } = await supabase
+          .from("caixas")
+          .select("id, loja_id")
+          .in("id", caixaIds);
+        
+        const caixasLoja = caixas?.filter(c => c.loja_id === lojaId).map(c => c.id) || [];
+        sangriasFiltradas = sangriasDia.filter((s: any) => caixasLoja.includes(s.caixa_id));
+      }
     }
 
-    const movimentacoesCaixaDia = sangriasFiltradas.length;
-    const valorMovimentacoesCaixaDia =
+    const totalSangrias = sangriasFiltradas.length;
+    const valorTotalSangrias =
       sangriasFiltradas.reduce(
         (sum, s) => sum + Math.abs(Number(s.valor || 0)),
         0
@@ -1690,12 +1775,13 @@ export class DashboardService {
       valorTransferenciasPendentes,
       devolucoesMes,
       valorDevolucoesMes,
-      movimentacoesCaixaDia,
-      valorMovimentacoesCaixaDia,
+      totalSangrias,
+      valorTotalSangrias,
     });
 
     return {
       contas_receber_total: contasReceberTotal,
+      contas_receber_qtd: contasReceberQtd,
       creditos_cliente_total: creditosTotal,
       taxa_conversao_os: Math.round(taxaConversao * 10) / 10,
       tempo_medio_reparo_dias: tempoMedioReparo,
@@ -1709,8 +1795,8 @@ export class DashboardService {
       valor_transferencias_pendentes: valorTransferenciasPendentes,
       devolucoes_mes: devolucoesMes,
       valor_devolucoes_mes: valorDevolucoesMes,
-      movimentacoes_caixa_dia: movimentacoesCaixaDia,
-      valor_movimentacoes_caixa_dia: valorMovimentacoesCaixaDia,
+      movimentacoes_caixa_dia: totalSangrias,
+      valor_movimentacoes_caixa_dia: valorTotalSangrias,
     };
   }
 }

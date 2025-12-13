@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownItem,
   ButtonGroup,
+  Pagination,
 } from "@heroui/react";
 import {
   Plus,
@@ -38,6 +39,8 @@ import {
   LayoutGrid,
   Table as TableIcon,
   DollarSign,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -109,6 +112,15 @@ export default function OrdemServicoPage() {
   const [modoVisualizacao, setModoVisualizacao] = useState<"grid" | "table">(
     "grid"
   );
+  const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
+  const [filtroDataFim, setFiltroDataFim] = useState<string>("");
+  const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  // Estados de paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [itensPorPagina, setItensPorPagina] = useState(12);
 
   // Preencher busca vinda da URL
   useEffect(() => {
@@ -395,20 +407,82 @@ export default function OrdemServicoPage() {
     }
   };
 
-  // Filtrar OS por busca (número, cliente, equipamento)
-  const ordensFiltradas = ordensServico.filter((os) => {
-    if (!busca) return true;
+  // Filtrar OS por busca (número, cliente, equipamento) e aplicar todos os filtros
+  let ordensFiltradas = ordensServico.filter((os) => {
+    // Filtro de busca
+    if (busca) {
+      const buscaLower = busca.toLowerCase();
+      const matchBusca =
+        os.numero_os?.toString().includes(buscaLower) ||
+        os.cliente_nome?.toLowerCase().includes(buscaLower) ||
+        os.cliente_telefone?.includes(busca) ||
+        os.equipamento_tipo?.toLowerCase().includes(buscaLower) ||
+        os.equipamento_marca?.toLowerCase().includes(buscaLower) ||
+        os.equipamento_modelo?.toLowerCase().includes(buscaLower);
 
-    const buscaLower = busca.toLowerCase();
-    return (
-      os.numero_os?.toString().includes(buscaLower) ||
-      os.cliente_nome?.toLowerCase().includes(buscaLower) ||
-      os.cliente_telefone?.includes(busca) ||
-      os.equipamento_tipo?.toLowerCase().includes(buscaLower) ||
-      os.equipamento_marca?.toLowerCase().includes(buscaLower) ||
-      os.equipamento_modelo?.toLowerCase().includes(buscaLower)
-    );
+      if (!matchBusca) return false;
+    }
+
+    // Filtro de loja
+    if (filtroLoja !== "todas") {
+      if (os.id_loja?.toString() !== filtroLoja) return false;
+    }
+
+    // Filtro de data (usando data_entrada)
+    if (filtroDataInicio || filtroDataFim) {
+      const dataOS = os.data_entrada?.split("T")[0];
+      if (!dataOS) return false;
+
+      if (filtroDataInicio && dataOS < filtroDataInicio) return false;
+      if (filtroDataFim && dataOS > filtroDataFim) return false;
+    }
+
+    return true;
   });
+
+  // Aplicar ordenação
+  ordensFiltradas = [...ordensFiltradas].sort((a, b) => {
+    switch (ordenacao) {
+      case "mais_recentes":
+        return (
+          new Date(b.data_entrada || "").getTime() -
+          new Date(a.data_entrada || "").getTime()
+        );
+      case "mais_antigas":
+        return (
+          new Date(a.data_entrada || "").getTime() -
+          new Date(b.data_entrada || "").getTime()
+        );
+      case "numero_crescente":
+        return (a.numero_os || 0) - (b.numero_os || 0);
+      case "numero_decrescente":
+        return (b.numero_os || 0) - (a.numero_os || 0);
+      case "valor_crescente":
+        return (a.valor_total || 0) - (b.valor_total || 0);
+      case "valor_decrescente":
+        return (b.valor_total || 0) - (a.valor_total || 0);
+      default:
+        return 0;
+    }
+  });
+
+  // Paginação
+  const totalPaginas = Math.ceil(ordensFiltradas.length / itensPorPagina);
+  const indiceInicio = (paginaAtual - 1) * itensPorPagina;
+  const indiceFim = indiceInicio + itensPorPagina;
+  const ordensPaginadas = ordensFiltradas.slice(indiceInicio, indiceFim);
+
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [
+    busca,
+    statusFiltro,
+    filtroLoja,
+    filtroDataInicio,
+    filtroDataFim,
+    ordenacao,
+  ]);
 
   // Calcular resumo de formas de pagamento das OS filtradas
   const resumoPagamentos = ordensFiltradas.reduce(
@@ -697,56 +771,169 @@ export default function OrdemServicoPage() {
       {/* Filtros */}
       <Card>
         <CardBody>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="Buscar por número, cliente, equipamento..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              startContent={<Search className="w-4 h-4 text-default-400" />}
-              className="flex-1"
-              isClearable
-              onClear={() => setBusca("")}
-            />
+          <div className="flex flex-col gap-4">
+            {/* Linha 1: Busca e botões principais */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Input
+                placeholder="Buscar por número, cliente, equipamento..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                startContent={<Search className="w-4 h-4 text-default-400" />}
+                className="flex-1"
+                isClearable
+                onClear={() => setBusca("")}
+              />
 
-            <Select
-              placeholder="Filtrar por status"
-              selectedKeys={statusFiltro ? [statusFiltro] : []}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0] as StatusOS | "";
-                setStatusFiltro(selected);
-              }}
-              className="w-full sm:w-64"
-              startContent={<Filter className="w-4 h-4" />}
-            >
-              <SelectItem key="">Todos os Status</SelectItem>
-              <SelectItem key="aguardando">Aguardando</SelectItem>
-              <SelectItem key="aprovado">Aprovado</SelectItem>
-              <SelectItem key="em_andamento">Em Andamento</SelectItem>
-              <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
-              <SelectItem key="concluido">Concluído</SelectItem>
-              <SelectItem key="entregue">Entregue</SelectItem>
-              <SelectItem key="cancelado">Cancelado</SelectItem>
-              <SelectItem key="garantia">Garantia</SelectItem>
-            </Select>
+              <Button
+                variant="flat"
+                startContent={<Filter className="w-4 h-4" />}
+                endContent={
+                  mostrarFiltros ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )
+                }
+                onPress={() => setMostrarFiltros(!mostrarFiltros)}
+                className="sm:w-auto"
+              >
+                {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
+              </Button>
 
-            <ButtonGroup>
-              <Button
-                isIconOnly
-                variant={modoVisualizacao === "grid" ? "solid" : "flat"}
-                color={modoVisualizacao === "grid" ? "primary" : "default"}
-                onPress={() => setModoVisualizacao("grid")}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </Button>
-              <Button
-                isIconOnly
-                variant={modoVisualizacao === "table" ? "solid" : "flat"}
-                color={modoVisualizacao === "table" ? "primary" : "default"}
-                onPress={() => setModoVisualizacao("table")}
-              >
-                <TableIcon className="w-4 h-4" />
-              </Button>
-            </ButtonGroup>
+              <ButtonGroup>
+                <Button
+                  isIconOnly
+                  variant={modoVisualizacao === "grid" ? "solid" : "flat"}
+                  color={modoVisualizacao === "grid" ? "primary" : "default"}
+                  onPress={() => setModoVisualizacao("grid")}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </Button>
+                <Button
+                  isIconOnly
+                  variant={modoVisualizacao === "table" ? "solid" : "flat"}
+                  color={modoVisualizacao === "table" ? "primary" : "default"}
+                  onPress={() => setModoVisualizacao("table")}
+                >
+                  <TableIcon className="w-4 h-4" />
+                </Button>
+              </ButtonGroup>
+            </div>
+
+            {/* Filtros Avançados (Retrátil) */}
+            {mostrarFiltros && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-default-200">
+                <Select
+                  label="Status"
+                  placeholder="Todos os Status"
+                  selectedKeys={statusFiltro ? [statusFiltro] : []}
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as StatusOS | "";
+                    setStatusFiltro(selected);
+                  }}
+                  size="sm"
+                >
+                  <SelectItem key="">Todos</SelectItem>
+                  <SelectItem key="aguardando">Aguardando</SelectItem>
+                  <SelectItem key="aprovado">Aprovado</SelectItem>
+                  <SelectItem key="em_andamento">Em Andamento</SelectItem>
+                  <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
+                  <SelectItem key="concluido">Concluído</SelectItem>
+                  <SelectItem key="entregue">Entregue</SelectItem>
+                  <SelectItem key="cancelado">Cancelado</SelectItem>
+                  <SelectItem key="garantia">Garantia</SelectItem>
+                </Select>
+
+                <Select
+                  label="Loja"
+                  placeholder="Todas as Lojas"
+                  selectedKeys={[filtroLoja]}
+                  onSelectionChange={(keys) =>
+                    setFiltroLoja(Array.from(keys)[0] as string)
+                  }
+                  size="sm"
+                  items={[{ id: 0, nome: "Todas" }, ...lojas]}
+                >
+                  {(loja) => (
+                    <SelectItem
+                      key={loja.id === 0 ? "todas" : loja.id.toString()}
+                    >
+                      {loja.nome}
+                    </SelectItem>
+                  )}
+                </Select>
+
+                <Input
+                  type="date"
+                  label="Data Início"
+                  value={filtroDataInicio}
+                  onChange={(e) => setFiltroDataInicio(e.target.value)}
+                  size="sm"
+                />
+
+                <Input
+                  type="date"
+                  label="Data Fim"
+                  value={filtroDataFim}
+                  onChange={(e) => setFiltroDataFim(e.target.value)}
+                  size="sm"
+                />
+
+                <Select
+                  label="Ordenar por"
+                  selectedKeys={[ordenacao]}
+                  onSelectionChange={(keys) =>
+                    setOrdenacao(Array.from(keys)[0] as string)
+                  }
+                  size="sm"
+                  className="sm:col-span-2"
+                >
+                  <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
+                  <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
+                  <SelectItem key="numero_crescente">
+                    Número (Crescente)
+                  </SelectItem>
+                  <SelectItem key="numero_decrescente">
+                    Número (Decrescente)
+                  </SelectItem>
+                  <SelectItem key="valor_crescente">
+                    Valor (Crescente)
+                  </SelectItem>
+                  <SelectItem key="valor_decrescente">
+                    Valor (Decrescente)
+                  </SelectItem>
+                </Select>
+
+                <div className="sm:col-span-2 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    onPress={() => {
+                      setBusca("");
+                      setStatusFiltro("");
+                      setFiltroLoja("todas");
+                      setFiltroDataInicio("");
+                      setFiltroDataFim("");
+                      setOrdenacao("mais_recentes");
+                    }}
+                    className="flex-1"
+                  >
+                    Limpar Filtros
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Informações de resultado */}
+            <div className="flex justify-between items-center text-sm text-default-500">
+              <span>
+                Mostrando {ordensPaginadas.length} de {ordensFiltradas.length}{" "}
+                {ordensFiltradas.length === 1 ? "OS" : "OS's"}
+              </span>
+              <span>
+                Página {paginaAtual} de {totalPaginas || 1}
+              </span>
+            </div>
           </div>
         </CardBody>
       </Card>
@@ -852,7 +1039,7 @@ export default function OrdemServicoPage() {
         </Card>
       ) : modoVisualizacao === "grid" ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-          {ordensFiltradas.map((os) => (
+          {ordensPaginadas.map((os) => (
             <OrdemServicoCard
               key={os.id}
               os={os}
@@ -884,7 +1071,7 @@ export default function OrdemServicoPage() {
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
-                {ordensFiltradas.map((os) => (
+                {ordensPaginadas.map((os) => (
                   <TableRow key={os.id}>
                     <TableCell>
                       <span className="font-semibold text-primary">
@@ -1013,6 +1200,20 @@ export default function OrdemServicoPage() {
             </Table>
           </CardBody>
         </Card>
+      )}
+
+      {/* Paginação */}
+      {totalPaginas > 1 && (
+        <div className="flex justify-center mt-6">
+          <Pagination
+            total={totalPaginas}
+            page={paginaAtual}
+            onChange={setPaginaAtual}
+            showControls
+            color="primary"
+            size="lg"
+          />
+        </div>
       )}
 
       {/* Modal de Criar/Editar OS */}

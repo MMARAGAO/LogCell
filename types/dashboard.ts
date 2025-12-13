@@ -29,6 +29,14 @@ export interface MetricasPrincipais {
   variacao_vendas_fiadas: number;
   valor_vendas_fiadas: number;
   valor_vendas_fiadas_periodo_anterior: number;
+
+  // Ganhos reais (pagamentos recebidos)
+  ganho_vendas: number;
+  ganho_vendas_periodo_anterior: number;
+  variacao_ganho_vendas: number;
+  ganho_os: number;
+  ganho_os_periodo_anterior: number;
+  variacao_ganho_os: number;
 }
 
 export interface VendasPorDia {
@@ -204,6 +212,7 @@ export interface DadosDashboard {
   };
   metricas_adicionais: {
     contas_receber_total: number;
+    contas_receber_qtd: number;
     creditos_cliente_total: number;
     taxa_conversao_os: number;
     tempo_medio_reparo_dias: number;
