@@ -12,6 +12,7 @@ import {
   SelectItem,
   Chip,
   Spinner,
+  Input,
 } from "@heroui/react";
 import {
   TrendingUp,
@@ -24,6 +25,14 @@ import {
   Users,
   Calendar,
   Clock,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  Building2,
+  CalendarDays,
+  Check,
+  X,
+  Wallet,
 } from "lucide-react";
 import {
   LineChart,
@@ -43,6 +52,8 @@ import {
 import { DashboardService } from "@/services/dashboardService";
 import type { DadosDashboard } from "@/types/dashboard";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { supabase } from "@/lib/supabaseClient";
 
 const CORES_GRAFICOS = [
   "#3b82f6", // blue
@@ -62,43 +73,65 @@ export default function DashboardPage() {
     temAlgumaPermissao,
     loading: loadingPermissoes,
   } = usePermissoes();
+  const { lojaId, podeVerTodasLojas } = useLojaFilter();
   const [loading, setLoading] = useState(true);
+  const [atualizando, setAtualizando] = useState(false);
   const [dados, setDados] = useState<DadosDashboard | null>(null);
-  const [periodo, setPeriodo] = useState("30");
+  const [lojas, setLojas] = useState<Array<{ id: number; nome: string }>>([]);
+  const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
+  const [filtroDataFim, setFiltroDataFim] = useState<string>("");
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+  // Estados temporários para os filtros (antes de aplicar)
+  const [filtroLojaTemp, setFiltroLojaTemp] = useState<string>("todas");
+  const [filtroDataInicioTemp, setFiltroDataInicioTemp] = useState<string>("");
+  const [filtroDataFimTemp, setFiltroDataFimTemp] = useState<string>("");
 
   // Funções auxiliares (devem vir antes do useEffect)
-  const carregarDados = async () => {
+  const carregarDados = async (isInitialLoad = false) => {
     try {
-      setLoading(true);
-
-      const hoje = new Date();
-      const dataFim = hoje.toISOString().split("T")[0];
-
-      let dataInicio: string;
-      if (periodo === "7") {
-        const inicio = new Date(hoje);
-        inicio.setDate(inicio.getDate() - 7);
-        dataInicio = inicio.toISOString().split("T")[0];
-      } else if (periodo === "30") {
-        const inicio = new Date(hoje);
-        inicio.setDate(inicio.getDate() - 30);
-        dataInicio = inicio.toISOString().split("T")[0];
+      if (isInitialLoad) {
+        setLoading(true);
       } else {
-        // Este mês
-        const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-        dataInicio = inicio.toISOString().split("T")[0];
+        setAtualizando(true);
       }
+
+      // Usar filtros personalizados se definidos, senão buscar desde o início (sem limite)
+      // Atualizado: busca desde 2000-01-01 para mostrar todos os dados históricos
+      let dataInicio: string;
+      let dataFim: string;
+
+      if (filtroDataInicio && filtroDataFim) {
+        // Se filtros manuais estão definidos, usar eles
+        dataInicio = filtroDataInicio;
+        dataFim = filtroDataFim;
+      } else {
+        // Senão, buscar desde o início (2000-01-01) até hoje
+        const hoje = new Date();
+        dataFim = hoje.toISOString().split("T")[0];
+        dataInicio = "2000-01-01"; // Data bem antiga para pegar tudo desde o início
+      }
+
+      // Adicionar filtro de loja se selecionado
+      const lojaIdFiltro =
+        filtroLoja !== "todas" ? parseInt(filtroLoja) : undefined;
 
       const dadosDashboard = await DashboardService.buscarDadosDashboard({
         data_inicio: dataInicio,
         data_fim: dataFim,
+        loja_id: lojaIdFiltro,
       });
 
       setDados(dadosDashboard);
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      } else {
+        setAtualizando(false);
+      }
     }
   };
 
@@ -159,9 +192,56 @@ export default function DashboardPage() {
     "dashboard.visualizar",
   ]);
 
+  // Carregar lojas disponíveis
   useEffect(() => {
-    carregarDados();
-  }, [periodo]);
+    async function buscarLojas() {
+      try {
+        // Buscar lojas sem filtro de ativa primeiro
+        let query = supabase.from("lojas").select("id, nome").order("nome");
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Erro ao buscar lojas:", error);
+          console.log("🏪 [Dashboard] Tentando buscar lojas sem filtro...");
+
+          // Tentar sem filtro de ativa
+          const { data: dataAll, error: errorAll } = await supabase
+            .from("lojas")
+            .select("id, nome")
+            .order("nome");
+
+          if (errorAll) {
+            console.error("Erro ao buscar todas as lojas:", errorAll);
+            return;
+          }
+
+          console.log("🏪 [Dashboard] Lojas carregadas (todas):", dataAll);
+          setLojas(dataAll || []);
+          return;
+        }
+
+        console.log("🏪 [Dashboard] Lojas carregadas:", data);
+        setLojas(data || []);
+      } catch (error) {
+        console.error("Erro ao buscar lojas (catch):", error);
+      }
+    }
+
+    buscarLojas();
+  }, []);
+
+  // Carregamento inicial
+  useEffect(() => {
+    carregarDados(true);
+  }, []);
+
+  // Recarregamento quando filtros mudam
+  useEffect(() => {
+    if (!loading) {
+      carregarDados(false);
+    }
+  }, [filtroLoja, filtroDataInicio, filtroDataFim]);
 
   // Se for técnico, mostrar dashboard simplificado
   if (usuario?.tipo_usuario === "tecnico") {
@@ -198,24 +278,158 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Overlay de loading quando está atualizando */}
+      {atualizando && (
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-50 flex items-center justify-center">
+          <Card className="border-none shadow-xl">
+            <CardBody className="p-6 flex flex-col items-center gap-3">
+              <Spinner size="lg" color="primary" />
+              <p className="text-foreground font-medium">
+                Atualizando dados...
+              </p>
+            </CardBody>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-default-500">Visão geral do negócio</p>
         </div>
-        <Select
-          label="Período"
-          value={periodo}
-          onChange={(e) => setPeriodo(e.target.value)}
-          className="w-48"
-          startContent={<Calendar className="w-4 h-4" />}
+        <Button
+          size="sm"
+          variant="flat"
+          startContent={<Filter className="w-4 h-4" />}
+          endContent={
+            mostrarFiltros ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )
+          }
+          onPress={() => setMostrarFiltros(!mostrarFiltros)}
         >
-          <SelectItem key="7">Últimos 7 dias</SelectItem>
-          <SelectItem key="30">Últimos 30 dias</SelectItem>
-          <SelectItem key="mes">Este mês</SelectItem>
-        </Select>
+          {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
+        </Button>
       </div>
+
+      {/* Filtros Avançados (Retrátil) */}
+      {mostrarFiltros && (
+        <Card className="border-none shadow-md bg-gradient-to-br from-content1 to-content2">
+          <CardBody className="p-6">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Filter className="w-5 h-5 text-primary" />
+                Filtros Avançados
+              </h3>
+              <p className="text-sm text-default-500 mt-1">
+                Configure os filtros e clique em "Aplicar" para atualizar os
+                dados
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              <Select
+                label="Loja"
+                placeholder="Selecione uma loja"
+                selectedKeys={[filtroLojaTemp]}
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0] as string;
+                  setFiltroLojaTemp(selected);
+                }}
+                size="md"
+                variant="bordered"
+                startContent={
+                  <Building2 className="w-4 h-4 text-default-400" />
+                }
+                classNames={{
+                  trigger: "h-12 hover:border-primary transition-colors",
+                  label: "text-default-700 font-medium",
+                }}
+                items={[{ id: 0, nome: "Todas as Lojas" }, ...lojas]}
+              >
+                {(loja) => (
+                  <SelectItem
+                    key={loja.id === 0 ? "todas" : loja.id.toString()}
+                  >
+                    {loja.nome}
+                  </SelectItem>
+                )}
+              </Select>
+
+              <Input
+                type="date"
+                label="Data Início"
+                placeholder="Selecione a data"
+                value={filtroDataInicioTemp}
+                onChange={(e) => setFiltroDataInicioTemp(e.target.value)}
+                size="md"
+                variant="bordered"
+                startContent={<Calendar className="w-4 h-4 text-default-400" />}
+                classNames={{
+                  input: "text-sm",
+                  inputWrapper: "h-12 hover:border-primary transition-colors",
+                  label: "text-default-700 font-medium",
+                }}
+              />
+
+              <Input
+                type="date"
+                label="Data Fim"
+                placeholder="Selecione a data"
+                value={filtroDataFimTemp}
+                onChange={(e) => setFiltroDataFimTemp(e.target.value)}
+                size="md"
+                variant="bordered"
+                startContent={
+                  <CalendarDays className="w-4 h-4 text-default-400" />
+                }
+                classNames={{
+                  input: "text-sm",
+                  inputWrapper: "h-12 hover:border-primary transition-colors",
+                  label: "text-default-700 font-medium",
+                }}
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-3 pt-2 border-t border-divider">
+              <Button
+                size="md"
+                color="primary"
+                variant="shadow"
+                startContent={<Check className="w-4 h-4" />}
+                onPress={() => {
+                  setFiltroLoja(filtroLojaTemp);
+                  setFiltroDataInicio(filtroDataInicioTemp);
+                  setFiltroDataFim(filtroDataFimTemp);
+                }}
+                className="flex-1 sm:flex-initial font-semibold min-w-[160px]"
+              >
+                Aplicar Filtros
+              </Button>
+              <Button
+                size="md"
+                variant="flat"
+                color="default"
+                startContent={<X className="w-4 h-4" />}
+                onPress={() => {
+                  setFiltroLojaTemp("todas");
+                  setFiltroDataInicioTemp("");
+                  setFiltroDataFimTemp("");
+                  setFiltroLoja("todas");
+                  setFiltroDataInicio("");
+                  setFiltroDataFim("");
+                }}
+                className="flex-1 sm:flex-initial min-w-[140px]"
+              >
+                Limpar Filtros
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Cards de Métricas Principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -431,6 +645,98 @@ export default function DashboardPage() {
             </CardBody>
           </Card>
         )}
+
+        {/* Ganho com Vendas */}
+        {podeVerVendas && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-success/10 rounded-xl">
+                    <Wallet className="w-6 h-6 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Ganho com Vendas
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.ganho_vendas || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Recebido no período
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_ganho_vendas || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_ganho_vendas || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(
+                    dados.metricas.variacao_ganho_vendas || 0
+                  )}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Ganho com OS */}
+        {podeVerOS && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-secondary/10 rounded-xl">
+                    <Wallet className="w-6 h-6 text-secondary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Ganho com OS
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.ganho_os || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Recebido no período
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_ganho_os || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_ganho_os || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(dados.metricas.variacao_ganho_os || 0)}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
       </div>
 
       {/* Contas a Receber */}
@@ -456,7 +762,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <span className="text-sm text-default-500">
-                {dados.contas_receber.length} vendas pendentes
+                {dados.metricas_adicionais.contas_receber_qtd} vendas pendentes
               </span>
             </div>
           </CardBody>
@@ -517,7 +823,7 @@ export default function DashboardPage() {
           </CardBody>
         </Card>
 
-        {/* Movimentações de Caixa Hoje */}
+        {/* Todas as Sangrias */}
         <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
           <CardBody className="p-6">
             <div className="flex items-start justify-between">
@@ -527,7 +833,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm text-default-500 font-medium">
-                    Sangrias Hoje
+                    Todas as Sangrias
                   </p>
                   <p className="text-2xl font-bold text-foreground">
                     {dados.metricas_adicionais.movimentacoes_caixa_dia}
@@ -542,7 +848,7 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4">
               <span className="text-sm text-default-500">
-                Retiradas de caixa
+                Retiradas de caixa no período
               </span>
             </div>
           </CardBody>
@@ -817,7 +1123,7 @@ export default function DashboardPage() {
                 />
                 <Legend
                   formatter={(value: string, entry: any) =>
-                    `${entry.payload.forma}: ${entry.payload.percentual.toFixed(1)}%`
+                    `${entry.payload.forma}: ${entry.payload.percentual?.toFixed(1) || 0}%`
                   }
                 />
               </PieChart>
