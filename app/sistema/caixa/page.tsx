@@ -814,18 +814,6 @@ export default function CaixaPage() {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
 
-      // Linha azul clara apenas na primeira página
-      if (i === 1) {
-        doc.setDrawColor(135, 206, 235); // Azul claro (Sky Blue)
-        doc.setLineWidth(0.5);
-        doc.line(
-          15,
-          doc.internal.pageSize.height - 25,
-          pageWidth - 15,
-          doc.internal.pageSize.height - 25
-        );
-      }
-
       // Logo (caso exista)
       try {
         const logoImg = new Image();

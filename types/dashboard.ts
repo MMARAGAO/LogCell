@@ -30,6 +30,22 @@ export interface MetricasPrincipais {
   valor_vendas_fiadas: number;
   valor_vendas_fiadas_periodo_anterior: number;
 
+  // Faturamento separado por tipo
+  faturamento_vendas: number;
+  faturamento_vendas_periodo_anterior: number;
+  variacao_faturamento_vendas: number;
+  faturamento_os: number;
+  faturamento_os_periodo_anterior: number;
+  variacao_faturamento_os: number;
+
+  // Lucro (Receita - Custo)
+  lucro_vendas: number;
+  lucro_vendas_periodo_anterior: number;
+  variacao_lucro_vendas: number;
+  lucro_os: number;
+  lucro_os_periodo_anterior: number;
+  variacao_lucro_os: number;
+
   // Ganhos reais (pagamentos recebidos)
   ganho_vendas: number;
   ganho_vendas_periodo_anterior: number;

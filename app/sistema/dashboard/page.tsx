@@ -103,9 +103,20 @@ export default function DashboardPage() {
       let dataFim: string;
 
       if (filtroDataInicio && filtroDataFim) {
-        // Se filtros manuais estão definidos, usar eles
-        dataInicio = filtroDataInicio;
-        dataFim = filtroDataFim;
+        // Validar se as datas são válidas
+        const testeInicio = new Date(filtroDataInicio);
+        const testeFim = new Date(filtroDataFim);
+
+        if (isNaN(testeInicio.getTime()) || isNaN(testeFim.getTime())) {
+          // Se datas inválidas, usar valores padrão
+          const hoje = new Date();
+          dataFim = hoje.toISOString().split("T")[0];
+          dataInicio = "2000-01-01";
+        } else {
+          // Se filtros manuais estão definidos e são válidos, usar eles
+          dataInicio = filtroDataInicio;
+          dataFim = filtroDataFim;
+        }
       } else {
         // Senão, buscar desde o início (2000-01-01) até hoje
         const hoje = new Date();
@@ -729,6 +740,192 @@ export default function DashboardPage() {
                   }`}
                 >
                   {formatarPercentual(dados.metricas.variacao_ganho_os || 0)}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Faturamento de Vendas */}
+        {podeVerVendas && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/10 rounded-xl">
+                    <ShoppingCart className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Faturamento Vendas
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.faturamento_vendas || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Valor total vendido
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_faturamento_vendas || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_faturamento_vendas || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(
+                    dados.metricas.variacao_faturamento_vendas || 0
+                  )}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Faturamento de OS */}
+        {podeVerOS && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-secondary/10 rounded-xl">
+                    <Wrench className="w-6 h-6 text-secondary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Faturamento OS
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.faturamento_os || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Valor total faturado
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_faturamento_os || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_faturamento_os || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(
+                    dados.metricas.variacao_faturamento_os || 0
+                  )}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Lucro de Vendas */}
+        {podeVerVendas && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-success/10 rounded-xl">
+                    <TrendingUp className="w-6 h-6 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Lucro de Vendas
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.lucro_vendas || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Receita - Custo
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_lucro_vendas || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_lucro_vendas || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(
+                    dados.metricas.variacao_lucro_vendas || 0
+                  )}
+                </span>
+                <span className="text-sm text-default-500">
+                  vs período anterior
+                </span>
+              </div>
+            </CardBody>
+          </Card>
+        )}
+
+        {/* Lucro de OS */}
+        {podeVerOS && (
+          <Card className="border-none shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-success/10 rounded-xl">
+                    <TrendingUp className="w-6 h-6 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500 font-medium">
+                      Lucro de OS
+                    </p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {formatarMoeda(dados.metricas.lucro_os || 0)}
+                    </p>
+                    <p className="text-xs text-default-400 mt-1">
+                      Receita - Custo peças
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                {(dados.metricas.variacao_lucro_os || 0) >= 0 ? (
+                  <TrendingUp className="w-4 h-4 text-success" />
+                ) : (
+                  <TrendingDown className="w-4 h-4 text-danger" />
+                )}
+                <span
+                  className={`text-sm font-semibold ${
+                    (dados.metricas.variacao_lucro_os || 0) >= 0
+                      ? "text-success"
+                      : "text-danger"
+                  }`}
+                >
+                  {formatarPercentual(dados.metricas.variacao_lucro_os || 0)}
                 </span>
                 <span className="text-sm text-default-500">
                   vs período anterior
