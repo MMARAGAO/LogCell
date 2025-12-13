@@ -12,6 +12,12 @@ export class DashboardService {
       // Calcular período anterior para comparação
       const inicio = new Date(data_inicio);
       const fim = new Date(data_fim);
+      
+      // Validar se as datas são válidas
+      if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) {
+        throw new Error("Datas inválidas fornecidas");
+      }
+      
       const diasPeriodo = Math.ceil(
         (fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)
       );
@@ -75,6 +81,22 @@ export class DashboardService {
             100
           : 0;
 
+      const variacaoFaturamentoVendas =
+        metricasAnterior.faturamento > 0
+          ? ((metricasAtual.faturamento - metricasAnterior.faturamento) /
+              metricasAnterior.faturamento) *
+            100
+          : 0;
+
+      const variacaoFaturamentoOS =
+        metricasAnterior.faturamento_os > 0
+          ? ((metricasAtual.faturamento_os - metricasAnterior.faturamento_os) /
+              metricasAnterior.faturamento_os) *
+            100
+          : metricasAtual.faturamento_os > 0
+            ? 100
+            : 0;
+
       const variacaoVendas =
         metricasAnterior.vendas > 0
           ? ((metricasAtual.vendas - metricasAnterior.vendas) /
@@ -124,9 +146,29 @@ export class DashboardService {
             ? 100
             : 0;
 
+      // Calcular variação de lucro
+      const variacaoLucroVendas =
+        metricasAnterior.lucro_vendas > 0
+          ? ((metricasAtual.lucro_vendas - metricasAnterior.lucro_vendas) /
+              metricasAnterior.lucro_vendas) *
+            100
+          : metricasAtual.lucro_vendas > 0
+            ? 100
+            : 0;
+
+      const variacaoLucroOS =
+        metricasAnterior.lucro_os > 0
+          ? ((metricasAtual.lucro_os - metricasAnterior.lucro_os) /
+              metricasAnterior.lucro_os) *
+            100
+          : metricasAtual.lucro_os > 0
+            ? 100
+            : 0;
+
       console.log("✅ [DASHBOARD] Dados compilados com sucesso!");
       console.log("📊 [DASHBOARD] Resumo das métricas:", {
-        faturamento: metricasAtual.faturamento,
+        faturamentoVendas: metricasAtual.faturamento,
+        faturamentoOS: metricasAtual.faturamento_os,
         vendas: metricasAtual.vendas,
         ticketMedio,
         osAbertas: metricasAtual.os_abertas,
@@ -139,9 +181,17 @@ export class DashboardService {
 
       return {
         metricas: {
-          faturamento_total: metricasAtual.faturamento,
-          faturamento_periodo_anterior: metricasAnterior.faturamento,
+          faturamento_total: metricasAtual.faturamento + metricasAtual.faturamento_os,
+          faturamento_periodo_anterior: metricasAnterior.faturamento + metricasAnterior.faturamento_os,
           variacao_faturamento: variacaoFaturamento,
+
+          faturamento_vendas: metricasAtual.faturamento,
+          faturamento_vendas_periodo_anterior: metricasAnterior.faturamento,
+          variacao_faturamento_vendas: variacaoFaturamentoVendas,
+
+          faturamento_os: metricasAtual.faturamento_os || 0,
+          faturamento_os_periodo_anterior: metricasAnterior.faturamento_os || 0,
+          variacao_faturamento_os: variacaoFaturamentoOS,
 
           total_vendas: metricasAtual.vendas,
           vendas_periodo_anterior: metricasAnterior.vendas,
@@ -177,6 +227,13 @@ export class DashboardService {
           ganho_os: metricasAtual.ganho_os || 0,
           ganho_os_periodo_anterior: metricasAnterior.ganho_os || 0,
           variacao_ganho_os: variacaoGanhoOS,
+
+          lucro_vendas: metricasAtual.lucro_vendas || 0,
+          lucro_vendas_periodo_anterior: metricasAnterior.lucro_vendas || 0,
+          variacao_lucro_vendas: variacaoLucroVendas,
+          lucro_os: metricasAtual.lucro_os || 0,
+          lucro_os_periodo_anterior: metricasAnterior.lucro_os || 0,
+          variacao_lucro_os: variacaoLucroOS,
 
           caixas_abertos: caixasAbertos.length,
         },
@@ -255,10 +312,67 @@ export class DashboardService {
     const totalVendas = vendas?.length || 0;
 
     console.log(
-      "💰 [MÉTRICAS] Faturamento:",
+      "💰 [MÉTRICAS] Faturamento Vendas:",
       faturamento,
       "Total vendas:",
       totalVendas
+    );
+
+    // OS concluídas no período para calcular faturamento
+    let queryOSPeriodo = supabase
+      .from("ordem_servico")
+      .select("id, numero_os, status, valor_total, data_conclusao, criado_em, id_loja");
+
+    if (lojaId) {
+      queryOSPeriodo = queryOSPeriodo.eq("id_loja", lojaId);
+    }
+
+    const { data: todasOS, error: osErroCompleto } = await queryOSPeriodo;
+
+    if (osErroCompleto) {
+      console.error("❌ [MÉTRICAS] Erro ao buscar OS para faturamento:", osErroCompleto);
+    }
+
+    // Filtrar OS concluídas no período
+    const osConcluídasPeriodo = todasOS?.filter((o) => {
+      if (o.status !== "entregue" && o.status !== "concluido") return false;
+      const dataOS = o.data_conclusao ? o.data_conclusao.split('T')[0] : o.criado_em.split('T')[0];
+      return dataOS >= dataInicio && dataOS <= dataFim;
+    });
+
+    // Calcular faturamento de OS
+    // Se valor_total existe, usar ele; senão buscar soma das peças
+    let faturamentoOS = 0;
+    const osIds = osConcluídasPeriodo?.map(o => o.id) || [];
+    
+    if (osIds.length > 0) {
+      // Buscar peças para calcular receita
+      const { data: pecasOSFat } = await supabase
+        .from("ordem_servico_pecas")
+        .select("valor_venda, quantidade, id_ordem_servico")
+        .in("id_ordem_servico", osIds);
+
+      const receitaPorOS = new Map<string, number>();
+      pecasOSFat?.forEach((peca) => {
+        const receita = Number(peca.valor_venda || 0) * Number(peca.quantidade || 0);
+        const atual = receitaPorOS.get(peca.id_ordem_servico) || 0;
+        receitaPorOS.set(peca.id_ordem_servico, atual + receita);
+      });
+
+      faturamentoOS = osConcluídasPeriodo?.reduce((sum, o) => {
+        // Se valor_total existe e > 0, usar ele, senão usar soma das peças
+        const receita = o.valor_total && Number(o.valor_total) > 0
+          ? Number(o.valor_total)
+          : (receitaPorOS.get(o.id) || 0);
+        return sum + receita;
+      }, 0) || 0;
+    }
+
+    console.log(
+      "🔧 [MÉTRICAS] Faturamento OS:",
+      faturamentoOS,
+      "OS concluídas no período:",
+      osConcluídasPeriodo?.length || 0
     );
 
     // OS abertas e concluídas (TOTAL GERAL, não por período)
@@ -464,11 +578,13 @@ export class DashboardService {
 
     // Buscar ganhos reais com vendas (DINHEIRO RECEBIDO no período)
     // Pagamentos que foram RECEBIDOS no período, independente de quando a venda foi feita
+    // Excluir credito_cliente pois não representa entrada real de dinheiro
     let queryPagamentosVendas = supabase
       .from("pagamentos_venda")
-      .select("valor, data_pagamento, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)")
+      .select("valor, data_pagamento, tipo_pagamento, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)")
       .gte("data_pagamento", dataInicio)
-      .lte("data_pagamento", dataFim);
+      .lte("data_pagamento", dataFim)
+      .neq("tipo_pagamento", "credito_cliente");
 
     const { data: pagamentosVendas, error: errorPagVendas } = await queryPagamentosVendas;
 
@@ -512,8 +628,102 @@ export class DashboardService {
 
     console.log("💵 [GANHO OS] Total calculado:", ganhoOS);
 
+    // Calcular LUCRO das vendas (Receita - Custo)
+    // Buscar itens das vendas concluídas no período
+    const vendasIds = vendas?.map(v => v.id) || [];
+    let lucroVendas = 0;
+
+    if (vendasIds.length > 0) {
+      const { data: itensVenda } = await supabase
+        .from("itens_venda")
+        .select("produto_id, quantidade, preco_unitario")
+        .in("venda_id", vendasIds);
+
+      if (itensVenda && itensVenda.length > 0) {
+        const produtoIds = Array.from(new Set(itensVenda.map(i => i.produto_id)));
+        const { data: produtos } = await supabase
+          .from("produtos")
+          .select("id, preco_compra")
+          .in("id", produtoIds);
+
+        const produtosMap = new Map(produtos?.map(p => [p.id, p.preco_compra]) || []);
+
+        lucroVendas = itensVenda.reduce((sum, item) => {
+          const precoCompra = produtosMap.get(item.produto_id) || 0;
+          const receita = Number(item.preco_unitario) * item.quantidade;
+          const custo = Number(precoCompra) * item.quantidade;
+          return sum + (receita - custo);
+        }, 0);
+      }
+    }
+
+    console.log("💰 [LUCRO VENDAS] Total calculado:", lucroVendas);
+
+    // Calcular LUCRO das OS
+    // Lucro = Receita Total - Custo das Peças
+    // Se valor_total está preenchido, usar ele como receita
+    // Senão, usar a soma do valor_venda das peças
+    const osIdsLucro = osConcluídasPeriodo?.map(o => o.id) || [];
+    let lucroOS = 0;
+
+    if (osIdsLucro.length > 0) {
+      // Buscar peças utilizadas nas OS
+      const { data: pecasOS } = await supabase
+        .from("ordem_servico_pecas")
+        .select("valor_custo, valor_venda, quantidade, id_ordem_servico")
+        .in("id_ordem_servico", osIdsLucro);
+
+      // Calcular custo e receita das peças por OS
+      const dadosPorOS = new Map<string, { custoPecas: number; receitaPecas: number }>();
+      
+      pecasOS?.forEach((peca) => {
+        const custo = Number(peca.valor_custo || 0) * Number(peca.quantidade || 0);
+        const receita = Number(peca.valor_venda || 0) * Number(peca.quantidade || 0);
+        
+        const atual = dadosPorOS.get(peca.id_ordem_servico) || { custoPecas: 0, receitaPecas: 0 };
+        dadosPorOS.set(peca.id_ordem_servico, {
+          custoPecas: atual.custoPecas + custo,
+          receitaPecas: atual.receitaPecas + receita
+        });
+      });
+
+      // Calcular lucro total
+      lucroOS = osConcluídasPeriodo?.reduce((sum, os) => {
+        const dados = dadosPorOS.get(os.id) || { custoPecas: 0, receitaPecas: 0 };
+        
+        // Se valor_total existe e é maior que 0, usar ele como receita
+        // Senão, usar a soma do valor_venda das peças
+        const receitaTotal = os.valor_total && Number(os.valor_total) > 0 
+          ? Number(os.valor_total) 
+          : dados.receitaPecas;
+        
+        const lucroOS = receitaTotal - dados.custoPecas;
+        
+        console.log(`🔧 [LUCRO OS] OS ${os.id}:`, {
+          numero: os.numero_os,
+          valorTotal: os.valor_total,
+          receitaPecas: dados.receitaPecas,
+          receitaUsada: receitaTotal,
+          custoPecas: dados.custoPecas,
+          lucro: lucroOS
+        });
+        
+        return sum + lucroOS;
+      }, 0) || 0;
+
+      const custoTotal = Array.from(dadosPorOS.values()).reduce((sum, val) => sum + val.custoPecas, 0);
+      const receitaTotal = Array.from(dadosPorOS.values()).reduce((sum, val) => sum + val.receitaPecas, 0);
+
+      console.log("🔧 [LUCRO OS] Total peças - Custo:", custoTotal, "Receita:", receitaTotal);
+      console.log("🔧 [LUCRO OS] Quantidade de OS:", osConcluídasPeriodo?.length);
+      console.log("🔧 [LUCRO OS] Quantidade de peças:", pecasOS?.length);
+    }
+
+    console.log("🔧 [LUCRO OS] Total calculado:", lucroOS);
+
     return {
       faturamento,
+      faturamento_os: faturamentoOS,
       vendas: totalVendas,
       os_abertas: osAbertas,
       os_concluidas: osConcluidas,
@@ -523,6 +733,8 @@ export class DashboardService {
       vendas_fiadas_detalhadas: vendasFiadasComDetalhes,
       ganho_vendas: ganhoVendas,
       ganho_os: ganhoOS,
+      lucro_vendas: lucroVendas,
+      lucro_os: lucroOS,
     };
   }
 
@@ -656,7 +868,8 @@ export class DashboardService {
           loja_id
         )
       `
-      );
+      )
+      .neq("tipo_pagamento", "credito_cliente");
 
     if (lojaId) {
       query = query.eq("venda.loja_id", lojaId);
