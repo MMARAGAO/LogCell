@@ -164,6 +164,13 @@ const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
     "devolucoes.aprovar",
     "devolucoes.processar_creditos",
   ],
+  Aparelhos: [
+    "aparelhos.visualizar",
+    "aparelhos.criar",
+    "aparelhos.editar",
+    "aparelhos.deletar",
+    "aparelhos.alterar_status",
+  ],
   Transferências: [
     "transferencias.visualizar",
     "transferencias.criar",
@@ -175,13 +182,6 @@ const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
   ],
   Configurações: ["configuracoes.gerenciar"],
 };
-
-// 🔍 DEBUG - Verificar módulos disponíveis
-console.log("📋 PERMISSOES_POR_MODULO:", Object.keys(PERMISSOES_POR_MODULO));
-console.log(
-  "🎯 Dashboard Pessoal existe?",
-  "Dashboard Pessoal" in PERMISSOES_POR_MODULO
-);
 
 export default function GerenciarPermissoesPage() {
   const toast = useToast();

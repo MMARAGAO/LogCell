@@ -37,6 +37,7 @@ export type Permissao =
   | "vendas.processar_pagamentos"
   | "vendas.ver_estatisticas_faturamento"
   | "vendas.ver_todas_vendas"
+  | "vendas.ver_resumo_pagamentos"
   | "vendas.devolver"
   // Fornecedores
   | "fornecedores.visualizar"
@@ -104,6 +105,12 @@ export type Permissao =
   | "devolucoes.deletar_sem_restricao"
   | "devolucoes.aprovar"
   | "devolucoes.processar_creditos"
+  // Aparelhos
+  | "aparelhos.visualizar"
+  | "aparelhos.criar"
+  | "aparelhos.editar"
+  | "aparelhos.deletar"
+  | "aparelhos.alterar_status"
   // Transferências
   | "transferencias.visualizar"
   | "transferencias.criar"
@@ -155,6 +162,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.processar_pagamentos",
     "vendas.ver_estatisticas_faturamento",
     "vendas.ver_todas_vendas",
+    "vendas.ver_resumo_pagamentos",
     "vendas.devolver",
     "fornecedores.visualizar",
     "fornecedores.criar",
@@ -210,6 +218,11 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "devolucoes.deletar_sem_restricao",
     "devolucoes.aprovar",
     "devolucoes.processar_creditos",
+    "aparelhos.visualizar",
+    "aparelhos.criar",
+    "aparelhos.editar",
+    "aparelhos.deletar",
+    "aparelhos.alterar_status",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",
@@ -252,6 +265,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.processar_pagamentos",
     "vendas.ver_estatisticas_faturamento",
     "vendas.ver_todas_vendas",
+    "vendas.ver_resumo_pagamentos",
     "vendas.devolver",
     "fornecedores.visualizar",
     "fornecedores.criar",
@@ -293,6 +307,10 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "devolucoes.editar",
     "devolucoes.aprovar",
     "devolucoes.processar_creditos",
+    "aparelhos.visualizar",
+    "aparelhos.criar",
+    "aparelhos.editar",
+    "aparelhos.alterar_status",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",
@@ -315,6 +333,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.criar",
     "vendas.aplicar_desconto",
     "vendas.processar_pagamentos",
+    "vendas.ver_resumo_pagamentos",
     "vendas.devolver",
     "caixa.visualizar",
     "dashboard.visualizar",

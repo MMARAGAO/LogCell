@@ -120,6 +120,7 @@ export default function OrdemServicoDetalhesModal({
   >(null);
   const [modalConfirmCancelar, setModalConfirmCancelar] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
+  const [modalGarantiaOpen, setModalGarantiaOpen] = useState(false);
   const [loadingPDF, setLoadingPDF] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
@@ -155,6 +156,18 @@ export default function OrdemServicoDetalhesModal({
   const handleGerarPDF = async () => {
     if (!osAtual) return;
 
+    // Verificar se tem tipo de garantia definido
+    if (!osAtual.tipo_garantia) {
+      const confirmar = window.confirm(
+        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de gerar o PDF?"
+      );
+
+      if (confirmar) {
+        setModalGarantiaOpen(true);
+        return;
+      }
+    }
+
     setLoadingPDF(true);
     try {
       const dadosLoja = await buscarDadosLoja();
@@ -171,6 +184,18 @@ export default function OrdemServicoDetalhesModal({
 
   const handleImprimirCupom = async () => {
     if (!osAtual) return;
+
+    // Verificar se tem tipo de garantia definido
+    if (!osAtual.tipo_garantia) {
+      const confirmar = window.confirm(
+        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de imprimir o cupom?"
+      );
+
+      if (confirmar) {
+        setModalGarantiaOpen(true);
+        return;
+      }
+    }
 
     setLoadingCupom(true);
     try {

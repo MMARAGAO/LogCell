@@ -1545,75 +1545,76 @@ export default function VendasPage() {
       </Card>
 
       {/* Card de Resumo de Pagamentos */}
-      {Object.keys(resumoPagamentos).length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-success" />
-              <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
-              <span className="text-sm text-default-500 ml-2">
-                ({vendasOrdenadas.length}{" "}
-                {vendasOrdenadas.length === 1 ? "venda" : "vendas"})
-              </span>
-            </div>
-          </CardHeader>
-          <CardBody>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {Object.entries(resumoPagamentos)
-                .sort(([, a], [, b]) => b - a)
-                .map(([tipo, valor]) => (
-                  <div
-                    key={tipo}
-                    className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl">
-                        {tipo === "dinheiro"
-                          ? "💵"
-                          : tipo === "pix"
-                            ? "📱"
-                            : tipo === "cartao_credito"
-                              ? "💳"
-                              : tipo === "cartao_debito"
+      {temPermissao("vendas.ver_resumo_pagamentos") &&
+        Object.keys(resumoPagamentos).length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-success" />
+                <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
+                <span className="text-sm text-default-500 ml-2">
+                  ({vendasOrdenadas.length}{" "}
+                  {vendasOrdenadas.length === 1 ? "venda" : "vendas"})
+                </span>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {Object.entries(resumoPagamentos)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([tipo, valor]) => (
+                    <div
+                      key={tipo}
+                      className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xl">
+                          {tipo === "dinheiro"
+                            ? "💵"
+                            : tipo === "pix"
+                              ? "📱"
+                              : tipo === "cartao_credito"
                                 ? "💳"
-                                : tipo === "transferencia"
-                                  ? "🏦"
-                                  : tipo === "credito_cliente"
-                                    ? "🎁"
-                                    : tipo === "boleto"
-                                      ? "📄"
-                                      : "💰"}
-                      </span>
-                      <p className="text-xs text-default-600 font-medium uppercase">
-                        {tipo.replace("_", " ")}
+                                : tipo === "cartao_debito"
+                                  ? "💳"
+                                  : tipo === "transferencia"
+                                    ? "🏦"
+                                    : tipo === "credito_cliente"
+                                      ? "🎁"
+                                      : tipo === "boleto"
+                                        ? "📄"
+                                        : "💰"}
+                        </span>
+                        <p className="text-xs text-default-600 font-medium uppercase">
+                          {tipo.replace("_", " ")}
+                        </p>
+                      </div>
+                      <p className="text-xl font-bold text-success">
+                        {formatarMoeda(valor)}
                       </p>
                     </div>
-                    <p className="text-xl font-bold text-success">
-                      {formatarMoeda(valor)}
+                  ))}
+                {/* Total Geral */}
+                <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl">💰</span>
+                    <p className="text-xs text-primary font-bold uppercase">
+                      Total Geral
                     </p>
                   </div>
-                ))}
-              {/* Total Geral */}
-              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">💰</span>
-                  <p className="text-xs text-primary font-bold uppercase">
-                    Total Geral
+                  <p className="text-xl font-bold text-primary">
+                    {formatarMoeda(
+                      Object.values(resumoPagamentos).reduce(
+                        (sum, val) => sum + val,
+                        0
+                      )
+                    )}
                   </p>
                 </div>
-                <p className="text-xl font-bold text-primary">
-                  {formatarMoeda(
-                    Object.values(resumoPagamentos).reduce(
-                      (sum, val) => sum + val,
-                      0
-                    )
-                  )}
-                </p>
               </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
+            </CardBody>
+          </Card>
+        )}
 
       {/* Lista de Vendas - Cards */}
       {visualizacao === "cards" && (

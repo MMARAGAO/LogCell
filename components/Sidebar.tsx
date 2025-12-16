@@ -22,6 +22,7 @@ import {
   ShoppingCartIcon,
   ArrowUturnLeftIcon,
   CurrencyDollarIcon,
+  DevicePhoneMobileIcon,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -37,6 +38,7 @@ import {
   ShoppingCartIcon as ShoppingCartIconSolid,
   ArrowUturnLeftIcon as ArrowUturnLeftIconSolid,
   CurrencyDollarIcon as CurrencyDollarIconSolid,
+  DevicePhoneMobileIcon as DevicePhoneMobileIconSolid,
 } from "@heroicons/react/24/solid";
 import { PackageX } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
@@ -107,6 +109,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: CubeIcon,
       iconSolid: CubeIconSolid,
       permissao: "estoque.visualizar" as const,
+    },
+    {
+      name: "Aparelhos",
+      href: "/sistema/aparelhos",
+      icon: DevicePhoneMobileIcon,
+      iconSolid: DevicePhoneMobileIconSolid,
+      permissao: "aparelhos.visualizar" as const,
     },
     {
       name: "Transferências",

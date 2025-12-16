@@ -871,6 +871,14 @@ export function PermissoesModal({
                   >
                     Ver Todas as Vendas
                   </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.vendas?.ver_resumo_pagamentos}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "ver_resumo_pagamentos")
+                    }
+                  >
+                    Ver Resumo de Pagamentos
+                  </Checkbox>
                 </div>
 
                 {/* Campo de desconto máximo */}
@@ -1094,6 +1102,72 @@ export function PermissoesModal({
                     }
                   >
                     Processar Créditos
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Aparelhos */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Aparelhos</h3>
+                    <Chip size="sm" variant="flat" color="primary">
+                      Inventário
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    size="sm"
+                    isSelected={todosMarcados("aparelhos")}
+                    onValueChange={(checked) =>
+                      handleToggleTodos("aparelhos", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.criar}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "criar")
+                    }
+                  >
+                    Criar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.editar}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "editar")
+                    }
+                  >
+                    Editar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.deletar}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "deletar")
+                    }
+                  >
+                    Deletar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.alterar_status}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "alterar_status")
+                    }
+                  >
+                    Alterar Status
                   </Checkbox>
                 </div>
               </div>

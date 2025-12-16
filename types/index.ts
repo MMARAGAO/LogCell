@@ -107,6 +107,7 @@ export interface PermissoesModulos {
     processar_pagamentos: boolean;
     ver_estatisticas_faturamento: boolean;
     ver_todas_vendas: boolean;
+    ver_resumo_pagamentos: boolean;
     desconto_maximo?: number;
   };
   os?: {
@@ -130,6 +131,13 @@ export interface PermissoesModulos {
     visualizar: boolean;
     criar: boolean;
     processar_creditos: boolean;
+  };
+  aparelhos?: {
+    visualizar: boolean;
+    criar: boolean;
+    editar: boolean;
+    deletar: boolean;
+    alterar_status: boolean;
   };
   rma?: {
     visualizar: boolean;

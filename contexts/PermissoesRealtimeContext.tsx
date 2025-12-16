@@ -87,7 +87,9 @@ export function PermissoesRealtimeProvider({
         if (status === "SUBSCRIBED") {
           console.log("✅ [PERMISSÕES REALTIME] Conectado!");
         } else if (status === "CHANNEL_ERROR") {
-          console.error("❌ [PERMISSÕES REALTIME] Erro no canal:", err);
+          if (err) {
+            console.error("❌ [PERMISSÕES REALTIME] Erro no canal:", err);
+          }
           // Tentar reconectar após 3 segundos
           setTimeout(() => {
             console.log("🔄 [PERMISSÕES REALTIME] Tentando reconectar...");
