@@ -170,6 +170,7 @@ export class PermissoesService {
         processar_pagamentos: false,
         ver_estatisticas_faturamento: false,
         ver_todas_vendas: false,
+        ver_resumo_pagamentos: false,
         desconto_maximo: 0,
       },
       os: {
@@ -193,6 +194,13 @@ export class PermissoesService {
         visualizar: false,
         criar: false,
         processar_creditos: false,
+      },
+      aparelhos: {
+        visualizar: false,
+        criar: false,
+        editar: false,
+        deletar: false,
+        alterar_status: false,
       },
       rma: {
         visualizar: false,
@@ -280,6 +288,7 @@ export class PermissoesService {
         processar_pagamentos: true,
         ver_estatisticas_faturamento: true,
         ver_todas_vendas: true,
+        ver_resumo_pagamentos: true,
         desconto_maximo: 100,
       },
       os: {
@@ -303,6 +312,13 @@ export class PermissoesService {
         visualizar: true,
         criar: true,
         processar_creditos: true,
+      },
+      aparelhos: {
+        visualizar: true,
+        criar: true,
+        editar: true,
+        deletar: true,
+        alterar_status: true,
       },
       rma: {
         visualizar: true,

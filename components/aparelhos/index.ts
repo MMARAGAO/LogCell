@@ -1,0 +1,1 @@
+export { AparelhoFormModal } from "./AparelhoFormModal";

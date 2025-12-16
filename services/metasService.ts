@@ -43,20 +43,22 @@ export class MetasService {
       .from("metas_usuarios")
       .select("*")
       .eq("usuario_id", usuarioId)
-      .eq("ativo", true);
+      .eq("ativo", true)
+      .order("criado_em", { ascending: false })
+      .limit(1);
 
     if (lojaId) {
       query = query.eq("loja_id", lojaId);
     }
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query;
 
+    // Retorna null se não houver meta cadastrada (não é um erro)
     if (error) {
-      console.error("Erro ao buscar meta:", error);
       return null;
     }
 
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   }
 
   /**
