@@ -675,6 +675,7 @@ export class CaixaService {
               referencia_id: osId,
               forma_pagamento: pag.forma_pagamento,
               pagamentos: [],
+              id_loja: pag.ordem_servico?.id_loja, // Adiciona id_loja
             };
           }
           osAgrupadas[osId].valor += Number(pag.valor);
