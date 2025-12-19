@@ -607,7 +607,25 @@ export default function CaixaPage() {
 
     // ===== ORDENS DE SERVIÇO =====
     const ordensServico = movimentacoes.filter(
-      (mov) => mov.tipo === "ordem_servico"
+      // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
+      (mov) => {
+        if (mov.tipo === "ordem_servico") {
+          console.log("DEBUG OS IDDDDDDDDDDDDDDDDDDDDDDS:", {
+            mov_id_loja: mov.id_loja,
+            caixa_loja_id: caixaDetalhes.loja?.id,
+            mov,
+          });
+        }
+        return (
+          mov.tipo === "ordem_servico" &&
+          mov.descricao &&
+          mov.descricao.split(" - ")[0] !== "" &&
+          mov.valor !== undefined &&
+          mov.valor !== null &&
+          mov.valor > 0 &&
+          String(mov.id_loja) === String(caixaDetalhes.loja?.id)
+        );
+      }
     );
     const osPorFormaPagamento: {
       [key: string]: Array<{
@@ -625,6 +643,15 @@ export default function CaixaPage() {
       const numeroOS = descricaoParts[0] || "";
       const cliente = descricaoParts[1] || "Cliente não informado";
 
+      // Ignorar OS sem número ou valor
+      if (
+        !numeroOS ||
+        mov.valor === undefined ||
+        mov.valor === null ||
+        mov.valor <= 0
+      )
+        return;
+
       // Formatar data e hora
       const dataHora = new Date(mov.data).toLocaleString("pt-BR", {
         day: "2-digit",
@@ -639,9 +666,12 @@ export default function CaixaPage() {
           if (!osPorFormaPagamento[forma]) {
             osPorFormaPagamento[forma] = [];
           }
+          // Ignorar pagamentos sem valor
+          if (pag.valor === undefined || pag.valor === null || pag.valor <= 0)
+            return;
           osPorFormaPagamento[forma].push({
             cliente,
-            valor: pag.valor || 0,
+            valor: pag.valor,
             numero: numeroOS,
             data: dataHora,
           });
@@ -653,14 +683,16 @@ export default function CaixaPage() {
         }
         osPorFormaPagamento[forma].push({
           cliente,
-          valor: mov.valor || 0,
+          valor: mov.valor,
           numero: numeroOS,
           data: dataHora,
         });
       }
     });
 
-    if (ordensServico.length > 0) {
+    // Só renderizar a seção se houver pelo menos uma OS válida
+    const totalOSValidas = Object.values(osPorFormaPagamento).flat().length;
+    if (totalOSValidas > 0) {
       // Verificar se precisa de nova página antes da seção
       if (yPos > 230) {
         doc.addPage();
