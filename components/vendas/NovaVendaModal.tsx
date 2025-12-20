@@ -99,7 +99,7 @@ export function NovaVendaModal({
   onClienteCriado,
 }: NovaVendaModalProps) {
   const toast = useToast();
-  const { temPermissao } = usePermissoes();
+  const { temPermissao, temAcessoLoja } = usePermissoes();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -771,18 +771,27 @@ export function NovaVendaModal({
                     .filter((loja) => !lojasComCaixaAberto.has(loja.id))
                     .map((loja) => loja.id.toString())}
                 >
-                  {lojas.map((loja) => (
-                    <SelectItem key={loja.id.toString()} textValue={loja.nome}>
-                      <div className="flex justify-between items-center">
-                        <span>{loja.nome}</span>
-                        {!lojasComCaixaAberto.has(loja.id) && (
-                          <Chip size="sm" color="danger" variant="flat">
-                            Caixa Fechado
-                          </Chip>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {lojas
+                    .filter((loja) =>
+                      typeof temAcessoLoja === "function"
+                        ? temAcessoLoja(loja.id)
+                        : true
+                    )
+                    .map((loja) => (
+                      <SelectItem
+                        key={loja.id.toString()}
+                        textValue={loja.nome}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{loja.nome}</span>
+                          {!lojasComCaixaAberto.has(loja.id) && (
+                            <Chip size="sm" color="danger" variant="flat">
+                              Caixa Fechado
+                            </Chip>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
                 </Select>
 
                 <Select
