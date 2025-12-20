@@ -9,8 +9,6 @@ import {
   CardHeader,
   Chip,
   Input,
-  Select,
-  SelectItem,
   Spinner,
   Dropdown,
   DropdownTrigger,
@@ -24,7 +22,10 @@ import {
   TableCell,
   Pagination,
   Checkbox,
+  Select,
+  SelectItem,
 } from "@heroui/react";
+import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
 import {
   ShoppingCart,
   Plus,
@@ -102,6 +103,60 @@ interface Produto {
 }
 
 export default function VendasPage() {
+  // --- Troca de Vendedor ---
+  const [usuariosAtivos, setUsuariosAtivos] = useState<any[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+  const [novoVendedorId, setNovoVendedorId] = useState("");
+  const [salvandoVendedor, setSalvandoVendedor] = useState(false);
+  const [modalTrocarVendedorOpen, setModalTrocarVendedorOpen] = useState(false);
+  const [vendaParaTrocarVendedor, setVendaParaTrocarVendedor] =
+    useState<VendaCompleta | null>(null);
+
+  useEffect(() => {
+    if (modalTrocarVendedorOpen) {
+      setLoadingUsuarios(true);
+      import("@/services/authService").then(({ AuthService }) => {
+        AuthService.getUsuariosAtivos().then((usuarios) => {
+          setUsuariosAtivos(usuarios);
+          setLoadingUsuarios(false);
+        });
+      });
+      setNovoVendedorId("");
+    }
+  }, [modalTrocarVendedorOpen]);
+
+  const handleConfirmarTrocaVendedor = async () => {
+    if (!vendaParaTrocarVendedor || !novoVendedorId) return;
+    setSalvandoVendedor(true);
+    try {
+      const { data, error } = await import("@/lib/supabaseClient").then(
+        ({ supabase }) =>
+          supabase
+            .from("vendas")
+            .update({ vendedor_id: novoVendedorId })
+            .eq("id", vendaParaTrocarVendedor.id)
+      );
+      if (error) throw error;
+      toast.success("Vendedor alterado com sucesso!");
+      setModalTrocarVendedorOpen(false);
+      setVendaParaTrocarVendedor(null);
+      await carregarVendas();
+    } catch (err: any) {
+      toast.error("Erro ao trocar vendedor: " + (err.message || ""));
+    } finally {
+      setSalvandoVendedor(false);
+    }
+  };
+  // State para modal de troca de vendedor
+
+  // Função para abrir modal de troca de vendedor
+  const handleAbrirModalTrocarVendedor = (venda: VendaCompleta) => {
+    setVendaParaTrocarVendedor(venda);
+    setModalTrocarVendedorOpen(true);
+  };
+
+  // Troca de Vendedor
+
   const { usuario } = useAuth();
   const {
     temPermissao,
@@ -882,6 +937,14 @@ export default function VendasPage() {
       color?: "default" | "warning" | "danger";
     }[] = [];
 
+    // Trocar Vendedor
+    items.push({
+      key: "trocar-vendedor",
+      label: "Trocar Vendedor",
+      icon: <Users className="w-4 h-4" />,
+      onClick: () => handleAbrirModalTrocarVendedor(venda),
+    });
+
     // Adicionar Pagamento
     if (
       venda.saldo_devedor > 0 &&
@@ -1217,7 +1280,7 @@ export default function VendasPage() {
       </div>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardBody className="flex flex-row items-center gap-3">
             <div className="p-3 bg-primary-100 rounded-lg">
@@ -1229,7 +1292,6 @@ export default function VendasPage() {
             </div>
           </CardBody>
         </Card>
-
         <Card>
           <CardBody className="flex flex-row items-center gap-3">
             <div className="p-3 bg-success-100 rounded-lg">
@@ -1241,7 +1303,18 @@ export default function VendasPage() {
             </div>
           </CardBody>
         </Card>
-
+        <TrocaDeVendedor
+          isOpen={modalTrocarVendedorOpen}
+          onClose={() => setModalTrocarVendedorOpen(false)}
+          usuarios={usuariosAtivos}
+          loadingUsuarios={loadingUsuarios}
+          vendedorSelecionado={novoVendedorId}
+          vendedorAtualId={vendaParaTrocarVendedor?.vendedor_id || null}
+          onSelecionarVendedor={setNovoVendedorId}
+          onConfirmar={handleConfirmarTrocaVendedor}
+          salvando={salvandoVendedor}
+        />
+        ;
         {temPermissao("vendas.ver_estatisticas_faturamento") && (
           <>
             <Card>
@@ -1287,7 +1360,6 @@ export default function VendasPage() {
             </Card>
           </>
         )}
-
         <Card>
           <CardBody className="flex flex-row items-center gap-3">
             <div className="p-3 bg-purple-100 rounded-lg">
@@ -1301,7 +1373,6 @@ export default function VendasPage() {
             </div>
           </CardBody>
         </Card>
-
         <Card>
           <CardBody className="flex flex-row items-center gap-3">
             <div className="p-3 bg-blue-100 rounded-lg">
