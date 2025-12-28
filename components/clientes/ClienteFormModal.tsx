@@ -34,6 +34,30 @@ import {
   formatarTelefone,
 } from "@/types/clientesTecnicos";
 
+function formatarDoc(valor: string): string {
+  const numeros = valor.replace(/\D/g, "");
+  if (numeros.length <= 11) {
+    // CPF
+    if (numeros.length === 0) return "";
+    if (numeros.length <= 3) return numeros;
+    if (numeros.length <= 6)
+      return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
+    if (numeros.length <= 9)
+      return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6)}`;
+    return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9, 11)}`;
+  } else {
+    // CNPJ
+    if (numeros.length <= 2) return numeros;
+    if (numeros.length <= 5)
+      return `${numeros.slice(0, 2)}.${numeros.slice(2)}`;
+    if (numeros.length <= 8)
+      return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5)}`;
+    if (numeros.length <= 12)
+      return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8)}`;
+    return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12, 14)}`;
+  }
+}
+
 interface ClienteFormModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -84,8 +108,7 @@ export default function ClienteFormModal({
 
   // Dados Pessoais
   const [nome, setNome] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [rg, setRg] = useState("");
+  const [doc, setDoc] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
 
   // Contatos
@@ -108,8 +131,7 @@ export default function ClienteFormModal({
   useEffect(() => {
     if (cliente) {
       setNome(cliente.nome || "");
-      setCpf(cliente.cpf || "");
-      setRg(cliente.rg || "");
+      setDoc(cliente.doc || "");
       setDataNascimento(cliente.data_nascimento || "");
       setTelefone(cliente.telefone || "");
       setTelefoneSecundario(cliente.telefone_secundario || "");
@@ -129,8 +151,7 @@ export default function ClienteFormModal({
 
   const limparCampos = () => {
     setNome("");
-    setCpf("");
-    setRg("");
+    setDoc("");
     setDataNascimento("");
     setTelefone("");
     setTelefoneSecundario("");
@@ -188,8 +209,7 @@ export default function ClienteFormModal({
 
     const dados: ClienteFormData = {
       nome: nome.trim(),
-      cpf: cpf.trim() || null,
-      rg: rg.trim() || undefined,
+      doc: doc.trim() || null,
       data_nascimento: dataNascimento || undefined,
       telefone: telefone.trim() || null,
       telefone_secundario: telefoneSecundario.trim() || undefined,
@@ -262,18 +282,11 @@ export default function ClienteFormModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <Input
-                    label="CPF"
-                    placeholder="000.000.000-00"
-                    value={cpf}
-                    onChange={(e) => setCpf(formatarCPF(e.target.value))}
-                    maxLength={14}
-                  />
-
-                  <Input
-                    label="RG"
-                    placeholder="00.000.000-0"
-                    value={rg}
-                    onChange={(e) => setRg(e.target.value)}
+                    label="CPF ou CNPJ"
+                    placeholder="Digite o CPF ou CNPJ"
+                    value={doc}
+                    onChange={(e) => setDoc(formatarDoc(e.target.value))}
+                    maxLength={18}
                   />
                 </div>
 

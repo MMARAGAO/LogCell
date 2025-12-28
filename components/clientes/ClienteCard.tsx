@@ -133,8 +133,10 @@ export default function ClienteCard({
               <User className="w-4 h-4 text-default-500" />
               <h3 className="font-semibold text-lg">{cliente.nome}</h3>
             </div>
-            {cliente.cpf && (
-              <p className="text-sm text-default-500">CPF: {cliente.cpf}</p>
+            {cliente.doc && (
+              <p className="text-sm text-default-500">
+                Documento: {cliente.doc}
+              </p>
             )}
           </div>
 
@@ -168,6 +170,16 @@ export default function ClienteCard({
             <div className="flex items-center gap-2 text-sm">
               <Phone className="w-4 h-4 text-default-400" />
               <span>{cliente.telefone}</span>
+              <Chip
+                as="a"
+                href={`https://wa.me/55${cliente.telefone.replace(/\D/g, "")}`}
+                target="_blank"
+                color="success"
+                className="cursor-pointer ml-2"
+                title="Enviar mensagem no WhatsApp"
+              >
+                WhatsApp
+              </Chip>
             </div>
           )}
 

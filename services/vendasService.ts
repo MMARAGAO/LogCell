@@ -413,7 +413,7 @@ export class VendasService {
         .select(
           `
           *,
-          cliente:clientes(id, nome, cpf, telefone),
+          cliente:clientes(id, nome, doc, telefone),
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           itens:itens_venda(*, produto:produtos(descricao, codigo_fabricante)),
@@ -1424,7 +1424,7 @@ export class VendasService {
         .select(
           `
           *,
-          cliente:clientes(id, nome, cpf),
+          cliente:clientes(id, nome, doc),
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           pagamentos:pagamentos_venda(id, valor, tipo_pagamento, criado_em),

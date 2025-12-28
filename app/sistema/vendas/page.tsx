@@ -85,7 +85,7 @@ interface Estatisticas {
 interface Cliente {
   id: string;
   nome: string;
-  cpf?: string | null;
+  doc?: string | null;
 }
 
 interface Loja {
@@ -579,7 +579,7 @@ export default function VendasPage() {
         .select(
           `
           *,
-          cliente:clientes(id, nome, cpf),
+          cliente:clientes(id, nome, doc),
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           itens:itens_venda(
