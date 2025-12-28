@@ -45,7 +45,7 @@ export async function buscarClientes(filtros?: {
       // Usar filtros separados para lidar com campos nullable
       const buscaPattern = `%${filtros.busca}%`;
       query = query.or(
-        `nome.ilike.${buscaPattern},telefone.ilike.${buscaPattern},cpf.ilike.${buscaPattern},email.ilike.${buscaPattern}`
+        `nome.ilike.${buscaPattern},telefone.ilike.${buscaPattern},doc.ilike.${buscaPattern},email.ilike.${buscaPattern}`
       );
     }
 

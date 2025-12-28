@@ -61,7 +61,7 @@ export async function buscarClientesPorTermo(
       .select("*")
       .eq("ativo", true)
       .or(
-        `nome.ilike.${searchPattern},cpf.ilike.${searchPattern},telefone.ilike.${searchPattern},email.ilike.${searchPattern}`
+        `nome.ilike.${searchPattern},doc.ilike.${searchPattern},telefone.ilike.${searchPattern},email.ilike.${searchPattern}`
       )
       .order("nome")
       .limit(limite);

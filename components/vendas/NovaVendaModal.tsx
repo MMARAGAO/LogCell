@@ -51,7 +51,7 @@ interface NovaVendaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirmar: (dados: DadosVenda, vendaId?: string) => Promise<void>;
-  clientes: Array<{ id: string; nome: string; cpf?: string | null }>;
+  clientes: Array<{ id: string; nome: string; doc?: string | null }>;
   lojas: Array<{ id: number; nome: string }>;
   produtos: Array<{
     id: string;
@@ -716,7 +716,7 @@ export function NovaVendaModal({
                 <div className="flex gap-2 items-end">
                   <Autocomplete
                     label="Cliente *"
-                    placeholder="Busque pelo nome ou CPF"
+                    placeholder="Busque pelo nome, CPF ou CNPJ"
                     selectedKey={clienteSelecionado}
                     onSelectionChange={(key) =>
                       setClienteSelecionado(key as string)
@@ -729,13 +729,13 @@ export function NovaVendaModal({
                     {(cliente) => (
                       <AutocompleteItem
                         key={cliente.id}
-                        textValue={`${cliente.nome} ${cliente.cpf || ""}`}
+                        textValue={`${cliente.nome} ${cliente.doc || ""}`}
                       >
                         <div>
                           <div className="font-medium">{cliente.nome}</div>
-                          {cliente.cpf && (
+                          {cliente.doc && (
                             <div className="text-xs text-default-500">
-                              {cliente.cpf}
+                              {cliente.doc}
                             </div>
                           )}
                         </div>

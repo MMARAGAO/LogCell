@@ -10,8 +10,7 @@ export interface Cliente {
 
   // Dados Pessoais
   nome: string;
-  cpf?: string | null;
-  rg?: string;
+  doc?: string | null; // CPF ou CNPJ
   data_nascimento?: string;
 
   // Contatos
@@ -52,8 +51,7 @@ export interface Cliente {
 export interface ClienteFormData {
   // Dados Pessoais
   nome: string;
-  cpf?: string | null;
-  rg?: string;
+  doc?: string | null; // CPF ou CNPJ
   data_nascimento?: string;
 
   // Contatos
