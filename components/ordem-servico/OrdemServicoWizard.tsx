@@ -186,7 +186,7 @@ export default function OrdemServicoWizard({
         setClienteNome(cliente.nome);
         setClienteTelefone(cliente.telefone || "");
         setClienteEmail(cliente.email || "");
-        setClienteCpfCnpj(cliente.cpf || "");
+        setClienteCpfCnpj(cliente.doc || "");
         setClienteEndereco(
           `${cliente.logradouro || ""} ${cliente.numero || ""} ${cliente.bairro || ""} ${cliente.cidade || ""}`.trim()
         );
