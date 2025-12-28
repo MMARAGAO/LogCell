@@ -1314,7 +1314,6 @@ export default function VendasPage() {
           onConfirmar={handleConfirmarTrocaVendedor}
           salvando={salvandoVendedor}
         />
-        ;
         {temPermissao("vendas.ver_estatisticas_faturamento") && (
           <>
             <Card>
