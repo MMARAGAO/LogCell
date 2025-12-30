@@ -74,7 +74,7 @@ export default function DevolucoesPage() {
         .select(
           `
           *,
-          cliente:clientes(id, nome, cpf, telefone),
+          cliente:clientes(id, nome, doc:doc, telefone),
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           itens:itens_venda(
@@ -150,7 +150,7 @@ export default function DevolucoesPage() {
         .select(
           `
           *,
-          cliente:clientes(id, nome, cpf, telefone),
+          cliente:clientes(id, nome, doc:doc, telefone),
           loja:lojas(id, nome),
           vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
           itens:itens_venda(
@@ -217,7 +217,7 @@ export default function DevolucoesPage() {
     return (
       venda.numero_venda.toString().includes(termo) ||
       venda.cliente?.nome.toLowerCase().includes(termo) ||
-      venda.cliente?.cpf?.includes(termo)
+      venda.cliente?.doc?.includes(termo)
     );
   });
 
@@ -326,7 +326,7 @@ export default function DevolucoesPage() {
       <Card className="mb-6">
         <CardBody>
           <Input
-            placeholder="Buscar por número da venda, cliente ou CPF..."
+            placeholder="Buscar por número da venda, cliente ou DOC..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             startContent={<Search className="w-4 h-4 text-default-400" />}
@@ -421,9 +421,9 @@ export default function DevolucoesPage() {
                           <div className="font-medium">
                             {venda.cliente?.nome}
                           </div>
-                          {venda.cliente?.cpf && (
+                          {venda.cliente?.doc && (
                             <div className="text-xs text-default-500">
-                              {venda.cliente.cpf}
+                              {venda.cliente.doc}
                             </div>
                           )}
                         </div>
