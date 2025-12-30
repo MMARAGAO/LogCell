@@ -162,7 +162,7 @@ export interface VendaCompleta extends Venda {
   cliente?: {
     id: string;
     nome: string;
-    cpf?: string;
+    doc?: string;
     telefone?: string;
   };
   loja?: {
