@@ -1419,45 +1419,56 @@ export class VendasService {
     data_fim?: string;
   }): Promise<VendaCompleta[]> {
     try {
-      let query = supabase
-        .from("vendas")
-        .select(
+      const pageSize = 1000;
+      let page = 0;
+      let allData: any[] = [];
+      let hasMore = true;
+
+      while (hasMore) {
+        let query = supabase
+          .from("vendas")
+          .select(
+            `
+            *,
+            cliente:clientes(id, nome, doc),
+            loja:lojas(id, nome),
+            vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
+            pagamentos:pagamentos_venda(id, valor, tipo_pagamento, criado_em),
+            itens:itens_venda(id, produto_id, quantidade, preco_unitario, subtotal, devolvido),
+            devolucoes:devolucoes_venda(id)
           `
-          *,
-          cliente:clientes(id, nome, doc),
-          loja:lojas(id, nome),
-          vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
-          pagamentos:pagamentos_venda(id, valor, tipo_pagamento, criado_em),
-          itens:itens_venda(id, produto_id, quantidade, preco_unitario, subtotal, devolvido),
-          devolucoes:devolucoes_venda(id)
-        `
-        )
-        .order("criado_em", { ascending: false });
+          )
+          .order("criado_em", { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
 
-      if (filtros?.cliente_id) {
-        query = query.eq("cliente_id", filtros.cliente_id);
-      }
-      if (filtros?.vendedor_id) {
-        query = query.eq("vendedor_id", filtros.vendedor_id);
-      }
-      if (filtros?.loja_id) {
-        query = query.eq("loja_id", filtros.loja_id);
-      }
-      if (filtros?.status) {
-        query = query.eq("status", filtros.status);
-      }
-      if (filtros?.data_inicio) {
-        query = query.gte("criado_em", filtros.data_inicio);
-      }
-      if (filtros?.data_fim) {
-        query = query.lte("criado_em", filtros.data_fim);
+        if (filtros?.cliente_id) {
+          query = query.eq("cliente_id", filtros.cliente_id);
+        }
+        if (filtros?.vendedor_id) {
+          query = query.eq("vendedor_id", filtros.vendedor_id);
+        }
+        if (filtros?.loja_id) {
+          query = query.eq("loja_id", filtros.loja_id);
+        }
+        if (filtros?.status) {
+          query = query.eq("status", filtros.status);
+        }
+        if (filtros?.data_inicio) {
+          query = query.gte("criado_em", filtros.data_inicio);
+        }
+        if (filtros?.data_fim) {
+          query = query.lte("criado_em", filtros.data_fim);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        allData = [...allData, ...(data || [])];
+        page++;
+        hasMore = (data?.length || 0) === pageSize;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return (data as VendaCompleta[]) || [];
+      return (allData as VendaCompleta[]) || [];
     } catch (error) {
       console.error("Erro ao listar vendas:", error);
       return [];
