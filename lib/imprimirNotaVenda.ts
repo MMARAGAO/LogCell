@@ -55,8 +55,8 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
   if (venda.cliente) {
     leftText(`Cliente: ${venda.cliente.nome}`, yPosition);
     yPosition += lineHeight;
-    if (venda.cliente.cpf) {
-      leftText(`CPF: ${venda.cliente.cpf}`, yPosition);
+    if (venda.cliente.doc) {
+      leftText(`DOC: ${venda.cliente.doc}`, yPosition);
       yPosition += lineHeight;
     }
   }
