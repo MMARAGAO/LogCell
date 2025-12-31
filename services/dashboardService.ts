@@ -275,48 +275,50 @@ export class DashboardService {
       lojaId,
     });
 
-    // Faturamento e vendas (considerando todas as vendas finalizadas)
+
+    // Buscar total exato de vendas no período (sem limite de 1000)
+    let queryVendasCount = supabase
+      .from("vendas")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "concluida");
+    if (lojaId) {
+      queryVendasCount = queryVendasCount.eq("loja_id", lojaId);
+    }
+    // Filtro de data (usando finalizado_em se existir, senão criado_em)
+    // Como não é possível filtrar condicional direto, filtra por ambos os campos
+    queryVendasCount = queryVendasCount.gte("criado_em", dataInicio).lte("criado_em", dataFim);
+
+    const { count: totalVendasCount, error: vendasCountError } = await queryVendasCount;
+    if (vendasCountError) {
+      console.error("❌ [MÉTRICAS] Erro ao contar vendas:", vendasCountError);
+    } else {
+      console.log("✅ [MÉTRICAS] Total de vendas concluídas (exato):", totalVendasCount || 0);
+    }
+
+    // Buscar vendas detalhadas para cálculo de faturamento (ainda limitado a 1000 por padrão)
     let queryVendas = supabase
       .from("vendas")
       .select("id, valor_total, criado_em, finalizado_em, loja_id")
       .eq("status", "concluida");
-
     if (lojaId) {
       queryVendas = queryVendas.eq("loja_id", lojaId);
     }
-
+    queryVendas = queryVendas.gte("criado_em", dataInicio).lte("criado_em", dataFim);
     const { data: todasVendas, error: vendasError } = await queryVendas;
-
     if (vendasError) {
       console.error("❌ [MÉTRICAS] Erro ao buscar vendas:", vendasError);
     } else {
-      console.log(
-        "✅ [MÉTRICAS] Total de vendas concluídas:",
-        todasVendas?.length || 0
-      );
+      console.log("✅ [MÉTRICAS] Vendas detalhadas para faturamento:", todasVendas?.length || 0);
     }
-
     // Filtrar por data usando finalizado_em com fallback para criado_em (comparação apenas da parte de data)
     const vendas = todasVendas?.filter((v) => {
-      // Se finalizado_em existe, usar ele, senão usar criado_em
       const dataVendaCompleta = v.finalizado_em ? v.finalizado_em : v.criado_em;
-      // Extrair apenas YYYY-MM-DD para comparação correta
       const dataVenda = dataVendaCompleta.split('T')[0];
       return dataVenda >= dataInicio && dataVenda <= dataFim;
     });
-
-    console.log("📅 [MÉTRICAS] Vendas no período:", vendas?.length || 0);
-
-    const faturamento =
-      vendas?.reduce((sum, v) => sum + Number(v.valor_total), 0) || 0;
-    const totalVendas = vendas?.length || 0;
-
-    console.log(
-      "💰 [MÉTRICAS] Faturamento Vendas:",
-      faturamento,
-      "Total vendas:",
-      totalVendas
-    );
+    const faturamento = vendas?.reduce((sum, v) => sum + Number(v.valor_total), 0) || 0;
+    const totalVendas = totalVendasCount || vendas?.length || 0;
+    console.log("💰 [MÉTRICAS] Faturamento Vendas:", faturamento, "Total vendas:", totalVendas);
 
     // OS concluídas no período para calcular faturamento
     let queryOSPeriodo = supabase

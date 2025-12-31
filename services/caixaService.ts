@@ -833,7 +833,7 @@ export class CaixaService {
             criado_em,
             loja_id,
             status,
-            cliente:clientes(id, nome, cpf)
+            cliente:clientes(id, nome, doc)
           )
         `
         )
@@ -886,7 +886,7 @@ export class CaixaService {
         vendasPorFormaPagamento[formaPagamento].vendas.push({
           numero_venda: pag.venda?.numero_venda || "",
           cliente_nome: pag.venda?.cliente?.nome || "Cliente não informado",
-          cliente_cpf: pag.venda?.cliente?.cpf,
+          cliente_cpf: pag.venda?.cliente?.doc, // agora doc pode ser CPF ou CNPJ
           valor_total: Number(pag.venda?.valor_total || 0),
           valor_desconto: Number(pag.venda?.valor_desconto || 0),
           valor_pago: Number(pag.valor),
