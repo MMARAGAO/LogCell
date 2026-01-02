@@ -15,6 +15,41 @@ CREATE TABLE public.alertas_estoque_controle (
   CONSTRAINT alertas_estoque_controle_produto_id_fkey FOREIGN KEY (produto_id) REFERENCES public.produtos(id),
   CONSTRAINT alertas_estoque_controle_loja_id_fkey FOREIGN KEY (loja_id) REFERENCES public.lojas(id)
 );
+CREATE TABLE public.aparelhos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  imei character varying UNIQUE,
+  numero_serie character varying,
+  cor character varying,
+  estado character varying NOT NULL CHECK (estado::text = ANY (ARRAY['novo'::character varying, 'usado'::character varying, 'seminovo'::character varying, 'recondicionado'::character varying]::text[])),
+  condicao character varying CHECK (condicao::text = ANY (ARRAY['perfeito'::character varying, 'bom'::character varying, 'regular'::character varying, 'ruim'::character varying]::text[])),
+  acessorios text,
+  observacoes text,
+  valor_compra numeric,
+  valor_venda numeric,
+  loja_id integer NOT NULL,
+  status character varying NOT NULL DEFAULT 'disponivel'::character varying CHECK (status::text = ANY (ARRAY['disponivel'::character varying, 'vendido'::character varying, 'reservado'::character varying, 'defeito'::character varying, 'transferido'::character varying]::text[])),
+  data_entrada timestamp with time zone DEFAULT now(),
+  data_venda timestamp with time zone,
+  venda_id uuid,
+  criado_por uuid,
+  criado_em timestamp with time zone DEFAULT now(),
+  atualizado_em timestamp with time zone DEFAULT now(),
+  atualizado_por uuid,
+  marca character varying,
+  modelo character varying,
+  armazenamento character varying,
+  memoria_ram character varying,
+  exibir_catalogo boolean DEFAULT false,
+  destaque boolean DEFAULT false,
+  promocao boolean DEFAULT false,
+  novidade boolean DEFAULT false,
+  ordem_catalogo integer DEFAULT 0,
+  CONSTRAINT aparelhos_pkey PRIMARY KEY (id),
+  CONSTRAINT aparelhos_loja_id_fkey FOREIGN KEY (loja_id) REFERENCES public.lojas(id),
+  CONSTRAINT aparelhos_venda_id_fkey FOREIGN KEY (venda_id) REFERENCES public.vendas(id),
+  CONSTRAINT aparelhos_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
+  CONSTRAINT aparelhos_atualizado_por_fkey FOREIGN KEY (atualizado_por) REFERENCES auth.users(id)
+);
 CREATE TABLE public.caixas (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   loja_id integer NOT NULL,
@@ -37,8 +72,7 @@ CREATE TABLE public.caixas (
 CREATE TABLE public.clientes (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   nome character varying NOT NULL,
-  cpf character varying UNIQUE,
-  rg character varying,
+  doc character varying UNIQUE,
   data_nascimento date,
   telefone character varying,
   telefone_secundario character varying,
@@ -160,6 +194,20 @@ CREATE TABLE public.fornecedores (
   CONSTRAINT fornecedores_pkey PRIMARY KEY (id),
   CONSTRAINT fornecedores_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
   CONSTRAINT fornecedores_atualizado_por_fkey FOREIGN KEY (atualizado_por) REFERENCES auth.users(id)
+);
+CREATE TABLE public.fotos_aparelhos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  aparelho_id uuid NOT NULL,
+  url text NOT NULL,
+  nome_arquivo character varying NOT NULL,
+  tamanho integer,
+  ordem integer DEFAULT 0,
+  is_principal boolean DEFAULT false,
+  criado_por uuid,
+  criado_em timestamp with time zone DEFAULT now(),
+  CONSTRAINT fotos_aparelhos_pkey PRIMARY KEY (id),
+  CONSTRAINT fotos_aparelhos_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
+  CONSTRAINT fotos_aparelhos_aparelho_id_fkey FOREIGN KEY (aparelho_id) REFERENCES public.aparelhos(id)
 );
 CREATE TABLE public.fotos_perfil (
   id integer NOT NULL DEFAULT nextval('fotos_perfil_id_seq'::regclass),
@@ -579,6 +627,11 @@ CREATE TABLE public.produtos (
   grupo character varying,
   categoria character varying,
   codigo_fabricante character varying,
+  exibir_catalogo boolean DEFAULT false,
+  destaque boolean DEFAULT false,
+  promocao boolean DEFAULT false,
+  novidade boolean DEFAULT false,
+  ordem_catalogo integer DEFAULT 0,
   CONSTRAINT produtos_pkey PRIMARY KEY (id),
   CONSTRAINT produtos_criado_por_fkey FOREIGN KEY (criado_por) REFERENCES auth.users(id),
   CONSTRAINT produtos_atualizado_por_fkey FOREIGN KEY (atualizado_por) REFERENCES auth.users(id)
