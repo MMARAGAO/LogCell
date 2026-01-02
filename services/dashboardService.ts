@@ -185,14 +185,235 @@ export class DashboardService {
 			toContasNaoPagas += pageSize;
 		}
 
-		return {
-			metricas_adicionais: {
-				pagamentos_sem_credito_cliente: pagamentosSemCredito,
-				total_vendas: count || 0,
-				ganho_total_vendas: lucroVendas,
-				ticket_medio: ticketMedio,
-				contas_nao_pagas: totalContasNaoPagas,
-			},
-		};
+	// Buscar métricas de Ordem de Serviço
+	let queryTotalOS = supabase
+		.from("ordem_servico")
+		.select("id", { count: "exact", head: true })
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		queryTotalOS = queryTotalOS.eq("id_loja", loja_id);
 	}
-}
+
+	const { count: totalOS, error: erroTotalOS } = await queryTotalOS;
+
+	if (erroTotalOS) {
+		console.error("❌ [DASHBOARD] Erro ao buscar total de OS:", erroTotalOS);
+	}
+
+	// Buscar OS entregues
+	let queryOSEntregues = supabase
+		.from("ordem_servico")
+		.select("id", { count: "exact", head: true })
+		.eq("status", "entregue")
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		queryOSEntregues = queryOSEntregues.eq("id_loja", loja_id);
+	}
+
+	const { count: osEntregues, error: erroOSEntregues } = await queryOSEntregues;
+
+	if (erroOSEntregues) {
+		console.error("❌ [DASHBOARD] Erro ao buscar OS entregues:", erroOSEntregues);
+	}
+
+	// Buscar faturamento e custo de OS
+	let fromOS = 0;
+	let toOS = pageSize - 1;
+	let faturamentoOS = 0;
+	let custoOS = 0;
+
+	while (true) {
+		let queryOS = supabase
+			.from("ordem_servico")
+			.select("id, valor_pago, valor_orcamento")
+			.eq("status", "entregue")
+			.gte("criado_em", inicioISO)
+			.lte("criado_em", fimISO)
+			.range(fromOS, toOS);
+
+		if (loja_id) {
+			queryOS = queryOS.eq("id_loja", loja_id);
+		}
+
+		const { data: osData, error: erroOS } = await queryOS;
+
+		if (erroOS) {
+			console.error("❌ [DASHBOARD] Erro ao buscar faturamento de OS:", erroOS);
+			break;
+		}
+
+		const batchOS = osData || [];
+
+		// Somar faturamento (usar valor_pago, fallback para valor_orcamento)
+		batchOS.forEach((os: any) => {
+			const valorFaturado = Number(os.valor_pago || os.valor_orcamento || 0);
+			faturamentoOS += valorFaturado;
+		});
+
+		// Buscar peças dessas OS para calcular custo usando preco_compra
+		if (batchOS.length > 0) {
+			const osIds = batchOS.map((os: any) => os.id);
+
+			const { data: pecasData, error: erroPecas } = await supabase
+				.from("ordem_servico_pecas")
+				.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
+				.in("id_ordem_servico", osIds);
+
+			if (!erroPecas && pecasData) {
+				pecasData.forEach((peca: any) => {
+					const precoCompra = Number(peca.produto?.preco_compra || 0);
+					const quantidade = Number(peca.quantidade || 0);
+					custoOS += precoCompra * quantidade;
+				});
+			}
+		}
+
+		if (batchOS.length < pageSize) {
+			break;
+		}
+
+		fromOS += pageSize;
+		toOS += pageSize;
+	}
+
+		const ganhoOS = faturamentoOS - custoOS;
+
+	// Buscar total de transferências
+	let queryTotalTransferencias = supabase
+		.from("transferencias")
+		.select("id", { count: "exact", head: true })
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		// Buscar onde a loja seja origem ou destino
+		queryTotalTransferencias = queryTotalTransferencias.or(
+			`loja_origem_id.eq.${loja_id},loja_destino_id.eq.${loja_id}`
+		);
+	}
+
+	const { count: totalTransferencias, error: erroTotalTransferencias } = await queryTotalTransferencias;
+
+	if (erroTotalTransferencias) {
+		console.error("❌ [DASHBOARD] Erro ao buscar total de transferências:", erroTotalTransferencias);
+	}
+
+	// Buscar transferências pendentes
+	let queryTransferenciasPendentes = supabase
+		.from("transferencias")
+		.select("id", { count: "exact", head: true })
+		.eq("status", "pendente")
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		queryTransferenciasPendentes = queryTransferenciasPendentes.or(
+			`loja_origem_id.eq.${loja_id},loja_destino_id.eq.${loja_id}`
+		);
+	}
+
+	const { count: transferenciasPendentes, error: erroTransferenciasPendentes } = await queryTransferenciasPendentes;
+
+	if (erroTransferenciasPendentes) {
+		console.error("❌ [DASHBOARD] Erro ao buscar transferências pendentes:", erroTransferenciasPendentes);
+	}
+
+	// Buscar total em quebra de peças
+	let fromQuebras = 0;
+	let toQuebras = pageSize - 1;
+	let totalQuebras = 0;
+	let quantidadeQuebras = 0;
+
+	while (true) {
+		let queryQuebras = supabase
+			.from("quebra_pecas")
+			.select("valor_total")
+			.gte("criado_em", inicioISO)
+			.lte("criado_em", fimISO)
+			.range(fromQuebras, toQuebras);
+
+		if (loja_id) {
+			queryQuebras = queryQuebras.eq("id_loja", loja_id);
+		}
+
+		const { data: quebrasData, error: erroQuebras } = await queryQuebras;
+
+		if (erroQuebras) {
+			console.error("❌ [DASHBOARD] Erro ao buscar quebra de peças:", erroQuebras);
+			break;
+		}
+
+		const batchQuebras = quebrasData || [];
+		quantidadeQuebras += batchQuebras.length;
+		batchQuebras.forEach((q: any) => {
+			totalQuebras += Number(q.valor_total || 0);
+		});
+
+		if (batchQuebras.length < pageSize) {
+			break;
+		}
+
+		fromQuebras += pageSize;
+		toQuebras += pageSize;
+	}
+
+	// Buscar total de crédito de cliente (saldo disponível)
+	let fromCreditos = 0;
+	let toCreditos = pageSize - 1;
+	let totalCreditosCliente = 0;
+
+	while (true) {
+		let queryCreditos = supabase
+			.from("creditos_cliente")
+			.select("saldo, cliente:clientes!creditos_cliente_cliente_id_fkey(id_loja)")
+			.gte("criado_em", inicioISO)
+			.lte("criado_em", fimISO)
+			.range(fromCreditos, toCreditos);
+
+		const { data: creditosData, error: erroCreditos } = await queryCreditos;
+
+		if (erroCreditos) {
+			console.error("❌ [DASHBOARD] Erro ao buscar crédito de cliente:", erroCreditos);
+			break;
+		}
+
+		const batchCreditos = creditosData || [];
+		batchCreditos.forEach((c: any) => {
+			// Se filtrar por loja, validar que a loja do cliente corresponde
+			if (!loja_id || c.cliente?.id_loja === loja_id) {
+				totalCreditosCliente += Number(c.saldo || 0);
+			}
+		});
+
+		if (batchCreditos.length < pageSize) {
+			break;
+		}
+
+		fromCreditos += pageSize;
+		toCreditos += pageSize;
+	}
+
+	return {
+		metricas_adicionais: {
+			pagamentos_sem_credito_cliente: pagamentosSemCredito,
+			total_vendas: count || 0,
+			ganho_total_vendas: lucroVendas,
+			ticket_medio: ticketMedio,
+			contas_nao_pagas: totalContasNaoPagas,
+			total_os: totalOS || 0,
+			os_entregues: osEntregues || 0,
+			faturamento_os: faturamentoOS,
+			ganho_os: ganhoOS,
+			total_transferencias: totalTransferencias || 0,
+			transferencias_pendentes: transferenciasPendentes || 0,
+			total_quebras: totalQuebras,
+			quantidade_quebras: quantidadeQuebras,
+			total_creditos_cliente: totalCreditosCliente,
+		},
+	};
+	}
+}                        
