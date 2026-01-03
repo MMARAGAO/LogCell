@@ -328,11 +328,15 @@ export class CaixaService {
       let totalVendas = 0;
       let totalVendasDinheiro = 0; // Vendas que entram dinheiro no caixa (sem crédito)
 
-      // Identificar vendas que foram devolvidas no mesmo dia do caixa
-      const vendasDevolvidasMesmoDia = new Set<string>();
+      // Identificar vendas que foram devolvidas SEM CREDITO no mesmo dia do caixa
+      // Devoluções com crédito NÃO diminuem o caixa (dinheiro permanece como crédito)
+      const vendasDevolvidasSemCreditoMesmoDia = new Set<string>();
       const valorVendasDevolvidasMesmoDia: { [venda_id: string]: number } = {};
 
       devolucoesLoja.forEach((dev: any) => {
+        // Apenas considerar devoluções SEM CRÉDITO
+        if (dev.tipo !== "sem_credito") return;
+
         const vendaCriadaEm = new Date(dev.venda?.criado_em);
         const devolucaoCriadaEm = new Date(dev.criado_em);
         const caixaAberturaData = new Date(caixa.data_abertura);
@@ -343,7 +347,7 @@ export class CaixaService {
           devolucaoCriadaEm.toDateString() === caixaAberturaData.toDateString();
 
         if (mesmodia && dev.venda_id) {
-          vendasDevolvidasMesmoDia.add(dev.venda_id);
+          vendasDevolvidasSemCreditoMesmoDia.add(dev.venda_id);
           // Armazena o valor devolvido (pode ser parcial)
           valorVendasDevolvidasMesmoDia[dev.venda_id] =
             (valorVendasDevolvidasMesmoDia[dev.venda_id] || 0) +
@@ -351,13 +355,13 @@ export class CaixaService {
         }
       });
 
-      console.log("🔍 DEBUG CAIXA - Vendas devolvidas no mesmo dia:", {
-        vendas: Array.from(vendasDevolvidasMesmoDia),
+      console.log("🔍 DEBUG CAIXA - Vendas devolvidas SEM CRÉDITO no mesmo dia:", {
+        vendas: Array.from(vendasDevolvidasSemCreditoMesmoDia),
         valores: valorVendasDevolvidasMesmoDia,
       });
 
       pagamentosLoja.forEach((pag: any) => {
-        const vendaDevolvida = vendasDevolvidasMesmoDia.has(pag.venda?.id);
+        const vendaDevolvida = vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id);
         const forma = pag.tipo_pagamento;
         const valor = Number(pag.valor);
 
@@ -369,14 +373,14 @@ export class CaixaService {
           vai_contar: !vendaDevolvida
         });
 
-        // Se não foi devolvida no mesmo dia, conta normalmente
+        // Se não foi devolvida SEM CRÉDITO no mesmo dia, conta normalmente
         if (!vendaDevolvida) {
           porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
           totalVendas += valor;
         }
 
         // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
-        // E se não foi venda devolvida no mesmo dia
+        // E se não foi venda devolvida SEM CRÉDITO no mesmo dia
         // credito = cartão de crédito (conta no caixa)
         // credito_cliente = crédito da loja (NÃO conta no caixa)
         if (forma !== "credito_cliente" && !vendaDevolvida) {
@@ -384,16 +388,32 @@ export class CaixaService {
         }
       });
 
-      console.log("📊 DEBUG CAIXA - Totais calculados de vendas:", {
-        totalVendas,
-        totalVendasDinheiro,
-        porFormaPagamento
-      });
-
       // Contar apenas pagamentos que não são credito_cliente
       const quantidadePagamentosReais = pagamentosLoja.filter(
-        (pag: any) => pag.tipo_pagamento !== "credito_cliente" && !vendasDevolvidasMesmoDia.has(pag.venda?.id)
+        (pag: any) => pag.tipo_pagamento !== "credito_cliente" && !vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id)
       ).length;
+
+      // Calcular total de pagamentos de venda que entram no caixa (sem credito_cliente)
+      const totalPagamentosSemCredito = pagamentosLoja.reduce(
+        (sum: number, pag: any) => {
+          // Não contar vendas devolvidas SEM CRÉDITO no mesmo dia
+          if (vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id)) return sum;
+          // Não contar crédito do cliente
+          if (pag.tipo_pagamento === "credito_cliente") return sum;
+          return sum + Number(pag.valor);
+        },
+        0
+      );
+
+      // Calcular total de pagamentos sem crédito (incluindo vendas devolvidas com crédito, apenas para relatório)
+      const totalPagamentosSemCreditoIncluindoDevolvidas = pagamentosLoja.reduce(
+        (sum: number, pag: any) => {
+          // Não contar crédito do cliente
+          if (pag.tipo_pagamento === "credito_cliente") return sum;
+          return sum + Number(pag.valor);
+        },
+        0
+      );
 
       // Calcular totais de devoluções separados por tipo
       const devolucoesComCredito = devolucoesLoja.filter(
@@ -493,7 +513,7 @@ export class CaixaService {
       // Saldo esperado considera apenas movimentações de dinheiro físico (quebras NÃO afetam)
       const saldoEsperado =
         Number(caixa.saldo_inicial) +
-        totalVendasDinheiro +
+        totalPagamentosSemCredito +
         totalOS -
         totalDevolucoesDinheiro -
         totalSangrias;
@@ -504,7 +524,7 @@ export class CaixaService {
       return {
         vendas: {
           quantidade: quantidadePagamentosReais, // Apenas pagamentos que geram entrada de dinheiro
-          total: totalVendasDinheiro, // Apenas vendas que geram entrada de dinheiro (exclui credito_cliente)
+          total: totalPagamentosSemCreditoIncluindoDevolvidas, // Todos os pagamentos sem credito_cliente para mostrar no relatório
           por_forma_pagamento: porFormaPagamento,
         },
         devolucoes: {
@@ -532,7 +552,7 @@ export class CaixaService {
           total: totalQuebras,
         },
         saldo_inicial: Number(caixa.saldo_inicial),
-        total_entradas: totalVendasDinheiro + totalOS, // Apenas dinheiro que entrou (exclui credito_cliente)
+        total_entradas: totalPagamentosSemCredito + totalOS, // Todos os pagamentos que entram dinheiro (sem credito_cliente) + OS
         total_saidas: totalDevolucoesDinheiro + totalSangrias, // Devoluções sem crédito + sangrias
         saldo_esperado: saldoEsperado,
         saldo_informado: caixa.saldo_final

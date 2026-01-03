@@ -177,6 +177,32 @@ export default function DashboardPage() {
 					</p>
 				</div>
 
+				<div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+					<div className="flex items-start justify-between gap-3">
+						<div className="space-y-1">
+							<p className="text-sm font-medium text-warning dark:text-amber-400">
+								OS Pagas não Entregues
+							</p>
+							<p className="text-xs text-default-500 dark:text-white">
+								Valor pago {">"} 0 e não entregues
+							</p>
+							<p className="text-3xl font-bold text-foreground mt-2">
+								{loading
+									? "..."
+									: (dados?.metricas_adicionais.os_pagas_nao_entregues || 0).toLocaleString(
+										"pt-BR"
+									)}
+							</p>
+						</div>
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
+							<FaMoneyBillWave />
+						</div>
+					</div>
+					<p className="mt-4 text-sm text-default-600">
+						Pagas mas ainda não entregues; priorize a entrega/baixa do status.
+					</p>
+				</div>
+
 				<div className="rounded-xl border border-primary/20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
@@ -336,6 +362,32 @@ export default function DashboardPage() {
 					</div>
 					<p className="mt-4 text-sm text-default-600">
 						Total de OS concluídas e entregues ao cliente.
+					</p>
+				</div>
+
+				<div className="rounded-xl border border-danger/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+					<div className="flex items-start justify-between gap-3">
+						<div className="space-y-1">
+							<p className="text-sm font-medium text-danger dark:text-red-400">
+								OS Pendentes
+							</p>
+							<p className="text-xs text-default-500 dark:text-white">
+								Ainda não entregue
+							</p>
+							<p className="text-3xl font-bold text-foreground mt-2">
+								{loading
+									? "..."
+									: (dados?.metricas_adicionais.os_pendentes || 0).toLocaleString(
+											"pt-BR"
+										)}
+							</p>
+						</div>
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/20 text-danger text-lg">
+							<FaHourglass />
+						</div>
+					</div>
+					<p className="mt-4 text-sm text-default-600">
+						Total de OS que aguardam conclusão ou entrega.
 					</p>
 				</div>
 

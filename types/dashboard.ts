@@ -8,6 +8,8 @@ export interface MetricasAdicionais {
 	contas_nao_pagas: number;
 	total_os: number;
 	os_entregues: number;
+	os_pendentes: number;
+	os_pagas_nao_entregues: number;
 	faturamento_os: number;
 	ganho_os: number;
 	total_transferencias: number;
