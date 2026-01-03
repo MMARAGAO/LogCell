@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuthContext } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { useFotoPerfil } from "@/hooks/useFotoPerfil";
 import { Button } from "@heroui/button";
 import {
@@ -45,6 +46,7 @@ interface SearchResult {
 
 export default function Navbar() {
   const { usuario, isAuthenticated, logout } = useAuthContext();
+  const { temPermissao } = usePermissoes();
   const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -235,17 +237,13 @@ export default function Navbar() {
 
       <NavbarContent className="sm:hidden pr-3" justify="center">
         <NavbarBrand>
-          <Link href="/" color="foreground">
-            <p className="font-bold text-xl">LogCell</p>
-          </Link>
+          <p className="font-bold text-xl">LogCell</p>
         </NavbarBrand>
       </NavbarContent>
 
       <NavbarContent className="hidden sm:flex gap-4" justify="start">
         <NavbarBrand>
-          <Link href="/" color="foreground">
-            <p className="font-bold text-xl">LogCell</p>
-          </Link>
+          <p className="font-bold text-xl">LogCell</p>
         </NavbarBrand>
       </NavbarContent>
 
