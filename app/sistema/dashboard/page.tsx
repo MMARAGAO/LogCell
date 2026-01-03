@@ -6,6 +6,7 @@ import type { DadosDashboard } from "@/types/dashboard";
 import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectItem } from "@heroui/react";
 import { FaDollarSign, FaShoppingCart, FaMoneyBillWave, FaChartBar, FaExclamationTriangle, FaTools, FaCheckCircle, FaMoneyBill, FaGem, FaBox, FaHourglass, FaHeartBroken, FaCreditCard } from "react-icons/fa";
+import { usePermissoes } from "@/hooks/usePermissoes";
 
 // Formata número em BRL
 const formatarMoeda = (valor: number) =>
@@ -19,6 +20,7 @@ export default function DashboardPage() {
 	const [dados, setDados] = useState<DadosDashboard | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const { temPermissao, loading: permissoesLoading } = usePermissoes();
 
 	// filtros
 	const [dataInicio, setDataInicio] = useState<string>("2000-01-01");
@@ -45,9 +47,12 @@ export default function DashboardPage() {
 	};
 
 	useEffect(() => {
-		carregar();
+		// Carregar dados apenas se tiver permissão
+		if (!permissoesLoading && temPermissao("dashboard.visualizar")) {
+			carregar();
+		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [permissoesLoading]);
 
 	// carregar lojas para o select
 	useEffect(() => {
@@ -66,24 +71,41 @@ export default function DashboardPage() {
 
 	return (
 		<div className="p-6 space-y-6">
-			<header className="flex items-center justify-between">
-				<div>
-					<h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-					<p className="text-default-500">
-						Pagamentos recebidos sem crédito de cliente
-					</p>
+			{permissoesLoading ? (
+				<div className="flex items-center justify-center py-12">
+					<div className="text-center space-y-2">
+						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+						<p className="text-default-500">Carregando...</p>
+					</div>
 				</div>
-				<button
-					onClick={carregar}
-					disabled={loading}
-					className="px-4 py-2 rounded-md text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-				>
-					{loading ? "Atualizando..." : "Atualizar"}
-				</button>
-			</header>
+			) : !temPermissao("dashboard.visualizar") ? (
+				<div className="rounded-xl border border-danger/30 bg-danger/5 text-danger px-6 py-4 flex items-center gap-3">
+					<FaExclamationTriangle className="text-lg flex-shrink-0" />
+					<div>
+						<h3 className="font-semibold">Acesso Negado</h3>
+						<p className="text-sm">Você não tem permissão para acessar o dashboard. Contacte um administrador para solicitar acesso.</p>
+					</div>
+				</div>
+			) : (
+				<>
+					<header className="flex items-center justify-between">
+						<div>
+							<h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+							<p className="text-default-500">
+								Pagamentos recebidos sem crédito de cliente
+							</p>
+						</div>
+						<button
+							onClick={carregar}
+							disabled={loading}
+							className="px-4 py-2 rounded-md text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+						>
+							{loading ? "Atualizando..." : "Atualizar"}
+						</button>
+					</header>
 
-			{/* Filtros */}
-			<section className="rounded-xl border border-default-200 bg-content1/40 p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
+					{/* Filtros */}
+					<section className="rounded-xl border border-default-200 bg-content1/40 p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
 				<div className="flex flex-col gap-1">
 					<label className="text-xs font-semibold text-default-600">Data início</label>
 					<input
@@ -564,6 +586,8 @@ export default function DashboardPage() {
 					</p>
 				</div>
 			</div>
+				</>
+			)}
 		</div>
 	);
 }

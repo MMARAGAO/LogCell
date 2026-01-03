@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -51,12 +51,25 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { usuario } = useAuthContext();
   const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
   const { temPermissao, isAdmin } = usePermissoes();
 
   // Determinar se é técnico
   const isTecnico = usuario?.tipo_usuario === "tecnico";
+
+  // Redirecionar logo baseado em permissões
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (temPermissao("dashboard.visualizar")) {
+      router.push("/sistema/dashboard");
+    } else {
+      router.push("/sistema/dashboard-pessoal");
+    }
+    onClose();
+  };
 
   // Menu para TÉCNICOS (acesso restrito)
   const menuItemsTecnico = [
@@ -229,10 +242,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Header da Sidebar */}
         <div className="flex items-center justify-between p-6 border-b border-divider/50">
-          <Link
-            href="/sistema/dashboard"
-            className="flex items-center gap-3 group"
-            onClick={onClose}
+          <a
+            href="#"
+            onClick={handleLogoClick}
+            className="flex items-center gap-3 group cursor-pointer"
           >
             <div className="relative w-14 h-14 flex-shrink-0 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center p-2">
               <Logo className="w-full h-full text-foreground" />
@@ -251,7 +264,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </div>
               </div>
             </div>
-          </Link>
+          </a>
           <button
             onClick={onClose}
             className="lg:hidden p-2 hover:bg-default-100 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
