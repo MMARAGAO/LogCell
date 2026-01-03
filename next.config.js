@@ -5,7 +5,7 @@
 // ============================================
 // true  = Remove console.log em DEV E PROD
 // false = Mantém todos os logs (padrão)
-const DISABLE_CONSOLE_LOGS = true;
+const DISABLE_CONSOLE_LOGS = false;
 // ============================================
 
 const nextConfig = {

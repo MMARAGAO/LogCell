@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   Button,
   Card,
@@ -48,6 +48,7 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  History,
 } from "lucide-react";
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
@@ -103,6 +104,7 @@ interface Produto {
 }
 
 export default function VendasPage() {
+  const router = useRouter();
   // --- Troca de Vendedor ---
   const [usuariosAtivos, setUsuariosAtivos] = useState<any[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
@@ -345,14 +347,6 @@ export default function VendasPage() {
       new Set(dados.map((v) => `${v.loja?.nome} (ID: ${v.loja_id})`))
     );
     console.log("🏪 Lojas presentes nas vendas:", lojasNasVendas);
-
-    // Log detalhado de TODAS as vendas
-    dados.forEach((venda) => {
-      const numero = `V${String(venda.numero_venda).padStart(6, "0")}`;
-      console.log(
-        `📋 ${numero}: status="${venda.status}", cliente=${venda.cliente?.nome}`
-      );
-    });
 
     console.log("🔍 Primeira venda:", dados[0]);
     setVendas(dados);
@@ -1267,16 +1261,26 @@ export default function VendasPage() {
             Gerencie suas vendas e acompanhe o desempenho
           </p>
         </div>
-        {temPermissao("vendas.criar") && (
+        <div className="flex gap-2">
+          {temPermissao("vendas.criar") && (
+            <Button
+              color="primary"
+              size="lg"
+              startContent={<Plus className="w-5 h-5" />}
+              onClick={() => setModalNovaVendaOpen(true)}
+            >
+              Nova Venda
+            </Button>
+          )}
           <Button
-            color="primary"
+            variant="flat"
             size="lg"
-            startContent={<Plus className="w-5 h-5" />}
-            onClick={() => setModalNovaVendaOpen(true)}
+            startContent={<History className="w-5 h-5" />}
+            onClick={() => router.push("/sistema/vendas/audit-logs")}
           >
-            Nova Venda
+            Logs de Deleção
           </Button>
-        )}
+        </div>
       </div>
 
       {/* Cards de Estatísticas */}
