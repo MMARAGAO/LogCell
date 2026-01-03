@@ -1391,12 +1391,15 @@ export class VendasService {
         usuario_id: usuarioId,
       });
 
-      // Com CASCADE DELETE configurado no banco, basta deletar a venda
-      // O banco vai automaticamente deletar todos os registros relacionados
-      const { error } = await supabase
-        .from("vendas")
-        .delete()
-        .eq("id", vendaId);
+      // Usar função SQL que configura o usuário e deleta a venda
+      // Isso garante que o trigger log_deletion captura o usuário correto
+      console.log('🔍 Chamando deletar_venda_com_usuario:', { vendaId, usuarioId });
+      const { data, error } = await supabase.rpc('deletar_venda_com_usuario', {
+        p_venda_id: vendaId,
+        p_usuario_id: usuarioId
+      });
+      
+      console.log('📊 Resultado da RPC:', { data, error });
 
       if (error) throw error;
 
