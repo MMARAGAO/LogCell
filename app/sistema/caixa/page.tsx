@@ -471,6 +471,17 @@ export default function CaixaPage() {
     } = {};
 
     vendas.forEach((mov) => {
+      // Pular vendas devolvidas SEM CRÉDITO no mesmo dia
+      // Vendas devolvidas COM CRÉDITO não saem do caixa (crédito permanece na empresa)
+      const temDevolucaoSemCredito = movimentacoes.some(
+        (m) =>
+          m.tipo === "devolucao" &&
+          m.referencia_id === mov.referencia_id &&
+          !m.gerou_credito &&
+          new Date(m.data).toDateString() === new Date(mov.data).toDateString()
+      );
+      if (temDevolucaoSemCredito) return;
+
       const forma = mov.forma_pagamento || "nao_informado";
       if (!vendasPorFormaPagamento[forma]) {
         vendasPorFormaPagamento[forma] = [];

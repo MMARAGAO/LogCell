@@ -190,7 +190,8 @@ export class DashboardService {
 		.from("ordem_servico")
 		.select("id", { count: "exact", head: true })
 		.gte("criado_em", inicioISO)
-		.lte("criado_em", fimISO);
+		.lte("criado_em", fimISO)
+		.neq("status", "cancelado");
 
 	if (loja_id) {
 		queryTotalOS = queryTotalOS.eq("id_loja", loja_id);
@@ -202,11 +203,12 @@ export class DashboardService {
 		console.error("❌ [DASHBOARD] Erro ao buscar total de OS:", erroTotalOS);
 	}
 
-	// Buscar OS entregues
+	// Buscar OS entregues E QUITADAS (valor_pago > 0)
 	let queryOSEntregues = supabase
 		.from("ordem_servico")
 		.select("id", { count: "exact", head: true })
 		.eq("status", "entregue")
+		.gt("valor_pago", 0)
 		.gte("criado_em", inicioISO)
 		.lte("criado_em", fimISO);
 
@@ -231,6 +233,7 @@ export class DashboardService {
 			.from("ordem_servico")
 			.select("id, valor_pago, valor_orcamento")
 			.eq("status", "entregue")
+			.gt("valor_pago", 0)
 			.gte("criado_em", inicioISO)
 			.lte("criado_em", fimISO)
 			.range(fromOS, toOS);
@@ -281,6 +284,46 @@ export class DashboardService {
 	}
 
 		const ganhoOS = faturamentoOS - custoOS;
+
+	// Buscar OS pendentes (status != entregue/cancelado E sem pagamento)
+	let queryOSPendentes = supabase
+		.from("ordem_servico")
+		.select("id", { count: "exact", head: true })
+		.not("status", "eq", "entregue")
+		.neq("status", "cancelado")
+		.or("valor_pago.is.null,valor_pago.eq.0")
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		queryOSPendentes = queryOSPendentes.eq("id_loja", loja_id);
+	}
+
+	const { count: osPendentes, error: erroOSPendentes } = await queryOSPendentes;
+
+	if (erroOSPendentes) {
+		console.error("❌ [DASHBOARD] Erro ao buscar OS pendentes:", erroOSPendentes);
+	}
+
+	// Buscar OS pagas mas não entregues (valor_pago > 0 e status != entregue/cancelado)
+	let queryOSPagaNaoEntregue = supabase
+		.from("ordem_servico")
+		.select("id", { count: "exact", head: true })
+		.gt("valor_pago", 0)
+		.not("status", "eq", "entregue")
+		.neq("status", "cancelado")
+		.gte("criado_em", inicioISO)
+		.lte("criado_em", fimISO);
+
+	if (loja_id) {
+		queryOSPagaNaoEntregue = queryOSPagaNaoEntregue.eq("id_loja", loja_id);
+	}
+
+	const { count: osPagasNaoEntregues, error: erroOSPagaNaoEntregue } = await queryOSPagaNaoEntregue;
+
+	if (erroOSPagaNaoEntregue) {
+		console.error("❌ [DASHBOARD] Erro ao buscar OS pagas não entregues:", erroOSPagaNaoEntregue);
+	}
 
 	// Buscar total de transferências
 	let queryTotalTransferencias = supabase
@@ -406,6 +449,8 @@ export class DashboardService {
 			contas_nao_pagas: totalContasNaoPagas,
 			total_os: totalOS || 0,
 			os_entregues: osEntregues || 0,
+			os_pendentes: osPendentes || 0,
+			os_pagas_nao_entregues: osPagasNaoEntregues || 0,
 			faturamento_os: faturamentoOS,
 			ganho_os: ganhoOS,
 			total_transferencias: totalTransferencias || 0,
