@@ -171,7 +171,9 @@ export default function DashboardPage() {
 				</div>
 			)}
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+			<section className="space-y-3">
+				<h2 className="text-xl font-semibold text-foreground">Vendas</h2>
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 				<div className="rounded-xl border border-success/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
@@ -196,32 +198,6 @@ export default function DashboardPage() {
 					</div>
 					<p className="mt-4 text-sm text-default-600">
 						Soma de todos os pagamentos de vendas recebidos no período padrão, ignorando créditos de cliente.
-					</p>
-				</div>
-
-				<div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
-					<div className="flex items-start justify-between gap-3">
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-warning dark:text-amber-400">
-								OS Pagas não Entregues
-							</p>
-							<p className="text-xs text-default-500 dark:text-white">
-								Valor pago {">"} 0 e não entregues
-							</p>
-							<p className="text-3xl font-bold text-foreground mt-2">
-								{loading
-									? "..."
-									: (dados?.metricas_adicionais.os_pagas_nao_entregues || 0).toLocaleString(
-										"pt-BR"
-									)}
-							</p>
-						</div>
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
-							<FaMoneyBillWave />
-						</div>
-					</div>
-					<p className="mt-4 text-sm text-default-600">
-						Pagas mas ainda não entregues; priorize a entrega/baixa do status.
 					</p>
 				</div>
 
@@ -331,11 +307,40 @@ export default function DashboardPage() {
 						Soma dos valores ainda não recebidos de vendas realizadas.
 					</p>
 				</div>
-			</div>
+				</div>
+			</section>
 
 			{/* Cards de Ordem de Serviço */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<section className="space-y-3">
+				<h2 className="text-xl font-semibold text-foreground">Ordens de Serviço</h2>
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+				<div className="rounded-xl border border-teal-500/20 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-900 p-6 shadow-sm">
+					<div className="flex items-start justify-between gap-3">
+						<div className="space-y-1">
+							<p className="text-sm font-medium text-teal-700 dark:text-teal-400">
+								Faturamento OS Processadas
+							</p>
+							<p className="text-xs text-default-500 dark:text-white">
+								Pagas não entregues + Entregues
+							</p>
+							<p className="text-3xl font-bold text-foreground mt-2">
+								{loading
+									? "..."
+									: formatarMoeda(
+											dados?.metricas_adicionais.faturamento_os_processadas || 0
+										)}
+							</p>
+						</div>
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-500/20 text-teal-700 text-lg">
+							<FaMoneyBill />
+						</div>
+					</div>
+					<p className="mt-4 text-sm text-default-600">
+						Valor total faturado em OS processadas.
+					</p>
+				</div>
 				<div className="rounded-xl border border-info/20 bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-cyan-950 dark:to-sky-900 p-6 shadow-sm">
+					
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
 							<p className="text-sm font-medium text-info dark:text-cyan-400">
@@ -361,29 +366,32 @@ export default function DashboardPage() {
 					</p>
 				</div>
 
-				<div className="rounded-xl border border-success/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+
+
+
+				<div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
-							<p className="text-sm font-medium text-success dark:text-green-400">
-								OS Entregues
-							</p>
-							<p className="text-xs text-default-500 dark:text-white">
-								Status entregue
+							<p className="text-sm font-medium text-warning dark:text-amber-400">
+							Aguardando Entrega
+						</p>
+						<p className="text-xs text-default-500 dark:text-white">
+							Já recebeu pagamento, falta entregar
 							</p>
 							<p className="text-3xl font-bold text-foreground mt-2">
 								{loading
 									? "..."
-									: (dados?.metricas_adicionais.os_entregues || 0).toLocaleString(
-											"pt-BR"
-										)}
+									: (dados?.metricas_adicionais.os_pagas_nao_entregues || 0).toLocaleString(
+										"pt-BR"
+									)}
 							</p>
 						</div>
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
-							<FaCheckCircle />
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
+							<FaMoneyBillWave />
 						</div>
 					</div>
 					<p className="mt-4 text-sm text-default-600">
-						Total de OS concluídas e entregues ao cliente.
+						Pagas mas ainda não entregues; priorize a entrega/baixa do status.
 					</p>
 				</div>
 
@@ -391,10 +399,10 @@ export default function DashboardPage() {
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
 							<p className="text-sm font-medium text-danger dark:text-red-400">
-								OS Pendentes
+								Aguardando Pagamento
 							</p>
 							<p className="text-xs text-default-500 dark:text-white">
-								Ainda não entregue
+								Serviço pronto, aguardando cliente pagar
 							</p>
 							<p className="text-3xl font-bold text-foreground mt-2">
 								{loading
@@ -413,38 +421,14 @@ export default function DashboardPage() {
 					</p>
 				</div>
 
-				<div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
-					<div className="flex items-start justify-between gap-3">
-						<div className="space-y-1">
-							<p className="text-sm font-medium text-warning dark:text-amber-400">
-								Faturamento OS
-							</p>
-							<p className="text-xs text-default-500 dark:text-white">
-								Valor total faturado
-							</p>
-							<p className="text-3xl font-bold text-foreground mt-2">
-								{loading
-									? "..."
-									: formatarMoeda(
-											dados?.metricas_adicionais.faturamento_os ||
-												0
-										)}
-							</p>
-						</div>
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
-							<FaMoneyBill />
-						</div>
-					</div>
-					<p className="mt-4 text-sm text-default-600">
-						Soma do valor total de todas as OS entregues.
-					</p>
-				</div>
 
-				<div className="rounded-xl border border-secondary/20 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
+
+
+				<div className="rounded-xl border border-lime-500/20 bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950 dark:to-green-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
-							<p className="text-sm font-medium text-secondary dark:text-purple-400">
-								Ganho com OS
+							<p className="text-sm font-medium text-lime-700 dark:text-lime-400">
+								Ganho OS Processadas
 							</p>
 							<p className="text-xs text-default-500 dark:text-white">
 								Lucro (Faturamento - Custo)
@@ -453,23 +437,52 @@ export default function DashboardPage() {
 								{loading
 									? "..."
 									: formatarMoeda(
-											dados?.metricas_adicionais.ganho_os ||
-												0
+											dados?.metricas_adicionais.ganho_os_processadas || 0
 										)}
 							</p>
 						</div>
-						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-secondary text-lg">
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-500/20 text-lime-700 text-lg">
 							<FaGem />
 						</div>
 					</div>
 					<p className="mt-4 text-sm text-default-600">
-						Lucro real: faturamento menos o custo das peças utilizadas.
+						Lucro real em OS processadas: faturamento menos o custo das peças.
 					</p>
 				</div>
-			</div>
+
+
+				<div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-900 p-6 shadow-sm">
+					<div className="flex items-start justify-between gap-3">
+						<div className="space-y-1">
+							<p className="text-sm font-medium text-blue-700 dark:text-blue-400">
+								OS Processadas
+							</p>
+							<p className="text-xs text-default-500 dark:text-white">
+								Pagas não entregues + Entregues
+							</p>
+							<p className="text-3xl font-bold text-foreground mt-2">
+								{loading
+									? "..."
+									: (dados?.metricas_adicionais.os_processadas || 0).toLocaleString(
+											"pt-BR"
+										)}
+							</p>
+						</div>
+						<div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 text-blue-700 text-lg">
+							<FaCheckCircle />
+						</div>
+					</div>
+					<p className="mt-4 text-sm text-default-600">
+						Total de OS que foram pagas (não entregues) ou já entregues.
+					</p>
+				</div>
+				</div>
+			</section>
 
 			{/* Cards de Transferências */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<section className="space-y-3">
+				<h2 className="text-xl font-semibold text-foreground">Transferências</h2>
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
@@ -521,10 +534,13 @@ export default function DashboardPage() {
 						Total de transferências aguardando confirmação.
 					</p>
 				</div>
-			</div>
+				</div>
+			</section>
 
 			{/* Cards de Quebra de Peças e Crédito de Cliente */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<section className="space-y-3">
+				<h2 className="text-xl font-semibold text-foreground">Quebras e Créditos</h2>
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div className="rounded-xl border border-red-500/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
 					<div className="flex items-start justify-between gap-3">
 						<div className="space-y-1">
@@ -585,7 +601,8 @@ export default function DashboardPage() {
 						Saldo total de créditos disponíveis dos clientes.
 					</p>
 				</div>
-			</div>
+				</div>
+			</section>
 				</>
 			)}
 		</div>
