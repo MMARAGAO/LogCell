@@ -186,6 +186,41 @@ export class DashboardService {
 		}
 
 	// Buscar métricas de Ordem de Serviço
+	let fromPagamentosOS = 0;
+	let toPagamentosOS = pageSize - 1;
+	let pagamentosOSRecebidos = 0;
+
+	while (true) {
+		let queryPagamentosOS = supabase
+			.from("ordem_servico_pagamentos")
+			.select(
+				"valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)"
+			)
+			.gte("data_pagamento", inicioISO)
+			.lte("data_pagamento", fimISO)
+			.range(fromPagamentosOS, toPagamentosOS);
+
+		const { data: pagamentosOSData, error: erroPagamentosOS } = await queryPagamentosOS;
+
+		if (erroPagamentosOS) {
+			console.error("❌ [DASHBOARD] Erro ao buscar pagamentos de OS:", erroPagamentosOS);
+			break;
+		}
+
+		const batchPagamentosOS = pagamentosOSData || [];
+		batchPagamentosOS.forEach((p: any) => {
+			if (loja_id && p.os?.id_loja !== loja_id) return;
+			pagamentosOSRecebidos += Number(p.valor || 0);
+		});
+
+		if (batchPagamentosOS.length < pageSize) {
+			break;
+		}
+
+		fromPagamentosOS += pageSize;
+		toPagamentosOS += pageSize;
+	}
+
 	let queryTotalOS = supabase
 		.from("ordem_servico")
 		.select("id", { count: "exact", head: true })
@@ -203,12 +238,11 @@ export class DashboardService {
 		console.error("❌ [DASHBOARD] Erro ao buscar total de OS:", erroTotalOS);
 	}
 
-	// Buscar OS entregues E QUITADAS (valor_pago > 0)
+	// Buscar OS entregues
 	let queryOSEntregues = supabase
 		.from("ordem_servico")
 		.select("id", { count: "exact", head: true })
 		.eq("status", "entregue")
-		.gt("valor_pago", 0)
 		.gte("criado_em", inicioISO)
 		.lte("criado_em", fimISO);
 
@@ -282,10 +316,104 @@ export class DashboardService {
 		fromOS += pageSize;
 		toOS += pageSize;
 	}
+	const ganhoOS = faturamentoOS - custoOS;
+		// Buscar faturamento de OS processadas (pagas não entregues + entregues)
+	let fromOSProcessadas = 0;
+	let toOSProcessadas = pageSize - 1;
+	let faturamentoOSProcessadas = 0;
 
-		const ganhoOS = faturamentoOS - custoOS;
+	while (true) {
+		let queryOSProcessadas = supabase
+			.from("ordem_servico")
+			.select("valor_pago")
+			.or(`valor_pago.gt.0,status.eq.entregue`)
+			.neq("status", "cancelado")
+			.gte("criado_em", inicioISO)
+			.lte("criado_em", fimISO)
+			.range(fromOSProcessadas, toOSProcessadas);
 
-	// Buscar OS pendentes (status != entregue/cancelado E sem pagamento)
+		if (loja_id) {
+			queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
+		}
+
+		const { data: osProcessadasData, error: erroOSProcessadas } = await queryOSProcessadas;
+
+		if (erroOSProcessadas) {
+			console.error("❌ [DASHBOARD] Erro ao buscar faturamento de OS processadas:", erroOSProcessadas);
+			break;
+		}
+
+		const batchOSProcessadas = osProcessadasData || [];
+		batchOSProcessadas.forEach((os: any) => {
+			faturamentoOSProcessadas += Number(os.valor_pago || 0);
+		});
+
+		if (batchOSProcessadas.length < pageSize) {
+			break;
+		}
+
+		fromOSProcessadas += pageSize;
+		toOSProcessadas += pageSize;
+	}
+
+	// Buscar faturamento de OS processadas usando pagamentos reais (não valor_pago)
+	let fromOSPagtos = 0;
+	let toOSPagtos = pageSize - 1;
+	faturamentoOSProcessadas = 0;
+	const osProcessadasIds: string[] = [];
+
+	while (true) {
+		let queryOSPagtos = supabase
+			.from("ordem_servico_pagamentos")
+			.select(
+				"valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)"
+			)
+			.gte("data_pagamento", inicioISO)
+			.lte("data_pagamento", fimISO)
+			.range(fromOSPagtos, toOSPagtos);
+
+		const { data: osPagtosData, error: erroOSPagtos } = await queryOSPagtos;
+
+		if (erroOSPagtos) {
+			console.error("❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas:", erroOSPagtos);
+			break;
+		}
+
+		const batchOSPagtos = osPagtosData || [];
+		batchOSPagtos.forEach((p: any) => {
+			if (loja_id && p.os?.id_loja !== loja_id) return;
+			faturamentoOSProcessadas += Number(p.valor || 0);
+			if (!osProcessadasIds.includes(p.id_ordem_servico)) {
+				osProcessadasIds.push(p.id_ordem_servico);
+			}
+		});
+
+		if (batchOSPagtos.length < pageSize) {
+			break;
+		}
+
+		fromOSPagtos += pageSize;
+		toOSPagtos += pageSize;
+	}
+
+	// Buscar peças dessas OS para calcular custo
+		let custOSProcessadas = 0;
+	if (osProcessadasIds.length > 0) {
+		const { data: pecasProcessadasData, error: erroPecasProcessadas } = await supabase
+			.from("ordem_servico_pecas")
+			.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
+			.in("id_ordem_servico", osProcessadasIds);
+
+		if (!erroPecasProcessadas && pecasProcessadasData) {
+			pecasProcessadasData.forEach((peca: any) => {
+				const precoCompra = Number(peca.produto?.preco_compra || 0);
+				const quantidade = Number(peca.quantidade || 0);
+				custOSProcessadas += precoCompra * quantidade;
+			});
+		}
+	}
+
+	const ganhoOSProcessadas = faturamentoOSProcessadas - custOSProcessadas;
 	let queryOSPendentes = supabase
 		.from("ordem_servico")
 		.select("id", { count: "exact", head: true })
@@ -324,6 +452,9 @@ export class DashboardService {
 	if (erroOSPagaNaoEntregue) {
 		console.error("❌ [DASHBOARD] Erro ao buscar OS pagas não entregues:", erroOSPagaNaoEntregue);
 	}
+
+	// Calcular OS processadas (pagas não entregues + entregues)
+	const osProcessadas = (osPagasNaoEntregues || 0) + (osEntregues || 0);
 
 	// Buscar total de transferências
 	let queryTotalTransferencias = supabase
@@ -443,6 +574,7 @@ export class DashboardService {
 	return {
 		metricas_adicionais: {
 			pagamentos_sem_credito_cliente: pagamentosSemCredito,
+			pagamentos_os_recebidos: pagamentosOSRecebidos,
 			total_vendas: count || 0,
 			ganho_total_vendas: lucroVendas,
 			ticket_medio: ticketMedio,
@@ -451,6 +583,9 @@ export class DashboardService {
 			os_entregues: osEntregues || 0,
 			os_pendentes: osPendentes || 0,
 			os_pagas_nao_entregues: osPagasNaoEntregues || 0,
+			os_processadas: osProcessadas,
+			faturamento_os_processadas: faturamentoOSProcessadas,
+			ganho_os_processadas: ganhoOSProcessadas,
 			faturamento_os: faturamentoOS,
 			ganho_os: ganhoOS,
 			total_transferencias: totalTransferencias || 0,

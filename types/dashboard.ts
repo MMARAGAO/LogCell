@@ -6,10 +6,14 @@ export interface MetricasAdicionais {
 	ganho_total_vendas: number;
 	ticket_medio: number;
 	contas_nao_pagas: number;
+	pagamentos_os_recebidos: number;
 	total_os: number;
 	os_entregues: number;
 	os_pendentes: number;
+	os_processadas: number;
 	os_pagas_nao_entregues: number;
+	faturamento_os_processadas: number;
+	ganho_os_processadas: number;
 	faturamento_os: number;
 	ganho_os: number;
 	total_transferencias: number;
