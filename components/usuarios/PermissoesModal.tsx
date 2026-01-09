@@ -958,12 +958,28 @@ export function PermissoesModal({
                     Excluir
                   </Checkbox>
                   <Checkbox
+                    isSelected={permissoes.os?.deletar_entregue}
+                    onValueChange={() =>
+                      handleTogglePermissao("os", "deletar_entregue")
+                    }
+                  >
+                    Deletar Entregue
+                  </Checkbox>
+                  <Checkbox
                     isSelected={permissoes.os?.cancelar}
                     onValueChange={() =>
                       handleTogglePermissao("os", "cancelar")
                     }
                   >
                     Cancelar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.os?.cancelar_entregue}
+                    onValueChange={() =>
+                      handleTogglePermissao("os", "cancelar_entregue")
+                    }
+                  >
+                    Cancelar Entregue
                   </Checkbox>
                   <Checkbox
                     isSelected={permissoes.os?.assumir}

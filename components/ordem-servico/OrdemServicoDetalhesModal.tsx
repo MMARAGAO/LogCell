@@ -538,7 +538,7 @@ export default function OrdemServicoDetalhesModal({
             <h2 className="text-xl font-bold">
               Ordem de Serviço #{osAtual.numero_os}
             </h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Chip
                 color={STATUS_OS_COLORS[osAtual.status]}
                 size="sm"
@@ -553,6 +553,16 @@ export default function OrdemServicoDetalhesModal({
               >
                 {PRIORIDADE_OS_LABELS[osAtual.prioridade]}
               </Chip>
+              {osAtual.caixa && osAtual.caixa.some(c => c.status_caixa === "cancelado") && (
+                <Chip
+                  color="danger"
+                  size="sm"
+                  variant="flat"
+                  startContent={<XCircle className="w-4 h-4" />}
+                >
+                  Caixa cancelado
+                </Chip>
+              )}
             </div>
           </div>
         </ModalHeader>
@@ -569,10 +579,7 @@ export default function OrdemServicoDetalhesModal({
                   currentStatus={osAtual.status}
                   onStatusChange={handleStatusChange}
                   isUpdating={loadingStatus}
-                  disabled={
-                    osAtual.status === "cancelado" ||
-                    osAtual.status === "entregue"
-                  }
+                  disabled={osAtual.status === "cancelado"}
                 />
               </CardBody>
             </Card>
@@ -1221,8 +1228,7 @@ export default function OrdemServicoDetalhesModal({
         </ModalBody>
 
         <ModalFooter>
-          {osAtual?.status !== "cancelado" &&
-            osAtual?.status !== "entregue" && (
+          {osAtual?.status !== "cancelado" && (
               <Button
                 color="danger"
                 variant="flat"

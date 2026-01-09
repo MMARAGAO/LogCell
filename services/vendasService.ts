@@ -1392,9 +1392,10 @@ export class VendasService {
       });
 
       // Usar função SQL que configura o usuário e deleta a venda
-      // Isso garante que o trigger log_deletion captura o usuário correto
-      console.log('🔍 Chamando deletar_venda_com_usuario:', { vendaId, usuarioId });
-      const { data, error } = await supabase.rpc('deletar_venda_com_usuario', {
+      // Usar a nova função que usa delete_context para rastrear o usuário
+      // Isso garante que o trigger log_deletion captura o usuário correto mesmo em cascata
+      console.log('🔍 Chamando deletar_venda_com_contexto:', { vendaId, usuarioId });
+      const { data, error } = await supabase.rpc('deletar_venda_com_contexto', {
         p_venda_id: vendaId,
         p_usuario_id: usuarioId
       });

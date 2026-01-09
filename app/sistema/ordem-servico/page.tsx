@@ -252,18 +252,24 @@ export default function OrdemServicoPage() {
       return;
     }
 
-    // Verificar se a OS foi cancelada
-    if (os.status !== "cancelado") {
-      toast.error("A OS precisa ser cancelada antes de ser excluída");
+    // Se estiver ENTREGUE, exigir permissão especial
+    if (os.status === "entregue" && !temPermissao("os.deletar_entregue")) {
+      toast.error("Você não tem permissão para excluir OSs entregues");
       return;
     }
+
+    // Permitir exclusão mesmo se estiver entregue (além de cancelada)
+    // Mantemos confirmação forte para evitar exclusões acidentais
 
     console.log("✅ Permissão OK, abrindo confirmação...");
 
     try {
       const confirmado = await confirm({
         title: "Excluir Ordem de Serviço",
-        message: `Deseja realmente excluir a OS #${os.numero_os}? Esta ação não pode ser desfeita.`,
+        message:
+          os.status === "entregue"
+            ? `A OS #${os.numero_os} está ENTREGUE. Deseja realmente excluir? Isto removerá os registros relacionados.`
+            : `Deseja realmente excluir a OS #${os.numero_os}? Esta ação não pode ser desfeita.`,
         confirmText: "Excluir",
         cancelText: "Cancelar",
         variant: "danger",
@@ -306,15 +312,15 @@ export default function OrdemServicoPage() {
       return;
     }
 
-    if (os.status === "entregue") {
-      toast.error("Não é possível cancelar uma OS já entregue");
-      return;
-    }
+    // Permitir cancelamento mesmo após entregue
 
     try {
       const confirmado = await confirm({
         title: "Cancelar Ordem de Serviço",
-        message: `Deseja realmente cancelar a OS #${os.numero_os}? O estoque das peças será devolvido.`,
+        message:
+          os.status === "entregue"
+            ? `A OS #${os.numero_os} está ENTREGUE. Ao cancelar, o lançamento no caixa será cancelado e as peças podem ser devolvidas conforme regras de estoque.`
+            : `Deseja realmente cancelar a OS #${os.numero_os}? O estoque das peças será devolvido.`,
         confirmText: "Cancelar OS",
         cancelText: "Voltar",
         variant: "warning",
@@ -640,12 +646,8 @@ export default function OrdemServicoPage() {
       onPress: () => handleVerHistorico(os),
     });
 
-    // Cancelar OS
-    if (
-      temPermissao("os.editar") &&
-      os.status !== "cancelado" &&
-      os.status !== "entregue"
-    ) {
+    // Cancelar OS (permitido exceto se já estiver cancelada)
+    if (temPermissao("os.editar") && os.status !== "cancelado") {
       items.push({
         key: "cancelar",
         label: "Cancelar OS",
@@ -654,8 +656,20 @@ export default function OrdemServicoPage() {
       });
     }
 
-    // Excluir OS (só se estiver cancelada)
-    if (temPermissao("os.deletar") && os.status === "cancelado") {
+    // Cancelar OS entregue (permitir se estiver entregue com permissão específica)
+    if (temPermissao("os.cancelar_entregue") && os.status === "entregue") {
+      items.push({
+        key: "cancelar_entregue",
+        label: "Cancelar OS",
+        onPress: () => handleCancelarOS(os),
+        color: "warning" as const,
+      });
+    }
+
+    // Excluir OS (permitir se estiver cancelada ou entregue com permissão específica)
+    const podeExcluirCancelada = temPermissao("os.deletar") && os.status === "cancelado";
+    const podeExcluirEntregue = temPermissao("os.deletar_entregue") && os.status === "entregue";
+    if (podeExcluirCancelada || podeExcluirEntregue) {
       items.push({
         key: "deletar",
         label: "Excluir OS",
@@ -1104,13 +1118,20 @@ export default function OrdemServicoPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        color={getStatusColor(os.status)}
-                        variant="flat"
-                        size="sm"
-                      >
-                        {getStatusLabel(os.status)}
-                      </Chip>
+                      <div className="flex items-center gap-2">
+                        <Chip
+                          color={getStatusColor(os.status)}
+                          variant="flat"
+                          size="sm"
+                        >
+                          {getStatusLabel(os.status)}
+                        </Chip>
+                        {os.caixa && os.caixa.some((c) => c.status_caixa === "cancelado") && (
+                          <Chip color="danger" variant="flat" size="sm">
+                            Caixa cancelado
+                          </Chip>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{formatarData(os.data_entrada)}</TableCell>
                     <TableCell>

@@ -45,6 +45,7 @@ import {
 import { useState, useEffect } from "react";
 import MiniCarrossel from "@/components/MiniCarrossel";
 import { useTextosGarantia } from "@/hooks/useTextosGarantia";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { TipoServicoGarantia, TIPOS_SERVICO_GARANTIA } from "@/types/garantia";
 import { useToast } from "@/components/Toast";
 
@@ -73,6 +74,7 @@ export default function OrdemServicoCard({
   onGerenciarPagamentos,
   onAssumirOS,
 }: OrdemServicoCardProps) {
+  const { temPermissao } = usePermissoes();
   const [fotos, setFotos] = useState<string[]>([]);
   const [loadingFotos, setLoadingFotos] = useState(false);
   const [modalGarantiaOpen, setModalGarantiaOpen] = useState(false);
@@ -211,6 +213,16 @@ export default function OrdemServicoCard({
       });
     }
 
+    // Indicar se o lançamento no caixa foi cancelado
+    if (os.caixa && os.caixa.some((c) => c.status_caixa === "cancelado")) {
+      alertas.push({
+        tipo: "caixa",
+        mensagem: "Lançamento no caixa cancelado",
+        cor: "danger",
+        icone: AlertTriangle,
+      });
+    }
+
     return alertas;
   };
 
@@ -340,9 +352,7 @@ export default function OrdemServicoCard({
                 >
                   Ver Histórico
                 </DropdownItem>
-                {onCancelar &&
-                os.status !== "cancelado" &&
-                os.status !== "entregue" ? (
+                {onCancelar && os.status !== "cancelado" && os.status !== "entregue" && temPermissao("os.editar") ? (
                   <DropdownItem
                     key="cancelar"
                     startContent={<AlertTriangle className="w-4 h-4" />}
@@ -353,7 +363,19 @@ export default function OrdemServicoCard({
                     Cancelar OS
                   </DropdownItem>
                 ) : null}
-                {os.status === "cancelado" ? (
+                {onCancelar && os.status === "entregue" && temPermissao("os.cancelar_entregue") ? (
+                  <DropdownItem
+                    key="cancelar_entregue"
+                    startContent={<AlertTriangle className="w-4 h-4" />}
+                    color="warning"
+                    className="text-warning"
+                    onPress={() => onCancelar(os)}
+                  >
+                    Cancelar OS
+                  </DropdownItem>
+                ) : null}
+                {((temPermissao("os.deletar") && os.status === "cancelado") ||
+                  (temPermissao("os.deletar_entregue") && os.status === "entregue")) ? (
                   <DropdownItem
                     key="deletar"
                     startContent={<Trash2 className="w-4 h-4" />}

@@ -36,7 +36,8 @@ export async function buscarOrdensServico(filtros?: {
         `
         *,
         loja:lojas!id_loja(id, nome),
-        pagamentos:ordem_servico_pagamentos(id, valor, forma_pagamento, criado_em)
+        pagamentos:ordem_servico_pagamentos(id, valor, forma_pagamento, criado_em),
+        caixa:ordem_servico_caixa(id, status_caixa)
       `
       )
       .order("numero_os", { ascending: false });
@@ -256,57 +257,35 @@ export async function mudarStatusOS(
 }
 
 /**
- * Cancelar OS (devolve peças ao estoque via trigger)
+ * Cancelar OS (trigger do banco devolve peças ao estoque automaticamente)
  */
 export async function cancelarOrdemServico(id: string, userId: string) {
-  return mudarStatusOS(id, "cancelado", userId);
+  try {
+    const result = await mudarStatusOS(id, "cancelado", userId);
+    
+    try {
+      // Cancelar lançamento no caixa vinculado à OS, se existir
+      await supabase
+        .from("ordem_servico_caixa")
+        .update({ status_caixa: "cancelado" })
+        .eq("id_ordem_servico", id);
+    } catch (err) {
+      console.warn("Aviso: falha ao cancelar lançamento do caixa da OS", err);
+    }
+    
+    return result;
+  } catch (error: any) {
+    console.error("Erro ao cancelar ordem de serviço:", error);
+    return { error: error.message || "Erro ao cancelar ordem de serviço" };
+  }
 }
 
 /**
- * Deletar OS
+ * Deletar OS (trigger do banco devolve peças ao estoque automaticamente)
  */
 export async function deletarOrdemServico(id: string) {
   try {
     console.log("🗑️ Deletando ordem de serviço:", id);
-
-    // Reverter estoque de peças reservadas antes de deletar
-    const { data: pecas } = await supabase
-      .from("ordem_servico_pecas")
-      .select("*")
-      .eq("id_ordem_servico", id);
-
-    if (pecas && pecas.length > 0) {
-      for (const peca of pecas) {
-        // Se a peça estava reservada mas não baixada, devolver ao estoque
-        if (
-          peca.estoque_reservado &&
-          peca.id_produto &&
-          !peca.estoque_baixado
-        ) {
-          const { data: estoqueAtual } = await supabase
-            .from("estoque_lojas")
-            .select("quantidade")
-            .eq("id_produto", peca.id_produto)
-            .eq("id_loja", peca.id_loja)
-            .single();
-
-          if (estoqueAtual) {
-            await supabase
-              .from("estoque_lojas")
-              .update({
-                quantidade: estoqueAtual.quantidade + peca.quantidade,
-                atualizado_em: new Date().toISOString(),
-              })
-              .eq("id_produto", peca.id_produto)
-              .eq("id_loja", peca.id_loja);
-
-            console.log(
-              `✅ Estoque devolvido: ${peca.quantidade}x produto ${peca.id_produto}`
-            );
-          }
-        }
-      }
-    }
 
     // Deletar ordem de serviço - CASCADE vai deletar registros relacionados
     const { error } = await supabase
