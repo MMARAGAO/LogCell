@@ -11,6 +11,9 @@ export type Permissao =
   | "os.criar"
   | "os.editar"
   | "os.deletar"
+  | "os.deletar_entregue"
+  | "os.cancelar"
+  | "os.cancelar_entregue"
   | "os.assumir"
   | "os.gerenciar_pecas"
   | "os.gerenciar_fotos"
@@ -243,7 +246,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "os.visualizar",
     "os.criar",
     "os.editar",
-    "os.deletar",
+    "os.deletar",    "os.deletar_entregue",    "os.deletar_entregue",
     "os.assumir",
     "os.gerenciar_pecas",
     "os.gerenciar_fotos",

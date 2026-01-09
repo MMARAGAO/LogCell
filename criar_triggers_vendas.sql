@@ -1,21 +1,34 @@
 -- Função para registrar deleções
 CREATE OR REPLACE FUNCTION public.log_deletion()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_old jsonb := to_jsonb(OLD);
+  v_registro_id uuid;
+  v_numero_venda integer;
+  v_valor_total numeric;
 BEGIN
+  v_registro_id := COALESCE(
+    NULLIF(v_old ->> 'id', '')::uuid,
+    NULLIF(v_old ->> 'venda_id', '')::uuid
+  );
+
+  v_numero_venda := NULLIF(v_old ->> 'numero_venda', '')::integer;
+  v_valor_total := NULLIF(v_old ->> 'valor_total', '')::numeric;
+
   INSERT INTO public.audit_logs_deletions (
     tabela_nome,
     registro_id,
+    numero_venda,
+    valor_total,
     dados_apagados,
     apagado_por,
     criado_em
   ) VALUES (
     TG_TABLE_NAME,
-    CASE 
-      WHEN OLD.id::text ~ '^[0-9a-f\-]{36}$' THEN OLD.id
-      WHEN OLD.numero_os IS NOT NULL THEN OLD.numero_os::uuid
-      ELSE NULL 
-    END,
-    row_to_json(OLD),
+    v_registro_id,
+    v_numero_venda,
+    v_valor_total,
+    v_old,
     NULLIF(current_setting('app.user_id', true), '')::uuid,
     now()
   );

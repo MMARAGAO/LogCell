@@ -122,6 +122,10 @@ export interface OrdemServico {
     forma_pagamento: string;
     criado_em: string;
   }>;
+  caixa?: Array<{
+    id: string;
+    status_caixa: StatusCaixaOS;
+  }>;
 }
 
 // =====================================================

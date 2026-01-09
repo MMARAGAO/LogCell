@@ -48,6 +48,49 @@ interface PermissoesUsuario {
   atualizado_em: string;
 }
 
+// Mapa de labels legíveis para permissões
+const PERMISSOES_LABELS: Record<string, string> = {
+  "deletar_entregue": "Deletar Entregue",
+  "cancelar": "Cancelar",
+  "cancelar_entregue": "Cancelar Entregue",
+  "gerenciar_permissoes": "Gerenciar Permissões",
+  "gerenciar_pecas": "Gerenciar Peças",
+  "gerenciar_fotos": "Gerenciar Fotos",
+  "gerenciar_pagamentos": "Gerenciar Pagamentos",
+  "alterar_status": "Alterar Status",
+  "assumir": "Assumir",
+  "gerar_pdf": "Gerar PDF",
+  "processar_creditos": "Processar Créditos",
+  "editar_pagas": "Editar Pagas",
+  "aplicar_desconto": "Aplicar Desconto",
+  "processar_pagamentos": "Processar Pagamentos",
+  "ver_estatisticas_faturamento": "Ver Estatísticas",
+  "ver_todas_vendas": "Ver Todas Vendas",
+  "ver_resumo_pagamentos": "Ver Resumo",
+  "devolver": "Devolver",
+  "transferir": "Transferir",
+  "ajustar": "Ajustar",
+  "ver_estatisticas": "Ver Estatísticas",
+  "ver_preco_custo": "Ver Preço Custo",
+  "abrir": "Abrir",
+  "fechar": "Fechar",
+  "sangria": "Sangria",
+  "suprimento": "Suprimento",
+  "visualizar_movimentacoes": "Ver Movimentações",
+  "ver_relatorios": "Ver Relatórios",
+  "exportar_dados": "Exportar Dados",
+  "definir_metas": "Definir Metas",
+  "visualizar_metas_outros": "Ver Metas Outros",
+  "filtrar": "Filtrar",
+  "ver_detalhes": "Ver Detalhes",
+  "exportar": "Exportar",
+  "aprovar": "Aprovar",
+  "rejeitar": "Rejeitar",
+  "deletar_sem_restricao": "Deletar sem Restrição",
+  "confirmar": "Confirmar",
+  "gerenciar": "Gerenciar",
+};
+
 // Lista de todas as permissões disponíveis organizadas por módulo
 const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
   Clientes: [
@@ -62,6 +105,9 @@ const PERMISSOES_POR_MODULO: Record<string, Permissao[]> = {
     "os.criar",
     "os.editar",
     "os.deletar",
+    "os.deletar_entregue",
+    "os.cancelar",
+    "os.cancelar_entregue",
     "os.assumir",
     "os.gerenciar_pecas",
     "os.gerenciar_fotos",
@@ -552,15 +598,19 @@ export default function GerenciarPermissoesPage() {
                         }
                       >
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                          {permissoes.map((permissao) => (
-                            <Checkbox
-                              key={permissao}
-                              value={permissao}
-                              size="sm"
-                            >
-                              {permissao.split(".").pop()}
-                            </Checkbox>
-                          ))}
+                          {permissoes.map((permissao) => {
+                            const chave = permissao.split(".").pop() || permissao;
+                            const label = PERMISSOES_LABELS[chave] || chave;
+                            return (
+                              <Checkbox
+                                key={permissao}
+                                value={permissao}
+                                size="sm"
+                              >
+                                {label}
+                              </Checkbox>
+                            );
+                          })}
                         </div>
                       </CheckboxGroup>
                     </div>

@@ -9,7 +9,9 @@ Sistema automático de auditoria que registra todas as exclusões (DELETE) nas t
 ### Campos:
 - `id` (uuid): Identificador único do registro de log
 - `tabela_nome` (varchar): Nome da tabela de origem onde ocorreu a deleção
-- `registro_id` (uuid): ID do registro que foi deletado
+- `registro_id` (uuid): ID do registro que foi deletado (ou venda_id para tabelas filhas)
+- `numero_venda` (integer): Número da venda (quando existir no registro apagado)
+- `valor_total` (numeric): Valor total da venda (quando existir no registro apagado)
 - `dados_apagados` (jsonb): Dados completos do registro antes da deleção
 - `apagado_por` (uuid): ID do usuário que realizou a deleção
 - `criado_em` (timestamp): Data e hora em que a deleção foi registrada

@@ -115,7 +115,9 @@ export interface PermissoesModulos {
     criar: boolean;
     editar: boolean;
     excluir: boolean;
+    deletar_entregue: boolean;
     cancelar: boolean;
+    cancelar_entregue: boolean;
     gerenciar_pecas: boolean;
     gerenciar_fotos: boolean;
     gerenciar_pagamentos: boolean;
