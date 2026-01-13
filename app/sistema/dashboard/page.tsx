@@ -531,12 +531,15 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="border-t border-violet-200 dark:border-violet-800 pt-3">
-                        <p className="text-xs text-default-500 mb-1">Valor Recebido</p>
+                        <p className="text-xs text-default-500 mb-1">
+                          Valor Recebido
+                        </p>
                         <p className="text-xl font-bold text-violet-700">
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_lojista_faturamento || 0
+                                dados?.metricas_adicionais
+                                  .os_lojista_faturamento || 0
                               )}
                         </p>
                       </div>
@@ -574,17 +577,21 @@ export default function DashboardPage() {
                           {loading
                             ? "..."
                             : (
-                                dados?.metricas_adicionais.os_consumidor_final_pagas || 0
+                                dados?.metricas_adicionais
+                                  .os_consumidor_final_pagas || 0
                               ).toLocaleString("pt-BR")}
                         </p>
                       </div>
                       <div className="border-t border-orange-200 dark:border-orange-800 pt-3">
-                        <p className="text-xs text-default-500 mb-1">Valor Recebido</p>
+                        <p className="text-xs text-default-500 mb-1">
+                          Valor Recebido
+                        </p>
                         <p className="text-xl font-bold text-orange-700">
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_consumidor_final_faturamento || 0
+                                dados?.metricas_adicionais
+                                  .os_consumidor_final_faturamento || 0
                               )}
                         </p>
                       </div>
@@ -594,7 +601,8 @@ export default function DashboardPage() {
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_consumidor_final_lucro || 0
+                                dados?.metricas_adicionais
+                                  .os_consumidor_final_lucro || 0
                               )}
                         </p>
                       </div>
@@ -622,17 +630,21 @@ export default function DashboardPage() {
                           {loading
                             ? "..."
                             : (
-                                dados?.metricas_adicionais.os_sem_tipo_pagas || 0
+                                dados?.metricas_adicionais.os_sem_tipo_pagas ||
+                                0
                               ).toLocaleString("pt-BR")}
                         </p>
                       </div>
                       <div className="border-t border-slate-200 dark:border-slate-800 pt-3">
-                        <p className="text-xs text-default-500 mb-1">Valor Recebido</p>
+                        <p className="text-xs text-default-500 mb-1">
+                          Valor Recebido
+                        </p>
                         <p className="text-xl font-bold text-slate-700">
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_sem_tipo_faturamento || 0
+                                dados?.metricas_adicionais
+                                  .os_sem_tipo_faturamento || 0
                               )}
                         </p>
                       </div>
@@ -642,7 +654,8 @@ export default function DashboardPage() {
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_sem_tipo_lucro || 0
+                                dados?.metricas_adicionais.os_sem_tipo_lucro ||
+                                  0
                               )}
                         </p>
                       </div>
