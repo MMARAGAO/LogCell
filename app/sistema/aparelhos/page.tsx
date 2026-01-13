@@ -33,7 +33,23 @@ import {
   TableCellsIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  ShoppingBagIcon,
+  ExclamationTriangleIcon,
+  ArrowRightIcon,
+  CameraIcon,
 } from "@heroicons/react/24/outline";
+import {
+  DollarSign,
+  ShoppingBag,
+  TrendingUp,
+  Wallet,
+  Box,
+  Coins,
+  Gauge,
+  PiggyBank,
+} from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
@@ -48,6 +64,12 @@ import {
 } from "@/services/aparelhosService";
 import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { AparelhoFormModal } from "@/components/aparelhos/AparelhoFormModal";
+import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
+import { BarcodeScanner } from "@/components/BarcodeScanner";
+import {
+  AparelhosDashboardService,
+  KpisAparelhos,
+} from "@/services/aparelhosDashboardService";
 
 const ESTADOS = [
   { value: "novo", label: "Novo" },
@@ -84,6 +106,19 @@ export default function AparelhosPage() {
   const [visualizacao, setVisualizacao] = useState<"tabela" | "cards">("cards");
   const itensPorPagina = 20;
 
+  // KPIs
+  const [kpis, setKpis] = useState<KpisAparelhos>({
+    vendasHoje: 0,
+    recebimentosHoje: 0,
+    aReceber: 0,
+    vendasMes: 0,
+    disponiveis: 0,
+    valorVendidoMes: 0,
+    ticketMedioMes: 0,
+    lucroEstimadoMes: 0,
+  });
+  const [loadingKpis, setLoadingKpis] = useState(false);
+
   // Modals
   const [modalFormAberto, setModalFormAberto] = useState(false);
   const [aparelhoParaEditar, setAparelhoParaEditar] = useState<
@@ -93,6 +128,11 @@ export default function AparelhosPage() {
   const [aparelhoParaDeletar, setAparelhoParaDeletar] = useState<
     Aparelho | undefined
   >(undefined);
+  const [modalRecebimentoAberto, setModalRecebimentoAberto] = useState(false);
+  const [aparelhoParaReceber, setAparelhoParaReceber] = useState<
+    Aparelho | undefined
+  >(undefined);
+  const [scannerAberto, setScannerAberto] = useState(false);
 
   // Permissões
   const podeVisualizar = temPermissao("aparelhos.visualizar");
@@ -105,7 +145,25 @@ export default function AparelhosPage() {
     if (podeVisualizar) {
       carregarDados();
     }
+  }, [lojaId, podeVisualizar, filtros]);
+
+  useEffect(() => {
+    if (podeVisualizar) {
+      carregarKpis();
+    }
   }, [lojaId, podeVisualizar]);
+
+  async function carregarKpis() {
+    try {
+      setLoadingKpis(true);
+      const k = await AparelhosDashboardService.getKpis({
+        loja_id: lojaId || undefined,
+      });
+      setKpis(k);
+    } finally {
+      setLoadingKpis(false);
+    }
+  }
 
   async function carregarDados() {
     try {
@@ -233,6 +291,27 @@ export default function AparelhosPage() {
     }
   };
 
+  const handleAcaoCard = async (key: string, aparelho: Aparelho) => {
+    if (key === "editar") {
+      handleAbrirFormEditar(aparelho);
+      return;
+    }
+    if (key === "deletar") {
+      handleAbrirConfirmDelete(aparelho);
+      return;
+    }
+    if (key === "receber_pagamento") {
+      setAparelhoParaReceber(aparelho);
+      setModalRecebimentoAberto(true);
+      return;
+    }
+    if (key.startsWith("status:")) {
+      const novoStatus = key.split(":")[1];
+      await handleAtualizarStatus(aparelho.id, novoStatus);
+      return;
+    }
+  };
+
   const handleAtualizarStatus = async (
     aparelhoId: string,
     novoStatus: string
@@ -297,18 +376,125 @@ export default function AparelhosPage() {
         )}
       </div>
 
+      {/* KPIs - Linha 1 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <ShoppingBag className="w-5 h-5 text-primary" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">
+                Vendas de Aparelhos (Hoje)
+              </p>
+              <h3 className="text-2xl font-bold">{kpis.vendasHoje}</h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <Wallet className="w-5 h-5 text-success" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">Recebimentos (Hoje)</p>
+              <h3 className="text-2xl font-bold">
+                {formatarMoeda(kpis.recebimentosHoje)}
+              </h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <DollarSign className="w-5 h-5 text-warning" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">A Receber</p>
+              <h3 className="text-2xl font-bold">
+                {formatarMoeda(kpis.aReceber)}
+              </h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <TrendingUp className="w-5 h-5 text-secondary" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">Vendas (Mês)</p>
+              <h3 className="text-2xl font-bold">{kpis.vendasMes}</h3>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* KPIs - Linha 2 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <Box className="w-5 h-5 text-default-700" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">
+                Aparelhos Disponíveis
+              </p>
+              <h3 className="text-2xl font-bold">{kpis.disponiveis}</h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <Coins className="w-5 h-5 text-amber-600" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">Valor Vendido (Mês)</p>
+              <h3 className="text-2xl font-bold">
+                {formatarMoeda(kpis.valorVendidoMes)}
+              </h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <Gauge className="w-5 h-5 text-purple-600" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">Ticket Médio (Mês)</p>
+              <h3 className="text-2xl font-bold">
+                {formatarMoeda(kpis.ticketMedioMes)}
+              </h3>
+            </div>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="flex gap-3 items-center">
+            <PiggyBank className="w-5 h-5 text-emerald-600" />
+            <div className="flex flex-col">
+              <p className="text-small text-default-500">
+                Lucro Estimado (Mês)
+              </p>
+              <h3 className="text-2xl font-bold">
+                {formatarMoeda(kpis.lucroEstimadoMes)}
+              </h3>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+
       {/* Filtros e Busca */}
       <Card>
         <CardBody>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col md:flex-row gap-4">
-              <Input
-                placeholder="Buscar por marca, modelo, IMEI, número de série..."
-                value={busca}
-                onValueChange={setBusca}
-                startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
-                className="flex-1"
-              />
+              <div className="flex gap-2 flex-1">
+                <Input
+                  placeholder="Buscar por marca, modelo, IMEI, número de série..."
+                  value={busca}
+                  onValueChange={setBusca}
+                  startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
+                  className="flex-1"
+                />
+                <Button
+                  isIconOnly
+                  color="primary"
+                  variant="flat"
+                  onPress={() => setScannerAberto(true)}
+                  title="Escanear IMEI"
+                >
+                  <CameraIcon className="w-5 h-5" />
+                </Button>
+              </div>
               <Select
                 placeholder="Filtrar por estado"
                 selectedKeys={filtros.estado ? [filtros.estado] : []}
@@ -318,7 +504,6 @@ export default function AparelhosPage() {
                     ...prev,
                     estado: (value || undefined) as any,
                   }));
-                  carregarDados();
                 }}
                 className="w-full md:w-60"
                 startContent={<FunnelIcon className="w-4 h-4" />}
@@ -336,7 +521,6 @@ export default function AparelhosPage() {
                     ...prev,
                     status: (value || undefined) as any,
                   }));
-                  carregarDados();
                 }}
                 className="w-full md:w-60"
                 startContent={<FunnelIcon className="w-4 h-4" />}
@@ -345,6 +529,18 @@ export default function AparelhosPage() {
                   <SelectItem key={status.value}>{status.label}</SelectItem>
                 ))}
               </Select>
+              {(filtros.estado || filtros.status) && (
+                <Button
+                  color="default"
+                  variant="flat"
+                  onPress={() => {
+                    setFiltros({});
+                    setBusca("");
+                  }}
+                >
+                  Limpar Filtros
+                </Button>
+              )}
             </div>
 
             {/* Toggle de Visualização */}
@@ -409,7 +605,7 @@ export default function AparelhosPage() {
               return (
                 <Card
                   key={aparelho.id}
-                  className="hover:shadow-lg transition-shadow"
+                  className="hover:shadow-lg transition-shadow relative"
                 >
                   <CardBody className="p-0">
                     {/* Carrossel de Fotos */}
@@ -462,7 +658,7 @@ export default function AparelhosPage() {
 
                           {/* Badge de quantidade de fotos */}
                           {fotos.length > 1 && (
-                            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                            <div className="absolute top-10 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
                               {fotoIndex + 1}/{fotos.length}
                             </div>
                           )}
@@ -475,15 +671,112 @@ export default function AparelhosPage() {
                     </div>
 
                     {/* Conteúdo */}
-                    <div className="p-4 space-y-3">
-                      {/* Marca e Modelo */}
+
+                    {/* Marca e Modelo */}
+                    <div className="flex flex-col space-y-2 px-4 py-4">
                       <div>
-                        <h3 className="font-bold text-lg truncate">
-                          {aparelho.marca}
-                        </h3>
-                        <p className="text-sm text-default-600 truncate">
-                          {aparelho.modelo}
-                        </p>
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-lg truncate">
+                            {aparelho.marca}
+                          </h3>
+                          {/* Ações do Card */}
+                          <div className="">
+                            <Dropdown>
+                              <DropdownTrigger>
+                                <Button isIconOnly size="sm" variant="light">
+                                  <EllipsisVerticalIcon className="w-5 h-5" />
+                                </Button>
+                              </DropdownTrigger>
+                              <DropdownMenu
+                                aria-label="Ações do aparelho"
+                                onAction={(key) =>
+                                  handleAcaoCard(key as string, aparelho)
+                                }
+                              >
+                                <DropdownItem
+                                  key="editar"
+                                  startContent={
+                                    <PencilIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Editar
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="deletar"
+                                  className="text-danger"
+                                  color="danger"
+                                  isDisabled={aparelho.status === "vendido"}
+                                  startContent={
+                                    <TrashIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Deletar
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="status:disponivel"
+                                  isDisabled={aparelho.status === "disponivel"}
+                                  startContent={
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Marcar como Disponível
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="status:reservado"
+                                  isDisabled={aparelho.status === "reservado"}
+                                  startContent={
+                                    <ClockIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Marcar como Reservado
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="status:vendido"
+                                  isDisabled={aparelho.status === "vendido"}
+                                  startContent={
+                                    <ShoppingBagIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Marcar como Vendido
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="status:defeito"
+                                  isDisabled={aparelho.status === "defeito"}
+                                  startContent={
+                                    <ExclamationTriangleIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Marcar como Defeito
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="status:transferido"
+                                  isDisabled={aparelho.status === "transferido"}
+                                  startContent={
+                                    <ArrowRightIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Marcar como Transferido
+                                </DropdownItem>
+                                {aparelho.status === "vendido" ? (
+                                  <DropdownItem
+                                    key="receber_pagamento"
+                                    startContent={
+                                      <DollarSign className="w-4 h-4" />
+                                    }
+                                    color="success"
+                                  >
+                                    Receber Pagamento
+                                  </DropdownItem>
+                                ) : null}
+                              </DropdownMenu>
+                            </Dropdown>
+                          </div>
+                        </div>
+                        <div className="">
+                          <p className="text-sm text-default-600 truncate">
+                            {aparelho.modelo}
+                          </p>
+                        </div>
                       </div>
 
                       {/* Armazenamento e RAM */}
@@ -765,6 +1058,31 @@ export default function AparelhosPage() {
           confirmColor="danger"
         />
       )}
+
+      {modalRecebimentoAberto && aparelhoParaReceber && (
+        <RecebimentoAparelhoModal
+          isOpen={modalRecebimentoAberto}
+          aparelho={aparelhoParaReceber}
+          onClose={async (sucesso) => {
+            setModalRecebimentoAberto(false);
+            setAparelhoParaReceber(undefined);
+            if (sucesso) {
+              await carregarDados();
+              await carregarKpis();
+            }
+          }}
+        />
+      )}
+
+      <BarcodeScanner
+        isOpen={scannerAberto}
+        onClose={() => setScannerAberto(false)}
+        onScan={(imei) => {
+          setBusca(imei);
+          setScannerAberto(false);
+        }}
+        title="Escanear IMEI do Aparelho"
+      />
     </div>
   );
 }

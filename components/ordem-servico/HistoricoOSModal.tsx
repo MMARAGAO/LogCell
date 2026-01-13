@@ -85,6 +85,8 @@ export default function HistoricoOSModal({
         return <Plus className="w-4 h-4" />;
       case "remocao_peca":
         return <Trash2 className="w-4 h-4" />;
+      case "devolucao":
+        return <AlertCircle className="w-4 h-4" />;
       case "cancelamento":
         return <XCircle className="w-4 h-4" />;
       default:
@@ -115,6 +117,8 @@ export default function HistoricoOSModal({
       case "exclusao":
       case "cancelamento":
         return "danger";
+      case "devolucao":
+        return "warning";
       case "mudanca_status":
         return "primary";
       case "adicao_peca":

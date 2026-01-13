@@ -24,6 +24,7 @@ import { Link } from "@heroui/link";
 import { Input } from "@heroui/input";
 import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/modal";
 import { useState, useEffect, useRef } from "react";
+import { CarrinhoIcon } from "@/components/catalogo/CarrinhoIcon";
 import { useRouter } from "next/navigation";
 import {
   Search,
@@ -377,6 +378,11 @@ export default function Navbar() {
       )}
 
       <NavbarContent justify="end">
+        {isAuthenticated && (
+          <NavbarItem>
+            <CarrinhoIcon />
+          </NavbarItem>
+        )}
         {isAuthenticated && usuario ? (
           <Dropdown placement="bottom-end">
             <DropdownTrigger>

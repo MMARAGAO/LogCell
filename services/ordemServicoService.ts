@@ -262,7 +262,21 @@ export async function mudarStatusOS(
 export async function cancelarOrdemServico(id: string, userId: string) {
   try {
     const result = await mudarStatusOS(id, "cancelado", userId);
-    
+
+    if (result?.error) {
+      throw new Error(result.error);
+    }
+
+    // Remover pagamentos vinculados à OS cancelada para evitar lançamentos inconsistentes
+    const { error: pagamentosError } = await supabase
+      .from("ordem_servico_pagamentos")
+      .delete()
+      .eq("id_ordem_servico", id);
+
+    if (pagamentosError) {
+      throw pagamentosError;
+    }
+
     try {
       // Cancelar lançamento no caixa vinculado à OS, se existir
       await supabase
@@ -272,11 +286,126 @@ export async function cancelarOrdemServico(id: string, userId: string) {
     } catch (err) {
       console.warn("Aviso: falha ao cancelar lançamento do caixa da OS", err);
     }
-    
+
     return result;
   } catch (error: any) {
     console.error("Erro ao cancelar ordem de serviço:", error);
     return { error: error.message || "Erro ao cancelar ordem de serviço" };
+  }
+}
+
+/**
+ * Devolver OS (serviço desfeito):
+ * - devolve peças ao estoque removendo-as da OS
+ * - apaga pagamentos vinculados
+ * - marca status como "devolvida" e cancela lançamento no caixa
+ * - registra histórico com valor a reembolsar
+ */
+export async function devolverOrdemServico(id: string, userId: string) {
+  try {
+    // Buscar pagamentos para calcular reembolso
+    const { data: pagamentos } = await supabase
+      .from("ordem_servico_pagamentos")
+      .select("id, valor, forma_pagamento")
+      .eq("id_ordem_servico", id);
+
+    const totalReembolsar = (pagamentos || []).reduce(
+      (sum, pag) => sum + Number(pag.valor || 0),
+      0
+    );
+
+    // Buscar peças e devolver/remoção
+    const { data: pecas } = await supabase
+      .from("ordem_servico_pecas")
+      .select("id")
+      .eq("id_ordem_servico", id);
+
+    if (pecas && pecas.length > 0) {
+      for (const peca of pecas) {
+        await removerPecaOS(peca.id, userId);
+      }
+    }
+
+    // Remover pagamentos vinculados
+    if (pagamentos && pagamentos.length > 0) {
+      await supabase
+        .from("ordem_servico_pagamentos")
+        .delete()
+        .eq("id_ordem_servico", id);
+    }
+
+    // Atualizar status para devolvida
+    const { error: erroStatus } = await mudarStatusOS(id, "devolvida", userId);
+    if (erroStatus) throw new Error(erroStatus);
+
+    // Cancelar lançamento no caixa vinculado à OS, se existir
+    try {
+      await supabase
+        .from("ordem_servico_caixa")
+        .update({ status_caixa: "cancelado" })
+        .eq("id_ordem_servico", id);
+    } catch (err) {
+      console.warn("Aviso: falha ao cancelar lançamento do caixa da OS", err);
+    }
+
+    // Registrar histórico
+    await registrarHistoricoOS(
+      id,
+      "devolucao",
+      `OS devolvida. Reembolsar R$ ${totalReembolsar.toFixed(2)}`,
+      userId
+    );
+
+    return { data: { total_reembolsar: totalReembolsar }, error: null };
+  } catch (error: any) {
+    console.error("Erro ao devolver ordem de serviço:", error);
+    return { data: null, error: error.message || "Erro ao devolver OS" };
+  }
+}
+
+/**
+ * Substituir uma peça da OS (remove a peça antiga e adiciona a nova)
+ */
+export async function substituirPecaOS(
+  idPecaAtual: string,
+  novaPeca: OrdemServicoPecaFormData,
+  userId: string
+) {
+  try {
+    // Garantir que a peça pertença à OS alvo
+    const { data: pecaAtual, error: erroBusca } = await supabase
+      .from("ordem_servico_pecas")
+      .select("id, id_ordem_servico")
+      .eq("id", idPecaAtual)
+      .single();
+
+    if (erroBusca || !pecaAtual) {
+      throw new Error("Peça não encontrada para substituição");
+    }
+
+    // Remove peça antiga (devolve estoque se aplicável)
+    const { error: erroRemocao } = await removerPecaOS(idPecaAtual, userId);
+    if (erroRemocao) {
+      throw new Error(erroRemocao);
+    }
+
+    // Adiciona nova peça (já devolve estoque e registra histórico)
+    const { data, error: erroAdicionar } = await adicionarPecaOS(
+      {
+        ...novaPeca,
+        id_ordem_servico: pecaAtual.id_ordem_servico,
+      },
+      userId
+    );
+
+    if (erroAdicionar) {
+      throw new Error(erroAdicionar);
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error("Erro ao substituir peça da OS:", error);
+    return { data: null, error: error.message || "Erro ao substituir peça" };
   }
 }
 
