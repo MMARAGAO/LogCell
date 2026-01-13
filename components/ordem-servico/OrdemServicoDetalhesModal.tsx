@@ -39,7 +39,7 @@ import {
   Camera,
   AlertTriangle,
   CheckCircle,
-  FileDown,
+  FileCheck,
   Printer,
 } from "lucide-react";
 import {
@@ -53,11 +53,18 @@ import {
 import { useToast } from "@/components/Toast";
 import StatusProgressBar from "./StatusProgressBar";
 import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
+import GarantiaModal from "./GarantiaModal";
 import {
   gerarPDFOrdemServico,
+  gerarOrcamentoOS,
+  gerarGarantiaOS,
   gerarCupomTermicoOS,
   imprimirCupomTermico,
 } from "@/lib/impressaoOS";
+import {
+  cancelarOrdemServico,
+  devolverOrdemServico,
+} from "@/services/ordemServicoService";
 
 interface OrdemServicoDetalhesModalProps {
   isOpen: boolean;
@@ -111,17 +118,21 @@ export default function OrdemServicoDetalhesModal({
   const [osAtual, setOsAtual] = useState<OrdemServico | null>(os);
   const [pecas, setPecas] = useState<PecaOS[]>([]);
   const [quebras, setQuebras] = useState<QuebraPeca[]>([]);
+  const [dadosLoja, setDadosLoja] = useState<any>({ nome: "Loja" });
   const [loadingPecas, setLoadingPecas] = useState(false);
   const [loadingQuebras, setLoadingQuebras] = useState(false);
   const [loadingCancelar, setLoadingCancelar] = useState(false);
+  const [loadingDevolver, setLoadingDevolver] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [loadingAprovarQuebra, setLoadingAprovarQuebra] = useState<
     string | null
   >(null);
   const [modalConfirmCancelar, setModalConfirmCancelar] = useState(false);
+  const [modalConfirmDevolver, setModalConfirmDevolver] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
   const [modalGarantiaOpen, setModalGarantiaOpen] = useState(false);
-  const [loadingPDF, setLoadingPDF] = useState(false);
+  const [modalConfirmGarantia, setModalConfirmGarantia] = useState(false);
+  const [loadingOrcamento, setLoadingOrcamento] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
 
@@ -133,10 +144,11 @@ export default function OrdemServicoDetalhesModal({
     if (isOpen && osAtual) {
       carregarPecas();
       carregarQuebras();
+      carregarDadosLoja();
     }
   }, [isOpen, osAtual]);
 
-  const buscarDadosLoja = async () => {
+  const carregarDadosLoja = async () => {
     try {
       const { supabase } = await import("@/lib/supabaseClient");
       const { data, error } = await supabase
@@ -145,41 +157,35 @@ export default function OrdemServicoDetalhesModal({
         .eq("id", osAtual?.id_loja)
         .single();
 
-      if (error) throw error;
-      return data || { nome: "Loja" };
+      if (!error && data) {
+        setDadosLoja(data);
+      }
     } catch (error) {
-      console.error("Erro ao buscar dados da loja:", error);
-      return { nome: "Loja" };
+      console.error("Erro ao carregar dados da loja:", error);
     }
   };
 
-  const handleGerarPDF = async () => {
+  const handleGerarOrcamento = async () => {
     if (!osAtual) return;
 
-    // Verificar se tem tipo de garantia definido
-    if (!osAtual.tipo_garantia) {
-      const confirmar = window.confirm(
-        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de gerar o PDF?"
-      );
-
-      if (confirmar) {
-        setModalGarantiaOpen(true);
-        return;
-      }
-    }
-
-    setLoadingPDF(true);
+    setLoadingOrcamento(true);
     try {
-      const dadosLoja = await buscarDadosLoja();
-      const doc = await gerarPDFOrdemServico(osAtual, pecas, dadosLoja);
-      doc.save(`OS_${osAtual.numero_os || osAtual.id}.pdf`);
-      toast.success("PDF gerado com sucesso!");
+      const doc = await gerarOrcamentoOS(osAtual, pecas, dadosLoja);
+      doc.save(`Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`);
+      toast.success("Orçamento gerado com sucesso!");
     } catch (error) {
-      console.error("Erro ao gerar PDF:", error);
-      toast.error("Erro ao gerar PDF");
+      console.error("Erro ao gerar orçamento:", error);
+      toast.error("Erro ao gerar orçamento");
     } finally {
-      setLoadingPDF(false);
+      setLoadingOrcamento(false);
     }
+  };
+
+  const handleGerarGarantia = async () => {
+    if (!osAtual) return;
+
+    // Abrir modal de garantia para seleção
+    setModalGarantiaOpen(true);
   };
 
   const handleImprimirCupom = async () => {
@@ -199,9 +205,9 @@ export default function OrdemServicoDetalhesModal({
 
     setLoadingCupom(true);
     try {
-      const dadosLoja = await buscarDadosLoja();
       const cupom = await gerarCupomTermicoOS(osAtual, pecas, dadosLoja);
       imprimirCupomTermico(cupom);
+      toast.success("Cupom térmico gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao imprimir cupom:", error);
       toast.error("Erro ao imprimir cupom");
@@ -398,14 +404,7 @@ export default function OrdemServicoDetalhesModal({
         return;
       }
 
-      // Atualizar status para cancelado
-      const { error } = await supabase
-        .from("ordem_servico")
-        .update({
-          status: "cancelado",
-          atualizado_por: user.id,
-        })
-        .eq("id", osAtual.id);
+      const { error } = await cancelarOrdemServico(osAtual.id, user.id);
 
       if (error) throw error;
 
@@ -429,6 +428,50 @@ export default function OrdemServicoDetalhesModal({
       );
     } finally {
       setLoadingCancelar(false);
+    }
+  };
+
+  const handleDevolverOS = async () => {
+    if (!osAtual) return;
+
+    setLoadingDevolver(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.showToast("Usuário não autenticado", "error");
+        return;
+      }
+
+      const { data, error } = await devolverOrdemServico(osAtual.id, user.id);
+
+      if (error) throw error;
+
+      const total = data?.total_reembolsar || 0;
+      toast.showToast(
+        total > 0
+          ? `OS devolvida. Reembolsar R$ ${total.toFixed(2)}`
+          : "OS devolvida. Nenhum pagamento para reembolsar",
+        "success"
+      );
+      setModalConfirmDevolver(false);
+
+      if (onOSAtualizada) {
+        onOSAtualizada();
+      }
+
+      onClose();
+    } catch (error: any) {
+      console.error("Erro ao devolver OS:", error);
+      toast.showToast(
+        error.message || "Erro ao devolver ordem de serviço",
+        "error"
+      );
+    } finally {
+      setLoadingDevolver(false);
     }
   };
 
@@ -553,16 +596,17 @@ export default function OrdemServicoDetalhesModal({
               >
                 {PRIORIDADE_OS_LABELS[osAtual.prioridade]}
               </Chip>
-              {osAtual.caixa && osAtual.caixa.some(c => c.status_caixa === "cancelado") && (
-                <Chip
-                  color="danger"
-                  size="sm"
-                  variant="flat"
-                  startContent={<XCircle className="w-4 h-4" />}
-                >
-                  Caixa cancelado
-                </Chip>
-              )}
+              {osAtual.caixa &&
+                osAtual.caixa.some((c) => c.status_caixa === "cancelado") && (
+                  <Chip
+                    color="danger"
+                    size="sm"
+                    variant="flat"
+                    startContent={<XCircle className="w-4 h-4" />}
+                  >
+                    Caixa cancelado
+                  </Chip>
+                )}
             </div>
           </div>
         </ModalHeader>
@@ -1228,7 +1272,8 @@ export default function OrdemServicoDetalhesModal({
         </ModalBody>
 
         <ModalFooter>
-          {osAtual?.status !== "cancelado" && (
+          {osAtual?.status !== "cancelado" &&
+            osAtual?.status !== "devolvida" && (
               <Button
                 color="danger"
                 variant="flat"
@@ -1237,6 +1282,18 @@ export default function OrdemServicoDetalhesModal({
                 isDisabled={loadingCancelar}
               >
                 Cancelar OS
+              </Button>
+            )}
+          {osAtual?.status !== "cancelado" &&
+            osAtual?.status !== "devolvida" && (
+              <Button
+                color="warning"
+                variant="flat"
+                startContent={<AlertTriangle className="w-4 h-4" />}
+                onPress={() => setModalConfirmDevolver(true)}
+                isDisabled={loadingDevolver}
+              >
+                Devolver OS
               </Button>
             )}
           <Button
@@ -1248,13 +1305,21 @@ export default function OrdemServicoDetalhesModal({
             Gerenciar Fotos
           </Button>
           <Button
+            color="primary"
+            variant="flat"
+            startContent={<FileText className="w-4 h-4" />}
+            onPress={handleGerarOrcamento}
+            isLoading={loadingOrcamento}
+          >
+            Imprimir Orçamento
+          </Button>
+          <Button
             color="success"
             variant="flat"
-            startContent={<FileDown className="w-4 h-4" />}
-            onPress={handleGerarPDF}
-            isLoading={loadingPDF}
+            startContent={<FileCheck className="w-4 h-4" />}
+            onPress={handleGerarGarantia}
           >
-            Gerar PDF
+            Imprimir Garantia
           </Button>
           <Button
             color="secondary"
@@ -1313,6 +1378,38 @@ export default function OrdemServicoDetalhesModal({
         </ModalContent>
       </Modal>
 
+      {/* Modal de Confirmação de Devolução */}
+      <Modal
+        isOpen={modalConfirmDevolver}
+        onClose={() => setModalConfirmDevolver(false)}
+        placement="center"
+      >
+        <ModalContent>
+          <ModalHeader>Devolver Ordem de Serviço</ModalHeader>
+          <ModalBody>
+            <p className="mb-3">
+              Deseja devolver a OS #{osAtual?.numero_os}? As peças do estoque
+              serão devolvidas e os pagamentos removidos para reembolso.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="flat"
+              onPress={() => setModalConfirmDevolver(false)}
+            >
+              Não
+            </Button>
+            <Button
+              color="warning"
+              onPress={handleDevolverOS}
+              isLoading={loadingDevolver}
+            >
+              Sim, Devolver
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       {/* Modal de Gerenciamento de Fotos */}
       {osAtual && (
         <GerenciarFotosOSModal
@@ -1320,6 +1417,17 @@ export default function OrdemServicoDetalhesModal({
           onClose={() => setModalFotos(false)}
           ordemServicoId={osAtual.id}
           numeroOS={osAtual.numero_os}
+        />
+      )}
+
+      {/* Modal de Configuração de Garantia */}
+      {osAtual && (
+        <GarantiaModal
+          isOpen={modalGarantiaOpen}
+          onClose={() => setModalGarantiaOpen(false)}
+          os={osAtual}
+          pecas={pecas}
+          dadosLoja={dadosLoja}
         />
       )}
 

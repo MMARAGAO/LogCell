@@ -9,6 +9,7 @@ import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConfiguracoesProvider } from "@/contexts/ConfiguracoesContext";
 import { PermissoesRealtimeProvider } from "@/contexts/PermissoesRealtimeContext";
+import { CarrinhoProvider } from "@/contexts/CarrinhoContext";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -48,7 +49,9 @@ export function Providers({ children, themeProps }: ProvidersProps) {
       <AuthProvider>
         <PermissoesRealtimeProvider>
           <ConfiguracoesProvider>
-            <HeroUIWrapper>{children}</HeroUIWrapper>
+            <CarrinhoProvider>
+              <HeroUIWrapper>{children}</HeroUIWrapper>
+            </CarrinhoProvider>
           </ConfiguracoesProvider>
         </PermissoesRealtimeProvider>
       </AuthProvider>

@@ -65,6 +65,7 @@ import {
   atualizarOrdemServico,
   deletarOrdemServico,
   cancelarOrdemServico,
+  devolverOrdemServico,
 } from "@/services/ordemServicoService";
 import type {
   OrdemServico,
@@ -344,6 +345,49 @@ export default function OrdemServicoPage() {
     }
   };
 
+  const handleDevolverOS = async (os: OrdemServico) => {
+    if (!temPermissao("os.editar")) {
+      toast.error("Você não tem permissão para devolver ordens de serviço");
+      return;
+    }
+
+    if (os.status === "cancelado" || os.status === "devolvida") {
+      toast.error("Esta OS já está cancelada ou devolvida");
+      return;
+    }
+
+    try {
+      const confirmado = await confirm({
+        title: "Devolver OS",
+        message: `Deseja devolver a OS #${os.numero_os}? As peças do estoque serão devolvidas e os pagamentos removidos.`,
+        confirmText: "Devolver OS",
+        cancelText: "Voltar",
+        variant: "warning",
+        confirmColor: "warning",
+      });
+
+      if (!confirmado) return;
+
+      const { data, error } = await devolverOrdemServico(os.id, usuario!.id);
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+
+      const total = data?.total_reembolsar || 0;
+      toast.success(
+        total > 0
+          ? `OS devolvida. Reembolsar R$ ${total.toFixed(2)}`
+          : "OS devolvida. Nenhum pagamento para reembolsar"
+      );
+      await carregarOrdensServico();
+    } catch (err) {
+      console.error("Erro ao devolver OS:", err);
+      toast.error("Erro ao devolver ordem de serviço");
+    }
+  };
+
   const handleGerenciarPecas = (os: OrdemServico) => {
     if (!temPermissao("os.gerenciar_pecas")) {
       toast.error("Você não tem permissão para gerenciar peças");
@@ -513,6 +557,7 @@ export default function OrdemServicoPage() {
       aguardando_peca: "warning",
       concluido: "secondary",
       entregue: "success",
+      devolvida: "default",
       cancelado: "danger",
       garantia: "default",
     };
@@ -574,6 +619,7 @@ export default function OrdemServicoPage() {
       aguardando_peca: "Aguardando Peça",
       concluido: "Concluído",
       entregue: "Entregue",
+      devolvida: "Devolvida",
       cancelado: "Cancelado",
       garantia: "Garantia",
     };
@@ -639,6 +685,19 @@ export default function OrdemServicoPage() {
       });
     }
 
+    // Devolver OS (serviço desfeito)
+    if (
+      temPermissao("os.editar") &&
+      (os.status === "concluido" || os.status === "entregue")
+    ) {
+      items.push({
+        key: "devolver",
+        label: "Devolver OS",
+        onPress: () => handleDevolverOS(os),
+        color: "warning" as const,
+      });
+    }
+
     // Ver Histórico (sempre visível)
     items.push({
       key: "historico",
@@ -667,8 +726,10 @@ export default function OrdemServicoPage() {
     }
 
     // Excluir OS (permitir se estiver cancelada ou entregue com permissão específica)
-    const podeExcluirCancelada = temPermissao("os.deletar") && os.status === "cancelado";
-    const podeExcluirEntregue = temPermissao("os.deletar_entregue") && os.status === "entregue";
+    const podeExcluirCancelada =
+      temPermissao("os.deletar") && os.status === "cancelado";
+    const podeExcluirEntregue =
+      temPermissao("os.deletar_entregue") && os.status === "entregue";
     if (podeExcluirCancelada || podeExcluirEntregue) {
       items.push({
         key: "deletar",
@@ -1126,11 +1187,14 @@ export default function OrdemServicoPage() {
                         >
                           {getStatusLabel(os.status)}
                         </Chip>
-                        {os.caixa && os.caixa.some((c) => c.status_caixa === "cancelado") && (
-                          <Chip color="danger" variant="flat" size="sm">
-                            Caixa cancelado
-                          </Chip>
-                        )}
+                        {os.caixa &&
+                          os.caixa.some(
+                            (c) => c.status_caixa === "cancelado"
+                          ) && (
+                            <Chip color="danger" variant="flat" size="sm">
+                              Caixa cancelado
+                            </Chip>
+                          )}
                       </div>
                     </TableCell>
                     <TableCell>{formatarData(os.data_entrada)}</TableCell>

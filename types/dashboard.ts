@@ -21,6 +21,15 @@ export interface MetricasAdicionais {
 	total_quebras: number;
 	quantidade_quebras: number;
 	total_creditos_cliente: number;
+	os_lojista_pagas: number;
+	os_consumidor_final_pagas: number;
+	os_lojista_faturamento: number;
+	os_lojista_lucro: number;
+	os_consumidor_final_faturamento: number;
+	os_consumidor_final_lucro: number;
+	os_sem_tipo_pagas: number;
+	os_sem_tipo_faturamento: number;
+	os_sem_tipo_lucro: number;
 }
 
 export interface DadosDashboard {

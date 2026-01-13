@@ -98,6 +98,7 @@ export default function FormularioRMA({
   const [etapaAtual, setEtapaAtual] = useState(1);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const inputBuscaRef = React.useRef<HTMLInputElement>(null);
 
   // Dados do formulário
   const [tipoOrigem, setTipoOrigem] = useState<TipoOrigemRMA | "">("");
@@ -123,6 +124,7 @@ export default function FormularioRMA({
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [manterFoco, setManterFoco] = useState(false);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -189,102 +191,129 @@ export default function FormularioRMA({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Primeiro, buscar IDs dos produtos que correspondem à busca
-      let produtoIds: string[] = [];
+      // Buscar todos os produtos da loja em lotes de 1000
+      let todosEstoque: any[] = [];
+      let paginaBusca = 0;
+      const tamanhoPagina = 1000;
+      let temMais = true;
 
-      if (termoBusca.trim()) {
-        const termos = termoBusca
-          .toLowerCase()
-          .split(" ")
-          .filter((t) => t.length > 0);
-
-        // Buscar produtos que contenham os termos
-        let queryProdutos = supabase
-          .from("produtos")
-          .select("id")
-          .eq("ativo", true);
-
-        // Aplicar filtro para cada termo (OR entre termos)
-        termos.forEach((termo) => {
-          queryProdutos = queryProdutos.or(
-            `descricao.ilike.%${termo}%,marca.ilike.%${termo}%,categoria.ilike.%${termo}%,grupo.ilike.%${termo}%,modelos.ilike.%${termo}%,codigo_fabricante.ilike.%${termo}%`
+      while (temMais) {
+        const { data: estoqueData, error } = await supabase
+          .from("estoque_lojas")
+          .select(
+            `
+            quantidade,
+            id_produto,
+            produtos:id_produto (
+              id,
+              descricao,
+              marca,
+              categoria,
+              grupo,
+              modelos,
+              preco_venda,
+              codigo_fabricante
+            )
+          `
+          )
+          .eq("id_loja", lojaIdSelecionada)
+          .gt("quantidade", 0)
+          .range(
+            paginaBusca * tamanhoPagina,
+            (paginaBusca + 1) * tamanhoPagina - 1
           );
+
+        if (error) {
+          console.error("Erro ao carregar produtos:", error);
+          setProdutos([]);
+          setTotalProdutos(0);
+          return;
+        }
+
+        todosEstoque = [...todosEstoque, ...(estoqueData || [])];
+        paginaBusca++;
+        temMais = (estoqueData?.length || 0) === tamanhoPagina;
+      }
+
+      // Transformar dados para o formato esperado
+      let produtosComEstoque = todosEstoque
+        .filter((item: any) => item.produtos)
+        .map((item: any) => {
+          return {
+            id: item.produtos.id,
+            descricao: item.produtos.descricao,
+            marca: item.produtos.marca,
+            categoria: item.produtos.categoria,
+            grupo: item.produtos.grupo,
+            modelos: item.produtos.modelos,
+            preco_venda: item.produtos.preco_venda,
+            codigo_fabricante: item.produtos.codigo_fabricante,
+            foto_url: undefined,
+            estoque_lojas: [{ quantidade: item.quantidade }],
+          };
         });
 
-        const { data: produtosEncontrados } = await queryProdutos;
-        produtoIds = (produtosEncontrados || []).map((p: any) => p.id);
+      // Aplicar filtro de busca no cliente
+      if (termoBusca.trim()) {
+        const buscaLower = termoBusca.toLowerCase().trim();
+        const palavrasBusca = buscaLower
+          .split(/\s+/)
+          .filter((p) => p.length > 0);
+
+        produtosComEstoque = produtosComEstoque.filter((produto: any) => {
+          const textoPesquisavel = [
+            produto.descricao || "",
+            produto.marca || "",
+            produto.categoria || "",
+            produto.grupo || "",
+            produto.modelos || "",
+            produto.codigo_fabricante || "",
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          return palavrasBusca.every((palavra) =>
+            textoPesquisavel.includes(palavra)
+          );
+        });
       }
 
-      // Construir query principal do estoque
-      let query = supabase
-        .from("estoque_lojas")
-        .select(
-          `
-          quantidade,
-          produtos:id_produto (
-            id,
-            descricao,
-            marca,
-            categoria,
-            grupo,
-            modelos,
-            preco_venda,
-            codigo_fabricante,
-            fotos_produtos!left (
-              url
-            )
-          )
-        `,
-          { count: "exact" }
-        )
-        .eq("id_loja", lojaIdSelecionada)
-        .eq("produtos.fotos_produtos.is_principal", true)
-        .gt("quantidade", 0);
-
-      // Se houver busca, filtrar pelos IDs encontrados
-      if (termoBusca.trim() && produtoIds.length > 0) {
-        query = query.in("id_produto", produtoIds);
-      } else if (termoBusca.trim() && produtoIds.length === 0) {
-        // Se buscou mas não encontrou nada, retornar vazio
-        setProdutos([]);
-        setTotalProdutos(0);
-        setLoadingProdutos(false);
-        return;
-      }
+      const totalFiltrados = produtosComEstoque.length;
+      setTotalProdutos(totalFiltrados);
 
       // Aplicar paginação
       const inicio = (pagina - 1) * itensPorPagina;
-      const fim = inicio + itensPorPagina - 1;
-      query = query.range(inicio, fim);
+      const fim = inicio + itensPorPagina;
+      const produtosPaginados = produtosComEstoque.slice(inicio, fim);
 
-      const { data: estoqueData, error, count } = await query;
+      // Buscar fotos apenas para os produtos da página atual
+      const produtoIds = produtosPaginados.map((p: any) => p.id);
+      let fotosMap: Record<string, string> = {};
 
-      if (error) {
-        console.error("Erro ao carregar produtos:", error);
-        setProdutos([]);
-        setTotalProdutos(0);
-        return;
+      if (produtoIds.length > 0) {
+        const { data: fotosData } = await supabase
+          .from("fotos_produtos")
+          .select("produto_id, url, is_principal")
+          .in("produto_id", produtoIds)
+          .order("is_principal", { ascending: false })
+          .order("ordem", { ascending: true });
+
+        if (fotosData) {
+          fotosData.forEach((foto: any) => {
+            if (!fotosMap[foto.produto_id]) {
+              fotosMap[foto.produto_id] = foto.url;
+            }
+          });
+        }
       }
 
-      setTotalProdutos(count || 0);
+      // Adicionar fotos aos produtos paginados
+      const produtosComFotos = produtosPaginados.map((produto: any) => ({
+        ...produto,
+        foto_url: fotosMap[produto.id] || undefined,
+      }));
 
-      // Transformar dados para o formato esperado
-      const produtosComEstoque = (estoqueData || [])
-        .filter((item: any) => item.produtos)
-        .map((item: any) => ({
-          id: item.produtos.id,
-          descricao: item.produtos.descricao,
-          marca: item.produtos.marca,
-          categoria: item.produtos.categoria,
-          grupo: item.produtos.grupo,
-          modelos: item.produtos.modelos,
-          preco_venda: item.produtos.preco_venda,
-          codigo_fabricante: item.produtos.codigo_fabricante,
-          foto_url: item.produtos.fotos_produtos?.[0]?.url || null,
-          estoque_lojas: [{ quantidade: item.quantidade }],
-        }));
-
-      setProdutos(produtosComEstoque);
+      setProdutos(produtosComFotos);
     } catch (error) {
       console.error("Erro ao carregar produtos com estoque:", error);
       setProdutos([]);
@@ -309,6 +338,8 @@ export default function FormularioRMA({
   useEffect(() => {
     if (!lojaId) return;
 
+    setManterFoco(true);
+
     const timeoutId = setTimeout(() => {
       setPaginaAtual(1);
       carregarProdutosComEstoque(lojaId, 1, buscaProduto);
@@ -316,6 +347,14 @@ export default function FormularioRMA({
 
     return () => clearTimeout(timeoutId);
   }, [buscaProduto, lojaId]);
+
+  // Restaurar foco após carregamento
+  useEffect(() => {
+    if (manterFoco && !loadingProdutos && inputBuscaRef.current) {
+      inputBuscaRef.current.focus();
+      setManterFoco(false);
+    }
+  }, [loadingProdutos, manterFoco]);
 
   const handleMudarPagina = (novaPagina: number) => {
     if (!lojaId) return;
@@ -667,13 +706,22 @@ export default function FormularioRMA({
                     type="text"
                     label="Buscar Produto"
                     placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
+                    ref={inputBuscaRef}
                     value={buscaProduto}
                     onChange={(e) => setBuscaProduto(e.target.value)}
+                    onFocus={() => setManterFoco(true)}
                     description={`${totalProdutos} produto(s) encontrado(s) - Digite palavras-chave separadas por espaço`}
-                    startContent={<Package className="w-4 h-4 text-gray-400" />}
+                    startContent={
+                      loadingProdutos ? (
+                        <div className="animate-spin">
+                          <Package className="w-4 h-4 text-primary" />
+                        </div>
+                      ) : (
+                        <Package className="w-4 h-4 text-gray-400" />
+                      )
+                    }
                     isClearable
                     onClear={() => setBuscaProduto("")}
-                    disabled={loadingProdutos}
                   />
 
                   <div className="space-y-3">

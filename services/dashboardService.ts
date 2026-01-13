@@ -11,6 +11,111 @@ export class DashboardService {
 		const inicioISO = `${data_inicio}T00:00:00`;
 		const fimISO = `${data_fim}T23:59:59`;
 
+		console.log("🚀 [DASHBOARD] Iniciando busca otimizada com RPC...");
+
+		try {
+			// Executar todas as funções RPC em paralelo
+			const [metricasVendas, metricasOS, osPorTipo, metricasAdicionais] = await Promise.all([
+				supabase.rpc('calcular_metricas_vendas', {
+					p_data_inicio: inicioISO,
+					p_data_fim: fimISO,
+					p_loja_id: loja_id || null
+				}),
+				supabase.rpc('calcular_metricas_os', {
+					p_data_inicio: inicioISO,
+					p_data_fim: fimISO,
+					p_loja_id: loja_id || null
+				}),
+				supabase.rpc('calcular_os_por_tipo_cliente', {
+					p_data_inicio: inicioISO,
+					p_data_fim: fimISO,
+					p_loja_id: loja_id || null
+				}),
+				supabase.rpc('calcular_metricas_adicionais', {
+					p_data_inicio: inicioISO,
+					p_data_fim: fimISO,
+					p_loja_id: loja_id || null
+				})
+			]);
+
+			if (metricasVendas.error) {
+				console.error("❌ [DASHBOARD] Erro ao buscar métricas de vendas:", metricasVendas.error);
+				throw metricasVendas.error;
+			}
+
+			if (metricasOS.error) {
+				console.error("❌ [DASHBOARD] Erro ao buscar métricas de OS:", metricasOS.error);
+				throw metricasOS.error;
+			}
+
+			if (osPorTipo.error) {
+				console.error("❌ [DASHBOARD] Erro ao buscar OS por tipo:", osPorTipo.error);
+				throw osPorTipo.error;
+			}
+
+			if (metricasAdicionais.error) {
+				console.error("❌ [DASHBOARD] Erro ao buscar métricas adicionais:", metricasAdicionais.error);
+				throw metricasAdicionais.error;
+			}
+
+			const vendas = metricasVendas.data || {};
+			const os = metricasOS.data || {};
+			const porTipo = osPorTipo.data || {};
+			const adicionais = metricasAdicionais.data || {};
+
+			console.log("✅ [DASHBOARD] Dados carregados com sucesso!");
+
+			return {
+				metricas_adicionais: {
+					pagamentos_sem_credito_cliente: Number(vendas.pagamentos_sem_credito || 0),
+					pagamentos_os_recebidos: Number(adicionais.pagamentos_os || 0),
+					total_vendas: Number(vendas.total_vendas || 0),
+					ganho_total_vendas: Number(vendas.lucro_vendas || 0),
+					ticket_medio: Number(vendas.ticket_medio || 0),
+					contas_nao_pagas: Number(vendas.contas_nao_pagas || 0),
+					total_os: Number(os.total_os || 0),
+					os_entregues: Number(os.os_entregues || 0),
+					os_pendentes: Number(os.os_pendentes || 0),
+					os_pagas_nao_entregues: Number(os.os_pagas_nao_entregues || 0),
+					os_processadas: Number(os.os_processadas || 0),
+					faturamento_os_processadas: Number(os.faturamento_processadas || 0),
+					ganho_os_processadas: Number(os.ganho_processadas || 0),
+					faturamento_os: Number(os.faturamento_processadas || 0),
+					ganho_os: Number(os.ganho_processadas || 0),
+					total_transferencias: Number(adicionais.total_transferencias || 0),
+					transferencias_pendentes: Number(adicionais.transferencias_pendentes || 0),
+					total_quebras: Number(adicionais.total_quebras || 0),
+					quantidade_quebras: Number(adicionais.quantidade_quebras || 0),
+					total_creditos_cliente: Number(adicionais.total_creditos_cliente || 0),
+					os_lojista_pagas: Number(porTipo.lojista?.quantidade || 0),
+					os_lojista_faturamento: Number(porTipo.lojista?.faturamento || 0),
+					os_lojista_lucro: Number(porTipo.lojista?.lucro || 0),
+					os_consumidor_final_pagas: Number(porTipo.consumidor_final?.quantidade || 0),
+					os_consumidor_final_faturamento: Number(porTipo.consumidor_final?.faturamento || 0),
+					os_consumidor_final_lucro: Number(porTipo.consumidor_final?.lucro || 0),
+					os_sem_tipo_pagas: Number(porTipo.sem_tipo?.quantidade || 0),
+					os_sem_tipo_faturamento: Number(porTipo.sem_tipo?.faturamento || 0),
+					os_sem_tipo_lucro: Number(porTipo.sem_tipo?.lucro || 0),
+				},
+			};
+		} catch (error) {
+			console.error("❌ [DASHBOARD] Erro crítico ao buscar dados:", error);
+			// Fallback para código antigo se RPC falhar
+			console.log("⚠️ [DASHBOARD] Tentando fallback com queries antigas...");
+			return this.buscarDadosDashboardLegacy(filtro);
+		}
+	}
+
+	// Método legacy como fallback
+	static async buscarDadosDashboardLegacy(
+		filtro: FiltroDashboard
+	): Promise<DadosDashboard> {
+		const { data_inicio, data_fim, loja_id } = filtro;
+
+		// Garantir período com hora para não perder movimentações no final do dia
+		const inicioISO = `${data_inicio}T00:00:00`;
+		const fimISO = `${data_fim}T23:59:59`;
+
 		// Buscar total de pagamentos de vendas (servidor faz o SUM para evitar limite de 1000 linhas)
 		// Paginado para evitar limite de 1000 linhas e sem usar agregação (política bloqueando aggregate)
 		const pageSize = 1000;
@@ -571,29 +676,144 @@ export class DashboardService {
 		toCreditos += pageSize;
 	}
 
-	return {
-		metricas_adicionais: {
-			pagamentos_sem_credito_cliente: pagamentosSemCredito,
-			pagamentos_os_recebidos: pagamentosOSRecebidos,
-			total_vendas: count || 0,
-			ganho_total_vendas: lucroVendas,
-			ticket_medio: ticketMedio,
-			contas_nao_pagas: totalContasNaoPagas,
-			total_os: totalOS || 0,
-			os_entregues: osEntregues || 0,
-			os_pendentes: osPendentes || 0,
-			os_pagas_nao_entregues: osPagasNaoEntregues || 0,
-			os_processadas: osProcessadas,
-			faturamento_os_processadas: faturamentoOSProcessadas,
-			ganho_os_processadas: ganhoOSProcessadas,
-			faturamento_os: faturamentoOS,
-			ganho_os: ganhoOS,
-			total_transferencias: totalTransferencias || 0,
-			transferencias_pendentes: transferenciasPendentes || 0,
-			total_quebras: totalQuebras,
-			quantidade_quebras: quantidadeQuebras,
-			total_creditos_cliente: totalCreditosCliente,
-		},
-	};
+	// Buscar OS pagas por tipo de cliente (lojista e consumidor final)
+	// Considerar apenas OS processadas (entregues ou pagas não entregues)
+	let osLojistaCount = 0;
+	let osConsumidorFinalCount = 0;
+	let osSemTipoCount = 0;
+	let osLojistaFaturamento = 0;
+	let osConsumidorFinalFaturamento = 0;
+	let osSemTipoFaturamento = 0;
+	let osLojistaLucro = 0;
+	let osConsumidorFinalLucro = 0;
+	let osSemTipoLucro = 0;
+	const osLojistaIds: string[] = [];
+	const osConsumidorFinalIds: string[] = [];
+	const osSemTipoIds: string[] = [];
+
+	// Query payments from ordem_servico_pagamentos (same logic as "Ganho OS Processadas")
+	let fromOSPagtosPorTipo = 0;
+	let toOSPagtosPorTipo = pageSize - 1;
+
+	while (true) {
+		let queryOSPagtosPorTipo = supabase
+			.from("ordem_servico_pagamentos")
+			.select(
+				"valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja, tipo_cliente)"
+			)
+			.gte("data_pagamento", inicioISO)
+			.lte("data_pagamento", fimISO)
+			.range(fromOSPagtosPorTipo, toOSPagtosPorTipo);
+
+		const { data: osPagtosPorTipoData, error: erroOSPagtosPorTipo } = await queryOSPagtosPorTipo;
+
+		if (erroOSPagtosPorTipo) {
+			console.error("❌ [DASHBOARD] Erro ao buscar pagamentos por tipo:", erroOSPagtosPorTipo);
+			break;
+		}
+
+		const batchOSPagtosPorTipo = osPagtosPorTipoData || [];
+		batchOSPagtosPorTipo.forEach((p: any) => {
+			if (loja_id && p.os?.id_loja !== loja_id) return;
+
+			const valor = Number(p.valor || 0);
+			const tipo = p.os?.tipo_cliente || "sem_tipo";
+
+			if (tipo === "lojista") {
+				osLojistaFaturamento += valor;
+				if (!osLojistaIds.includes(p.id_ordem_servico)) {
+					osLojistaIds.push(p.id_ordem_servico);
+					osLojistaCount++;
+				}
+			} else if (tipo === "consumidor_final") {
+				osConsumidorFinalFaturamento += valor;
+				if (!osConsumidorFinalIds.includes(p.id_ordem_servico)) {
+					osConsumidorFinalIds.push(p.id_ordem_servico);
+					osConsumidorFinalCount++;
+				}
+			} else {
+				osSemTipoFaturamento += valor;
+				if (!osSemTipoIds.includes(p.id_ordem_servico)) {
+					osSemTipoIds.push(p.id_ordem_servico);
+					osSemTipoCount++;
+				}
+			}
+		});
+
+		if (batchOSPagtosPorTipo.length < pageSize) {
+			break;
+		}
+
+		fromOSPagtosPorTipo += pageSize;
+		toOSPagtosPorTipo += pageSize;
 	}
-}                        
+
+	// Calculate costs for all OS types
+	const allOSIds = [...osLojistaIds, ...osConsumidorFinalIds, ...osSemTipoIds];
+
+	if (allOSIds.length > 0) {
+		const { data: pecasPorTipoData, error: erroPecasPorTipo } = await supabase
+			.from("ordem_servico_pecas")
+			.select(
+				"quantidade, id_ordem_servico, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra), os:ordem_servico!ordem_servico_pecas_id_ordem_servico_fkey(tipo_cliente)"
+			)
+			.in("id_ordem_servico", allOSIds);
+
+		if (!erroPecasPorTipo && pecasPorTipoData) {
+			pecasPorTipoData.forEach((peca: any) => {
+				const precoCompra = Number(peca.produto?.preco_compra || 0);
+				const quantidade = Number(peca.quantidade || 0);
+				const custo = precoCompra * quantidade;
+				const tipo = peca.os?.tipo_cliente || "sem_tipo";
+
+				if (tipo === "lojista") {
+					osLojistaLucro += custo;
+				} else if (tipo === "consumidor_final") {
+					osConsumidorFinalLucro += custo;
+				} else {
+					osSemTipoLucro += custo;
+				}
+			});
+		}
+	}
+
+		// Calculate final profit (revenue - cost)
+		osLojistaLucro = osLojistaFaturamento - osLojistaLucro;
+		osConsumidorFinalLucro = osConsumidorFinalFaturamento - osConsumidorFinalLucro;
+		osSemTipoLucro = osSemTipoFaturamento - osSemTipoLucro;
+
+		return {
+			metricas_adicionais: {
+				pagamentos_sem_credito_cliente: pagamentosSemCredito,
+				pagamentos_os_recebidos: pagamentosOSRecebidos,
+				total_vendas: count || 0,
+				ganho_total_vendas: lucroVendas,
+				ticket_medio: ticketMedio,
+				contas_nao_pagas: totalContasNaoPagas,
+				total_os: totalOS || 0,
+				os_entregues: osEntregues || 0,
+				os_pendentes: osPendentes || 0,
+				os_pagas_nao_entregues: osPagasNaoEntregues || 0,
+				os_processadas: osProcessadas,
+				faturamento_os_processadas: faturamentoOSProcessadas,
+				ganho_os_processadas: ganhoOSProcessadas,
+				faturamento_os: faturamentoOS,
+				ganho_os: ganhoOS,
+				total_transferencias: totalTransferencias || 0,
+				transferencias_pendentes: transferenciasPendentes || 0,
+				total_quebras: totalQuebras,
+				quantidade_quebras: quantidadeQuebras,
+				total_creditos_cliente: totalCreditosCliente,
+				os_lojista_pagas: osLojistaCount,
+				os_consumidor_final_pagas: osConsumidorFinalCount,
+				os_lojista_faturamento: osLojistaFaturamento,
+				os_lojista_lucro: osLojistaLucro,
+				os_consumidor_final_faturamento: osConsumidorFinalFaturamento,
+				os_consumidor_final_lucro: osConsumidorFinalLucro,
+				os_sem_tipo_pagas: osSemTipoCount,
+				os_sem_tipo_faturamento: osSemTipoFaturamento,
+				os_sem_tipo_lucro: osSemTipoLucro,
+			},
+		};
+	}
+}

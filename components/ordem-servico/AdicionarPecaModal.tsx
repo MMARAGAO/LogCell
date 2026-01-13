@@ -19,6 +19,12 @@ import {
   CardBody,
   CardFooter,
   Pagination,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@heroui/react";
 import {
   PackagePlus,
@@ -29,9 +35,15 @@ import {
   Tag,
   Box,
   TrendingUp,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "@/components/Toast";
-import { adicionarPecaOS } from "@/services/ordemServicoService";
+import {
+  adicionarPecaOS,
+  removerPecaOS,
+  substituirPecaOS,
+} from "@/services/ordemServicoService";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AdicionarPecaModalProps {
@@ -54,6 +66,22 @@ interface ProdutoEstoque {
   loja_nome: string;
 }
 
+interface PecaOS {
+  id: string;
+  id_produto?: string | null;
+  id_loja?: number | null;
+  tipo_produto: "estoque" | "avulso";
+  descricao_peca?: string | null;
+  quantidade: number;
+  valor_custo: number;
+  valor_venda: number;
+  produtos?: {
+    descricao: string;
+    marca?: string;
+    categoria?: string;
+  } | null;
+}
+
 export default function AdicionarPecaModal({
   isOpen,
   onClose,
@@ -67,6 +95,10 @@ export default function AdicionarPecaModal({
   const [produtosEstoque, setProdutosEstoque] = useState<ProdutoEstoque[]>([]);
   const [loadingProdutos, setLoadingProdutos] = useState(false);
   const [buscaProduto, setBuscaProduto] = useState("");
+
+  const [pecas, setPecas] = useState<PecaOS[]>([]);
+  const [loadingPecas, setLoadingPecas] = useState(false);
+  const [pecaEditando, setPecaEditando] = useState<PecaOS | null>(null);
 
   // Paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -105,6 +137,14 @@ export default function AdicionarPecaModal({
       return () => clearTimeout(timeoutId);
     }
   }, [buscaProduto]);
+
+  useEffect(() => {
+    if (isOpen) {
+      carregarPecasOS();
+    } else {
+      setPecaEditando(null);
+    }
+  }, [isOpen]);
 
   const carregarProdutosEstoque = async (
     lojaId: number,
@@ -216,6 +256,47 @@ export default function AdicionarPecaModal({
     }
   };
 
+  const carregarPecasOS = async () => {
+    setLoadingPecas(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { data, error } = await supabase
+        .from("ordem_servico_pecas")
+        .select(
+          `
+          id,
+          id_produto,
+          id_loja,
+          tipo_produto,
+          descricao_peca,
+          quantidade,
+          valor_custo,
+          valor_venda,
+          produtos:id_produto(descricao, marca, categoria)
+        `
+        )
+        .eq("id_ordem_servico", idOrdemServico)
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+
+      const formatadas: PecaOS[] = (data || []).map((item: any) => ({
+        ...item,
+        produtos: Array.isArray(item.produtos)
+          ? item.produtos[0]
+          : item.produtos,
+      }));
+
+      setPecas(formatadas);
+    } catch (error) {
+      console.error("Erro ao carregar peças da OS:", error);
+      toast.showToast("Erro ao carregar peças da OS", "error");
+      setPecas([]);
+    } finally {
+      setLoadingPecas(false);
+    }
+  };
+
   const handleProdutoSelecionado = (produtoId: string | null) => {
     if (!produtoId) {
       setIdProdutoSelecionado(null);
@@ -232,6 +313,49 @@ export default function AdicionarPecaModal({
       // Preencher com os valores padrão do produto, mas permitir edição
       setValorCustoEstoque(produto.preco_compra.toFixed(2));
       setValorVendaEstoque(produto.preco_venda.toFixed(2));
+    }
+  };
+
+  const iniciarEdicao = (peca: PecaOS) => {
+    setPecaEditando(peca);
+    setTipoPeca(peca.tipo_produto);
+
+    if (peca.tipo_produto === "estoque") {
+      setIdProdutoSelecionado(peca.id_produto || null);
+      setQuantidadePeca(String(peca.quantidade));
+      setValorCustoEstoque(peca.valor_custo?.toFixed(2) || "");
+      setValorVendaEstoque(peca.valor_venda?.toFixed(2) || "");
+    } else {
+      setDescricaoPecaAvulsa(peca.descricao_peca || "");
+      setValorCustoAvulso(peca.valor_custo?.toFixed(2) || "");
+      setValorVendaAvulso(peca.valor_venda?.toFixed(2) || "");
+      setQuantidadeAvulsa(String(peca.quantidade));
+    }
+  };
+
+  const handleRemoverPeca = async (peca: PecaOS) => {
+    if (!usuario) {
+      toast.showToast("Usuário não autenticado", "error");
+      return;
+    }
+
+    const nomePeca =
+      peca.tipo_produto === "estoque"
+        ? peca.produtos?.descricao || ""
+        : peca.descricao_peca || "";
+
+    const confirmar = window.confirm(`Remover a peça "${nomePeca}" desta OS?`);
+
+    if (!confirmar) return;
+
+    const { error } = await removerPecaOS(peca.id, usuario.id);
+
+    if (error) {
+      toast.showToast(error, "error");
+    } else {
+      toast.showToast("Peça removida com sucesso", "success");
+      await carregarPecasOS();
+      onSuccess?.();
     }
   };
 
@@ -290,20 +414,27 @@ export default function AdicionarPecaModal({
         : { descricao_peca: descricaoPecaAvulsa }),
     };
 
-    const { error } = await adicionarPecaOS(formData, usuario.id);
+    const isEdicao = !!pecaEditando;
+
+    const { error } = isEdicao
+      ? await substituirPecaOS(pecaEditando.id, formData as any, usuario.id)
+      : await adicionarPecaOS(formData as any, usuario.id);
 
     if (error) {
       toast.showToast(error, "error");
     } else {
       toast.showToast(
-        tipoPeca === "estoque"
-          ? "Produto adicionado e estoque reservado"
-          : "Produto avulso adicionado",
+        isEdicao
+          ? "Peça substituída com sucesso"
+          : tipoPeca === "estoque"
+            ? "Produto adicionado e estoque reservado"
+            : "Produto avulso adicionado",
         "success"
       );
+      setPecaEditando(null);
       limparCampos();
+      await carregarPecasOS();
       onSuccess?.();
-      onClose();
     }
 
     setLoading(false);
@@ -312,6 +443,7 @@ export default function AdicionarPecaModal({
   const limparCampos = () => {
     setIdProdutoSelecionado(null);
     setProdutoSelecionado(null);
+    setPecaEditando(null);
     setQuantidadePeca("1");
     setDescricaoPecaAvulsa("");
     setValorCustoAvulso("");
@@ -361,6 +493,113 @@ export default function AdicionarPecaModal({
           Adicionar Peça/Produto
         </ModalHeader>
         <ModalBody>
+          <div className="space-y-3 mb-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-base font-semibold">Peças já vinculadas</h4>
+              <Chip size="sm" color="primary" variant="flat">
+                {loadingPecas ? "Carregando" : `${pecas.length} peça(s)`}
+              </Chip>
+            </div>
+
+            {loadingPecas ? (
+              <div className="flex justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : pecas.length === 0 ? (
+              <div className="text-sm text-default-500 bg-default-100 dark:bg-default-50/10 p-3 rounded-lg">
+                Nenhuma peça vinculada ainda.
+              </div>
+            ) : (
+              <Table aria-label="Peças da OS" removeWrapper>
+                <TableHeader>
+                  <TableColumn>Descrição</TableColumn>
+                  <TableColumn>Tipo</TableColumn>
+                  <TableColumn align="center">Qtd</TableColumn>
+                  <TableColumn align="end">Venda</TableColumn>
+                  <TableColumn align="end">Total</TableColumn>
+                  <TableColumn align="center">Ações</TableColumn>
+                </TableHeader>
+                <TableBody>
+                  {pecas.map((peca) => {
+                    const descricao =
+                      peca.tipo_produto === "estoque"
+                        ? peca.produtos?.descricao || "Produto do estoque"
+                        : peca.descricao_peca || "Peça avulsa";
+                    return (
+                      <TableRow key={peca.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sm line-clamp-2">
+                              {descricao}
+                            </span>
+                            {peca.tipo_produto === "estoque" &&
+                              peca.produtos?.marca && (
+                                <span className="text-xs text-default-400">
+                                  {peca.produtos.marca}
+                                </span>
+                              )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            size="sm"
+                            color={
+                              peca.tipo_produto === "estoque"
+                                ? "success"
+                                : "warning"
+                            }
+                            variant="flat"
+                          >
+                            {peca.tipo_produto === "estoque"
+                              ? "Estoque"
+                              : "Avulsa"}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-center font-medium">
+                            {peca.quantidade}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-right text-sm">
+                            R$ {peca.valor_venda.toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-right font-semibold">
+                            R$ {(peca.valor_venda * peca.quantidade).toFixed(2)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="flat"
+                              color="secondary"
+                              startContent={<Edit className="w-4 h-4" />}
+                              onPress={() => iniciarEdicao(peca)}
+                            >
+                              Substituir
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="light"
+                              color="danger"
+                              startContent={<Trash2 className="w-4 h-4" />}
+                              onPress={() => handleRemoverPeca(peca)}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
           <Select
             label="Tipo de Peça"
             placeholder="Selecione o tipo"
@@ -746,9 +985,16 @@ export default function AdicionarPecaModal({
             color="primary"
             onPress={handleSubmit}
             isLoading={loading}
-            startContent={!loading && <PackagePlus className="w-4 h-4" />}
+            startContent={
+              !loading &&
+              (pecaEditando ? (
+                <Edit className="w-4 h-4" />
+              ) : (
+                <PackagePlus className="w-4 h-4" />
+              ))
+            }
           >
-            Adicionar
+            {pecaEditando ? "Substituir peça" : "Adicionar"}
           </Button>
         </ModalFooter>
       </ModalContent>

@@ -297,6 +297,521 @@ export const gerarPDFOrdemServico = async (
   return doc;
 };
 
+export const gerarOrcamentoOS = async (
+  os: OrdemServico,
+  pecas: PecaOS[],
+  dadosLoja: DadosLoja
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // Cabeçalho da Empresa
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(dadosLoja.nome, pageWidth / 2, y, { align: "center" });
+  y += 7;
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  if (dadosLoja.endereco) {
+    doc.text(dadosLoja.endereco, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+  if (dadosLoja.telefone) {
+    doc.text(`Tel: ${dadosLoja.telefone}`, pageWidth / 2, y, {
+      align: "center",
+    });
+    y += 5;
+  }
+  if (dadosLoja.cnpj) {
+    doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(15, y, pageWidth - 15, y);
+  y += 10;
+
+  // Título
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("ORÇAMENTO", pageWidth / 2, y, { align: "center" });
+  y += 10;
+
+  // Número e Data
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nº OS: ${os.numero_os || os.id}`, 15, y);
+  doc.text(
+    `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`,
+    pageWidth - 15,
+    y,
+    { align: "right" }
+  );
+  y += 10;
+
+  // Dados do Cliente
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("DADOS DO CLIENTE", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nome: ${os.cliente_nome}`, 17, y);
+  y += 6;
+  if (os.cliente_telefone) {
+    doc.text(`Telefone: ${os.cliente_telefone}`, 17, y);
+    y += 6;
+  }
+  if (os.cliente_email) {
+    doc.text(`E-mail: ${os.cliente_email}`, 17, y);
+    y += 6;
+  }
+  y += 4;
+
+  // Dados do Equipamento
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
+  y += 6;
+  if (os.equipamento_marca) {
+    doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
+    y += 6;
+  }
+  if (os.equipamento_modelo) {
+    doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
+    y += 6;
+  }
+  if (os.equipamento_numero_serie) {
+    doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
+    y += 6;
+  }
+  
+  // Estado do Equipamento
+  if (os.estado_equipamento) {
+    doc.text(`Estado: ${os.estado_equipamento}`, 17, y);
+    y += 6;
+  }
+  y += 4;
+
+  // Problema Relatado / Defeito Reclamado
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("PROBLEMA RELATADO", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
+  doc.text(defeitoLines, 17, y);
+  y += defeitoLines.length * 6 + 4;
+
+  // Serviço a Realizar
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("SERVIÇO A REALIZAR", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  // Se houver laudo, usar como "serviço a realizar"
+  if (os.laudo_diagnostico) {
+    const servicoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+    doc.text(servicoLines, 17, y);
+    y += servicoLines.length * 6 + 4;
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.text("A definir após diagnóstico técnico", 17, y);
+    y += 10;
+  }
+
+  // Peças Necessárias (se houver)
+  if (pecas && pecas.length > 0) {
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("PEÇAS NECESSÁRIAS", 17, y + 5);
+    y += 12;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Descrição", "Qtd", "Valor Unit.", "Total"]],
+      body: pecas.map((peca) => [
+        peca.descricao_peca,
+        peca.quantidade.toString(),
+        `R$ ${peca.valor_venda.toFixed(2)}`,
+        `R$ ${(peca.quantidade * peca.valor_venda).toFixed(2)}`,
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [100, 100, 100], fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: "auto" },
+        1: { cellWidth: 20, halign: "center" },
+        2: { cellWidth: 30, halign: "right" },
+        3: { cellWidth: 30, halign: "right" },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 5;
+    
+    // Total das peças
+    const totalPecas = pecas.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total Peças: R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 10;
+  }
+
+  // Valores do Serviço
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("VALORES", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  
+  const totalPecas = pecas.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
+  const valorServico = os.valor_servico || 0;
+  const valorTotal = totalPecas + valorServico;
+
+  doc.text(`Mão de Obra:`, 17, y);
+  doc.text(`R$ ${valorServico.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+  y += 6;
+  
+  doc.text(`Peças:`, 17, y);
+  doc.text(`R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+  y += 6;
+  
+  doc.setLineWidth(0.3);
+  doc.line(17, y, pageWidth - 15, y);
+  y += 5;
+  
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(`TOTAL:`, 17, y);
+  doc.text(`R$ ${valorTotal.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+  y += 10;
+
+  // Observações (se houver)
+  if (os.observacoes_tecnicas) {
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("OBSERVAÇÕES", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const obsLines = doc.splitTextToSize(
+      os.observacoes_tecnicas,
+      pageWidth - 40
+    );
+    doc.text(obsLines, 17, y);
+    y += obsLines.length * 5 + 10;
+  }
+
+  // Termo de autorização
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
+
+  y += 10;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  const termo = "Autorizo a execução dos serviços descritos acima e estou ciente dos valores apresentados.";
+  const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+  doc.text(termoLines, 17, y);
+  y += termoLines.length * 5 + 15;
+
+  // Assinatura
+  doc.setLineWidth(0.3);
+  doc.line(15, y, 90, y);
+  y += 5;
+  doc.text("Assinatura do Cliente", 15, y);
+
+  return doc;
+};
+
+export const gerarGarantiaOS = async (
+  os: OrdemServico,
+  pecas: PecaOS[],
+  dadosLoja: DadosLoja
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // Cabeçalho da Empresa
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text(dadosLoja.nome, pageWidth / 2, y, { align: "center" });
+  y += 7;
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  if (dadosLoja.endereco) {
+    doc.text(dadosLoja.endereco, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+  if (dadosLoja.telefone) {
+    doc.text(`Tel: ${dadosLoja.telefone}`, pageWidth / 2, y, {
+      align: "center",
+    });
+    y += 5;
+  }
+  if (dadosLoja.cnpj) {
+    doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
+    y += 5;
+  }
+
+  y += 5;
+  doc.setLineWidth(0.5);
+  doc.line(15, y, pageWidth - 15, y);
+  y += 10;
+
+  // Título
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("TERMO DE GARANTIA", pageWidth / 2, y, { align: "center" });
+  y += 10;
+
+  // Número e Data
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nº OS: ${os.numero_os || os.id}`, 15, y);
+  doc.text(
+    `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`,
+    pageWidth - 15,
+    y,
+    { align: "right" }
+  );
+  y += 10;
+
+  // Tipo de Garantia e Dias
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  
+  const tipoGarantia = os.tipo_garantia || "servico";
+  const diasGarantia = os.dias_garantia || 90;
+  
+  doc.text(`Tipo de Garantia: ${tipoGarantia.toUpperCase()}`, 15, y);
+  y += 7;
+  doc.text(`Prazo de Garantia: ${diasGarantia} dias`, 15, y);
+  y += 10;
+
+  // Dados do Cliente
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("DADOS DO CLIENTE", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Nome: ${os.cliente_nome}`, 17, y);
+  y += 6;
+  if (os.cliente_telefone) {
+    doc.text(`Telefone: ${os.cliente_telefone}`, 17, y);
+    y += 6;
+  }
+  y += 4;
+
+  // Dados do Equipamento
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
+  y += 6;
+  if (os.equipamento_marca) {
+    doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
+    y += 6;
+  }
+  if (os.equipamento_modelo) {
+    doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
+    y += 6;
+  }
+  if (os.equipamento_numero_serie) {
+    doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
+    y += 6;
+  }
+  y += 4;
+
+  // Serviço Realizado
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("SERVIÇO REALIZADO", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  if (os.laudo_diagnostico) {
+    const laudoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+    doc.text(laudoLines, 17, y);
+    y += laudoLines.length * 6 + 4;
+  } else {
+    const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
+    doc.text(defeitoLines, 17, y);
+    y += defeitoLines.length * 6 + 4;
+  }
+
+  // Peças Utilizadas (se houver)
+  if (pecas && pecas.length > 0) {
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("PEÇAS SUBSTITUÍDAS", 17, y + 5);
+    y += 12;
+
+    autoTable(doc, {
+      startY: y,
+      head: [["Descrição", "Qtd"]],
+      body: pecas.map((peca) => [
+        peca.descricao_peca,
+        peca.quantidade.toString(),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [100, 100, 100], fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: "auto" },
+        1: { cellWidth: 20, halign: "center" },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 10;
+  }
+
+  // Termos de Garantia
+  if (y > 200) {
+    doc.addPage();
+    y = 20;
+  }
+
+  // Buscar texto de garantia do banco de dados
+  let textoGarantia = null;
+  let tituloGarantia = "TERMOS E CONDIÇÕES DA GARANTIA";
+  let termos = [
+    "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
+    "(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data da entrega do aparelho ao cliente.",
+    "(3) - Esta garantia cobre defeitos de peças e mão de obra decorrentes dos serviços realizados e/ou peças substituídas pela AUTORIZADA CELL. Não cobrimos garantia de terceiros.",
+    "(4) - Defeitos causados por mau uso, quedas, contato com líquidos, umidade, oxidação, surtos de energia, ou instalação de software não autorizado serão excluídos da garantia.",
+    "(5) - Expirado o prazo da garantia, e apresentando esta ordem/garantia, poderá ser aplicado um desconto em caso de reparo no equipamento;",
+    "(6) - O aparelho não procurado em 90 (NOVENTA) dias após a data de execução da ordem de serviço não nos responsabilizamos mais pelo aparelho.",
+    "(7) - Brindes não estão sujeitos à garantia, e devem ser testados e conferidos no ato da entrega.",
+    "(8) - Eu cliente, declaro ter ciência do que foi descrito acima.",
+  ];
+
+  if (os.tipo_garantia) {
+    try {
+      const { data } = await supabase
+        .from("textos_garantia")
+        .select("titulo, clausulas")
+        .eq("tipo_servico", os.tipo_garantia)
+        .eq("ativo", true)
+        .single();
+
+      if (data) {
+        textoGarantia = data;
+        tituloGarantia = data.titulo.toUpperCase();
+        termos = data.clausulas.map((c: any) => `(${c.numero}) - ${c.texto}`);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar texto de garantia:", error);
+      // Usar termos padrão em caso de erro
+    }
+  }
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(tituloGarantia, 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+
+  termos.forEach((termo) => {
+    const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+    doc.text(termoLines, 17, y);
+    y += termoLines.length * 4 + 2;
+  });
+
+  y += 5;
+
+  // Assinaturas
+  if (y > 240) {
+    doc.addPage();
+    y = 20;
+  }
+
+  y += 20;
+  doc.setLineWidth(0.3);
+  doc.line(15, y, 90, y);
+  doc.line(pageWidth - 90, y, pageWidth - 15, y);
+  y += 5;
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Assinatura do Cliente", 15, y);
+  doc.text("Assinatura do Técnico", pageWidth - 90, y);
+
+  return doc;
+};
+
 export const gerarCupomTermicoOS = async (
   os: OrdemServico,
   pecas: PecaOS[],

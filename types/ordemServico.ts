@@ -10,6 +10,7 @@ export type StatusOS =
   | "aguardando_peca"
   | "concluido"
   | "entregue"
+  | "devolvida"
   | "cancelado"
   | "garantia";
 
@@ -23,6 +24,7 @@ export type TipoEventoOS =
   | "atualizacao_valores"
   | "observacao"
   | "conclusao"
+  | "devolucao"
   | "cancelamento"
   | "lancamento_caixa";
 
@@ -76,9 +78,11 @@ export interface OrdemServico {
   laudo_garantia_dias?: number;
   laudo_condicao_final?: string;
   tipo_garantia?: string; // Tipo de garantia: servico_geral, troca_vidro, troca_tampa, venda_aparelho
+  dias_garantia?: number; // Dias de garantia customizados
 
   // Valores
   valor_orcamento?: number;
+  valor_servico?: number;
   valor_desconto?: number;
   valor_total?: number;
   valor_pago?: number;
@@ -311,6 +315,7 @@ export interface EstatisticasOS {
   em_andamento: number;
   concluido: number;
   entregue: number;
+  devolvida?: number;
   cancelado: number;
   valor_total_mes: number;
   valor_recebido_mes: number;
@@ -327,6 +332,7 @@ export const STATUS_OS_LABELS: Record<StatusOS, string> = {
   aguardando_peca: "Aguardando Peça",
   concluido: "Concluído",
   entregue: "Entregue",
+  devolvida: "Devolvida",
   cancelado: "Cancelado",
   garantia: "Garantia",
 };
@@ -342,6 +348,7 @@ export const STATUS_OS_COLORS: Record<
   aguardando_peca: "warning",
   concluido: "success",
   entregue: "success",
+  devolvida: "warning",
   cancelado: "danger",
   garantia: "secondary",
 };

@@ -215,7 +215,7 @@ export default function DevolucoesPage() {
   const vendasFiltradas = vendas.filter((venda) => {
     const termo = busca.toLowerCase();
     return (
-      venda.numero_venda.toString().includes(termo) ||
+      venda.numero_venda?.toString().includes(termo) ||
       venda.cliente?.nome.toLowerCase().includes(termo) ||
       venda.cliente?.doc?.includes(termo)
     );

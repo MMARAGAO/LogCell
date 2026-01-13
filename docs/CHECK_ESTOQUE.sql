@@ -1,1 +1,0 @@
-SELECT quantidade FROM estoque_lojas WHERE id_produto = 'e138eed1-e316-4d2a-990e-7f1ebdee06c7' AND id_loja = 16;
