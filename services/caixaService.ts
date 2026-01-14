@@ -760,6 +760,7 @@ export class CaixaService {
           valor: -Number(sangria.valor),
           data: sangria.criado_em,
           referencia_id: sangria.id,
+          usuario_responsavel: sangria.usuario?.nome || "N/A",
         });
       });
 

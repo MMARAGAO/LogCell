@@ -28,7 +28,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
 
       if (error || !session) {
         console.warn("⚠️ Sessão inválida ou expirada, redirecionando...");
-        router.push("/auth/login");
+        router.push("/auth");
       }
     };
 
@@ -43,7 +43,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
         console.warn("⚠️ Sessão expirada (evento: " + event + ")");
         const isAuthPage = window.location.pathname.startsWith("/auth");
         if (!isAuthPage) {
-          router.push("/auth/login");
+          router.push("/auth");
         }
       }
 

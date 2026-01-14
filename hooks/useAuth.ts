@@ -233,7 +233,7 @@ export function useAuth() {
       if (error || !session) {
         console.error("❌ Sessão expirada ou inválida");
         await supabase.auth.signOut();
-        router.push("/auth/login");
+        router.push("/auth");
         return false;
       }
 
@@ -241,7 +241,7 @@ export function useAuth() {
     } catch (err) {
       console.error("Erro ao verificar sessão:", err);
       await supabase.auth.signOut();
-      router.push("/auth/login");
+      router.push("/auth");
       return false;
     }
   }, [router]);
