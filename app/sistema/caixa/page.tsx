@@ -360,10 +360,14 @@ export default function CaixaPage() {
 
     // Buscar detalhes das devoluções com itens
     let devolucoesDetalhadas: any[] = [];
-    if (resumo.devolucoes.quantidade > 0 || resumo.devolucoes_sem_credito.quantidade > 0) {
+    if (
+      resumo.devolucoes.quantidade > 0 ||
+      resumo.devolucoes_sem_credito.quantidade > 0
+    ) {
       try {
         const dataAbertura = caixaDetalhes.data_abertura;
-        const dataFechamento = caixaDetalhes.data_fechamento || new Date().toISOString();
+        const dataFechamento =
+          caixaDetalhes.data_fechamento || new Date().toISOString();
 
         const { data: devolucoes } = await supabase
           .from("devolucoes_venda")
@@ -904,7 +908,11 @@ export default function CaixaPage() {
     yPos = (doc as any).lastAutoTable.finalY;
 
     // Detalhamento de Devoluções
-    if ((resumo.devolucoes.quantidade > 0 || resumo.devolucoes_sem_credito.quantidade > 0) && devolucoesDetalhadas.length > 0) {
+    if (
+      (resumo.devolucoes.quantidade > 0 ||
+        resumo.devolucoes_sem_credito.quantidade > 0) &&
+      devolucoesDetalhadas.length > 0
+    ) {
       if (yPos > 240) {
         doc.addPage();
         yPos = 20;
@@ -925,7 +933,7 @@ export default function CaixaPage() {
         }
 
         yPos += 8;
-        
+
         // Cabeçalho da devolução
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
@@ -950,11 +958,7 @@ export default function CaixaPage() {
         if (dev.motivo) {
           doc.setFont("helvetica", "italic");
           doc.setTextColor(100, 100, 100);
-          doc.text(
-            `Motivo: ${dev.motivo}`,
-            15,
-            yPos
-          );
+          doc.text(`Motivo: ${dev.motivo}`, 15, yPos);
           doc.setTextColor(0, 0, 0);
           yPos += 5;
         }
@@ -970,20 +974,31 @@ export default function CaixaPage() {
         // Tabela de todos os itens da venda
         if (dev.venda?.itens && dev.venda.itens.length > 0) {
           const itensData = [
-            ["Produto", "Qtd Original", "Qtd Devolvida", "Qtd Restante", "Valor Unit.", "Status"],
+            [
+              "Produto",
+              "Qtd Original",
+              "Qtd Devolvida",
+              "Qtd Restante",
+              "Valor Unit.",
+              "Status",
+            ],
             ...dev.venda.itens.map((item: any) => {
-              const qtdDevolvidaNestaDevolucao = itensDevolvidos.get(item.id) || 0;
+              const qtdDevolvidaNestaDevolucao =
+                itensDevolvidos.get(item.id) || 0;
               const qtdRestante = item.quantidade - item.devolvido;
-              const status = item.devolvido === item.quantidade 
-                ? "Devolvido Total" 
-                : item.devolvido > 0 
-                  ? "Parcial" 
-                  : "Nao Devolvido";
-              
+              const status =
+                item.devolvido === item.quantidade
+                  ? "Devolvido Total"
+                  : item.devolvido > 0
+                    ? "Parcial"
+                    : "Nao Devolvido";
+
               return [
                 item.produto_nome || "N/A",
                 item.quantidade.toString(),
-                qtdDevolvidaNestaDevolucao > 0 ? qtdDevolvidaNestaDevolucao.toString() : "-",
+                qtdDevolvidaNestaDevolucao > 0
+                  ? qtdDevolvidaNestaDevolucao.toString()
+                  : "-",
                 qtdRestante.toString(),
                 formatarMoeda(item.preco_unitario || 0),
                 status,
@@ -1009,12 +1024,12 @@ export default function CaixaPage() {
             },
             didParseCell: function (data: any) {
               // Colorir células de status
-              if (data.column.index === 5 && data.section === 'body') {
-                if (data.cell.raw.includes('Devolvido Total')) {
+              if (data.column.index === 5 && data.section === "body") {
+                if (data.cell.raw.includes("Devolvido Total")) {
                   data.cell.styles.textColor = [220, 38, 38]; // vermelho
-                } else if (data.cell.raw.includes('Parcial')) {
+                } else if (data.cell.raw.includes("Parcial")) {
                   data.cell.styles.textColor = [245, 158, 11]; // laranja
-                } else if (data.cell.raw.includes('Nao Devolvido')) {
+                } else if (data.cell.raw.includes("Nao Devolvido")) {
                   data.cell.styles.textColor = [34, 197, 94]; // verde
                 }
               }
