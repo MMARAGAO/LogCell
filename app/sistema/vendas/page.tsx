@@ -1283,118 +1283,6 @@ export default function VendasPage() {
         </div>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-primary-100 rounded-lg">
-              <ShoppingCart className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total de Vendas</p>
-              <p className="text-2xl font-bold">{estatisticas.totalVendas}</p>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-success-100 rounded-lg">
-              <Calendar className="w-6 h-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Vendas Hoje</p>
-              <p className="text-2xl font-bold">{estatisticas.vendasHoje}</p>
-            </div>
-          </CardBody>
-        </Card>
-        <TrocaDeVendedor
-          isOpen={modalTrocarVendedorOpen}
-          onClose={() => setModalTrocarVendedorOpen(false)}
-          usuarios={usuariosAtivos}
-          loadingUsuarios={loadingUsuarios}
-          vendedorSelecionado={novoVendedorId}
-          vendedorAtualId={vendaParaTrocarVendedor?.vendedor_id || null}
-          onSelecionarVendedor={setNovoVendedorId}
-          onConfirmar={handleConfirmarTrocaVendedor}
-          salvando={salvandoVendedor}
-        />
-        {temPermissao("vendas.ver_estatisticas_faturamento") && (
-          <>
-            <Card>
-              <CardBody className="flex flex-row items-center gap-3">
-                <div className="p-3 bg-warning-100 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-warning" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Faturamento Total</p>
-                  <p className="text-xl font-bold">
-                    {formatarMoeda(estatisticas.faturamentoTotal)}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody className="flex flex-row items-center gap-3">
-                <div className="p-3 bg-secondary-100 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-secondary" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Faturamento Hoje</p>
-                  <p className="text-xl font-bold">
-                    {formatarMoeda(estatisticas.faturamentoHoje)}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardBody className="flex flex-row items-center gap-3">
-                <div className="p-3 bg-danger-100 rounded-lg">
-                  <Users className="w-6 h-6 text-danger" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Ticket Médio</p>
-                  <p className="text-xl font-bold">
-                    {formatarMoeda(estatisticas.ticketMedio)}
-                  </p>
-                </div>
-              </CardBody>
-            </Card>
-          </>
-        )}
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <Package className="w-6 h-6 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Produtos Vendidos</p>
-              <p className="text-2xl font-bold">
-                {estatisticas.produtosVendidos}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Wallet className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Créditos Ativos</p>
-              <p className="text-xl font-bold">
-                {formatarMoeda(estatisticas.totalCreditos)}
-              </p>
-              <p className="text-xs text-gray-500">
-                {estatisticas.creditosAtivos}{" "}
-                {estatisticas.creditosAtivos === 1 ? "crédito" : "créditos"}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-      </div>
-
       {/* Filtros */}
       <Card className="mb-6">
         <CardBody>
@@ -1618,78 +1506,6 @@ export default function VendasPage() {
         </CardBody>
       </Card>
 
-      {/* Card de Resumo de Pagamentos */}
-      {temPermissao("vendas.ver_resumo_pagamentos") &&
-        Object.keys(resumoPagamentos).length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-success" />
-                <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
-                <span className="text-sm text-default-500 ml-2">
-                  ({vendasOrdenadas.length}{" "}
-                  {vendasOrdenadas.length === 1 ? "venda" : "vendas"})
-                </span>
-              </div>
-            </CardHeader>
-            <CardBody>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {Object.entries(resumoPagamentos)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([tipo, valor]) => (
-                    <div
-                      key={tipo}
-                      className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xl">
-                          {tipo === "dinheiro"
-                            ? "💵"
-                            : tipo === "pix"
-                              ? "📱"
-                              : tipo === "cartao_credito"
-                                ? "💳"
-                                : tipo === "cartao_debito"
-                                  ? "💳"
-                                  : tipo === "transferencia"
-                                    ? "🏦"
-                                    : tipo === "credito_cliente"
-                                      ? "🎁"
-                                      : tipo === "boleto"
-                                        ? "📄"
-                                        : "💰"}
-                        </span>
-                        <p className="text-xs text-default-600 font-medium uppercase">
-                          {tipo.replace("_", " ")}
-                        </p>
-                      </div>
-                      <p className="text-xl font-bold text-success">
-                        {formatarMoeda(valor)}
-                      </p>
-                    </div>
-                  ))}
-                {/* Total Geral */}
-                <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl">💰</span>
-                    <p className="text-xs text-primary font-bold uppercase">
-                      Total Geral
-                    </p>
-                  </div>
-                  <p className="text-xl font-bold text-primary">
-                    {formatarMoeda(
-                      Object.values(resumoPagamentos).reduce(
-                        (sum, val) => sum + val,
-                        0
-                      )
-                    )}
-                  </p>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        )}
-
       {/* Lista de Vendas - Cards */}
       {visualizacao === "cards" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -1713,7 +1529,9 @@ export default function VendasPage() {
                       ? "success"
                       : venda.status === "cancelada"
                         ? "danger"
-                        : "warning"
+                        : venda.status === "devolvida"
+                          ? "warning"
+                          : "primary"
                   }
                   size="sm"
                   variant="flat"
@@ -1723,7 +1541,9 @@ export default function VendasPage() {
                     ? "Concluída"
                     : venda.status === "cancelada"
                       ? "Cancelada"
-                      : "Em Andamento"}
+                      : venda.status === "devolvida"
+                        ? "Devolvida"
+                        : "Em Andamento"}
                 </Chip>
               </CardHeader>
               <CardBody className="pt-0">
@@ -1921,7 +1741,9 @@ export default function VendasPage() {
                             ? "success"
                             : venda.status === "cancelada"
                               ? "danger"
-                              : "warning"
+                              : venda.status === "devolvida"
+                                ? "warning"
+                                : "primary"
                         }
                         size="sm"
                         variant="flat"
@@ -1930,7 +1752,9 @@ export default function VendasPage() {
                           ? "Concluída"
                           : venda.status === "cancelada"
                             ? "Cancelada"
-                            : "Em Andamento"}
+                            : venda.status === "devolvida"
+                              ? "Devolvida"
+                              : "Em Andamento"}
                       </Chip>
                     </TableCell>
                     <TableCell>

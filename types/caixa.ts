@@ -47,6 +47,7 @@ export interface MovimentacaoCaixa {
   gerou_credito?: boolean;
   usou_credito?: boolean;
   id_loja?: number;
+  usuario_responsavel?: string;
   pagamentos?: Array<{
     tipo_pagamento: string;
     valor: number;

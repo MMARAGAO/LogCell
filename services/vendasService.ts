@@ -1830,6 +1830,28 @@ export class VendasService {
         console.log("✅ Crédito criado com sucesso:", creditoData);
       }
 
+      // Verificar se todos os itens da venda foram devolvidos
+      const { data: todosItensVenda } = await supabase
+        .from("itens_venda")
+        .select("id, quantidade, devolvido")
+        .eq("venda_id", dados.venda_id);
+
+      if (todosItensVenda) {
+        const todosDevolvidos = todosItensVenda.every(
+          (item) => item.quantidade === (item.devolvido || 0)
+        );
+
+        if (todosDevolvidos) {
+          // Atualizar status da venda para devolvida
+          await supabase
+            .from("vendas")
+            .update({ status: "devolvida" })
+            .eq("id", dados.venda_id);
+
+          console.log("✅ Venda marcada como devolvida (todos os itens foram devolvidos)");
+        }
+      }
+
       // Registrar no histórico
       await this.registrarHistorico({
         venda_id: dados.venda_id,

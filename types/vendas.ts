@@ -6,7 +6,7 @@ export interface Venda {
   cliente_id: string;
   loja_id: number;
   vendedor_id: string;
-  status: "em_andamento" | "concluida" | "cancelada";
+  status: "em_andamento" | "concluida" | "cancelada" | "devolvida";
   tipo: "normal" | "fiada";
   data_prevista_pagamento?: string; // Para vendas fiadas
   valor_total: number;

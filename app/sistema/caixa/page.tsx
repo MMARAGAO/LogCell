@@ -358,6 +358,57 @@ export default function CaixaPage() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
+    // Buscar detalhes das devoluções com itens
+    let devolucoesDetalhadas: any[] = [];
+    if (resumo.devolucoes.quantidade > 0 || resumo.devolucoes_sem_credito.quantidade > 0) {
+      try {
+        const dataAbertura = caixaDetalhes.data_abertura;
+        const dataFechamento = caixaDetalhes.data_fechamento || new Date().toISOString();
+
+        const { data: devolucoes } = await supabase
+          .from("devolucoes_venda")
+          .select(
+            `
+            id,
+            venda_id,
+            valor_total,
+            criado_em,
+            tipo,
+            forma_pagamento,
+            motivo,
+            venda:vendas!devolucoes_venda_venda_id_fkey(
+              id,
+              numero_venda,
+              loja_id,
+              cliente:clientes(nome),
+              itens:itens_venda(
+                id,
+                produto_nome,
+                quantidade,
+                devolvido,
+                preco_unitario
+              )
+            ),
+            itens:itens_devolucao(
+              quantidade,
+              item_venda_id
+            )
+          `
+          )
+          .gte("criado_em", dataAbertura)
+          .lte("criado_em", dataFechamento);
+
+        if (devolucoes) {
+          // Filtrar apenas devoluções da loja do caixa
+          devolucoesDetalhadas = devolucoes.filter(
+            (d: any) => d.venda?.loja_id === caixaDetalhes.loja_id
+          );
+        }
+      } catch (error) {
+        console.error("Erro ao buscar detalhes das devoluções:", error);
+      }
+    }
+
     // Título
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
@@ -851,6 +902,179 @@ export default function CaixaPage() {
     });
 
     yPos = (doc as any).lastAutoTable.finalY;
+
+    // Detalhamento de Devoluções
+    if ((resumo.devolucoes.quantidade > 0 || resumo.devolucoes_sem_credito.quantidade > 0) && devolucoesDetalhadas.length > 0) {
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 15;
+      }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Detalhamento de Devoluções", 15, yPos);
+      yPos += 5;
+
+      // Para cada devolução, mostrar cabeçalho e itens
+      devolucoesDetalhadas.forEach((dev, index) => {
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        yPos += 8;
+        
+        // Cabeçalho da devolução
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(239, 68, 68);
+        doc.text(
+          `Devolução ${index + 1}: Venda #${dev.venda?.numero_venda} - ${dev.venda?.cliente?.nome || "Cliente"}`,
+          15,
+          yPos
+        );
+        doc.setTextColor(0, 0, 0);
+        yPos += 5;
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text(
+          `Data: ${formatarData(dev.criado_em)} | Tipo: ${dev.tipo === "com_credito" ? "Com Crédito" : "Sem Crédito"} | Forma: ${dev.forma_pagamento || "N/A"} | Total: ${formatarMoeda(dev.valor_total)}`,
+          15,
+          yPos
+        );
+        yPos += 5;
+
+        if (dev.motivo) {
+          doc.setFont("helvetica", "italic");
+          doc.setTextColor(100, 100, 100);
+          doc.text(
+            `Motivo: ${dev.motivo}`,
+            15,
+            yPos
+          );
+          doc.setTextColor(0, 0, 0);
+          yPos += 5;
+        }
+
+        yPos += 2;
+
+        // Criar mapa de itens devolvidos
+        const itensDevolvidos = new Map();
+        dev.itens?.forEach((item: any) => {
+          itensDevolvidos.set(item.item_venda_id, item.quantidade);
+        });
+
+        // Tabela de todos os itens da venda
+        if (dev.venda?.itens && dev.venda.itens.length > 0) {
+          const itensData = [
+            ["Produto", "Qtd Original", "Qtd Devolvida", "Qtd Restante", "Valor Unit.", "Status"],
+            ...dev.venda.itens.map((item: any) => {
+              const qtdDevolvidaNestaDevolucao = itensDevolvidos.get(item.id) || 0;
+              const qtdRestante = item.quantidade - item.devolvido;
+              const status = item.devolvido === item.quantidade 
+                ? "Devolvido Total" 
+                : item.devolvido > 0 
+                  ? "Parcial" 
+                  : "Nao Devolvido";
+              
+              return [
+                item.produto_nome || "N/A",
+                item.quantidade.toString(),
+                qtdDevolvidaNestaDevolucao > 0 ? qtdDevolvidaNestaDevolucao.toString() : "-",
+                qtdRestante.toString(),
+                formatarMoeda(item.preco_unitario || 0),
+                status,
+              ];
+            }),
+          ];
+
+          autoTable(doc, {
+            startY: yPos,
+            head: [itensData[0]],
+            body: itensData.slice(1),
+            theme: "striped",
+            headStyles: { fillColor: [239, 68, 68], fontSize: 8 },
+            bodyStyles: { fontSize: 7 },
+            margin: { left: 20, right: 15 },
+            columnStyles: {
+              0: { cellWidth: 60 },
+              1: { cellWidth: 20, halign: "center" },
+              2: { cellWidth: 20, halign: "center" },
+              3: { cellWidth: 20, halign: "center" },
+              4: { cellWidth: 25, halign: "right" },
+              5: { cellWidth: 35, halign: "center" },
+            },
+            didParseCell: function (data: any) {
+              // Colorir células de status
+              if (data.column.index === 5 && data.section === 'body') {
+                if (data.cell.raw.includes('Devolvido Total')) {
+                  data.cell.styles.textColor = [220, 38, 38]; // vermelho
+                } else if (data.cell.raw.includes('Parcial')) {
+                  data.cell.styles.textColor = [245, 158, 11]; // laranja
+                } else if (data.cell.raw.includes('Nao Devolvido')) {
+                  data.cell.styles.textColor = [34, 197, 94]; // verde
+                }
+              }
+            },
+          });
+
+          yPos = (doc as any).lastAutoTable.finalY + 5;
+        } else {
+          yPos += 3;
+        }
+      });
+    }
+
+    // Detalhamento de Sangrias
+    if (resumo.sangrias.quantidade > 0 && movimentacoes.length > 0) {
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 15;
+      }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Detalhamento de Sangrias", 15, yPos);
+
+      yPos += 8;
+      const sangriasFiltradas = movimentacoes.filter(
+        (mov) => mov.tipo === "sangria"
+      );
+
+      if (sangriasFiltradas.length > 0) {
+        const sangriasData = [
+          ["Data/Hora", "Motivo", "Valor", "Responsável"],
+          ...sangriasFiltradas.map((sangria) => [
+            formatarData(sangria.data),
+            sangria.descricao.replace("Sangria - ", ""),
+            formatarMoeda(Math.abs(sangria.valor)),
+            sangria.usuario_responsavel || "N/A",
+          ]),
+        ];
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [sangriasData[0]],
+          body: sangriasData.slice(1),
+          theme: "striped",
+          headStyles: { fillColor: [245, 158, 11] },
+          margin: { left: 15, right: 15 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 60 },
+            2: { cellWidth: 30, halign: "right" },
+            3: { cellWidth: 30 },
+          },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY;
+      }
+    }
 
     // Rodapé
     const pageCount = doc.getNumberOfPages();

@@ -99,7 +99,7 @@ export default function DevolucoesPage() {
         `,
           { count: "exact" }
         )
-        .eq("status", "concluida")
+        .in("status", ["concluida", "devolvida"])
         .gt("valor_pago", 0) // Apenas vendas que já foram pagas
         .order("criado_em", { ascending: false })
         .range(inicio, inicio + limite - 1);
@@ -175,7 +175,7 @@ export default function DevolucoesPage() {
         `
         )
         .eq("numero_venda", numeroVenda)
-        .eq("status", "concluida");
+        .in("status", ["concluida", "devolvida"]);
 
       // Aplicar filtro de loja se usuário não tiver acesso a todas
       if (lojaId !== null && !podeVerTodasLojas) {
