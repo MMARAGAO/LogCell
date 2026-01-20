@@ -90,7 +90,7 @@ export default function CaixaPage() {
 
   // Loja selecionada para ação
   const [lojaSelecionada, setLojaSelecionada] = useState<LojaComCaixa | null>(
-    null
+    null,
   );
 
   // Dados dos modais
@@ -105,7 +105,7 @@ export default function CaixaPage() {
   const [resumo, setResumo] = useState<ResumoCaixa | null>(null);
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoCaixa[]>([]);
   const [caixaDetalhes, setCaixaDetalhes] = useState<CaixaCompleto | null>(
-    null
+    null,
   );
   const [vendasDetalhadas, setVendasDetalhadas] = useState<any>({});
 
@@ -151,7 +151,7 @@ export default function CaixaPage() {
             ...loja,
             caixa,
           };
-        })
+        }),
       );
 
       setLojas(lojasComCaixa);
@@ -262,7 +262,7 @@ export default function CaixaPage() {
   const handleVerDetalhes = async (caixa: CaixaCompleto) => {
     if (!temPermissao("caixa.visualizar_movimentacoes")) {
       toast.error(
-        "Você não tem permissão para visualizar movimentações do caixa"
+        "Você não tem permissão para visualizar movimentações do caixa",
       );
       return;
     }
@@ -397,7 +397,7 @@ export default function CaixaPage() {
               quantidade,
               item_venda_id
             )
-          `
+          `,
           )
           .gte("criado_em", dataAbertura)
           .lte("criado_em", dataFechamento);
@@ -405,7 +405,7 @@ export default function CaixaPage() {
         if (devolucoes) {
           // Filtrar apenas devoluções da loja do caixa
           devolucoesDetalhadas = devolucoes.filter(
-            (d: any) => d.venda?.loja_id === caixaDetalhes.loja_id
+            (d: any) => d.venda?.loja_id === caixaDetalhes.loja_id,
           );
         }
       } catch (error) {
@@ -430,13 +430,13 @@ export default function CaixaPage() {
     doc.text(
       `Data Abertura: ${formatarData(caixaDetalhes.data_abertura)}`,
       15,
-      49
+      49,
     );
     if (caixaDetalhes.data_fechamento) {
       doc.text(
         `Data Fechamento: ${formatarData(caixaDetalhes.data_fechamento)}`,
         15,
-        56
+        56,
       );
       const fechadoTexto = `Fechado por: ${caixaDetalhes.usuario_fechamento_info?.nome || "N/A"}`;
       doc.text(fechadoTexto, 15, 63, { maxWidth: pageWidth - 30 });
@@ -455,7 +455,7 @@ export default function CaixaPage() {
     doc.text(
       `Total Entradas: ${formatarMoeda(resumo.total_entradas)}`,
       15,
-      yPos
+      yPos,
     );
     yPos += 7;
     doc.text(`Total Saídas: ${formatarMoeda(resumo.total_saidas)}`, 15, yPos);
@@ -463,13 +463,13 @@ export default function CaixaPage() {
     doc.text(
       `Saldo Movimentado: ${formatarMoeda(resumo.total_entradas - resumo.total_saidas)}`,
       15,
-      yPos
+      yPos,
     );
     yPos += 7;
     doc.text(
       `Saldo Esperado: ${formatarMoeda(resumo.saldo_esperado)}`,
       15,
-      yPos
+      yPos,
     );
 
     // Total Geral do Caixa
@@ -485,7 +485,7 @@ export default function CaixaPage() {
       `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
       pageWidth / 2,
       yPos,
-      { align: "center" }
+      { align: "center" },
     );
     doc.setTextColor(0, 0, 0);
     yPos += 12;
@@ -498,7 +498,7 @@ export default function CaixaPage() {
       doc.text(
         `Saldo Final: ${formatarMoeda(caixaDetalhes.saldo_final)}`,
         15,
-        yPos
+        yPos,
       );
       yPos += 7;
       const diferenca = caixaDetalhes.saldo_final - resumo.saldo_esperado;
@@ -533,7 +533,7 @@ export default function CaixaPage() {
           m.tipo === "devolucao" &&
           m.referencia_id === mov.referencia_id &&
           !m.gerou_credito &&
-          new Date(m.data).toDateString() === new Date(mov.data).toDateString()
+          new Date(m.data).toDateString() === new Date(mov.data).toDateString(),
       );
       if (temDevolucaoSemCredito) return;
 
@@ -639,7 +639,7 @@ export default function CaixaPage() {
             yPos,
             {
               maxWidth: pageWidth - 60,
-            }
+            },
           );
           doc.text(formatarMoeda(venda.valor), pageWidth - 20, yPos, {
             align: "right",
@@ -663,7 +663,7 @@ export default function CaixaPage() {
       doc.text(
         `Total de Vendas: ${formatarMoeda(vendas.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
         20,
-        yPos
+        yPos,
       );
       doc.setTextColor(0, 0, 0);
       yPos += 12;
@@ -698,7 +698,7 @@ export default function CaixaPage() {
       doc.setTextColor(0, 0, 0);
       const totalCredito = vendasComCredito.reduce(
         (sum, v) => sum + v.valor,
-        0
+        0,
       );
       doc.text(`Crédito do Cliente - ${formatarMoeda(totalCredito)}`, 22, yPos);
       yPos += 8;
@@ -721,7 +721,7 @@ export default function CaixaPage() {
           yPos,
           {
             maxWidth: pageWidth - 60,
-          }
+          },
         );
         doc.text(formatarMoeda(venda.valor), pageWidth - 20, yPos, {
           align: "right",
@@ -757,7 +757,7 @@ export default function CaixaPage() {
           mov.valor > 0 &&
           String(mov.id_loja) === String(caixaDetalhes.loja?.id)
         );
-      }
+      },
     );
     const osPorFormaPagamento: {
       [key: string]: Array<{
@@ -897,7 +897,7 @@ export default function CaixaPage() {
             yPos,
             {
               maxWidth: pageWidth - 60,
-            }
+            },
           );
           doc.text(formatarMoeda(ordem.valor), pageWidth - 20, yPos, {
             align: "right",
@@ -920,7 +920,7 @@ export default function CaixaPage() {
       doc.text(
         `Total de OS: ${ordensServico.length} - ${formatarMoeda(ordensServico.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
         20,
-        yPos
+        yPos,
       );
       doc.setTextColor(0, 0, 0);
       yPos += 12;
@@ -1007,7 +1007,7 @@ export default function CaixaPage() {
         doc.text(
           `Devolução ${index + 1}: Venda #${dev.venda?.numero_venda} - ${dev.venda?.cliente?.nome || "Cliente"}`,
           15,
-          yPos
+          yPos,
         );
         doc.setTextColor(0, 0, 0);
         yPos += 5;
@@ -1017,7 +1017,7 @@ export default function CaixaPage() {
         doc.text(
           `Data: ${formatarData(dev.criado_em)} | Tipo: ${dev.tipo === "com_credito" ? "Com Crédito" : "Sem Crédito"} | Forma: ${dev.forma_pagamento || "N/A"} | Total: ${formatarMoeda(dev.valor_total)}`,
           15,
-          yPos
+          yPos,
         );
         yPos += 5;
 
@@ -1234,7 +1234,7 @@ export default function CaixaPage() {
           15,
           doc.internal.pageSize.height - 20,
           15,
-          15
+          15,
         );
       } catch (error) {
         console.log("Logo não encontrado");
@@ -1247,7 +1247,7 @@ export default function CaixaPage() {
         `Página ${i} de ${pageCount} - Gerado em ${new Date().toLocaleString("pt-BR")}`,
         pageWidth / 2,
         doc.internal.pageSize.height - 10,
-        { align: "center" }
+        { align: "center" },
       );
     }
 
@@ -1359,7 +1359,7 @@ export default function CaixaPage() {
                           <p className="text-sm font-semibold">
                             {
                               formatarData(loja.caixa.data_abertura).split(
-                                ","
+                                ",",
                               )[1]
                             }
                           </p>
@@ -1561,8 +1561,8 @@ export default function CaixaPage() {
                           historicosCaixa.reduce(
                             (sum, c) =>
                               sum + parseFloat(c.saldo_inicial.toString()),
-                            0
-                          )
+                            0,
+                          ),
                         )}
                       </p>
                     </div>
@@ -1586,8 +1586,8 @@ export default function CaixaPage() {
                             (sum, c) =>
                               sum +
                               parseFloat(c.saldo_final?.toString() || "0"),
-                            0
-                          )
+                            0,
+                          ),
                         )}
                       </p>
                     </div>
@@ -1613,7 +1613,7 @@ export default function CaixaPage() {
                                 parseFloat(c.saldo_inicial.toString())
                               : 0;
                             return sum + diferenca;
-                          }, 0)
+                          }, 0),
                         )}
                       </p>
                     </div>
@@ -1660,7 +1660,7 @@ export default function CaixaPage() {
                               year: "numeric",
                               hour: "2-digit",
                               minute: "2-digit",
-                            }
+                            },
                           )}
                         </TableCell>
                         <TableCell>
@@ -1673,7 +1673,7 @@ export default function CaixaPage() {
                                   year: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
-                                }
+                                },
                               )
                             : "-"}
                         </TableCell>
@@ -1698,7 +1698,7 @@ export default function CaixaPage() {
                         <TableCell>
                           <span className="text-success font-semibold">
                             {formatarMoeda(
-                              parseFloat(caixa.saldo_inicial.toString())
+                              parseFloat(caixa.saldo_inicial.toString()),
                             )}
                           </span>
                         </TableCell>
@@ -1706,7 +1706,7 @@ export default function CaixaPage() {
                           <span className="text-primary font-semibold">
                             {caixa.saldo_final
                               ? formatarMoeda(
-                                  parseFloat(caixa.saldo_final.toString())
+                                  parseFloat(caixa.saldo_final.toString()),
                                 )
                               : formatarMoeda(0)}
                           </span>
@@ -1919,7 +1919,7 @@ export default function CaixaPage() {
                       </p>
                       <p className="text-xl font-bold text-secondary">
                         {formatarMoeda(
-                          resumo.total_entradas - resumo.total_saidas
+                          resumo.total_entradas - resumo.total_saidas,
                         )}
                       </p>
                     </CardBody>
@@ -1948,7 +1948,7 @@ export default function CaixaPage() {
                         {formatarMoeda(
                           resumo.saldo_inicial +
                             resumo.total_entradas -
-                            resumo.total_saidas
+                            resumo.total_saidas,
                         )}
                       </p>
                       <p className="text-xs text-default-500 mt-1">
@@ -1986,7 +1986,7 @@ export default function CaixaPage() {
                               {formatarMoeda(valor as number)}
                             </p>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                   </CardBody>
@@ -2090,16 +2090,14 @@ export default function CaixaPage() {
                         </p>
                         <p className="text-2xl font-bold text-primary">
                           {formatarMoeda(
-                            (
-                              vendasDetalhadas["credito_cliente"] || []
-                            ).reduce((sum: number, v: any) => sum + v.valor, 0)
+                            (vendasDetalhadas["credito_cliente"] || []).reduce(
+                              (sum: number, v: any) => sum + v.valor,
+                              0,
+                            ),
                           )}
                         </p>
                         <p className="text-xs text-default-500 mt-1">
-                          {
-                            (vendasDetalhadas["credito_cliente"] || [])
-                              .length
-                          }{" "}
+                          {(vendasDetalhadas["credito_cliente"] || []).length}{" "}
                           {(vendasDetalhadas["credito_cliente"] || [])
                             .length === 1
                             ? "venda"
@@ -2152,7 +2150,7 @@ export default function CaixaPage() {
                                         {React.createElement(
                                           nomesFormasPagamento[formaPagamento]
                                             .icon,
-                                          { className: "w-4 h-4" }
+                                          { className: "w-4 h-4" },
                                         )}
                                         <span>
                                           {
@@ -2224,12 +2222,12 @@ export default function CaixaPage() {
                                               <TableCell>
                                                 <span className="font-semibold text-success">
                                                   {formatarMoeda(
-                                                    venda.valor_pago
+                                                    venda.valor_pago,
                                                   )}
                                                 </span>
                                               </TableCell>
                                             </TableRow>
-                                          )
+                                          ),
                                         )}
                                       </TableBody>
                                     </Table>
@@ -2237,7 +2235,7 @@ export default function CaixaPage() {
                                 </Card>
                               </Tab>
                             );
-                          }
+                          },
                         )}
                       </Tabs>
                     </CardBody>
@@ -2364,7 +2362,7 @@ export default function CaixaPage() {
                                           : {formatarMoeda(pag.valor)}
                                         </span>
                                       </Chip>
-                                    )
+                                    ),
                                   )}
                                 </div>
                               ) : (
@@ -2402,7 +2400,7 @@ export default function CaixaPage() {
                                 }`}
                               >
                                 {formatarMoeda(
-                                  Math.abs(mov.valor_total || mov.valor)
+                                  Math.abs(mov.valor_total || mov.valor),
                                 )}
                               </span>
                             </TableCell>
