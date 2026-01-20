@@ -150,7 +150,7 @@ export function AparelhoFormModal({
 
         showToast(
           "Dados preenchidos automaticamente com base em outro aparelho com o mesmo prefixo de IMEI",
-          "info"
+          "info",
         );
       } catch (error) {
         console.error("Erro ao buscar aparelho por prefixo de IMEI:", error);
