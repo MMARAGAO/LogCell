@@ -712,7 +712,7 @@ export class DashboardService {
 				devolucoesComCreditoQuantidade += 1;
 				devolucoesComCreditoTotal += valor;
 			} else {
-				devolucoesemCreditoQuantidade += 1;
+				devolucoessemCreditoQuantidade += 1;
 				devolucoesemCreditoTotal += valor;
 			}
 		});

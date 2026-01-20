@@ -490,18 +490,18 @@ export const gerarOrcamentoOS = async (
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.text(`Orçamento:`, 17, y);
-      doc.text(`R$ ${aparelho.valor_orcamento.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      doc.text(`R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
       y += 5;
       
-      if (aparelho.valor_desconto > 0) {
+      if ((aparelho.valor_desconto || 0) > 0) {
         doc.text(`Desconto:`, 17, y);
-        doc.text(`-R$ ${aparelho.valor_desconto.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+        doc.text(`-R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
         y += 5;
       }
       
       doc.setFont("helvetica", "bold");
       doc.text(`Total:`, 17, y);
-      doc.text(`R$ ${aparelho.valor_total.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      doc.text(`R$ ${(aparelho.valor_total || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
       y += 8;
     });
   } else {

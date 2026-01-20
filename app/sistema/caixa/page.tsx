@@ -2091,16 +2091,16 @@ export default function CaixaPage() {
                         <p className="text-2xl font-bold text-primary">
                           {formatarMoeda(
                             (
-                              vendasPorFormaPagamento["credito_cliente"] || []
-                            ).reduce((sum, v: any) => sum + v.valor, 0)
+                              vendasDetalhadas["credito_cliente"] || []
+                            ).reduce((sum: number, v: any) => sum + v.valor, 0)
                           )}
                         </p>
                         <p className="text-xs text-default-500 mt-1">
                           {
-                            (vendasPorFormaPagamento["credito_cliente"] || [])
+                            (vendasDetalhadas["credito_cliente"] || [])
                               .length
                           }{" "}
-                          {(vendasPorFormaPagamento["credito_cliente"] || [])
+                          {(vendasDetalhadas["credito_cliente"] || [])
                             .length === 1
                             ? "venda"
                             : "vendas"}
