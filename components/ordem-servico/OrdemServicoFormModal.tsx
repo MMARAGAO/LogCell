@@ -1459,6 +1459,9 @@ export default function OrdemServicoFormModal({
                             Transferência
                           </SelectItem>
                           <SelectItem key="cheque">Cheque</SelectItem>
+                          <SelectItem key="credito_cliente">
+                            Crédito do Cliente
+                          </SelectItem>
                         </Select>
 
                         <Input

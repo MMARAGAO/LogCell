@@ -304,6 +304,7 @@ export default function PagamentoOSModal({
       pix: "PIX",
       transferencia: "Transferência",
       cheque: "Cheque",
+      credito_cliente: "Crédito do Cliente",
     };
     return formas[forma] || forma;
   };
@@ -473,6 +474,9 @@ export default function PagamentoOSModal({
                     <SelectItem key="pix">PIX</SelectItem>
                     <SelectItem key="transferencia">Transferência</SelectItem>
                     <SelectItem key="cheque">Cheque</SelectItem>
+                    <SelectItem key="credito_cliente">
+                      Crédito do Cliente
+                    </SelectItem>
                   </Select>
 
                   <Input

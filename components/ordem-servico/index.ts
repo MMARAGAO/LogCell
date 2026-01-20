@@ -8,3 +8,5 @@ export { default as HistoricoOSModal } from "./HistoricoOSModal";
 export { default as StatusProgressBar } from "./StatusProgressBar";
 export { default as GerenciarFotosOSModal } from "./GerenciarFotosOSModal";
 export { default as PagamentoOSModal } from "./PagamentoOSModal";
+export { default as DevolverOSModal } from "./DevolverOSModal";
+export { default as GerenciarMultiplosAparelhos } from "./GerenciarMultiplosAparelhos";

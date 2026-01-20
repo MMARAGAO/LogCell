@@ -730,12 +730,12 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* Cards de Quebra de Peças e Crédito de Cliente */}
+          {/* Cards de Quebra de Peças, Crédito, Devoluções */}
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">
-              Quebras e Créditos
+              Quebras, Créditos e Devoluções
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="rounded-xl border border-red-500/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
@@ -793,6 +793,74 @@ export default function DashboardPage() {
                 </div>
                 <p className="mt-4 text-sm text-default-600">
                   Saldo total de créditos disponíveis dos clientes.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-900 p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                      Devoluções c/ Crédito
+                    </p>
+                    <p className="text-xs text-default-500 dark:text-white">
+                      Cliente recebe crédito
+                    </p>
+                    <div className="space-y-2 mt-2">
+                      <p className="text-3xl font-bold text-foreground">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_adicionais
+                                .devolucoes_com_credito_total || 0
+                            )}
+                      </p>
+                      <p className="text-sm font-semibold text-amber-600">
+                        {loading
+                          ? "..."
+                          : `${dados?.metricas_adicionais.devolucoes_com_credito_quantidade || 0} devoluções`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/20 text-amber-700 text-lg">
+                    <FaBox />
+                  </div>
+                </div>
+                <p className="mt-4 text-sm text-default-600">
+                  Devoluções processadas como crédito para o cliente.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-pink-500/20 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950 dark:to-rose-900 p-6 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-pink-700 dark:text-pink-400">
+                      Devoluções s/ Crédito
+                    </p>
+                    <p className="text-xs text-default-500 dark:text-white">
+                      Reembolsos diretos
+                    </p>
+                    <div className="space-y-2 mt-2">
+                      <p className="text-3xl font-bold text-foreground">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_adicionais
+                                .devolucoes_sem_credito_total || 0
+                            )}
+                      </p>
+                      <p className="text-sm font-semibold text-pink-600">
+                        {loading
+                          ? "..."
+                          : `${dados?.metricas_adicionais.devolucoes_sem_credito_quantidade || 0} devoluções`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-500/20 text-pink-700 text-lg">
+                    <FaMoneyBill />
+                  </div>
+                </div>
+                <p className="mt-4 text-sm text-default-600">
+                  Devoluções reembolsadas diretamente ao cliente.
                 </p>
               </div>
             </div>

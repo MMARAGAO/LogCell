@@ -14,7 +14,11 @@ import { CameraIcon } from "@heroicons/react/24/outline";
 import { useToast } from "@/components/Toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Aparelho, AparelhoFormData, FotoAparelho } from "@/types/aparelhos";
-import { criarAparelho, atualizarAparelho } from "@/services/aparelhosService";
+import {
+  criarAparelho,
+  atualizarAparelho,
+  getAparelhoPorPrefixoIMEI,
+} from "@/services/aparelhosService";
 import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { FotosAparelhoUpload } from "./FotosAparelhoUpload";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -49,6 +53,7 @@ export function AparelhoFormModal({
   const [loading, setLoading] = useState(false);
   const [fotos, setFotos] = useState<FotoAparelho[]>([]);
   const [scannerAberto, setScannerAberto] = useState(false);
+  const [prefixoIMEIConsultado, setPrefixoIMEIConsultado] = useState("");
   const [formData, setFormData] = useState<AparelhoFormData>({
     marca: "",
     modelo: "",
@@ -109,6 +114,51 @@ export function AparelhoFormModal({
       setFotos([]);
     }
   }, [aparelho, lojaId]);
+
+  useEffect(() => {
+    if (aparelho) return;
+
+    const imeiLimpo = (formData.imei || "").replace(/\D/g, "");
+    if (imeiLimpo.length < 8) {
+      setPrefixoIMEIConsultado("");
+      return;
+    }
+
+    const prefixo = imeiLimpo.slice(0, 8);
+    if (prefixo === prefixoIMEIConsultado) return;
+
+    const preencherComBaseEmSimilar = async () => {
+      try {
+        const similar = await getAparelhoPorPrefixoIMEI(prefixo);
+        setPrefixoIMEIConsultado(prefixo);
+        if (!similar) return;
+
+        setFormData((prev) => ({
+          ...prev,
+          marca: prev.marca || similar.marca || "",
+          modelo: prev.modelo || similar.modelo || "",
+          armazenamento: prev.armazenamento || similar.armazenamento || "",
+          memoria_ram: prev.memoria_ram || similar.memoria_ram || "",
+          cor: prev.cor || similar.cor || "",
+          estado: similar.estado || prev.estado,
+          condicao: prev.condicao || similar.condicao || undefined,
+          acessorios: prev.acessorios || similar.acessorios || "",
+          observacoes: prev.observacoes || similar.observacoes || "",
+          valor_compra: prev.valor_compra ?? similar.valor_compra ?? undefined,
+          valor_venda: prev.valor_venda ?? similar.valor_venda ?? undefined,
+        }));
+
+        showToast(
+          "Dados preenchidos automaticamente com base em outro aparelho com o mesmo prefixo de IMEI",
+          "info"
+        );
+      } catch (error) {
+        console.error("Erro ao buscar aparelho por prefixo de IMEI:", error);
+      }
+    };
+
+    preencherComBaseEmSimilar();
+  }, [aparelho, formData.imei, prefixoIMEIConsultado, showToast]);
 
   const carregarFotos = async (aparelhoId: string) => {
     try {

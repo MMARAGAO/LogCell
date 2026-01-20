@@ -589,7 +589,6 @@ export default function CaixaPage() {
         "cartao_credito",
         "transferencia",
         "boleto",
-        "credito_cliente",
         "nao_informado",
       ];
       const nomesFormas: any = {
@@ -599,7 +598,6 @@ export default function CaixaPage() {
         cartao_credito: "Cartão de Crédito",
         transferencia: "Transferência",
         boleto: "Boleto",
-        credito_cliente: "Crédito do Cliente",
         nao_informado: "Não Informado",
       };
 
@@ -671,7 +669,75 @@ export default function CaixaPage() {
       yPos += 12;
     }
 
-    // ===== ORDENS DE SERVIÇO =====
+    // ===== VENDAS COM CRÉDITO DO CLIENTE =====
+    const vendasComCredito = vendasPorFormaPagamento["credito_cliente"] || [];
+    if (vendasComCredito.length > 0) {
+      if (yPos > 230) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(59, 130, 246);
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("VENDAS COM CRÉDITO DO CLIENTE", pageWidth / 2, yPos, {
+        align: "center",
+      });
+      doc.setTextColor(0, 0, 0);
+      yPos += 13;
+
+      // Não entra dinheiro no caixa - apenas para registro
+      yPos += 2;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(219, 234, 254); // Azul claro
+      doc.rect(18, yPos - 4, pageWidth - 36, 6, "F");
+      doc.setTextColor(0, 0, 0);
+      const totalCredito = vendasComCredito.reduce(
+        (sum, v) => sum + v.valor,
+        0
+      );
+      doc.text(`Crédito do Cliente - ${formatarMoeda(totalCredito)}`, 22, yPos);
+      yPos += 8;
+
+      // Lista de vendas com crédito
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      vendasComCredito.forEach((venda) => {
+        if (yPos > 275) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const nomeCliente =
+          venda.cliente.length > 40
+            ? venda.cliente.substring(0, 37) + "..."
+            : venda.cliente;
+        doc.text(
+          `${venda.data} - #${venda.numero} - ${nomeCliente}`,
+          25,
+          yPos,
+          {
+            maxWidth: pageWidth - 60,
+          }
+        );
+        doc.text(formatarMoeda(venda.valor), pageWidth - 20, yPos, {
+          align: "right",
+        });
+        yPos += 4.5;
+      });
+
+      yPos += 4;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(59, 130, 246);
+      doc.setTextColor(59, 130, 246);
+      doc.text(`Total com Crédito: ${formatarMoeda(totalCredito)}`, 20, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 12;
+    }
     const ordensServico = movimentacoes.filter(
       // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
       (mov) => {
@@ -1043,8 +1109,13 @@ export default function CaixaPage() {
       });
     }
 
-    // Detalhamento de Sangrias
-    if (resumo.sangrias.quantidade > 0 && movimentacoes.length > 0) {
+    // Detalhamento de Sangrias (Manual) e Reembolsos
+    const sangriasTodas = movimentacoes.filter((mov) => mov.tipo === "sangria");
+    const sangriasManual = sangriasTodas.filter((mov) => !mov.eh_reembolso);
+    const reembolsos = sangriasTodas.filter((mov) => mov.eh_reembolso);
+
+    // ===== SANGRIAS MANUAIS =====
+    if (sangriasManual.length > 0) {
       if (yPos > 240) {
         doc.addPage();
         yPos = 20;
@@ -1054,41 +1125,97 @@ export default function CaixaPage() {
 
       doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("Detalhamento de Sangrias", 15, yPos);
+      doc.setFillColor(245, 158, 11);
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("SANGRIAS MANUAIS (Retirada de Dinheiro)", pageWidth / 2, yPos, {
+        align: "center",
+      });
+      doc.setTextColor(0, 0, 0);
+      yPos += 10;
 
-      yPos += 8;
-      const sangriasFiltradas = movimentacoes.filter(
-        (mov) => mov.tipo === "sangria"
-      );
+      const sangriasData = [
+        ["Data/Hora", "Motivo", "Valor", "Responsável"],
+        ...sangriasManual.map((sangria) => [
+          formatarData(sangria.data),
+          sangria.descricao.replace("Sangria Manual - ", ""),
+          formatarMoeda(Math.abs(sangria.valor)),
+          sangria.usuario_responsavel || "N/A",
+        ]),
+      ];
 
-      if (sangriasFiltradas.length > 0) {
-        const sangriasData = [
-          ["Data/Hora", "Motivo", "Valor", "Responsável"],
-          ...sangriasFiltradas.map((sangria) => [
-            formatarData(sangria.data),
-            sangria.descricao.replace("Sangria - ", ""),
-            formatarMoeda(Math.abs(sangria.valor)),
-            sangria.usuario_responsavel || "N/A",
-          ]),
-        ];
+      autoTable(doc, {
+        startY: yPos,
+        head: [sangriasData[0]],
+        body: sangriasData.slice(1),
+        theme: "striped",
+        headStyles: { fillColor: [245, 158, 11] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 30, halign: "right" },
+          3: { cellWidth: 30 },
+        },
+      });
 
-        autoTable(doc, {
-          startY: yPos,
-          head: [sangriasData[0]],
-          body: sangriasData.slice(1),
-          theme: "striped",
-          headStyles: { fillColor: [245, 158, 11] },
-          margin: { left: 15, right: 15 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 30, halign: "right" },
-            3: { cellWidth: 30 },
-          },
-        });
+      yPos = (doc as any).lastAutoTable.finalY;
+    }
 
-        yPos = (doc as any).lastAutoTable.finalY;
+    // ===== REEMBOLSOS =====
+    if (reembolsos.length > 0) {
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 15;
       }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(239, 68, 68);
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("REEMBOLSOS DE VENDAS", pageWidth / 2, yPos, {
+        align: "center",
+      });
+      doc.setTextColor(0, 0, 0);
+      yPos += 10;
+
+      const reembolsosData = [
+        ["Data/Hora", "Venda", "Cliente", "Valor Reembolsado"],
+        ...reembolsos.map((reembolso) => {
+          // Extrair número da venda da descrição
+          const match = reembolso.descricao.match(/Venda #(\d+)/);
+          const numeroVenda = match ? match[1] : "N/A";
+          const clienteMatch = reembolso.descricao.match(/- (.+)$/);
+          const cliente = clienteMatch ? clienteMatch[1] : "Cliente";
+
+          return [
+            formatarData(reembolso.data),
+            `#${numeroVenda}`,
+            cliente,
+            formatarMoeda(Math.abs(reembolso.valor)),
+          ];
+        }),
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [reembolsosData[0]],
+        body: reembolsosData.slice(1),
+        theme: "striped",
+        headStyles: { fillColor: [239, 68, 68] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 30, halign: "center" },
+          2: { cellWidth: 60 },
+          3: { cellWidth: 30, halign: "right" },
+        },
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY;
     }
 
     // Rodapé
@@ -1946,6 +2073,39 @@ export default function CaixaPage() {
                       <p className="text-2xl font-bold text-success">
                         {formatarMoeda(resumo.ordens_servico.total)}
                       </p>
+                    </CardBody>
+                  </Card>
+
+                  <Card className="bg-primary/10 border border-primary/20">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-5 h-5 text-primary" />
+                        <span className="font-bold">Crédito do Cliente</span>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <div>
+                        <p className="text-xs text-default-600 mb-2">
+                          Vendas com Crédito do Cliente
+                        </p>
+                        <p className="text-2xl font-bold text-primary">
+                          {formatarMoeda(
+                            (
+                              vendasPorFormaPagamento["credito_cliente"] || []
+                            ).reduce((sum, v: any) => sum + v.valor, 0)
+                          )}
+                        </p>
+                        <p className="text-xs text-default-500 mt-1">
+                          {
+                            (vendasPorFormaPagamento["credito_cliente"] || [])
+                              .length
+                          }{" "}
+                          {(vendasPorFormaPagamento["credito_cliente"] || [])
+                            .length === 1
+                            ? "venda"
+                            : "vendas"}
+                        </p>
+                      </div>
                     </CardBody>
                   </Card>
                 </div>
