@@ -54,6 +54,8 @@ import { useToast } from "@/components/Toast";
 import StatusProgressBar from "./StatusProgressBar";
 import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
 import GarantiaModal from "./GarantiaModal";
+import DevolverOSModal from "./DevolverOSModal";
+import GerenciarMultiplosAparelhos from "./GerenciarMultiplosAparelhos";
 import {
   gerarPDFOrdemServico,
   gerarOrcamentoOS,
@@ -122,16 +124,16 @@ export default function OrdemServicoDetalhesModal({
   const [loadingPecas, setLoadingPecas] = useState(false);
   const [loadingQuebras, setLoadingQuebras] = useState(false);
   const [loadingCancelar, setLoadingCancelar] = useState(false);
-  const [loadingDevolver, setLoadingDevolver] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [loadingAprovarQuebra, setLoadingAprovarQuebra] = useState<
     string | null
   >(null);
   const [modalConfirmCancelar, setModalConfirmCancelar] = useState(false);
-  const [modalConfirmDevolver, setModalConfirmDevolver] = useState(false);
+  const [modalDevolverOpen, setModalDevolverOpen] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
   const [modalGarantiaOpen, setModalGarantiaOpen] = useState(false);
   const [modalConfirmGarantia, setModalConfirmGarantia] = useState(false);
+  const [modalMultiplosAparelhos, setModalMultiplosAparelhos] = useState(false);
   const [loadingOrcamento, setLoadingOrcamento] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
@@ -431,10 +433,9 @@ export default function OrdemServicoDetalhesModal({
     }
   };
 
-  const handleDevolverOS = async () => {
+  const handleDevolverOS = async (tipo: "reembolso" | "credito") => {
     if (!osAtual) return;
 
-    setLoadingDevolver(true);
     try {
       const { supabase } = await import("@/lib/supabaseClient");
       const {
@@ -446,18 +447,23 @@ export default function OrdemServicoDetalhesModal({
         return;
       }
 
-      const { data, error } = await devolverOrdemServico(osAtual.id, user.id);
+      const { data, error } = await devolverOrdemServico(
+        osAtual.id,
+        user.id,
+        tipo
+      );
 
       if (error) throw error;
 
-      const total = data?.total_reembolsar || 0;
-      toast.showToast(
-        total > 0
-          ? `OS devolvida. Reembolsar R$ ${total.toFixed(2)}`
-          : "OS devolvida. Nenhum pagamento para reembolsar",
-        "success"
-      );
-      setModalConfirmDevolver(false);
+      const total = data?.total_valor || 0;
+      const mensagem =
+        tipo === "credito"
+          ? `OS devolvida. Crédito de R$ ${total.toFixed(2)} gerado para o cliente`
+          : total > 0
+            ? `OS devolvida. Reembolsar R$ ${total.toFixed(2)}`
+            : "OS devolvida. Nenhum pagamento para reembolsar";
+
+      toast.showToast(mensagem, "success");
 
       if (onOSAtualizada) {
         onOSAtualizada();
@@ -470,8 +476,6 @@ export default function OrdemServicoDetalhesModal({
         error.message || "Erro ao devolver ordem de serviço",
         "error"
       );
-    } finally {
-      setLoadingDevolver(false);
     }
   };
 
@@ -684,10 +688,20 @@ export default function OrdemServicoDetalhesModal({
             {/* EQUIPAMENTO */}
             <Card>
               <CardBody>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <Smartphone className="w-5 h-5" />
-                  Equipamento
-                </h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Smartphone className="w-5 h-5" />
+                    Equipamento
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    onPress={() => setModalMultiplosAparelhos(true)}
+                  >
+                    🔧 Gerenciar Aparelhos
+                  </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InfoItem
                     icon={Smartphone}
@@ -1290,8 +1304,7 @@ export default function OrdemServicoDetalhesModal({
                 color="warning"
                 variant="flat"
                 startContent={<AlertTriangle className="w-4 h-4" />}
-                onPress={() => setModalConfirmDevolver(true)}
-                isDisabled={loadingDevolver}
+                onPress={() => setModalDevolverOpen(true)}
               >
                 Devolver OS
               </Button>
@@ -1378,37 +1391,13 @@ export default function OrdemServicoDetalhesModal({
         </ModalContent>
       </Modal>
 
-      {/* Modal de Confirmação de Devolução */}
-      <Modal
-        isOpen={modalConfirmDevolver}
-        onClose={() => setModalConfirmDevolver(false)}
-        placement="center"
-      >
-        <ModalContent>
-          <ModalHeader>Devolver Ordem de Serviço</ModalHeader>
-          <ModalBody>
-            <p className="mb-3">
-              Deseja devolver a OS #{osAtual?.numero_os}? As peças do estoque
-              serão devolvidas e os pagamentos removidos para reembolso.
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="flat"
-              onPress={() => setModalConfirmDevolver(false)}
-            >
-              Não
-            </Button>
-            <Button
-              color="warning"
-              onPress={handleDevolverOS}
-              isLoading={loadingDevolver}
-            >
-              Sim, Devolver
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {/* Modal de Devolução */}
+      <DevolverOSModal
+        isOpen={modalDevolverOpen}
+        onClose={() => setModalDevolverOpen(false)}
+        os={osAtual}
+        onConfirm={handleDevolverOS}
+      />
 
       {/* Modal de Gerenciamento de Fotos */}
       {osAtual && (
@@ -1428,6 +1417,21 @@ export default function OrdemServicoDetalhesModal({
           os={osAtual}
           pecas={pecas}
           dadosLoja={dadosLoja}
+        />
+      )}
+
+      {/* Modal de Gerenciamento de Múltiplos Aparelhos */}
+      {osAtual && (
+        <GerenciarMultiplosAparelhos
+          isOpen={modalMultiplosAparelhos}
+          onClose={() => setModalMultiplosAparelhos(false)}
+          idOrdemServico={osAtual.id}
+          idLoja={osAtual.id_loja}
+          onAparelhosAtualizados={() => {
+            if (onOSAtualizada) {
+              onOSAtualizada();
+            }
+          }}
         />
       )}
 

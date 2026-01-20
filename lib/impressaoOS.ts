@@ -374,76 +374,242 @@ export const gerarOrcamentoOS = async (
   }
   y += 4;
 
-  // Dados do Equipamento
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
-  y += 12;
-
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
-  y += 6;
-  if (os.equipamento_marca) {
-    doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
-    y += 6;
-  }
-  if (os.equipamento_modelo) {
-    doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
-    y += 6;
-  }
-  if (os.equipamento_numero_serie) {
-    doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
-    y += 6;
-  }
+  // Dados do Equipamento / Aparelhos
+  // Se houver múltiplos aparelhos, mostra cada um
+  const temMultiplosAparelhos = os.permite_multiplos_aparelhos && os.aparelhos && os.aparelhos.length > 1;
   
-  // Estado do Equipamento
-  if (os.estado_equipamento) {
-    doc.text(`Estado: ${os.estado_equipamento}`, 17, y);
-    y += 6;
-  }
-  y += 4;
+  if (temMultiplosAparelhos && os.aparelhos) {
+    // Múltiplos aparelhos
+    os.aparelhos.forEach((aparelho, index) => {
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
 
-  // Problema Relatado / Defeito Reclamado
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("PROBLEMA RELATADO", 17, y + 5);
-  y += 12;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`APARELHO ${aparelho.sequencia} - EQUIPAMENTO`, 17, y + 5);
+      y += 12;
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
-  doc.text(defeitoLines, 17, y);
-  y += defeitoLines.length * 6 + 4;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Equipamento: ${aparelho.equipamento_tipo}`, 17, y);
+      y += 6;
+      if (aparelho.equipamento_marca) {
+        doc.text(`Marca: ${aparelho.equipamento_marca}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_modelo) {
+        doc.text(`Modelo: ${aparelho.equipamento_modelo}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_numero_serie) {
+        doc.text(`Nº Série: ${aparelho.equipamento_numero_serie}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_imei) {
+        doc.text(`IMEI: ${aparelho.equipamento_imei}`, 17, y);
+        y += 6;
+      }
+      
+      // Estado do Equipamento
+      doc.setFont("helvetica", "bold");
+      doc.text(`Estado: `, 17, y);
+      doc.setFont("helvetica", "normal");
+      if (aparelho.estado_equipamento) {
+        doc.text(aparelho.estado_equipamento, 45, y);
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(180, 0, 0);
+        doc.text("[Informar estado]", 45, y);
+        doc.setTextColor(0, 0, 0);
+      }
+      y += 8;
 
-  // Serviço a Realizar
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("SERVIÇO A REALIZAR", 17, y + 5);
-  y += 12;
+      // Problema Relatado
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  
-  // Se houver laudo, usar como "serviço a realizar"
-  if (os.laudo_diagnostico) {
-    const servicoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
-    doc.text(servicoLines, 17, y);
-    y += servicoLines.length * 6 + 4;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`PROBLEMA - APARELHO ${aparelho.sequencia}`, 17, y + 5);
+      y += 12;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      const defeitoLines = doc.splitTextToSize(aparelho.defeito_reclamado || "[Informar]", pageWidth - 40);
+      doc.text(defeitoLines, 17, y);
+      y += defeitoLines.length * 6 + 4;
+
+      // Serviço para este aparelho
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`SERVIÇO - APARELHO ${aparelho.sequencia}`, 17, y + 5);
+      y += 12;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      if (aparelho.laudo_diagnostico) {
+        const servicoLines = doc.splitTextToSize(aparelho.laudo_diagnostico, pageWidth - 40);
+        doc.text(servicoLines, 17, y);
+        y += servicoLines.length * 6 + 4;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(180, 0, 0);
+        doc.text("A definir após diagnóstico", 17, y);
+        doc.setTextColor(0, 0, 0);
+        y += 10;
+      }
+
+      // Valores do aparelho
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(245, 245, 245);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(`VALORES - APARELHO ${aparelho.sequencia}`, 17, y + 4);
+      y += 10;
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Orçamento:`, 17, y);
+      doc.text(`R$ ${aparelho.valor_orcamento.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      y += 5;
+      
+      if (aparelho.valor_desconto > 0) {
+        doc.text(`Desconto:`, 17, y);
+        doc.text(`-R$ ${aparelho.valor_desconto.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+        y += 5;
+      }
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total:`, 17, y);
+      doc.text(`R$ ${aparelho.valor_total.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      y += 8;
+    });
   } else {
-    doc.setFont("helvetica", "italic");
-    doc.text("A definir após diagnóstico técnico", 17, y);
-    y += 10;
+    // Equipamento único (compatibilidade com OS antigas)
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
+    y += 6;
+    if (os.equipamento_marca) {
+      doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
+      y += 6;
+    }
+    if (os.equipamento_modelo) {
+      doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
+      y += 6;
+    }
+    if (os.equipamento_numero_serie) {
+      doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
+      y += 6;
+    }
+    
+    // Estado do Equipamento (OBRIGATÓRIO no orçamento)
+    doc.setFont("helvetica", "bold");
+    doc.text(`Estado: `, 17, y);
+    doc.setFont("helvetica", "normal");
+    if (os.estado_equipamento) {
+      doc.text(os.estado_equipamento, 45, y);
+    } else {
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(180, 0, 0);
+      doc.text("[Informar estado do equipamento]", 45, y);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+    }
+    y += 8;
+
+    // Problema Relatado / Defeito Reclamado (OBRIGATÓRIO)
+    if (y > 220) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("PROBLEMA RELATADO PELO CLIENTE", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    const defeitoLines = doc.splitTextToSize(os.defeito_reclamado || "[Informar o problema]", pageWidth - 40);
+    doc.text(defeitoLines, 17, y);
+    y += defeitoLines.length * 6 + 4;
+
+    // Serviço a Realizar (OBRIGATÓRIO)
+    if (y > 220) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("SERVIÇO QUE SERÁ REALIZADO", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    
+    // Se houver diagnóstico ou serviço realizado
+    if (os.laudo_diagnostico) {
+      const servicoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+      doc.text(servicoLines, 17, y);
+      y += servicoLines.length * 6 + 4;
+    } else if (os.servico_realizado) {
+      const servicoLines = doc.splitTextToSize(os.servico_realizado, pageWidth - 40);
+      doc.text(servicoLines, 17, y);
+      y += servicoLines.length * 6 + 4;
+    } else {
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(180, 0, 0);
+      doc.text("A definir após diagnóstico técnico", 17, y);
+      doc.setTextColor(0, 0, 0);
+      y += 10;
+    }
   }
 
-  // Peças Necessárias (se houver)
-  if (pecas && pecas.length > 0) {
+  // Peças Necessárias (APENAS não baixadas do estoque - orçamento)
+  // Filtra peças que ainda não foram baixadas (estoque_baixado = false)
+  const pecasOrcamento = pecas.filter((peca: any) => {
+    // Se a peça tem a propriedade estoque_baixado, usa ela
+    if ('estoque_baixado' in peca) {
+      return !peca.estoque_baixado;
+    }
+    // Caso contrário, mostra todas (fallback)
+    return true;
+  });
+
+  if (pecasOrcamento && pecasOrcamento.length > 0) {
     if (y > 240) {
       doc.addPage();
       y = 20;
@@ -453,13 +619,13 @@ export const gerarOrcamentoOS = async (
     doc.rect(15, y, pageWidth - 30, 7, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("PEÇAS NECESSÁRIAS", 17, y + 5);
+    doc.text("PEÇAS NECESSÁRIAS (ORÇAMENTO)", 17, y + 5);
     y += 12;
 
     autoTable(doc, {
       startY: y,
       head: [["Descrição", "Qtd", "Valor Unit.", "Total"]],
-      body: pecas.map((peca) => [
+      body: pecasOrcamento.map((peca) => [
         peca.descricao_peca,
         peca.quantidade.toString(),
         `R$ ${peca.valor_venda.toFixed(2)}`,
@@ -478,10 +644,23 @@ export const gerarOrcamentoOS = async (
 
     y = (doc as any).lastAutoTable.finalY + 5;
     
-    // Total das peças
-    const totalPecas = pecas.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
+    // Total das peças do orçamento
+    const totalPecas = pecasOrcamento.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
     doc.setFont("helvetica", "bold");
     doc.text(`Total Peças: R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 10;
+  } else {
+    // Mensagem se não houver peças no orçamento
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("PEÇAS NECESSÁRIAS", 17, y + 5);
+    y += 12;
+    
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.text("A definir após diagnóstico técnico", 17, y);
     y += 10;
   }
 
@@ -491,37 +670,95 @@ export const gerarOrcamentoOS = async (
     y = 20;
   }
 
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("VALORES", 17, y + 5);
-  y += 12;
+  // Valores finais - suporta múltiplos aparelhos
+  if (temMultiplosAparelhos && os.aparelhos) {
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("RESUMO DE VALORES", 17, y + 5);
+    y += 12;
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  
-  const totalPecas = pecas.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
-  const valorServico = os.valor_servico || 0;
-  const valorTotal = totalPecas + valorServico;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    
+    let totalGeralOrcamento = 0;
+    let totalGeralDesconto = 0;
+    let totalGeralServiço = 0;
 
-  doc.text(`Mão de Obra:`, 17, y);
-  doc.text(`R$ ${valorServico.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-  y += 6;
-  
-  doc.text(`Peças:`, 17, y);
-  doc.text(`R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-  y += 6;
-  
-  doc.setLineWidth(0.3);
-  doc.line(17, y, pageWidth - 15, y);
-  y += 5;
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(`TOTAL:`, 17, y);
-  doc.text(`R$ ${valorTotal.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-  y += 10;
+    // Mostrar resumo de cada aparelho
+    os.aparelhos.forEach((aparelho) => {
+      const desconto = aparelho.valor_desconto || 0;
+      const total = aparelho.valor_total || 0;
+      totalGeralOrcamento += aparelho.valor_orcamento || 0;
+      totalGeralDesconto += desconto;
+      totalGeralServiço += total;
+
+      doc.text(`Aparelho ${aparelho.sequencia} (${aparelho.equipamento_tipo}):`, 17, y);
+      y += 4;
+      doc.text(`  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 20, y);
+      y += 4;
+      if (desconto > 0) {
+        doc.text(`  Desconto: -R$ ${desconto.toFixed(2)}`, 20, y);
+        y += 4;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.text(`  Subtotal: R$ ${total.toFixed(2)}`, 20, y);
+      doc.setFont("helvetica", "normal");
+      y += 5;
+    });
+
+    y += 3;
+    doc.setLineWidth(0.3);
+    doc.line(17, y, pageWidth - 15, y);
+    y += 5;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`TOTAL GERAL:`, 17, y);
+    doc.text(`R$ ${totalGeralServiço.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 10;
+  } else {
+    // Valores únicos para OS com um equipamento
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("VALORES", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    
+    // Calcular total apenas das peças do orçamento (não baixadas)
+    const pecasOrcamentoValores = pecas.filter((peca: any) => {
+      if ('estoque_baixado' in peca) {
+        return !peca.estoque_baixado;
+      }
+      return true;
+    });
+    const totalPecas = pecasOrcamentoValores.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
+    const valorServico = os.valor_servico || 0;
+    const valorTotal = totalPecas + valorServico;
+
+    doc.text(`Mão de Obra:`, 17, y);
+    doc.text(`R$ ${valorServico.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 6;
+    
+    doc.text(`Peças:`, 17, y);
+    doc.text(`R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 6;
+    
+    doc.setLineWidth(0.3);
+    doc.line(17, y, pageWidth - 15, y);
+    y += 5;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`TOTAL:`, 17, y);
+    doc.text(`R$ ${valorTotal.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    y += 10;
+  }
 
   // Observações (se houver)
   if (os.observacoes_tecnicas) {
@@ -655,50 +892,121 @@ export const gerarGarantiaOS = async (
   }
   y += 4;
 
-  // Dados do Equipamento
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
-  y += 12;
+  // Dados do Equipamento / Aparelhos
+  const temMultiplosAparelhosGarantia = os.permite_multiplos_aparelhos && os.aparelhos && os.aparelhos.length > 1;
+  
+  if (temMultiplosAparelhosGarantia && os.aparelhos) {
+    // Múltiplos aparelhos - mostra cada um
+    os.aparelhos.forEach((aparelho, index) => {
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
-  y += 6;
-  if (os.equipamento_marca) {
-    doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
-    y += 6;
-  }
-  if (os.equipamento_modelo) {
-    doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
-    y += 6;
-  }
-  if (os.equipamento_numero_serie) {
-    doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
-    y += 6;
-  }
-  y += 4;
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`APARELHO ${aparelho.sequencia} - EQUIPAMENTO`, 17, y + 5);
+      y += 12;
 
-  // Serviço Realizado
-  doc.setFillColor(240, 240, 240);
-  doc.rect(15, y, pageWidth - 30, 7, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("SERVIÇO REALIZADO", 17, y + 5);
-  y += 12;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Equipamento: ${aparelho.equipamento_tipo}`, 17, y);
+      y += 6;
+      if (aparelho.equipamento_marca) {
+        doc.text(`Marca: ${aparelho.equipamento_marca}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_modelo) {
+        doc.text(`Modelo: ${aparelho.equipamento_modelo}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_numero_serie) {
+        doc.text(`Nº Série: ${aparelho.equipamento_numero_serie}`, 17, y);
+        y += 6;
+      }
+      if (aparelho.equipamento_imei) {
+        doc.text(`IMEI: ${aparelho.equipamento_imei}`, 17, y);
+        y += 6;
+      }
+      y += 4;
 
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  if (os.laudo_diagnostico) {
-    const laudoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
-    doc.text(laudoLines, 17, y);
-    y += laudoLines.length * 6 + 4;
+      // Serviço Realizado para este aparelho
+      if (y > 220) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, y, pageWidth - 30, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.text(`SERVIÇO REALIZADO - APARELHO ${aparelho.sequencia}`, 17, y + 5);
+      y += 12;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      if (aparelho.servico_realizado) {
+        const servicoLines = doc.splitTextToSize(aparelho.servico_realizado, pageWidth - 40);
+        doc.text(servicoLines, 17, y);
+        y += servicoLines.length * 6 + 4;
+      } else if (aparelho.laudo_diagnostico) {
+        const laudoLines = doc.splitTextToSize(aparelho.laudo_diagnostico, pageWidth - 40);
+        doc.text(laudoLines, 17, y);
+        y += laudoLines.length * 6 + 4;
+      } else {
+        const defeitoLines = doc.splitTextToSize(aparelho.defeito_reclamado || "[Serviço a descrever]", pageWidth - 40);
+        doc.text(defeitoLines, 17, y);
+        y += defeitoLines.length * 6 + 4;
+      }
+    });
   } else {
-    const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
-    doc.text(defeitoLines, 17, y);
-    y += defeitoLines.length * 6 + 4;
+    // Equipamento único (compatibilidade com OS antigas)
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("DADOS DO EQUIPAMENTO", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Equipamento: ${os.equipamento_tipo}`, 17, y);
+    y += 6;
+    if (os.equipamento_marca) {
+      doc.text(`Marca: ${os.equipamento_marca}`, 17, y);
+      y += 6;
+    }
+    if (os.equipamento_modelo) {
+      doc.text(`Modelo: ${os.equipamento_modelo}`, 17, y);
+      y += 6;
+    }
+    if (os.equipamento_numero_serie) {
+      doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
+      y += 6;
+    }
+    y += 4;
+
+    // Serviço Realizado
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("SERVIÇO REALIZADO", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    if (os.laudo_diagnostico) {
+      const laudoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+      doc.text(laudoLines, 17, y);
+      y += laudoLines.length * 6 + 4;
+    } else {
+      const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
+      doc.text(defeitoLines, 17, y);
+      y += defeitoLines.length * 6 + 4;
+    }
   }
 
   // Peças Utilizadas (se houver)
@@ -791,6 +1099,30 @@ export const gerarGarantiaOS = async (
   });
 
   y += 5;
+
+  // Observações Adicionais (se houver)
+  if (os.observacoes_tecnicas) {
+    if (y > 220) {
+      doc.addPage();
+      y = 20;
+    }
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(15, y, pageWidth - 30, 7, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("OBSERVAÇÕES ADICIONAIS", 17, y + 5);
+    y += 12;
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const obsLines = doc.splitTextToSize(
+      os.observacoes_tecnicas,
+      pageWidth - 40
+    );
+    doc.text(obsLines, 17, y);
+    y += obsLines.length * 5 + 10;
+  }
 
   // Assinaturas
   if (y > 240) {

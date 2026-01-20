@@ -1702,10 +1702,6 @@ export default function VendasPage() {
                 <TableColumn>TIPO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>DEVOLUÇÕES</TableColumn>
-                <TableColumn align="end">TOTAL</TableColumn>
-                <TableColumn align="end">PAGO</TableColumn>
-                <TableColumn>PAGAMENTOS</TableColumn>
-                <TableColumn align="end">SALDO</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
@@ -1787,66 +1783,6 @@ export default function VendasPage() {
                         }
                         return <span className="text-gray-400">-</span>;
                       })()}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-semibold">
-                        {formatarMoeda(venda.valor_total)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-success font-medium">
-                        {formatarMoeda(venda.valor_pago)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {venda.pagamentos && venda.pagamentos.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {venda.pagamentos.slice(0, 2).map((pag, idx) => (
-                            <div
-                              key={idx}
-                              className="text-xs whitespace-nowrap"
-                            >
-                              <span className="font-medium">
-                                {pag.tipo_pagamento === "dinheiro"
-                                  ? "💵"
-                                  : pag.tipo_pagamento === "pix"
-                                    ? "📱"
-                                    : pag.tipo_pagamento === "cartao_credito"
-                                      ? "💳"
-                                      : pag.tipo_pagamento === "cartao_debito"
-                                        ? "💳"
-                                        : pag.tipo_pagamento === "transferencia"
-                                          ? "🏦"
-                                          : pag.tipo_pagamento ===
-                                              "credito_cliente"
-                                            ? "🎁"
-                                            : "💰"}
-                              </span>
-                              <span className="text-gray-600 ml-1">
-                                {formatarMoeda(pag.valor)}
-                              </span>
-                            </div>
-                          ))}
-                          {venda.pagamentos.length > 2 && (
-                            <span className="text-xs text-gray-500 italic">
-                              +{venda.pagamentos.length - 2} mais
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">
-                          Sem pagamento
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {venda.saldo_devedor > 0 ? (
-                        <span className="text-danger font-medium">
-                          {formatarMoeda(venda.saldo_devedor)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-2">

@@ -115,6 +115,36 @@ export async function getAparelhoPorIMEI(imei: string): Promise<Aparelho | null>
   }
 }
 
+// Buscar aparelho pelo prefixo do IMEI (8 primeiros dígitos)
+export async function getAparelhoPorPrefixoIMEI(
+  prefixo: string
+): Promise<Aparelho | null> {
+  try {
+    const prefixoLimpo = prefixo.trim();
+    if (!prefixoLimpo) return null;
+
+    const { data, error } = await supabase
+      .from("aparelhos")
+      .select(`
+        *,
+        loja:lojas (
+          id,
+          nome
+        )
+      `)
+      .ilike("imei", `${prefixoLimpo}%`)
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    return data?.[0] || null;
+  } catch (error) {
+    console.error("Erro ao buscar aparelho por prefixo de IMEI:", error);
+    throw error;
+  }
+}
+
 // Criar novo aparelho
 export async function criarAparelho(
   aparelho: AparelhoFormData,

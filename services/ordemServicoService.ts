@@ -299,17 +299,36 @@ export async function cancelarOrdemServico(id: string, userId: string) {
  * - devolve peças ao estoque removendo-as da OS
  * - apaga pagamentos vinculados
  * - marca status como "devolvida" e cancela lançamento no caixa
- * - registra histórico com valor a reembolsar
+ * - registra histórico com valor a reembolsar ou cria crédito para cliente
+ * 
+ * @param id - ID da ordem de serviço
+ * @param userId - ID do usuário que está fazendo a devolução
+ * @param tipoDevolucao - 'reembolso' ou 'credito'
  */
-export async function devolverOrdemServico(id: string, userId: string) {
+export async function devolverOrdemServico(
+  id: string,
+  userId: string,
+  tipoDevolucao: "reembolso" | "credito" = "reembolso"
+) {
   try {
-    // Buscar pagamentos para calcular reembolso
+    // Buscar OS para obter dados do cliente
+    const { data: os, error: errorOS } = await supabase
+      .from("ordem_servico")
+      .select("numero_os, cliente_nome, cliente_cpf_cnpj")
+      .eq("id", id)
+      .single();
+
+    if (errorOS || !os) {
+      throw new Error("Ordem de serviço não encontrada");
+    }
+
+    // Buscar pagamentos para calcular reembolso/crédito
     const { data: pagamentos } = await supabase
       .from("ordem_servico_pagamentos")
       .select("id, valor, forma_pagamento")
       .eq("id_ordem_servico", id);
 
-    const totalReembolsar = (pagamentos || []).reduce(
+    const totalValor = (pagamentos || []).reduce(
       (sum, pag) => sum + Number(pag.valor || 0),
       0
     );
@@ -334,6 +353,66 @@ export async function devolverOrdemServico(id: string, userId: string) {
         .eq("id_ordem_servico", id);
     }
 
+    // Se for devolução com crédito e houver valor, gerar crédito para o cliente
+    if (tipoDevolucao === "credito" && totalValor > 0) {
+      // Buscar ou criar cliente pelo CPF/CNPJ ou nome
+      let clienteId: string | null = null;
+
+      if (os.cliente_cpf_cnpj) {
+        const { data: clienteExistente } = await supabase
+          .from("clientes")
+          .select("id")
+          .eq("cpf_cnpj", os.cliente_cpf_cnpj)
+          .single();
+
+        clienteId = clienteExistente?.id || null;
+      }
+
+      // Se não encontrou pelo CPF/CNPJ, tentar buscar pelo nome
+      if (!clienteId && os.cliente_nome) {
+        const { data: clienteExistente } = await supabase
+          .from("clientes")
+          .select("id")
+          .eq("nome", os.cliente_nome)
+          .single();
+
+        clienteId = clienteExistente?.id || null;
+      }
+
+      // Se ainda não encontrou, criar um registro de cliente básico
+      if (!clienteId) {
+        const { data: novoCliente, error: erroCliente } = await supabase
+          .from("clientes")
+          .insert({
+            nome: os.cliente_nome,
+            cpf_cnpj: os.cliente_cpf_cnpj,
+            tipo: os.cliente_cpf_cnpj?.length === 14 ? "juridica" : "fisica",
+            criado_por: userId,
+          })
+          .select("id")
+          .single();
+
+        if (erroCliente) {
+          console.warn("Erro ao criar cliente para crédito:", erroCliente);
+        } else {
+          clienteId = novoCliente?.id || null;
+        }
+      }
+
+      // Gerar crédito se tiver cliente
+      if (clienteId) {
+        await supabase.from("creditos_cliente").insert({
+          cliente_id: clienteId,
+          ordem_servico_id: id,
+          valor_total: totalValor,
+          valor_utilizado: 0,
+          saldo: totalValor,
+          motivo: `Devolução da OS #${os.numero_os}`,
+          gerado_por: userId,
+        });
+      }
+    }
+
     // Atualizar status para devolvida
     const { error: erroStatus } = await mudarStatusOS(id, "devolvida", userId);
     if (erroStatus) throw new Error(erroStatus);
@@ -349,14 +428,20 @@ export async function devolverOrdemServico(id: string, userId: string) {
     }
 
     // Registrar histórico
-    await registrarHistoricoOS(
-      id,
-      "devolucao",
-      `OS devolvida. Reembolsar R$ ${totalReembolsar.toFixed(2)}`,
-      userId
-    );
+    const mensagemHistorico =
+      tipoDevolucao === "credito"
+        ? `OS devolvida. Crédito de R$ ${totalValor.toFixed(2)} gerado para o cliente`
+        : `OS devolvida. Reembolsar R$ ${totalValor.toFixed(2)}`;
 
-    return { data: { total_reembolsar: totalReembolsar }, error: null };
+    await registrarHistoricoOS(id, "devolucao", mensagemHistorico, userId);
+
+    return {
+      data: {
+        total_valor: totalValor,
+        tipo_devolucao: tipoDevolucao,
+      },
+      error: null,
+    };
   } catch (error: any) {
     console.error("Erro ao devolver ordem de serviço:", error);
     return { data: null, error: error.message || "Erro ao devolver OS" };

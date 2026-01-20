@@ -87,6 +87,10 @@ export interface OrdemServico {
   valor_total?: number;
   valor_pago?: number;
 
+  // Múltiplos aparelhos (novo)
+  permite_multiplos_aparelhos?: boolean;
+  total_geral_multiplos?: number;
+
   // Prazos e Datas
   data_entrada: string;
   previsao_entrega?: string;
@@ -130,6 +134,57 @@ export interface OrdemServico {
     id: string;
     status_caixa: StatusCaixaOS;
   }>;
+  aparelhos?: OrdemServicoAparelho[]; // Múltiplos aparelhos
+}
+
+// =====================================================
+// INTERFACE: Aparelho da Ordem de Serviço (múltiplos aparelhos por OS)
+// =====================================================
+export interface OrdemServicoAparelho {
+  id: string;
+  id_ordem_servico: string;
+  id_loja: number;
+
+  // Identificação
+  sequencia: number; // 1, 2, 3...
+  equipamento_tipo: string;
+  equipamento_marca?: string;
+  equipamento_modelo?: string;
+  equipamento_numero_serie?: string;
+  equipamento_imei?: string;
+  equipamento_senha?: string;
+
+  // Problemas
+  defeito_reclamado: string;
+  estado_equipamento?: string;
+  acessorios_entregues?: string;
+
+  // Diagnóstico
+  diagnostico?: string;
+
+  // Valores específicos deste aparelho
+  valor_orcamento?: number;
+  valor_desconto?: number;
+  valor_total?: number;
+  valor_pago?: number;
+
+  // Laudo técnico
+  servico_realizado?: string;
+  laudo_diagnostico?: string;
+  laudo_causa?: string;
+  laudo_procedimentos?: string;
+  laudo_recomendacoes?: string;
+  laudo_garantia_dias?: number;
+  laudo_condicao_final?: string;
+  observacoes_tecnicas?: string;
+
+  // Status
+  status: "ativo" | "removido";
+
+  criado_em: string;
+  atualizado_em: string;
+  criado_por?: string;
+  atualizado_por?: string;
 }
 
 // =====================================================

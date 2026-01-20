@@ -16,7 +16,28 @@ import {
   CardBody,
   Spinner,
 } from "@heroui/react";
-import { AlertCircle } from "lucide-react";
+import {
+  User,
+  Phone,
+  Mail,
+  Smartphone,
+  Tag,
+  Wrench,
+  FileText,
+  DollarSign,
+  Calendar,
+  Package,
+  MapPin,
+  Clock,
+  AlertCircle,
+  ShoppingBag,
+  XCircle,
+  Camera,
+  AlertTriangle,
+  CheckCircle,
+  FileCheck,
+  Printer,
+} from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   TipoServicoGarantia,
@@ -137,12 +158,34 @@ export default function GarantiaModal({
   if (!os) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
-          Configurar Termo de Garantia
+          <div className="flex items-center gap-2">
+            <FileCheck className="w-5 h-5 text-success" />
+            <span>Configurar Termo de Garantia</span>
+          </div>
+          <p className="text-sm text-default-500 font-normal">
+            OS #{os.numero_os} - {os.cliente_nome}
+          </p>
         </ModalHeader>
         <ModalBody className="gap-4">
+          \n {/* Info Card */}
+          <Card className="bg-primary-50 border-primary-200 border">
+            <CardBody className="flex flex-row items-start gap-3 p-3">
+              <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-primary-800 font-medium">
+                  Personalize a garantia antes de imprimir
+                </p>
+                <p className="text-xs text-primary-700 mt-1">
+                  Escolha o tipo de serviço e ajuste os dias de garantia
+                  conforme necessário. As observações técnicas da OS serão
+                  incluídas automaticamente.
+                </p>
+              </div>
+            </CardBody>
+          </Card>
           {/* Tipo de Garantia */}
           <div>
             <Select
@@ -164,7 +207,6 @@ export default function GarantiaModal({
               ))}
             </Select>
           </div>
-
           {/* Dias de Garantia */}
           <div>
             <Input
@@ -179,7 +221,6 @@ export default function GarantiaModal({
               startContent={<span className="text-small">📅</span>}
             />
           </div>
-
           {/* Preview do Texto de Garantia */}
           {loadingTexto ? (
             <div className="flex justify-center items-center py-4">
@@ -244,8 +285,9 @@ export default function GarantiaModal({
             color="success"
             onPress={handleGerarGarantia}
             isLoading={loadingGerar}
+            startContent={!loadingGerar && <Printer className="w-4 h-4" />}
           >
-            Gerar Término de Garantia
+            Gerar e Imprimir Garantia
           </Button>
         </ModalFooter>
       </ModalContent>

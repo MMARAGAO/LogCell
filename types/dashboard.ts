@@ -30,6 +30,10 @@ export interface MetricasAdicionais {
 	os_sem_tipo_pagas: number;
 	os_sem_tipo_faturamento: number;
 	os_sem_tipo_lucro: number;
+	devolucoes_com_credito_quantidade: number;
+	devolucoes_com_credito_total: number;
+	devolucoes_sem_credito_quantidade: number;
+	devolucoes_sem_credito_total: number;
 }
 
 export interface DadosDashboard {

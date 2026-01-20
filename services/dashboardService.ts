@@ -96,6 +96,10 @@ export class DashboardService {
 					os_sem_tipo_pagas: Number(porTipo.sem_tipo?.quantidade || 0),
 					os_sem_tipo_faturamento: Number(porTipo.sem_tipo?.faturamento || 0),
 					os_sem_tipo_lucro: Number(porTipo.sem_tipo?.lucro || 0),
+					devolucoes_com_credito_quantidade: Number(adicionais.devolucoes_com_credito_quantidade || 0),
+					devolucoes_com_credito_total: Number(adicionais.devolucoes_com_credito_total || 0),
+					devolucoes_sem_credito_quantidade: Number(adicionais.devolucoes_sem_credito_quantidade || 0),
+					devolucoes_sem_credito_total: Number(adicionais.devolucoes_sem_credito_total || 0),
 				},
 			};
 		} catch (error) {
@@ -676,6 +680,51 @@ export class DashboardService {
 		toCreditos += pageSize;
 	}
 
+	// Buscar devoluções (com crédito e sem crédito)
+	let fromDevolucoes = 0;
+	let toDevolucoes = pageSize - 1;
+	let devolucoesComCreditoQuantidade = 0;
+	let devolucoesComCreditoTotal = 0;
+	let devolucoessemCreditoQuantidade = 0;
+	let devolucoesemCreditoTotal = 0;
+
+	while (true) {
+		let queryDevolucoes = supabase
+			.from("devolucoes_venda")
+			.select("tipo, valor_total, venda:vendas!devolucoes_venda_venda_id_fkey(loja_id)")
+			.gte("criado_em", inicioISO)
+			.lte("criado_em", fimISO)
+			.range(fromDevolucoes, toDevolucoes);
+
+		const { data: devolucoesData, error: erroDevolucoes } = await queryDevolucoes;
+
+		if (erroDevolucoes) {
+			console.error("❌ [DASHBOARD] Erro ao buscar devoluções:", erroDevolucoes);
+			break;
+		}
+
+		const batchDevolucoes = devolucoesData || [];
+		batchDevolucoes.forEach((d: any) => {
+			if (loja_id && d.venda?.loja_id !== loja_id) return;
+
+			const valor = Number(d.valor_total || 0);
+			if (d.tipo === "com_credito") {
+				devolucoesComCreditoQuantidade += 1;
+				devolucoesComCreditoTotal += valor;
+			} else {
+				devolucoesemCreditoQuantidade += 1;
+				devolucoesemCreditoTotal += valor;
+			}
+		});
+
+		if (batchDevolucoes.length < pageSize) {
+			break;
+		}
+
+		fromDevolucoes += pageSize;
+		toDevolucoes += pageSize;
+	}
+
 	// Buscar OS pagas por tipo de cliente (lojista e consumidor final)
 	// Considerar apenas OS processadas (entregues ou pagas não entregues)
 	let osLojistaCount = 0;
@@ -813,6 +862,10 @@ export class DashboardService {
 				os_sem_tipo_pagas: osSemTipoCount,
 				os_sem_tipo_faturamento: osSemTipoFaturamento,
 				os_sem_tipo_lucro: osSemTipoLucro,
+				devolucoes_com_credito_quantidade: devolucoesComCreditoQuantidade,
+				devolucoes_com_credito_total: devolucoesComCreditoTotal,
+				devolucoes_sem_credito_quantidade: devolucoessemCreditoQuantidade,
+				devolucoes_sem_credito_total: devolucoesemCreditoTotal,
 			},
 		};
 	}

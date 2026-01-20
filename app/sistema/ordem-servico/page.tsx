@@ -58,6 +58,7 @@ import {
   HistoricoOSModal,
   GerenciarFotosOSModal,
   PagamentoOSModal,
+  DevolverOSModal,
 } from "@/components/ordem-servico";
 import {
   buscarOrdensServico,
@@ -105,6 +106,7 @@ export default function OrdemServicoPage() {
   const [modalHistoricoOpen, setModalHistoricoOpen] = useState(false);
   const [modalFotosOpen, setModalFotosOpen] = useState(false);
   const [modalPagamentosOpen, setModalPagamentosOpen] = useState(false);
+  const [modalDevolverOpen, setModalDevolverOpen] = useState(false);
   const [osSelecionada, setOsSelecionada] = useState<OrdemServico | null>(null);
 
   // Filtros
@@ -356,31 +358,34 @@ export default function OrdemServicoPage() {
       return;
     }
 
+    setOsSelecionada(os);
+    setModalDevolverOpen(true);
+  };
+
+  const handleConfirmarDevolucao = async (tipo: "reembolso" | "credito") => {
+    if (!osSelecionada || !usuario) return;
+
     try {
-      const confirmado = await confirm({
-        title: "Devolver OS",
-        message: `Deseja devolver a OS #${os.numero_os}? As peças do estoque serão devolvidas e os pagamentos removidos.`,
-        confirmText: "Devolver OS",
-        cancelText: "Voltar",
-        variant: "warning",
-        confirmColor: "warning",
-      });
-
-      if (!confirmado) return;
-
-      const { data, error } = await devolverOrdemServico(os.id, usuario!.id);
+      const { data, error } = await devolverOrdemServico(
+        osSelecionada.id,
+        usuario.id,
+        tipo
+      );
 
       if (error) {
         toast.error(error);
         return;
       }
 
-      const total = data?.total_reembolsar || 0;
-      toast.success(
-        total > 0
-          ? `OS devolvida. Reembolsar R$ ${total.toFixed(2)}`
-          : "OS devolvida. Nenhum pagamento para reembolsar"
-      );
+      const total = data?.total_valor || 0;
+      const mensagem =
+        tipo === "credito"
+          ? `OS devolvida. Crédito de ${formatarMoeda(total)} gerado para o cliente`
+          : total > 0
+            ? `OS devolvida. Reembolsar ${formatarMoeda(total)}`
+            : "OS devolvida. Nenhum pagamento para reembolsar";
+
+      toast.success(mensagem);
       await carregarOrdensServico();
     } catch (err) {
       console.error("Erro ao devolver OS:", err);
@@ -1141,8 +1146,6 @@ export default function OrdemServicoPage() {
                 <TableColumn>TÉCNICO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>ENTRADA</TableColumn>
-                <TableColumn>VALOR</TableColumn>
-                <TableColumn>PAGAMENTOS</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
@@ -1198,52 +1201,6 @@ export default function OrdemServicoPage() {
                       </div>
                     </TableCell>
                     <TableCell>{formatarData(os.data_entrada)}</TableCell>
-                    <TableCell>
-                      <span className="font-semibold text-success">
-                        {formatarMoeda(os.valor_total || 0)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {os.pagamentos && os.pagamentos.length > 0 ? (
-                        <div className="flex flex-col gap-1">
-                          {os.pagamentos.slice(0, 2).map((pag, idx) => (
-                            <div
-                              key={idx}
-                              className="text-xs whitespace-nowrap"
-                            >
-                              <span className="font-medium">
-                                {pag.forma_pagamento === "dinheiro"
-                                  ? "💵"
-                                  : pag.forma_pagamento === "pix"
-                                    ? "📱"
-                                    : pag.forma_pagamento === "cartao_credito"
-                                      ? "💳"
-                                      : pag.forma_pagamento === "cartao_debito"
-                                        ? "💳"
-                                        : pag.forma_pagamento ===
-                                            "transferencia"
-                                          ? "🏦"
-                                          : pag.forma_pagamento === "cheque"
-                                            ? "📄"
-                                            : "💰"}
-                              </span>
-                              <span className="text-gray-600 ml-1">
-                                {formatarMoeda(pag.valor)}
-                              </span>
-                            </div>
-                          ))}
-                          {os.pagamentos.length > 2 && (
-                            <span className="text-xs text-gray-500 italic">
-                              +{os.pagamentos.length - 2} mais
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">
-                          Sem pagamento
-                        </span>
-                      )}
-                    </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1">
                         <Button
@@ -1375,6 +1332,17 @@ export default function OrdemServicoPage() {
         }}
         os={osSelecionada}
         onPagamentoRealizado={carregarOrdensServico}
+      />
+
+      {/* Modal de Devolução */}
+      <DevolverOSModal
+        isOpen={modalDevolverOpen}
+        onClose={() => {
+          setModalDevolverOpen(false);
+          setOsSelecionada(null);
+        }}
+        os={osSelecionada}
+        onConfirm={handleConfirmarDevolucao}
       />
 
       {/* Dialog de Confirmação */}

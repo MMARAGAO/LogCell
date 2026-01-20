@@ -48,6 +48,8 @@ export interface MovimentacaoCaixa {
   usou_credito?: boolean;
   id_loja?: number;
   usuario_responsavel?: string;
+  eh_reembolso?: boolean; // Para sangrias que são reembolsos de vendas
+  eh_credito_cliente?: boolean; // Para movimentações de crédito cliente
   pagamentos?: Array<{
     tipo_pagamento: string;
     valor: number;

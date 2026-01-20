@@ -99,6 +99,7 @@ export interface CreditoCliente {
   cliente_id: string;
   venda_origem_id?: string;
   devolucao_id?: string;
+  ordem_servico_id?: string; // Para créditos gerados de devoluções de OS
   tipo?: "adicao" | "retirada";
   valor_total: number;
   valor_utilizado: number;

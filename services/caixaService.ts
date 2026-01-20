@@ -746,7 +746,9 @@ export class CaixaService {
           valor,
           motivo,
           criado_em,
-          usuario:usuarios!sangrias_caixa_realizado_por_fkey(nome)
+          venda_id,
+          usuario:usuarios!sangrias_caixa_realizado_por_fkey(nome),
+          venda:vendas!sangrias_caixa_venda_id_fkey(numero_venda, cliente:clientes(nome))
         `
         )
         .eq("caixa_id", caixa.id)
@@ -754,13 +756,20 @@ export class CaixaService {
         .lte("criado_em", dataFechamento);
 
       sangrias?.forEach((sangria: any) => {
+        // Se tem venda_id, é um reembolso
+        const isReembolso = sangria.venda_id && sangria.venda;
+        const descricao = isReembolso
+          ? `Reembolso - Venda #${sangria.venda?.numero_venda} - ${sangria.venda?.cliente?.nome || "Cliente"}`
+          : `Sangria Manual - ${sangria.motivo}`;
+
         movimentacoes.push({
           tipo: "sangria",
-          descricao: `Sangria - ${sangria.motivo}`,
+          descricao,
           valor: -Number(sangria.valor),
           data: sangria.criado_em,
           referencia_id: sangria.id,
           usuario_responsavel: sangria.usuario?.nome || "N/A",
+          eh_reembolso: isReembolso || false,
         });
       });
 
