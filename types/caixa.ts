@@ -93,6 +93,11 @@ export interface ResumoCaixa {
     quantidade: number;
     total: number;
   };
+  os_devolvidas_com_credito?: {
+    quantidade: number;
+    total: number;
+    lista?: any[];
+  };
   sangrias: {
     quantidade: number;
     total: number;

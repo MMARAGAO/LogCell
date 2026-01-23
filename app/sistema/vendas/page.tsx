@@ -1701,6 +1701,7 @@ export default function VendasPage() {
                 <TableColumn>DATA</TableColumn>
                 <TableColumn>TIPO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
+                <TableColumn>VALOR</TableColumn>
                 <TableColumn>DEVOLUÇÕES</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
@@ -1752,6 +1753,11 @@ export default function VendasPage() {
                               ? "Devolvida"
                               : "Em Andamento"}
                       </Chip>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-bold text-primary">
+                        {formatarMoeda(venda.valor_total)}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {(() => {

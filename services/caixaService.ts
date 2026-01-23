@@ -510,6 +510,18 @@ export class CaixaService {
           0
         ) || 0;
 
+      // Buscar OS devolvidas com crédito no período
+      const { data: osDevolvidasCredito, error: erroOsDevolvidasCredito } = await supabase
+        .from("ordem_servico")
+        .select("id, numero_os, cliente_nome, valor_total, criado_em")
+        .eq("id_loja", caixa.loja_id)
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      if (erroOsDevolvidasCredito) {
+        console.error("❌ Erro ao buscar OS devolvidas com crédito:", erroOsDevolvidasCredito);
+      }
+
       // Saldo esperado considera apenas movimentações de dinheiro físico (quebras NÃO afetam)
       const saldoEsperado =
         Number(caixa.saldo_inicial) +
@@ -542,6 +554,11 @@ export class CaixaService {
         ordens_servico: {
           quantidade: osLoja.length,
           total: totalOS,
+        },
+        os_devolvidas_com_credito: {
+          quantidade: osDevolvidasCredito?.length || 0,
+          total: osDevolvidasCredito?.reduce((sum: number, os: any) => sum + Number(os.valor_total || 0), 0) || 0,
+          lista: osDevolvidasCredito || [],
         },
         sangrias: {
           quantidade: sangrias?.length || 0,

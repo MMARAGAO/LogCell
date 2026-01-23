@@ -413,9 +413,13 @@ export async function devolverOrdemServico(
       }
     }
 
-    // Atualizar status para devolvida
-    const { error: erroStatus } = await mudarStatusOS(id, "devolvida", userId);
-    if (erroStatus) throw new Error(erroStatus);
+    // Atualizar status para devolvida e status_devolucao conforme o tipo
+    const statusDevolucao = tipoDevolucao === "credito" ? "devolvida_com_credito" : "devolvida";
+    const { error: erroStatus } = await supabase
+      .from("ordem_servico")
+      .update({ status: "devolvida", status_devolucao: statusDevolucao })
+      .eq("id", id);
+    if (erroStatus) throw new Error(erroStatus.message || JSON.stringify(erroStatus));
 
     // Cancelar lançamento no caixa vinculado à OS, se existir
     try {
