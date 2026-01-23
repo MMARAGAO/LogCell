@@ -2243,55 +2243,67 @@ export default function CaixaPage() {
                 )}
 
                 {/* Ordens de Serviço Devolvidas com Crédito */}
-                {resumo.os_devolvidas_com_credito && resumo.os_devolvidas_com_credito.quantidade > 0 && (
-                  <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/30">
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Wrench className="w-5 h-5 text-warning" />
-                        <span className="font-bold text-lg">
-                          OS Devolvidas com Crédito ({resumo.os_devolvidas_com_credito.quantidade})
-                        </span>
-                        <span className="text-warning font-bold ml-auto">
-                          {formatarMoeda(resumo.os_devolvidas_com_credito.total)}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardBody>
-                      <Table aria-label="OS devolvidas com crédito">
-                        <TableHeader>
-                          <TableColumn>DATA</TableColumn>
-                          <TableColumn>OS</TableColumn>
-                          <TableColumn>CLIENTE</TableColumn>
-                          <TableColumn align="end">VALOR</TableColumn>
-                        </TableHeader>
-                        <TableBody>
-                          {(resumo.os_devolvidas_com_credito?.lista || []).map((os: any, idx: number) => (
-                            <TableRow key={idx}>
-                              <TableCell>
-                                <span className="text-sm font-mono">
-                                  {formatarData(os.criado_em)}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <Chip size="sm" variant="flat" color="warning">
-                                  #{os.numero_os}
-                                </Chip>
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-sm font-medium">{os.cliente_nome}</span>
-                              </TableCell>
-                              <TableCell>
-                                <span className="font-semibold text-warning">
-                                  {formatarMoeda(os.valor_total)}
-                                </span>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardBody>
-                  </Card>
-                )}
+                {resumo.os_devolvidas_com_credito &&
+                  resumo.os_devolvidas_com_credito.quantidade > 0 && (
+                    <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/30">
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <Wrench className="w-5 h-5 text-warning" />
+                          <span className="font-bold text-lg">
+                            OS Devolvidas com Crédito (
+                            {resumo.os_devolvidas_com_credito.quantidade})
+                          </span>
+                          <span className="text-warning font-bold ml-auto">
+                            {formatarMoeda(
+                              resumo.os_devolvidas_com_credito.total,
+                            )}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <Table aria-label="OS devolvidas com crédito">
+                          <TableHeader>
+                            <TableColumn>DATA</TableColumn>
+                            <TableColumn>OS</TableColumn>
+                            <TableColumn>CLIENTE</TableColumn>
+                            <TableColumn align="end">VALOR</TableColumn>
+                          </TableHeader>
+                          <TableBody>
+                            {(
+                              resumo.os_devolvidas_com_credito?.lista || []
+                            ).map((os: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell>
+                                  <span className="text-sm font-mono">
+                                    {formatarData(os.criado_em)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    size="sm"
+                                    variant="flat"
+                                    color="warning"
+                                  >
+                                    #{os.numero_os}
+                                  </Chip>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm font-medium">
+                                    {os.cliente_nome}
+                                  </span>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-semibold text-warning">
+                                    {formatarMoeda(os.valor_total)}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardBody>
+                    </Card>
+                  )}
 
                 {/* Movimentações */}
                 <Card>
