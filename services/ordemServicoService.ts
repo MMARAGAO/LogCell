@@ -37,7 +37,11 @@ export async function buscarOrdensServico(filtros?: {
         *,
         loja:lojas!id_loja(id, nome),
         pagamentos:ordem_servico_pagamentos(id, valor, forma_pagamento, criado_em),
-        caixa:ordem_servico_caixa(id, status_caixa)
+        caixa:ordem_servico_caixa(id, status_caixa),
+        aparelhos:ordem_servico_aparelhos(
+          *,
+          ordem_servico_aparelhos_servicos(*)
+        )
       `
       )
       .order("numero_os", { ascending: false });
@@ -70,9 +74,21 @@ export async function buscarOrdensServico(filtros?: {
 
     if (error) throw error;
 
+    // Embutir aparelhos já vem no payload; renomear serviços e ordenar
+    let ordensComAparelhos = (data || []).map((os: any) => ({
+      ...os,
+      aparelhos: (os.aparelhos || [])
+        .filter((ap: any) => ap.status === "ativo")
+        .map((ap: any) => ({
+          ...ap,
+          servicos: ap.ordem_servico_aparelhos_servicos || [],
+        }))
+        .sort((a: any, b: any) => (a.sequencia || 0) - (b.sequencia || 0)),
+    }));
+
     // Buscar informações dos técnicos separadamente
-    if (data && data.length > 0) {
-      const tecnicosIds = data
+    if (ordensComAparelhos && ordensComAparelhos.length > 0) {
+      const tecnicosIds = ordensComAparelhos
         .map((os) => os.tecnico_responsavel)
         .filter((id): id is string => !!id);
 
@@ -84,7 +100,7 @@ export async function buscarOrdensServico(filtros?: {
 
         if (tecnicos && tecnicos.length > 0) {
           // Fazer merge dos dados
-          const ordensComTecnicos = data.map((os) => {
+          const ordensComTecnicos = ordensComAparelhos.map((os) => {
             const tecnicoEncontrado = os.tecnico_responsavel
               ? tecnicos.find((t) => t.id === os.tecnico_responsavel)
               : undefined;
@@ -102,7 +118,7 @@ export async function buscarOrdensServico(filtros?: {
       }
     }
 
-    return { data: data as OrdemServico[], error: null };
+    return { data: ordensComAparelhos as OrdemServico[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar ordens de serviço:", error);
     return { data: null, error: error.message };
@@ -131,6 +147,27 @@ export async function buscarOrdemServicoPorId(id: string) {
 
     if (error) throw error;
 
+    // Buscar aparelhos desta OS
+    const { data: aparelhos, error: erroAparelhos } = await supabase
+      .from("ordem_servico_aparelhos")
+      .select(`
+        *,
+        ordem_servico_aparelhos_servicos(*)
+      `)
+      .eq("id_ordem_servico", id)
+      .eq("status", "ativo")
+      .order("sequencia", { ascending: true });
+
+    if (erroAparelhos) {
+      console.error("Erro ao buscar aparelhos:", erroAparelhos);
+    }
+
+    // Mapear aparelhos para usar 'servicos' ao invés de 'ordem_servico_aparelhos_servicos'
+    const aparelhosMapeados = (aparelhos || []).map((ap) => ({
+      ...ap,
+      servicos: ap.ordem_servico_aparelhos_servicos || [],
+    }));
+
     // Buscar informações do técnico separadamente
     if (data && data.tecnico_responsavel) {
       const { data: tecnico, error: tecnicoError } = await supabase
@@ -140,15 +177,24 @@ export async function buscarOrdemServicoPorId(id: string) {
         .single();
 
       if (tecnico) {
-        const osComTecnico = { ...data, tecnico };
+        const osComTecnicoEAparelhos = { 
+          ...data, 
+          tecnico,
+          aparelhos: aparelhosMapeados
+        };
         return {
-          data: osComTecnico as OrdemServico,
+          data: osComTecnicoEAparelhos as OrdemServico,
           error: null,
         };
       }
     }
 
-    return { data: data as OrdemServico, error: null };
+    const osComAparelhos = {
+      ...data,
+      aparelhos: aparelhosMapeados
+    };
+
+    return { data: osComAparelhos as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar ordem de serviço:", error);
     return { data: null, error: error.message };
@@ -163,10 +209,13 @@ export async function criarOrdemServico(
   userId: string
 ) {
   try {
+    // Separar aparelhos do restante dos dados
+    const { aparelhos, ...dadosOS } = dados;
+
     const { data, error } = await supabase
       .from("ordem_servico")
       .insert({
-        ...dados,
+        ...dadosOS,
         criado_por: userId,
         atualizado_por: userId,
       })
@@ -179,6 +228,69 @@ export async function criarOrdemServico(
       .single();
 
     if (error) throw error;
+
+    // Se houver aparelhos, salvar na tabela ordem_servico_aparelhos
+    if (aparelhos && aparelhos.length > 0) {
+      const aparelhosParaSalvar = aparelhos.map((ap: any) => ({
+        id_ordem_servico: data.id,
+        id_loja: ap.id_loja || dados.id_loja,
+        sequencia: ap.sequencia,
+        equipamento_tipo: ap.equipamento_tipo,
+        equipamento_marca: ap.equipamento_marca,
+        equipamento_modelo: ap.equipamento_modelo,
+        equipamento_numero_serie: ap.equipamento_numero_serie,
+        equipamento_imei: ap.equipamento_imei,
+        equipamento_senha: ap.equipamento_senha,
+        defeito_reclamado: ap.defeito_reclamado,
+        estado_equipamento: ap.estado_equipamento,
+        acessorios_entregues: ap.acessorios_entregues,
+        diagnostico: ap.diagnostico,
+        servico_realizado: ap.servico_realizado,
+        observacoes_tecnicas: ap.observacoes_tecnicas,
+        valor_orcamento: ap.valor_orcamento,
+        valor_desconto: ap.valor_desconto,
+        valor_total: ap.valor_total,
+        status: "ativo",
+        criado_por: userId,
+        atualizado_por: userId,
+      }));
+
+      const { data: aparelhosInseridos, error: erroAparelhos } = await supabase
+        .from("ordem_servico_aparelhos")
+        .insert(aparelhosParaSalvar)
+        .select();
+
+      if (erroAparelhos) {
+        console.error("Erro ao salvar aparelhos:", erroAparelhos);
+        throw erroAparelhos;
+      }
+
+      // Salvar serviços de cada aparelho
+      if (aparelhosInseridos && aparelhosInseridos.length > 0) {
+        for (let i = 0; i < aparelhosInseridos.length; i++) {
+          const aparelhoInserido = aparelhosInseridos[i];
+          const aparelhoOriginal = aparelhos[i];
+
+          if (aparelhoOriginal.servicos && aparelhoOriginal.servicos.length > 0) {
+            const servicosParaSalvar = aparelhoOriginal.servicos.map((svc: any) => ({
+              id_aparelho: aparelhoInserido.id,
+              descricao: svc.descricao,
+              valor: svc.valor,
+            }));
+
+            const { error: erroServicos } = await supabase
+              .from("ordem_servico_aparelhos_servicos")
+              .insert(servicosParaSalvar);
+
+            if (erroServicos) {
+              console.error("Erro ao salvar serviços do aparelho:", erroServicos);
+              throw erroServicos;
+            }
+          }
+        }
+      }
+    }
+
     return { data: data as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao criar ordem de serviço:", error);
@@ -195,10 +307,13 @@ export async function atualizarOrdemServico(
   userId: string
 ) {
   try {
+    // Separar aparelhos do restante dos dados
+    const { aparelhos, ...dadosOS } = dados;
+
     const { data, error } = await supabase
       .from("ordem_servico")
       .update({
-        ...dados,
+        ...dadosOS,
         atualizado_por: userId,
       })
       .eq("id", id)
@@ -211,6 +326,131 @@ export async function atualizarOrdemServico(
       .single();
 
     if (error) throw error;
+
+    // Se houver aparelhos, atualizar/inserir na tabela ordem_servico_aparelhos
+    if (aparelhos && aparelhos.length > 0) {
+      // Primeiro, marcar aparelhos existentes como removidos
+      await supabase
+        .from("ordem_servico_aparelhos")
+        .update({ status: "removido" })
+        .eq("id_ordem_servico", id);
+
+      // Agora processar os aparelhos recebidos
+      for (const ap of aparelhos) {
+        if ((ap as any).id) {
+          // Aparelho existente - reativar e atualizar
+          const { data: aparelhoAtualizado, error: erroUpdate } = await supabase
+            .from("ordem_servico_aparelhos")
+            .update({
+              id_loja: (ap as any).id_loja || dados.id_loja,
+              sequencia: (ap as any).sequencia,
+              equipamento_tipo: ap.equipamento_tipo,
+              equipamento_marca: ap.equipamento_marca,
+              equipamento_modelo: ap.equipamento_modelo,
+              equipamento_numero_serie: ap.equipamento_numero_serie,
+              equipamento_imei: (ap as any).equipamento_imei,
+              equipamento_senha: (ap as any).equipamento_senha,
+              defeito_reclamado: ap.defeito_reclamado,
+              estado_equipamento: (ap as any).estado_equipamento,
+              acessorios_entregues: (ap as any).acessorios_entregues,
+              diagnostico: (ap as any).diagnostico,
+              servico_realizado: (ap as any).servico_realizado,
+              observacoes_tecnicas: (ap as any).observacoes_tecnicas,
+              valor_orcamento: (ap as any).valor_orcamento,
+              valor_desconto: (ap as any).valor_desconto,
+              valor_total: (ap as any).valor_total,
+              status: "ativo",
+              atualizado_por: userId,
+            })
+            .eq("id", (ap as any).id)
+            .select()
+            .single();
+
+          if (erroUpdate) {
+            console.error("Erro ao atualizar aparelho:", erroUpdate);
+            throw erroUpdate;
+          }
+
+          // Atualizar serviços do aparelho
+          // Primeiro deletar os existentes
+          await supabase
+            .from("ordem_servico_aparelhos_servicos")
+            .delete()
+            .eq("id_aparelho", (ap as any).id);
+
+          // Inserir novos serviços
+          if ((ap as any).servicos && (ap as any).servicos.length > 0) {
+            const servicosParaSalvar = (ap as any).servicos.map((svc: any) => ({
+              id_aparelho: (ap as any).id,
+              descricao: svc.descricao,
+              valor: svc.valor,
+            }));
+
+            const { error: erroServicos } = await supabase
+              .from("ordem_servico_aparelhos_servicos")
+              .insert(servicosParaSalvar);
+
+            if (erroServicos) {
+              console.error("Erro ao salvar serviços do aparelho:", erroServicos);
+              throw erroServicos;
+            }
+          }
+        } else {
+          // Novo aparelho - inserir
+          const { data: novoAparelho, error: erroInsert } = await supabase
+            .from("ordem_servico_aparelhos")
+            .insert({
+              id_ordem_servico: id,
+              id_loja: (ap as any).id_loja || dados.id_loja,
+              sequencia: (ap as any).sequencia,
+              equipamento_tipo: ap.equipamento_tipo,
+              equipamento_marca: ap.equipamento_marca,
+              equipamento_modelo: ap.equipamento_modelo,
+              equipamento_numero_serie: ap.equipamento_numero_serie,
+              equipamento_imei: (ap as any).equipamento_imei,
+              equipamento_senha: (ap as any).equipamento_senha,
+              defeito_reclamado: ap.defeito_reclamado,
+              estado_equipamento: (ap as any).estado_equipamento,
+              acessorios_entregues: (ap as any).acessorios_entregues,
+              diagnostico: (ap as any).diagnostico,
+              servico_realizado: (ap as any).servico_realizado,
+              observacoes_tecnicas: (ap as any).observacoes_tecnicas,
+              valor_orcamento: (ap as any).valor_orcamento,
+              valor_desconto: (ap as any).valor_desconto,
+              valor_total: (ap as any).valor_total,
+              status: "ativo",
+              criado_por: userId,
+              atualizado_por: userId,
+            })
+            .select()
+            .single();
+
+          if (erroInsert) {
+            console.error("Erro ao inserir novo aparelho:", erroInsert);
+            throw erroInsert;
+          }
+
+          // Inserir serviços do novo aparelho
+          if (novoAparelho && (ap as any).servicos && (ap as any).servicos.length > 0) {
+            const servicosParaSalvar = (ap as any).servicos.map((svc: any) => ({
+              id_aparelho: novoAparelho.id,
+              descricao: svc.descricao,
+              valor: svc.valor,
+            }));
+
+            const { error: erroServicos } = await supabase
+              .from("ordem_servico_aparelhos_servicos")
+              .insert(servicosParaSalvar);
+
+            if (erroServicos) {
+              console.error("Erro ao salvar serviços do novo aparelho:", erroServicos);
+              throw erroServicos;
+            }
+          }
+        }
+      }
+    }
+
     return { data: data as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar ordem de serviço:", error);
