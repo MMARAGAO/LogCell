@@ -138,7 +138,9 @@ CREATE TABLE public.creditos_cliente (
   criado_em timestamp with time zone DEFAULT now(),
   tipo character varying DEFAULT 'adicao'::character varying CHECK (tipo::text = ANY (ARRAY['adicao'::character varying, 'retirada'::character varying]::text[])),
   ordem_servico_id uuid,
+  devolucao_os_id uuid,
   CONSTRAINT creditos_cliente_pkey PRIMARY KEY (id),
+  CONSTRAINT creditos_cliente_devolucao_os_id_fkey FOREIGN KEY (devolucao_os_id) REFERENCES public.devolu_ordem_servico(id),
   CONSTRAINT creditos_cliente_cliente_id_fkey FOREIGN KEY (cliente_id) REFERENCES public.clientes(id),
   CONSTRAINT creditos_cliente_gerado_por_fkey FOREIGN KEY (gerado_por) REFERENCES public.usuarios(id),
   CONSTRAINT creditos_cliente_venda_origem_id_fkey FOREIGN KEY (venda_origem_id) REFERENCES public.vendas(id),
@@ -170,6 +172,19 @@ CREATE TABLE public.descontos_venda (
   CONSTRAINT descontos_venda_pkey PRIMARY KEY (id),
   CONSTRAINT descontos_venda_aplicado_por_fkey FOREIGN KEY (aplicado_por) REFERENCES public.usuarios(id),
   CONSTRAINT descontos_venda_venda_id_fkey FOREIGN KEY (venda_id) REFERENCES public.vendas(id)
+);
+CREATE TABLE public.devolu_ordem_servico (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  id_ordem_servico uuid NOT NULL,
+  tipo_devolucao text NOT NULL CHECK (tipo_devolucao = ANY (ARRAY['reembolso'::text, 'credito'::text])),
+  valor_total numeric NOT NULL,
+  motivo text,
+  realizado_por uuid,
+  criado_em timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  atualizado_em timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT devolu_ordem_servico_pkey PRIMARY KEY (id),
+  CONSTRAINT devolu_ordem_servico_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id),
+  CONSTRAINT devolu_ordem_servico_realizado_por_fkey FOREIGN KEY (realizado_por) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.devolucoes_venda (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -521,6 +536,7 @@ CREATE TABLE public.ordem_servico (
   tipo_garantia character varying DEFAULT 'servico_geral'::character varying,
   permite_multiplos_aparelhos boolean DEFAULT false,
   total_geral_multiplos numeric,
+  status_devolucao character varying DEFAULT 'nenhuma'::character varying CHECK (status_devolucao::text = ANY (ARRAY['nenhuma'::character varying, 'devolvida'::character varying, 'devolvida_com_credito'::character varying]::text[])),
   CONSTRAINT ordem_servico_pkey PRIMARY KEY (id),
   CONSTRAINT ordem_servico_id_loja_fkey FOREIGN KEY (id_loja) REFERENCES public.lojas(id)
 );
@@ -573,6 +589,19 @@ CREATE TABLE public.ordem_servico_aparelhos (
   CONSTRAINT ordem_servico_aparelhos_pkey PRIMARY KEY (id),
   CONSTRAINT ordem_servico_aparelhos_id_ordem_servico_fkey FOREIGN KEY (id_ordem_servico) REFERENCES public.ordem_servico(id)
 );
+CREATE TABLE public.ordem_servico_aparelhos_servicos (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  id_aparelho uuid NOT NULL,
+  descricao text NOT NULL,
+  valor numeric DEFAULT 0,
+  status text DEFAULT 'ativo'::text,
+  criado_em timestamp with time zone DEFAULT now(),
+  atualizado_em timestamp with time zone DEFAULT now(),
+  criado_por uuid,
+  atualizado_por uuid,
+  CONSTRAINT ordem_servico_aparelhos_servicos_pkey PRIMARY KEY (id),
+  CONSTRAINT ordem_servico_aparelhos_servicos_id_aparelho_fkey FOREIGN KEY (id_aparelho) REFERENCES public.ordem_servico_aparelhos(id)
+);
 CREATE TABLE public.ordem_servico_caixa (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   id_ordem_servico uuid NOT NULL,
@@ -611,7 +640,7 @@ CREATE TABLE public.ordem_servico_pagamentos (
   id_ordem_servico uuid NOT NULL,
   data_pagamento date NOT NULL,
   valor numeric NOT NULL CHECK (valor > 0::numeric),
-  forma_pagamento character varying NOT NULL CHECK (forma_pagamento::text = ANY (ARRAY['dinheiro'::character varying, 'cartao_credito'::character varying, 'cartao_debito'::character varying, 'pix'::character varying, 'transferencia'::character varying, 'cheque'::character varying, 'credito_cliente'::character varying]::text[])),
+  forma_pagamento character varying NOT NULL CHECK (forma_pagamento::text = ANY (ARRAY['dinheiro'::character varying::text, 'cartao_credito'::character varying::text, 'cartao_debito'::character varying::text, 'pix'::character varying::text, 'transferencia'::character varying::text, 'cheque'::character varying::text, 'credito_cliente'::character varying::text])),
   observacao text,
   criado_em timestamp with time zone DEFAULT now(),
   criado_por uuid,

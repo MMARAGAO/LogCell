@@ -550,6 +550,11 @@ export default function OrdemServicoDetalhesModal({
   if (!osAtual) return null;
 
   const temAparelhos = (osAtual.aparelhos?.length || 0) > 0;
+  
+  // Debug: verificar aparelhos
+  console.log("OS Atual:", osAtual);
+  console.log("Aparelhos:", osAtual.aparelhos);
+  console.log("Tem Aparelhos?", temAparelhos);
 
   const calcularTotalServicosAparelho = (aparelho: any) =>
     (aparelho?.servicos || []).reduce(
