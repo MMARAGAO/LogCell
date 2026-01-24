@@ -522,12 +522,56 @@ export class CaixaService {
         console.error("❌ Erro ao buscar OS devolvidas com crédito:", erroOsDevolvidasCredito);
       }
 
+      // Buscar devoluções de OS (serviço desfeito) do período
+      const { data: devolucoesOS, error: erroDevolucoesOS } = await supabase
+        .from("devolu_ordem_servico")
+        .select(
+          `
+          id,
+          id_ordem_servico,
+          tipo_devolucao,
+          valor_total,
+          criado_em,
+          ordem_servico:ordem_servico(numero_os, cliente_nome, id_loja)
+        `
+        )
+        .gte("criado_em", dataAbertura)
+        .lte("criado_em", dataFechamento);
+
+      if (erroDevolucoesOS) {
+        console.error("❌ Erro ao buscar devoluções de OS:", erroDevolucoesOS);
+      }
+
+      // Filtrar devoluções de OS da loja
+      const devolucoesOSLoja = (devolucoesOS || []).filter(
+        (dev: any) => dev.ordem_servico?.id_loja === caixa.loja_id
+      );
+
+      // Separar devoluções de OS por tipo (reembolso vs crédito)
+      const devolucoesOSReembolso = devolucoesOSLoja.filter(
+        (dev: any) => dev.tipo_devolucao === "reembolso"
+      );
+      const devolucoesOSCredito = devolucoesOSLoja.filter(
+        (dev: any) => dev.tipo_devolucao === "credito"
+      );
+
+      const totalDevolucoesOSReembolso = devolucoesOSReembolso.reduce(
+        (sum: number, dev: any) => sum + Number(dev.valor_total),
+        0
+      );
+
+      const totalDevolucoesOSCredito = devolucoesOSCredito.reduce(
+        (sum: number, dev: any) => sum + Number(dev.valor_total),
+        0
+      );
+
       // Saldo esperado considera apenas movimentações de dinheiro físico (quebras NÃO afetam)
       const saldoEsperado =
         Number(caixa.saldo_inicial) +
         totalPagamentosSemCredito +
         totalOS -
         totalDevolucoesDinheiro -
+        totalDevolucoesOSReembolso -
         totalSangrias;
       const diferenca = caixa.saldo_final
         ? Number(caixa.saldo_final) - saldoEsperado
@@ -560,6 +604,16 @@ export class CaixaService {
           total: osDevolvidasCredito?.reduce((sum: number, os: any) => sum + Number(os.valor_total || 0), 0) || 0,
           lista: osDevolvidasCredito || [],
         },
+        devolu_os_reembolso: {
+          quantidade: devolucoesOSReembolso.length,
+          total: totalDevolucoesOSReembolso,
+          lista: devolucoesOSReembolso,
+        },
+        devolu_os_credito: {
+          quantidade: devolucoesOSCredito.length,
+          total: totalDevolucoesOSCredito,
+          lista: devolucoesOSCredito,
+        },
         sangrias: {
           quantidade: sangrias?.length || 0,
           total: totalSangrias,
@@ -570,7 +624,7 @@ export class CaixaService {
         },
         saldo_inicial: Number(caixa.saldo_inicial),
         total_entradas: totalPagamentosSemCredito + totalOS, // Todos os pagamentos que entram dinheiro (sem credito_cliente) + OS
-        total_saidas: totalDevolucoesDinheiro + totalSangrias, // Devoluções sem crédito + sangrias
+        total_saidas: totalDevolucoesDinheiro + totalDevolucoesOSReembolso + totalSangrias, // Devoluções sem crédito + reembolsos de OS + sangrias
         saldo_esperado: saldoEsperado,
         saldo_informado: caixa.saldo_final
           ? Number(caixa.saldo_final)

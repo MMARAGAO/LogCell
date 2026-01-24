@@ -49,7 +49,7 @@ export default function PagamentoOSModal({
 
   // Campos do novo pagamento
   const [dataPagamento, setDataPagamento] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [valorPagamento, setValorPagamento] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
@@ -60,13 +60,59 @@ export default function PagamentoOSModal({
   const [motivoDesconto, setMotivoDesconto] = useState("");
   const [aplicandoDesconto, setAplicandoDesconto] = useState(false);
 
+  // Crédito do cliente
+  const [creditoDisponivel, setCreditoDisponivel] = useState(0);
+  const [loadingCredito, setLoadingCredito] = useState(false);
+
   useEffect(() => {
     if (isOpen && os) {
       carregarPagamentos();
+      carregarCreditoCliente();
       // Carregar desconto atual da OS
       setValorDesconto(os.valor_desconto?.toString() || "0");
     }
   }, [isOpen, os]);
+
+  const carregarCreditoCliente = async () => {
+    if (!os?.cliente_nome) {
+      setCreditoDisponivel(0);
+      return;
+    }
+
+    setLoadingCredito(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+
+      // Primeiro, buscar cliente pelo nome
+      const { data: cliente, error: erroCliente } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("nome", os.cliente_nome)
+        .single();
+
+      if (erroCliente || !cliente) {
+        setCreditoDisponivel(0);
+        return;
+      }
+
+      // Buscar créditos disponíveis do cliente
+      const { data: creditos, error } = await supabase
+        .from("creditos_cliente")
+        .select("saldo")
+        .eq("cliente_id", cliente.id)
+        .gt("saldo", 0);
+
+      if (error) throw error;
+
+      const total = creditos?.reduce((sum, c) => sum + Number(c.saldo), 0) || 0;
+      setCreditoDisponivel(total);
+    } catch (error: any) {
+      console.error("Erro ao carregar crédito do cliente:", error);
+      setCreditoDisponivel(0);
+    } finally {
+      setLoadingCredito(false);
+    }
+  };
 
   const carregarPagamentos = async () => {
     if (!os) return;
@@ -185,10 +231,25 @@ export default function PagamentoOSModal({
       return;
     }
 
+    // Validar crédito disponível se for pagamento com crédito do cliente
+    if (formaPagamento === "credito_cliente") {
+      if (creditoDisponivel <= 0) {
+        toast.error("Cliente não possui crédito disponível");
+        return;
+      }
+
+      if (valor > creditoDisponivel) {
+        toast.error(
+          `Crédito insuficiente. Disponível: R$ ${creditoDisponivel.toFixed(2)}`,
+        );
+        return;
+      }
+    }
+
     const saldoRestante = calcularSaldoRestante();
     if (valor > saldoRestante) {
       const confirmar = confirm(
-        `O valor informado (R$ ${valor.toFixed(2)}) é maior que o saldo restante (R$ ${saldoRestante.toFixed(2)}). Deseja continuar?`
+        `O valor informado (R$ ${valor.toFixed(2)}) é maior que o saldo restante (R$ ${saldoRestante.toFixed(2)}). Deseja continuar?`,
       );
       if (!confirmar) return;
     }
@@ -199,6 +260,54 @@ export default function PagamentoOSModal({
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      // Se for crédito do cliente, dar baixa nos créditos (FIFO)
+      if (formaPagamento === "credito_cliente") {
+        // Buscar cliente pelo nome
+        const { data: cliente, error: erroCliente } = await supabase
+          .from("clientes")
+          .select("id")
+          .eq("nome", os.cliente_nome)
+          .single();
+
+        if (erroCliente || !cliente) {
+          throw new Error("Cliente não encontrado para aplicar crédito");
+        }
+
+        const { data: creditos, error: erroCreditos } = await supabase
+          .from("creditos_cliente")
+          .select("*")
+          .eq("cliente_id", cliente.id)
+          .gt("saldo", 0)
+          .order("criado_em", { ascending: true }); // FIFO
+
+        if (erroCreditos) throw erroCreditos;
+
+        if (!creditos || creditos.length === 0) {
+          throw new Error("Cliente não possui crédito disponível");
+        }
+
+        // Dar baixa nos créditos
+        let valorRestante = valor;
+        for (const credito of creditos) {
+          if (valorRestante <= 0) break;
+
+          const saldoCredito = Number(credito.saldo);
+          const valorUtilizar = Math.min(valorRestante, saldoCredito);
+
+          const { error: erroUpdate } = await supabase
+            .from("creditos_cliente")
+            .update({
+              valor_utilizado: Number(credito.valor_utilizado) + valorUtilizar,
+              saldo: saldoCredito - valorUtilizar,
+            })
+            .eq("id", credito.id);
+
+          if (erroUpdate) throw erroUpdate;
+
+          valorRestante -= valorUtilizar;
+        }
+      }
 
       // Inserir pagamento
       const { error: errorPag } = await supabase
@@ -229,8 +338,9 @@ export default function PagamentoOSModal({
 
       toast.success("Pagamento registrado com sucesso!");
 
-      // Recarregar pagamentos
+      // Recarregar pagamentos e crédito
       await carregarPagamentos();
+      await carregarCreditoCliente();
 
       // Limpar campos
       setValorPagamento("");
@@ -250,7 +360,7 @@ export default function PagamentoOSModal({
     if (!os || !pagamento.id) return;
 
     const confirmar = confirm(
-      `Deseja realmente remover este pagamento de R$ ${pagamento.valor.toFixed(2)}?`
+      `Deseja realmente remover este pagamento de R$ ${pagamento.valor.toFixed(2)}?`,
     );
     if (!confirmar) return;
 
@@ -382,6 +492,38 @@ export default function PagamentoOSModal({
               </Card>
             </div>
 
+            {/* Crédito Disponível do Cliente */}
+            {creditoDisponivel > 0 && (
+              <Card className="bg-primary-50 dark:bg-primary-900/20 border-2 border-primary-200 dark:border-primary-800">
+                <CardBody className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="w-5 h-5 text-primary" />
+                      <span className="font-semibold text-primary">
+                        Crédito Disponível do Cliente
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      {loadingCredito ? (
+                        <p className="text-sm text-default-500">
+                          Carregando...
+                        </p>
+                      ) : (
+                        <p className="text-2xl font-bold text-primary">
+                          R$ {creditoDisponivel.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {creditoDisponivel > 0 && (
+                    <p className="text-xs text-default-600 mt-2">
+                      Este crédito pode ser usado para pagar esta OS
+                    </p>
+                  )}
+                </CardBody>
+              </Card>
+            )}
+
             <Divider />
 
             {/* Aplicar Desconto */}
@@ -463,6 +605,11 @@ export default function PagamentoOSModal({
                       setFormaPagamento(Array.from(keys)[0] as string)
                     }
                     variant="bordered"
+                    description={
+                      formaPagamento === "credito_cliente"
+                        ? `Saldo disponível: R$ ${creditoDisponivel.toFixed(2)}`
+                        : undefined
+                    }
                   >
                     <SelectItem key="dinheiro">Dinheiro</SelectItem>
                     <SelectItem key="cartao_credito">
@@ -474,8 +621,13 @@ export default function PagamentoOSModal({
                     <SelectItem key="pix">PIX</SelectItem>
                     <SelectItem key="transferencia">Transferência</SelectItem>
                     <SelectItem key="cheque">Cheque</SelectItem>
-                    <SelectItem key="credito_cliente">
+                    <SelectItem
+                      key="credito_cliente"
+                      isDisabled={creditoDisponivel <= 0}
+                    >
                       Crédito do Cliente
+                      {creditoDisponivel > 0 &&
+                        ` (R$ ${creditoDisponivel.toFixed(2)})`}
                     </SelectItem>
                   </Select>
 
@@ -527,7 +679,7 @@ export default function PagamentoOSModal({
                           </div>
                           <p className="text-xs text-default-600">
                             {new Date(pag.data_pagamento).toLocaleDateString(
-                              "pt-BR"
+                              "pt-BR",
                             )}
                             {pag.observacao && ` - ${pag.observacao}`}
                           </p>

@@ -18,6 +18,7 @@ import {
   CardBody,
   Chip,
   Progress,
+  Divider,
 } from "@heroui/react";
 import {
   User,
@@ -28,6 +29,8 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import type {
   OrdemServicoFormData,
@@ -50,11 +53,10 @@ interface OrdemServicoWizardProps {
 
 const PASSOS = [
   { id: 1, titulo: "Dados do Cliente", icone: User },
-  { id: 2, titulo: "Equipamento", icone: Smartphone },
-  { id: 3, titulo: "Defeito/Problema", icone: FileText },
-  { id: 4, titulo: "Atribuições", icone: Wrench },
-  { id: 5, titulo: "Valores", icone: DollarSign },
-  { id: 6, titulo: "Revisão", icone: CheckCircle },
+  { id: 2, titulo: "Aparelhos", icone: Smartphone },
+  { id: 3, titulo: "Atribuições", icone: Wrench },
+  { id: 4, titulo: "Valores", icone: DollarSign },
+  { id: 5, titulo: "Revisão", icone: CheckCircle },
 ];
 
 export default function OrdemServicoWizard({
@@ -87,6 +89,36 @@ export default function OrdemServicoWizard({
     "lojista" | "consumidor_final"
   >("consumidor_final");
 
+  // Aparelhos e serviços
+  const criarAparelhoVazio = () => ({
+    equipamento_tipo: "",
+    equipamento_marca: "",
+    equipamento_modelo: "",
+    equipamento_numero_serie: "",
+    equipamento_imei: "",
+    equipamento_senha: "",
+    defeito_reclamado: "",
+    estado_equipamento: "",
+    acessorios_entregues: "",
+    diagnostico: "",
+    servico_realizado: "",
+    observacoes_tecnicas: "",
+    valor_desconto: 0,
+    valor_orcamento: 0,
+    valor_total: 0,
+    servicos: [] as Array<{ id?: string; descricao: string; valor: number }>,
+  });
+
+  const [aparelhos, setAparelhos] = useState<
+    Array<
+      ReturnType<typeof criarAparelhoVazio> & {
+        id?: string;
+        sequencia?: number;
+        id_loja?: number;
+      }
+    >
+  >([criarAparelhoVazio()]);
+
   // Passo 2: Equipamento
   const [equipamentoTipo, setEquipamentoTipo] = useState("");
   const [equipamentoMarca, setEquipamentoMarca] = useState("");
@@ -109,6 +141,86 @@ export default function OrdemServicoWizard({
   const [valorOrcamento, setValorOrcamento] = useState("");
   const [valorDesconto, setValorDesconto] = useState("");
   const [observacoes, setObservacoes] = useState("");
+
+  const adicionarAparelho = () => {
+    const sequencia = aparelhos.length + 1;
+    const idLojaAparelho = lojaId || lojas[0]?.id;
+    setAparelhos([
+      ...aparelhos,
+      { ...criarAparelhoVazio(), sequencia, id_loja: idLojaAparelho },
+    ]);
+  };
+
+  const removerAparelho = (index: number) => {
+    const restantes = aparelhos.filter((_, idx) => idx !== index);
+    const reordenados = restantes.map((ap, idx) => ({
+      ...ap,
+      sequencia: idx + 1,
+    }));
+    setAparelhos(reordenados.length > 0 ? reordenados : [criarAparelhoVazio()]);
+  };
+
+  const atualizarAparelhoCampo = (
+    index: number,
+    campo: string,
+    valor: string,
+  ) => {
+    setAparelhos((prev) =>
+      prev.map((ap, idx) => (idx === index ? { ...ap, [campo]: valor } : ap)),
+    );
+  };
+
+  const adicionarServicoAparelho = (index: number) => {
+    setAparelhos((prev) =>
+      prev.map((ap, idx) =>
+        idx === index
+          ? {
+              ...ap,
+              servicos: [...(ap.servicos || []), { descricao: "", valor: 0 }],
+            }
+          : ap,
+      ),
+    );
+  };
+
+  const atualizarServicoAparelho = (
+    indexAparelho: number,
+    indexServico: number,
+    campo: "descricao" | "valor",
+    valor: string,
+  ) => {
+    setAparelhos((prev) =>
+      prev.map((ap, idx) => {
+        if (idx !== indexAparelho) return ap;
+        const servicos = (ap.servicos || []).map((svc, svcIdx) =>
+          svcIdx === indexServico
+            ? {
+                ...svc,
+                [campo]: campo === "valor" ? Number(valor) || 0 : valor,
+              }
+            : svc,
+        );
+        return { ...ap, servicos };
+      }),
+    );
+  };
+
+  const removerServicoAparelho = (indexAparelho: number, indexServico: number) => {
+    setAparelhos((prev) =>
+      prev.map((ap, idx) => {
+        if (idx !== indexAparelho) return ap;
+        const servicos = (ap.servicos || []).filter((_, sIdx) => sIdx !== indexServico);
+        return { ...ap, servicos };
+      }),
+    );
+  };
+
+  const calcularTotalAparelho = (aparelho: ReturnType<typeof criarAparelhoVazio>) => {
+    return (aparelho.servicos || []).reduce(
+      (sum, svc) => sum + (Number(svc.valor) || 0),
+      0,
+    );
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -133,17 +245,54 @@ export default function OrdemServicoWizard({
     setClienteEndereco(ordem.cliente_endereco || "");
     setTipoCliente(ordem.tipo_cliente || "consumidor_final");
 
-    // Equipamento
-    setEquipamentoTipo(ordem.equipamento_tipo);
-    setEquipamentoMarca(ordem.equipamento_marca || "");
-    setEquipamentoModelo(ordem.equipamento_modelo || "");
-    setEquipamentoNumeroSerie(ordem.equipamento_numero_serie || "");
-    setEquipamentoSenha(ordem.equipamento_senha || "");
-
-    // Defeito
-    setDefeitoReclamado(ordem.defeito_reclamado);
-    setEstadoEquipamento(ordem.estado_equipamento || "");
-    setAcessoriosEntregues(ordem.acessorios_entregues || "");
+    // Aparelhos (multi)
+    if (ordem.aparelhos && ordem.aparelhos.length > 0) {
+      setAparelhos(
+        ordem.aparelhos.map((ap) => ({
+          id: ap.id,
+          sequencia: ap.sequencia,
+          id_loja: ap.id_loja,
+          equipamento_tipo: ap.equipamento_tipo || "",
+          equipamento_marca: ap.equipamento_marca || "",
+          equipamento_modelo: ap.equipamento_modelo || "",
+          equipamento_numero_serie: ap.equipamento_numero_serie || "",
+          equipamento_imei: ap.equipamento_imei || "",
+          equipamento_senha: ap.equipamento_senha || "",
+          defeito_reclamado: ap.defeito_reclamado || "",
+          estado_equipamento: ap.estado_equipamento || "",
+          acessorios_entregues: ap.acessorios_entregues || "",
+          diagnostico: ap.diagnostico || "",
+          servico_realizado: ap.servico_realizado || "",
+          observacoes_tecnicas: ap.observacoes_tecnicas || "",
+          valor_orcamento: ap.valor_orcamento || 0,
+          valor_desconto: ap.valor_desconto || 0,
+          valor_total: ap.valor_total || 0,
+          servicos: (ap.servicos || []).map((svc) => ({
+            id: svc.id,
+            descricao: svc.descricao,
+            valor: Number(svc.valor) || 0,
+          })),
+        })),
+      );
+    } else {
+      setAparelhos([
+        {
+          ...criarAparelhoVazio(),
+          equipamento_tipo: ordem.equipamento_tipo,
+          equipamento_marca: ordem.equipamento_marca || "",
+          equipamento_modelo: ordem.equipamento_modelo || "",
+          equipamento_numero_serie: ordem.equipamento_numero_serie || "",
+          equipamento_imei: ordem.equipamento_numero_serie || "",
+          equipamento_senha: ordem.equipamento_senha || "",
+          defeito_reclamado: ordem.defeito_reclamado || "",
+          estado_equipamento: ordem.estado_equipamento || "",
+          acessorios_entregues: ordem.acessorios_entregues || "",
+          diagnostico: ordem.diagnostico || "",
+          servico_realizado: ordem.servico_realizado || "",
+          observacoes_tecnicas: ordem.observacoes_tecnicas || "",
+        },
+      ]);
+    }
 
     // Atribuições
     setLojaId(ordem.id_loja);
@@ -210,29 +359,41 @@ export default function OrdemServicoWizard({
         }
         return true;
       case 2:
-        if (!equipamentoTipo.trim()) {
-          toast.error("Informe o tipo do equipamento");
+        if (aparelhos.length === 0) {
+          toast.error("Adicione pelo menos um aparelho");
           return false;
+        }
+        for (let idx = 0; idx < aparelhos.length; idx++) {
+          const ap = aparelhos[idx];
+          if (!ap.equipamento_tipo.trim()) {
+            toast.error(`Informe o tipo do aparelho #${idx + 1}`);
+            return false;
+          }
+          if (!ap.defeito_reclamado.trim()) {
+            toast.error(`Informe o defeito do aparelho #${idx + 1}`);
+            return false;
+          }
         }
         return true;
       case 3:
-        if (!defeitoReclamado.trim()) {
-          toast.error("Descreva o defeito reclamado");
-          return false;
-        }
-        return true;
-      case 4:
         if (!lojaId) {
           toast.error("Selecione a loja");
           return false;
         }
         return true;
-      case 5:
+      case 4:
         return true;
       default:
         return true;
     }
   };
+
+  const totalAparelhos = aparelhos.reduce(
+    (sum, ap) => sum + calcularTotalAparelho(ap),
+    0,
+  );
+  const totalAparelhosComDesconto =
+    totalAparelhos - (parseFloat(valorDesconto || "0") || 0);
 
   const proximoPasso = () => {
     if (validarPasso(passoAtual)) {
@@ -249,6 +410,16 @@ export default function OrdemServicoWizard({
 
     setLoading(true);
     try {
+      const desconto = valorDesconto ? parseFloat(valorDesconto) : 0;
+      const totalAparelhos = aparelhos.reduce(
+        (sum, ap) => sum + calcularTotalAparelho(ap),
+        0,
+      );
+      const totalComDesconto = totalAparelhos - desconto;
+
+      const aparelhoPrincipal = aparelhos[0];
+      const idLojaDestino = lojaId || aparelhos[0].id_loja || lojas[0]?.id;
+
       const dados: OrdemServicoFormData = {
         // Cliente
         cliente_nome: clienteNome,
@@ -258,33 +429,54 @@ export default function OrdemServicoWizard({
         cliente_endereco: clienteEndereco || undefined,
         tipo_cliente: tipoCliente,
 
-        // Equipamento
-        equipamento_tipo: equipamentoTipo,
-        equipamento_marca: equipamentoMarca || undefined,
-        equipamento_modelo: equipamentoModelo || undefined,
-        equipamento_numero_serie: equipamentoNumeroSerie || undefined,
-        equipamento_senha: equipamentoSenha || undefined,
+        // Campos legados (preenchidos a partir do primeiro aparelho)
+        equipamento_tipo: aparelhoPrincipal.equipamento_tipo,
+        equipamento_marca: aparelhoPrincipal.equipamento_marca || undefined,
+        equipamento_modelo: aparelhoPrincipal.equipamento_modelo || undefined,
+        equipamento_numero_serie:
+          aparelhoPrincipal.equipamento_numero_serie ||
+          aparelhoPrincipal.equipamento_imei ||
+          undefined,
+        equipamento_senha: aparelhoPrincipal.equipamento_senha || undefined,
 
-        // Defeito
-        defeito_reclamado: defeitoReclamado,
-        estado_equipamento: estadoEquipamento || undefined,
-        acessorios_entregues: acessoriosEntregues || undefined,
+        defeito_reclamado: aparelhoPrincipal.defeito_reclamado,
+        estado_equipamento: aparelhoPrincipal.estado_equipamento || undefined,
+        acessorios_entregues:
+          aparelhoPrincipal.acessorios_entregues || undefined,
+
+        diagnostico: aparelhoPrincipal.diagnostico || undefined,
+        servico_realizado: aparelhoPrincipal.servico_realizado || undefined,
+        observacoes_tecnicas: observacoes || undefined,
 
         // Atribuições
-        id_loja: lojaId,
+        id_loja: idLojaDestino,
         tecnico_responsavel: tecnicoId || undefined,
         prioridade,
         previsao_entrega: previsaoEntrega || undefined,
 
         // Valores
-        valor_orcamento: valorOrcamento
-          ? parseFloat(valorOrcamento)
-          : undefined,
-        valor_desconto: valorDesconto ? parseFloat(valorDesconto) : undefined,
-        observacoes_tecnicas: observacoes || undefined,
+        valor_orcamento: totalAparelhos,
+        valor_desconto: desconto,
+        valor_total: totalComDesconto,
 
-        // Status padrão
-        status: "aguardando" as StatusOS,
+        // Status
+        status: (ordem?.status as StatusOS) || ("aguardando" as StatusOS),
+
+        aparelhos: aparelhos.map((ap, idx) => {
+          const subtotal = calcularTotalAparelho(ap);
+          return {
+            ...ap,
+            id_loja: ap.id_loja || idLojaDestino,
+            sequencia: ap.sequencia || idx + 1,
+            valor_orcamento: subtotal,
+            valor_desconto: ap.valor_desconto || 0,
+            valor_total: subtotal - (ap.valor_desconto || 0),
+            servicos: (ap.servicos || []).map((svc) => ({
+              ...svc,
+              valor: Number(svc.valor) || 0,
+            })),
+          };
+        }),
       };
 
       await onSubmit(dados);
@@ -314,6 +506,7 @@ export default function OrdemServicoWizard({
     setDefeitoReclamado("");
     setEstadoEquipamento("");
     setAcessoriosEntregues("");
+    setAparelhos([criarAparelhoVazio()]);
     setLojaId(0);
     setTecnicoId("");
     setPrioridade("normal");
@@ -471,90 +664,257 @@ export default function OrdemServicoWizard({
             </div>
           )}
 
-          {/* Passo 2: Equipamento */}
+          {/* Passo 2: Aparelhos */}
           {passoAtual === 2 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Smartphone className="w-5 h-5" />
-                Informações do Equipamento
-              </h3>
-
-              <Input
-                label="Tipo de Equipamento *"
-                placeholder="Ex: Smartphone, Notebook, TV"
-                value={equipamentoTipo}
-                onChange={(e) => setEquipamentoTipo(e.target.value)}
-                isRequired
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Marca"
-                  placeholder="Ex: Samsung, Apple"
-                  value={equipamentoMarca}
-                  onChange={(e) => setEquipamentoMarca(e.target.value)}
-                />
-
-                <Input
-                  label="Modelo"
-                  placeholder="Ex: Galaxy S23"
-                  value={equipamentoModelo}
-                  onChange={(e) => setEquipamentoModelo(e.target.value)}
-                />
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Smartphone className="w-5 h-5" />
+                  Aparelhos e Serviços
+                </h3>
+                <Button
+                  size="sm"
+                  color="primary"
+                  variant="flat"
+                  startContent={<Plus className="w-4 h-4" />}
+                  onPress={adicionarAparelho}
+                >
+                  Adicionar aparelho
+                </Button>
               </div>
 
-              <Input
-                label="Número de Série / IMEI"
-                value={equipamentoNumeroSerie}
-                onChange={(e) => setEquipamentoNumeroSerie(e.target.value)}
-              />
+              <div className="space-y-4">
+                {aparelhos.map((ap, index) => (
+                  <Card key={index} className="border border-default-200">
+                    <CardBody className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Chip color="primary" variant="flat" size="sm">
+                            Aparelho #{index + 1}
+                          </Chip>
+                          {ap.sequencia && (
+                            <Chip size="sm" variant="flat">
+                              Sequência {ap.sequencia}
+                            </Chip>
+                          )}
+                        </div>
+                        <Button
+                          isIconOnly
+                          variant="light"
+                          color="danger"
+                          size="sm"
+                          onPress={() => removerAparelho(index)}
+                          isDisabled={aparelhos.length === 1}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
 
-              <Input
-                label="Senha/PIN (se informado pelo cliente)"
-                type="password"
-                value={equipamentoSenha}
-                onChange={(e) => setEquipamentoSenha(e.target.value)}
-              />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Tipo do Aparelho *"
+                          placeholder="Ex: Smartphone, Notebook"
+                          value={ap.equipamento_tipo}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_tipo",
+                              e.target.value,
+                            )
+                          }
+                          isRequired
+                        />
+                        <Input
+                          label="Marca"
+                          value={ap.equipamento_marca}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_marca",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        <Input
+                          label="Modelo"
+                          value={ap.equipamento_modelo}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_modelo",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        <Input
+                          label="IMEI ou Nº de Série"
+                          value={ap.equipamento_imei || ap.equipamento_numero_serie}
+                          onChange={(e) => {
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_imei",
+                              e.target.value,
+                            );
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_numero_serie",
+                              e.target.value,
+                            );
+                          }}
+                        />
+                        <Input
+                          label="Senha/PIN (opcional)"
+                          type="password"
+                          value={ap.equipamento_senha}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_senha",
+                              e.target.value,
+                            )
+                          }
+                        />
+                        <Input
+                          label="Acessórios Entregues"
+                          value={ap.acessorios_entregues}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "acessorios_entregues",
+                              e.target.value,
+                            )
+                          }
+                        />
+                      </div>
+
+                      <Textarea
+                        label="Defeito Reclamado *"
+                        placeholder="Descreva o problema relatado pelo cliente"
+                        value={ap.defeito_reclamado}
+                        onChange={(e) =>
+                          atualizarAparelhoCampo(
+                            index,
+                            "defeito_reclamado",
+                            e.target.value,
+                          )
+                        }
+                        minRows={3}
+                        isRequired
+                      />
+
+                      <Textarea
+                        label="Estado do Equipamento"
+                        placeholder="Ex: Tela trincada, riscos na lateral, etc"
+                        value={ap.estado_equipamento}
+                        onChange={(e) =>
+                          atualizarAparelhoCampo(
+                            index,
+                            "estado_equipamento",
+                            e.target.value,
+                          )
+                        }
+                        minRows={2}
+                      />
+
+                      <Divider />
+
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <Wrench className="w-4 h-4" />
+                          Serviços do aparelho
+                        </h4>
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          color="primary"
+                          startContent={<Plus className="w-4 h-4" />}
+                          onPress={() => adicionarServicoAparelho(index)}
+                        >
+                          Adicionar serviço
+                        </Button>
+                      </div>
+
+                      {ap.servicos && ap.servicos.length > 0 ? (
+                        <div className="space-y-3">
+                          {ap.servicos.map((svc, svcIdx) => (
+                            <div
+                              key={svcIdx}
+                              className="grid grid-cols-1 md:grid-cols-8 gap-2 md:items-center"
+                            >
+                              <div className="md:col-span-5">
+                                <Input
+                                  label={`Serviço ${svcIdx + 1}`}
+                                  value={svc.descricao}
+                                  onChange={(e) =>
+                                    atualizarServicoAparelho(
+                                      index,
+                                      svcIdx,
+                                      "descricao",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <Input
+                                  label="Valor"
+                                  type="number"
+                                  startContent={
+                                    <span className="text-default-400">R$</span>
+                                  }
+                                  value={
+                                    svc.valor !== undefined
+                                      ? svc.valor.toString()
+                                      : ""
+                                  }
+                                  onChange={(e) =>
+                                    atualizarServicoAparelho(
+                                      index,
+                                      svcIdx,
+                                      "valor",
+                                      e.target.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="flex justify-end">
+                                <Button
+                                  isIconOnly
+                                  variant="light"
+                                  color="danger"
+                                  onPress={() =>
+                                    removerServicoAparelho(index, svcIdx)
+                                  }
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-default-500">
+                          Nenhum serviço adicionado para este aparelho.
+                        </p>
+                      )}
+
+                      <div className="flex justify-between items-center bg-default-50 p-3 rounded-lg">
+                        <span className="text-sm font-semibold">
+                          Total do aparelho
+                        </span>
+                        <span className="text-lg font-bold text-primary">
+                          R$ {calcularTotalAparelho(ap).toFixed(2)}
+                        </span>
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Passo 3: Defeito */}
+          {/* Passo 3: Atribuições */}
           {passoAtual === 3 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Defeito e Estado do Equipamento
-              </h3>
-
-              <Textarea
-                label="Defeito Reclamado *"
-                placeholder="Descreva o problema relatado pelo cliente"
-                value={defeitoReclamado}
-                onChange={(e) => setDefeitoReclamado(e.target.value)}
-                minRows={3}
-                isRequired
-              />
-
-              <Textarea
-                label="Estado do Equipamento"
-                placeholder="Ex: Tela trincada, riscos na lateral, etc"
-                value={estadoEquipamento}
-                onChange={(e) => setEstadoEquipamento(e.target.value)}
-                minRows={2}
-              />
-
-              <Textarea
-                label="Acessórios Entregues"
-                placeholder="Ex: Carregador, capa, fones"
-                value={acessoriosEntregues}
-                onChange={(e) => setAcessoriosEntregues(e.target.value)}
-                minRows={2}
-              />
-            </div>
-          )}
-
-          {/* Passo 4: Atribuições */}
-          {passoAtual === 4 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Wrench className="w-5 h-5" />
@@ -615,52 +975,46 @@ export default function OrdemServicoWizard({
             </div>
           )}
 
-          {/* Passo 5: Valores */}
-          {passoAtual === 5 && (
+          {/* Passo 4: Valores */}
+          {passoAtual === 4 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <DollarSign className="w-5 h-5" />
                 Valores e Observações
               </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Valor do Orçamento"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={valorOrcamento}
-                  onChange={(e) => setValorOrcamento(e.target.value)}
-                  startContent={<span className="text-default-400">R$</span>}
-                />
-
-                <Input
-                  label="Desconto"
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={valorDesconto}
-                  onChange={(e) => setValorDesconto(e.target.value)}
-                  startContent={<span className="text-default-400">R$</span>}
-                />
-              </div>
-
-              {valorOrcamento && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
-                  <CardBody>
+                  <CardBody className="space-y-1">
+                    <p className="text-sm text-default-500">Total dos aparelhos</p>
+                    <p className="text-2xl font-bold text-primary">
+                      R$ {totalAparelhos.toFixed(2)}
+                    </p>
+                  </CardBody>
+                </Card>
+
+                <Card>
+                  <CardBody className="space-y-2">
+                    <Input
+                      label="Desconto"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={valorDesconto}
+                      onChange={(e) => setValorDesconto(e.target.value)}
+                      startContent={<span className="text-default-400">R$</span>}
+                    />
                     <div className="flex justify-between items-center">
-                      <span className="text-default-600">Valor Total:</span>
-                      <span className="text-xl font-bold text-primary">
-                        R${" "}
-                        {(
-                          parseFloat(valorOrcamento || "0") -
-                          parseFloat(valorDesconto || "0")
-                        ).toFixed(2)}
+                      <span className="text-sm text-default-500">
+                        Total com desconto
+                      </span>
+                      <span className="text-lg font-bold text-primary">
+                        R$ {totalAparelhosComDesconto.toFixed(2)}
                       </span>
                     </div>
                   </CardBody>
                 </Card>
-              )}
+              </div>
 
               <Textarea
                 label="Observações Iniciais"
@@ -672,8 +1026,8 @@ export default function OrdemServicoWizard({
             </div>
           )}
 
-          {/* Passo 6: Revisão */}
-          {passoAtual === 6 && (
+          {/* Passo 5: Revisão */}
+          {passoAtual === 5 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <CheckCircle className="w-5 h-5" />
@@ -697,29 +1051,36 @@ export default function OrdemServicoWizard({
                     )}
                   </div>
 
-                  <div>
-                    <h4 className="font-semibold text-primary mb-2">
-                      Equipamento
-                    </h4>
-                    <p>
-                      <strong>Tipo:</strong> {equipamentoTipo}
-                    </p>
-                    {equipamentoMarca && (
-                      <p>
-                        <strong>Marca:</strong> {equipamentoMarca}
-                      </p>
-                    )}
-                    {equipamentoModelo && (
-                      <p>
-                        <strong>Modelo:</strong> {equipamentoModelo}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-primary mb-2">Defeito</h4>
-                    <p>{defeitoReclamado}</p>
-                  </div>
+                  {aparelhos.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-primary mb-2">
+                        Aparelhos
+                      </h4>
+                      {aparelhos.map((ap, idx) => (
+                        <Card key={idx} className="bg-default-50">
+                          <CardBody className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="font-semibold">
+                                #{idx + 1} - {ap.equipamento_tipo}
+                              </span>
+                              <span className="text-default-500">
+                                R$ {calcularTotalAparelho(ap).toFixed(2)}
+                              </span>
+                            </div>
+                            {ap.equipamento_marca && (
+                              <p>Marca: {ap.equipamento_marca}</p>
+                            )}
+                            {ap.equipamento_modelo && (
+                              <p>Modelo: {ap.equipamento_modelo}</p>
+                            )}
+                            <p className="text-default-600">
+                              Problema: {ap.defeito_reclamado}
+                            </p>
+                          </CardBody>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
 
                   <div>
                     <h4 className="font-semibold text-primary mb-2">
@@ -744,30 +1105,25 @@ export default function OrdemServicoWizard({
                     </p>
                   </div>
 
-                  {valorOrcamento && (
-                    <div>
-                      <h4 className="font-semibold text-primary mb-2">
-                        Valores
-                      </h4>
+                  <div>
+                    <h4 className="font-semibold text-primary mb-2">
+                      Valores
+                    </h4>
+                    <p>
+                      <strong>Total dos aparelhos:</strong> R$ {" "}
+                      {totalAparelhos.toFixed(2)}
+                    </p>
+                    {valorDesconto && (
                       <p>
-                        <strong>Orçamento:</strong> R${" "}
-                        {parseFloat(valorOrcamento).toFixed(2)}
+                        <strong>Desconto:</strong> R$ {" "}
+                        {(parseFloat(valorDesconto) || 0).toFixed(2)}
                       </p>
-                      {valorDesconto && (
-                        <p>
-                          <strong>Desconto:</strong> R${" "}
-                          {parseFloat(valorDesconto).toFixed(2)}
-                        </p>
-                      )}
-                      <p className="text-lg font-bold mt-2">
-                        <strong>Total:</strong> R${" "}
-                        {(
-                          parseFloat(valorOrcamento) -
-                          parseFloat(valorDesconto || "0")
-                        ).toFixed(2)}
-                      </p>
-                    </div>
-                  )}
+                    )}
+                    <p className="text-lg font-bold mt-2">
+                      <strong>Total:</strong> R$ {" "}
+                      {totalAparelhosComDesconto.toFixed(2)}
+                    </p>
+                  </div>
                 </CardBody>
               </Card>
             </div>

@@ -20,30 +20,42 @@ interface PecaOS {
 export const gerarPDFOrdemServico = async (
   os: OrdemServico,
   pecas: PecaOS[],
-  dadosLoja: DadosLoja
+  dadosLoja: DadosLoja,
+  tipoGarantia?: string,
+  diasGarantia?: number
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
+  // Garantir dados da loja com fallback para dados padrão
+  const nomeFinal = dadosLoja.nome || "Autorizada Cell";
+  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
+
   // Cabeçalho da Empresa
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(dadosLoja.nome, pageWidth / 2, y, { align: "center" });
+  doc.text(nomeFinal, pageWidth / 2, y, { align: "center" });
   y += 7;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  if (dadosLoja.endereco) {
-    doc.text(dadosLoja.endereco, pageWidth / 2, y, { align: "center" });
-    y += 5;
-  }
-  if (dadosLoja.telefone) {
-    doc.text(`Tel: ${dadosLoja.telefone}`, pageWidth / 2, y, {
-      align: "center",
-    });
-    y += 5;
-  }
+  
+  // OBRIGATÓRIO: Endereço da loja
+  const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+  enderecoLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 4;
+  });
+  y += 1;
+  
+  // OBRIGATÓRIO: Telefone
+  doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
+    align: "center",
+  });
+  y += 5;
+  
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -300,30 +312,42 @@ export const gerarPDFOrdemServico = async (
 export const gerarOrcamentoOS = async (
   os: OrdemServico,
   pecas: PecaOS[],
-  dadosLoja: DadosLoja
+  dadosLoja: DadosLoja,
+  tipoGarantia?: string,
+  diasGarantia?: number
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
+  // Garantir dados da loja com fallback para dados padrão
+  const nomeFinal = dadosLoja.nome || "Autorizada Cell";
+  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
+
   // Cabeçalho da Empresa
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(dadosLoja.nome, pageWidth / 2, y, { align: "center" });
+  doc.text(nomeFinal, pageWidth / 2, y, { align: "center" });
   y += 7;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  if (dadosLoja.endereco) {
-    doc.text(dadosLoja.endereco, pageWidth / 2, y, { align: "center" });
-    y += 5;
-  }
-  if (dadosLoja.telefone) {
-    doc.text(`Tel: ${dadosLoja.telefone}`, pageWidth / 2, y, {
-      align: "center",
-    });
-    y += 5;
-  }
+  
+  // OBRIGATÓRIO: Endereço da loja
+  const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+  enderecoLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 4;
+  });
+  y += 1;
+  
+  // OBRIGATÓRIO: Telefone
+  doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
+    align: "center",
+  });
+  y += 5;
+  
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -376,7 +400,7 @@ export const gerarOrcamentoOS = async (
 
   // Dados do Equipamento / Aparelhos
   // Se houver múltiplos aparelhos, mostra cada um
-  const temMultiplosAparelhos = os.permite_multiplos_aparelhos && os.aparelhos && os.aparelhos.length > 1;
+  const temMultiplosAparelhos = (os.aparelhos?.length || 0) > 0;
   
   if (temMultiplosAparelhos && os.aparelhos) {
     // Múltiplos aparelhos
@@ -598,72 +622,9 @@ export const gerarOrcamentoOS = async (
     }
   }
 
-  // Peças Necessárias (APENAS não baixadas do estoque - orçamento)
-  // Filtra peças que ainda não foram baixadas (estoque_baixado = false)
-  const pecasOrcamento = pecas.filter((peca: any) => {
-    // Se a peça tem a propriedade estoque_baixado, usa ela
-    if ('estoque_baixado' in peca) {
-      return !peca.estoque_baixado;
-    }
-    // Caso contrário, mostra todas (fallback)
-    return true;
-  });
-
-  if (pecasOrcamento && pecasOrcamento.length > 0) {
-    if (y > 240) {
-      doc.addPage();
-      y = 20;
-    }
-
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, pageWidth - 30, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("PEÇAS NECESSÁRIAS (ORÇAMENTO)", 17, y + 5);
-    y += 12;
-
-    autoTable(doc, {
-      startY: y,
-      head: [["Descrição", "Qtd", "Valor Unit.", "Total"]],
-      body: pecasOrcamento.map((peca) => [
-        peca.descricao_peca,
-        peca.quantidade.toString(),
-        `R$ ${peca.valor_venda.toFixed(2)}`,
-        `R$ ${(peca.quantidade * peca.valor_venda).toFixed(2)}`,
-      ]),
-      theme: "grid",
-      headStyles: { fillColor: [100, 100, 100], fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: "auto" },
-        1: { cellWidth: 20, halign: "center" },
-        2: { cellWidth: 30, halign: "right" },
-        3: { cellWidth: 30, halign: "right" },
-      },
-    });
-
-    y = (doc as any).lastAutoTable.finalY + 5;
-    
-    // Total das peças do orçamento
-    const totalPecas = pecasOrcamento.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Total Peças: R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-    y += 10;
-  } else {
-    // Mensagem se não houver peças no orçamento
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, pageWidth - 30, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("PEÇAS NECESSÁRIAS", 17, y + 5);
-    y += 12;
-    
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
-    doc.text("A definir após diagnóstico técnico", 17, y);
-    y += 10;
-  }
-
+  // *** PEÇAS NÃO APARECEM NO ORÇAMENTO (CONFORME SOLICITADO) ***
+  // Peças são gerenciadas internamente mas não exibidas no PDF de orçamento
+  
   // Valores do Serviço
   if (y > 240) {
     doc.addPage();
@@ -718,47 +679,10 @@ export const gerarOrcamentoOS = async (
     doc.text(`TOTAL GERAL:`, 17, y);
     doc.text(`R$ ${totalGeralServiço.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
     y += 10;
-  } else {
-    // Valores únicos para OS com um equipamento
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, pageWidth - 30, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("VALORES", 17, y + 5);
-    y += 12;
-
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    
-    // Calcular total apenas das peças do orçamento (não baixadas)
-    const pecasOrcamentoValores = pecas.filter((peca: any) => {
-      if ('estoque_baixado' in peca) {
-        return !peca.estoque_baixado;
-      }
-      return true;
-    });
-    const totalPecas = pecasOrcamentoValores.reduce((sum, p) => sum + (p.quantidade * p.valor_venda), 0);
-    const valorServico = os.valor_servico || 0;
-    const valorTotal = totalPecas + valorServico;
-
-    doc.text(`Mão de Obra:`, 17, y);
-    doc.text(`R$ ${valorServico.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-    y += 6;
-    
-    doc.text(`Peças:`, 17, y);
-    doc.text(`R$ ${totalPecas.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-    y += 6;
-    
-    doc.setLineWidth(0.3);
-    doc.line(17, y, pageWidth - 15, y);
-    y += 5;
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text(`TOTAL:`, 17, y);
-    doc.text(`R$ ${valorTotal.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
-    y += 10;
   }
+  
+  // *** SEÇÃO DE VALORES REMOVIDA (mão de obra e peças) ***
+  // O orçamento não mostra breakdown de valores
 
   // Observações (se houver)
   if (os.observacoes_tecnicas) {
@@ -809,31 +733,42 @@ export const gerarOrcamentoOS = async (
 
 export const gerarGarantiaOS = async (
   os: OrdemServico,
-  pecas: PecaOS[],
-  dadosLoja: DadosLoja
+  dadosLoja: DadosLoja,
+  tipoGarantia?: string,
+  diasGarantia?: number
 ) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
+  // Garantir dados da loja com fallback para dados padrão
+  const nomeFinal = dadosLoja.nome || "Autorizada Cell";
+  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
+
   // Cabeçalho da Empresa
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(dadosLoja.nome, pageWidth / 2, y, { align: "center" });
+  doc.text(nomeFinal, pageWidth / 2, y, { align: "center" });
   y += 7;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  if (dadosLoja.endereco) {
-    doc.text(dadosLoja.endereco, pageWidth / 2, y, { align: "center" });
-    y += 5;
-  }
-  if (dadosLoja.telefone) {
-    doc.text(`Tel: ${dadosLoja.telefone}`, pageWidth / 2, y, {
-      align: "center",
-    });
-    y += 5;
-  }
+  
+  // OBRIGATÓRIO: Endereço da loja
+  const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+  enderecoLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 4;
+  });
+  y += 1;
+  
+  // OBRIGATÓRIO: Telefone
+  doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
+    align: "center",
+  });
+  y += 5;
+  
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -866,12 +801,12 @@ export const gerarGarantiaOS = async (
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   
-  const tipoGarantia = os.tipo_garantia || "servico";
-  const diasGarantia = os.dias_garantia || 90;
+  const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "servico";
+  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
   
-  doc.text(`Tipo de Garantia: ${tipoGarantia.toUpperCase()}`, 15, y);
+  doc.text(`Tipo de Garantia: ${tipoGarantiaFinal.toUpperCase()}`, 15, y);
   y += 7;
-  doc.text(`Prazo de Garantia: ${diasGarantia} dias`, 15, y);
+  doc.text(`Prazo de Garantia: ${diasGarantiaFinal} dias`, 15, y);
   y += 10;
 
   // Dados do Cliente
@@ -893,7 +828,7 @@ export const gerarGarantiaOS = async (
   y += 4;
 
   // Dados do Equipamento / Aparelhos
-  const temMultiplosAparelhosGarantia = os.permite_multiplos_aparelhos && os.aparelhos && os.aparelhos.length > 1;
+  const temMultiplosAparelhosGarantia = (os.aparelhos?.length || 0) > 0;
   
   if (temMultiplosAparelhosGarantia && os.aparelhos) {
     // Múltiplos aparelhos - mostra cada um
@@ -1007,39 +942,6 @@ export const gerarGarantiaOS = async (
       doc.text(defeitoLines, 17, y);
       y += defeitoLines.length * 6 + 4;
     }
-  }
-
-  // Peças Utilizadas (se houver)
-  if (pecas && pecas.length > 0) {
-    if (y > 240) {
-      doc.addPage();
-      y = 20;
-    }
-
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y, pageWidth - 30, 7, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("PEÇAS SUBSTITUÍDAS", 17, y + 5);
-    y += 12;
-
-    autoTable(doc, {
-      startY: y,
-      head: [["Descrição", "Qtd"]],
-      body: pecas.map((peca) => [
-        peca.descricao_peca,
-        peca.quantidade.toString(),
-      ]),
-      theme: "grid",
-      headStyles: { fillColor: [100, 100, 100], fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: "auto" },
-        1: { cellWidth: 20, halign: "center" },
-      },
-    });
-
-    y = (doc as any).lastAutoTable.finalY + 10;
   }
 
   // Termos de Garantia

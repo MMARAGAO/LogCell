@@ -185,6 +185,24 @@ export interface OrdemServicoAparelho {
   atualizado_em: string;
   criado_por?: string;
   atualizado_por?: string;
+
+  // Serviços vinculados a este aparelho (join)
+  servicos?: OrdemServicoAparelhoServico[];
+}
+
+// =====================================================
+// INTERFACE: Serviço de um Aparelho da OS
+// =====================================================
+export interface OrdemServicoAparelhoServico {
+  id: string;
+  id_aparelho: string;
+  descricao: string;
+  valor?: number;
+  status?: "ativo" | "removido";
+  criado_em: string;
+  atualizado_em: string;
+  criado_por?: string;
+  atualizado_por?: string;
 }
 
 // =====================================================
@@ -339,6 +357,47 @@ export interface OrdemServicoFormData {
   // Loja e Responsável (id_loja agora é opcional - cada peça tem sua própria loja)
   id_loja?: number;
   tecnico_responsavel?: string;
+
+  // Múltiplos aparelhos
+  aparelhos?: OrdemServicoAparelhoFormData[];
+}
+
+// Form data para aparelhos e serviços (criação/edição)
+export interface OrdemServicoAparelhoFormData {
+  id?: string;
+  sequencia?: number;
+  id_loja: number;
+  equipamento_tipo: string;
+  equipamento_marca?: string;
+  equipamento_modelo?: string;
+  equipamento_numero_serie?: string;
+  equipamento_imei?: string;
+  equipamento_senha?: string;
+  defeito_reclamado: string;
+  estado_equipamento?: string;
+  acessorios_entregues?: string;
+  diagnostico?: string;
+  servico_realizado?: string;
+  laudo_diagnostico?: string;
+  laudo_causa?: string;
+  laudo_procedimentos?: string;
+  laudo_recomendacoes?: string;
+  laudo_garantia_dias?: number;
+  laudo_condicao_final?: string;
+  observacoes_tecnicas?: string;
+  valor_orcamento?: number;
+  valor_desconto?: number;
+  valor_total?: number;
+  valor_pago?: number;
+  status?: "ativo" | "removido";
+  servicos?: OrdemServicoAparelhoServicoFormData[];
+}
+
+export interface OrdemServicoAparelhoServicoFormData {
+  id?: string;
+  descricao: string;
+  valor?: number;
+  status?: "ativo" | "removido";
 }
 
 // =====================================================

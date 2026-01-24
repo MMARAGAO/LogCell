@@ -1,0 +1,39 @@
+Solicitações de melhorias no sistema:
+
+1. Devolução de OS (serviço + peça) 
+Criar opção de devolução da OS quando o serviço é desfeito.
+
+* O sistema deve gerar a devolução como reembolso do valor pago pelo cliente ou opção de gerar credito para o cliente. ❌ (não deu a opção de gerar credito igual é na aba das vendas)❌
+
+ADICIONAR: aparecer no PDF do caixa uma listagem das DEVOLUÇÕES COM REEMBOLSO de OS. Mesmo que a venda tenha sido recebida no dia da devolução ou não. As vezes recebe em pix e devolve em dinheiro.  ⚠️⚠️
+
+2. Impressão na OS
+* ORÇAMENTO (tirar peças que utilizou no serviço) ✅ (Peças NÃO aparecem no PDF - gerenciamento interno)
+* GARANTIA (tempo de garantia ajustável sem tempo fixo) ✅ (Customizável antes de imprimir + suporta 0 dias)
+
+3. Impressão de ORÇAMENTO
+No modelo de impressão do orçamento, incluir obrigatoriamente:
+
+* Dados da loja:
+Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900 
+Telefone: (61) 98286-3441 ✅ (Dados aparecem em todos os PDFs - usa do banco ou fallback padrão)
+
+4- Criar o card de devoluções com credito e reembolso ✅ (Cards criados no dashboard do caixa)
+
+5- Separar como lista no PDF do caixa a sangria feita manualmente caso tenha alguma retirada de dinheiro e também um pra vendas que foram feitas REEMBOLSO . ✅
+CRÉDITO CLIENTE não precisa aparecer no PDF do caixa, pode somente criar um card no dashboard p total de vendas usadas com credito cliente e valor de credito cliente. ✅
+
+6- Adicionar forma de pagamento credito cliente na OS.  ✅
+
+8- Remover informações de valores da aba da OS: dados financeiros ✅
+
+9- Permitir mais de um aparelho na mesma OS ❌
+
+Cada aparelho deve ter:
+Marca / modelo
+IMEI ou nº de série (opcional)
+Cada serviço com valor individual
+
+Sistema soma automaticamente:
+Total por aparelho (DE VALOR DO ORÇAMENTO)
+Total geral da OS (DE TODOS OS VALORES APARELHOS ADICIONADOS NA OS)

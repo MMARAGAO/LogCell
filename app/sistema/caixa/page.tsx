@@ -51,6 +51,7 @@ import {
   CreditCard,
   Gift,
   HelpCircle,
+  RefreshCw,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { CaixaService } from "@/services/caixaService";
@@ -1218,6 +1219,55 @@ export default function CaixaPage() {
       yPos = (doc as any).lastAutoTable.finalY;
     }
 
+    // ===== REEMBOLSOS DE ORDEM DE SERVIÇO =====
+    const reembolsosOS = resumo.devolu_os_reembolso?.lista || [];
+    if (reembolsosOS && reembolsosOS.length > 0) {
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 15;
+      }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(220, 38, 38);
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("REEMBOLSOS DE ORDEM DE SERVIÇO", pageWidth / 2, yPos, {
+        align: "center",
+      });
+      doc.setTextColor(0, 0, 0);
+      yPos += 10;
+
+      const reembolsosOSData = [
+        ["Data/Hora", "OS", "Cliente", "Valor Reembolsado"],
+        ...reembolsosOS.map((dev: any) => [
+          formatarData(dev.criado_em),
+          `#${dev.ordem_servico?.numero_os || "N/A"}`,
+          dev.ordem_servico?.cliente_nome || "Cliente",
+          formatarMoeda(dev.valor_total),
+        ]),
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [reembolsosOSData[0]],
+        body: reembolsosOSData.slice(1),
+        theme: "striped",
+        headStyles: { fillColor: [220, 38, 38] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 30, halign: "center" },
+          2: { cellWidth: 60 },
+          3: { cellWidth: 30, halign: "right" },
+        },
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY;
+    }
+
     // Rodapé
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
@@ -2106,6 +2156,47 @@ export default function CaixaPage() {
                       </div>
                     </CardBody>
                   </Card>
+
+                  {/* Devoluções de OS com Reembolso */}
+                  {resumo.devolu_os_reembolso &&
+                    resumo.devolu_os_reembolso.quantidade > 0 && (
+                      <Card className="bg-danger/10 border border-danger/20">
+                        <CardHeader>
+                          <div className="flex items-center gap-2">
+                            <RefreshCw className="w-5 h-5 text-danger" />
+                            <span className="font-bold">
+                              OS Reembolso (
+                              {resumo.devolu_os_reembolso.quantidade})
+                            </span>
+                          </div>
+                        </CardHeader>
+                        <CardBody>
+                          <p className="text-2xl font-bold text-danger">
+                            {formatarMoeda(resumo.devolu_os_reembolso.total)}
+                          </p>
+                        </CardBody>
+                      </Card>
+                    )}
+
+                  {/* Devoluções de OS com Crédito */}
+                  {resumo.devolu_os_credito &&
+                    resumo.devolu_os_credito.quantidade > 0 && (
+                      <Card className="bg-warning/10 border border-warning/20">
+                        <CardHeader>
+                          <div className="flex items-center gap-2">
+                            <Gift className="w-5 h-5 text-warning" />
+                            <span className="font-bold">
+                              OS Crédito ({resumo.devolu_os_credito.quantidade})
+                            </span>
+                          </div>
+                        </CardHeader>
+                        <CardBody>
+                          <p className="text-2xl font-bold text-warning">
+                            {formatarMoeda(resumo.devolu_os_credito.total)}
+                          </p>
+                        </CardBody>
+                      </Card>
+                    )}
                 </div>
 
                 {/* Nova seção: Vendas Detalhadas por Forma de Pagamento */}

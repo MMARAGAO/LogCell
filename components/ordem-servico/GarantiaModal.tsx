@@ -143,7 +143,7 @@ export default function GarantiaModal({
         dias_garantia: parseInt(diasGarantia) || 90,
       };
 
-      const doc = await gerarGarantiaOS(osAtualizada, pecas, dadosLoja);
+      const doc = await gerarGarantiaOS(osAtualizada, dadosLoja, tipoGarantia, parseInt(diasGarantia) || 90);
       doc.save(`Garantia_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Termo de garantia gerado com sucesso!");
       onClose();
