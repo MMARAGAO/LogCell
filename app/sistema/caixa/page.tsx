@@ -326,8 +326,10 @@ export default function CaixaPage() {
     }
   };
 
-  const formatarMoeda = (valor: number) => {
-    return valor.toLocaleString("pt-BR", {
+  const formatarMoeda = (valor: number | null | undefined) => {
+    const numerico = Number(valor || 0);
+    if (Number.isNaN(numerico)) return "R$ 0,00";
+    return numerico.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
@@ -2139,19 +2141,23 @@ export default function CaixaPage() {
                           Vendas com Crédito do Cliente
                         </p>
                         <p className="text-2xl font-bold text-primary">
-                          {formatarMoeda(
-                            (vendasDetalhadas["credito_cliente"] || []).reduce(
-                              (sum: number, v: any) => sum + v.valor,
-                              0,
-                            ),
-                          )}
+                          {(() => {
+                            const credito = vendasDetalhadas["credito_cliente"];
+                            const total = credito?.total || 0;
+                            return formatarMoeda(total);
+                          })()}
                         </p>
                         <p className="text-xs text-default-500 mt-1">
-                          {(vendasDetalhadas["credito_cliente"] || []).length}{" "}
-                          {(vendasDetalhadas["credito_cliente"] || [])
-                            .length === 1
-                            ? "venda"
-                            : "vendas"}
+                          {(() => {
+                            const vendas =
+                              vendasDetalhadas["credito_cliente"]?.vendas || [];
+                            return vendas.length;
+                          })()}{" "}
+                          {(() => {
+                            const vendas =
+                              vendasDetalhadas["credito_cliente"]?.vendas || [];
+                            return vendas.length === 1 ? "venda" : "vendas";
+                          })()}
                         </p>
                       </div>
                     </CardBody>
