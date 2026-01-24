@@ -20,6 +20,7 @@ import { UserPlus, Wrench, Package, Store, Trash2 } from "lucide-react";
 import {
   OrdemServico,
   OrdemServicoFormData,
+  OrdemServicoAparelhoFormData,
   StatusOS,
   PrioridadeOS,
   STATUS_OS_LABELS,
@@ -119,6 +120,27 @@ export default function OrdemServicoFormModal({
   const [status, setStatus] = useState<StatusOS>("aguardando");
   const [prioridade, setPrioridade] = useState<PrioridadeOS>("normal");
 
+  // Múltiplos aparelhos
+  const criarAparelhoVazio = (): Omit<OrdemServicoAparelhoFormData, 'id_loja'> & { id_loja?: number } => ({
+    equipamento_tipo: "",
+    equipamento_marca: "",
+    equipamento_modelo: "",
+    equipamento_numero_serie: "",
+    equipamento_imei: "",
+    equipamento_senha: "",
+    defeito_reclamado: "",
+    estado_equipamento: "",
+    acessorios_entregues: "",
+    diagnostico: "",
+    servico_realizado: "",
+    observacoes_tecnicas: "",
+    servicos: [] as Array<{ id?: string; descricao: string; valor: number }>,
+  });
+
+  const [aparelhos, setAparelhos] = useState<
+    Array<ReturnType<typeof criarAparelhoVazio> & { id?: string; sequencia?: number; id_loja?: number }>
+  >([]);
+
   // Peças temporárias (antes de salvar a OS) - cada peça tem sua própria loja
   const [pecasTemp, setPecasTemp] = useState<any[]>([]);
 
@@ -178,6 +200,52 @@ export default function OrdemServicoFormModal({
       setPrioridade(ordem.prioridade);
       setTecnicoId(ordem.tecnico_responsavel || null);
 
+      if (ordem.aparelhos && ordem.aparelhos.length > 0) {
+        setAparelhos(
+          ordem.aparelhos.map((ap: any) => ({
+            id: ap.id,
+            sequencia: ap.sequencia,
+            id_loja: ap.id_loja,
+            equipamento_tipo: ap.equipamento_tipo || "",
+            equipamento_marca: ap.equipamento_marca || "",
+            equipamento_modelo: ap.equipamento_modelo || "",
+            equipamento_numero_serie: ap.equipamento_numero_serie || "",
+            equipamento_imei: ap.equipamento_imei || "",
+            equipamento_senha: ap.equipamento_senha || "",
+            defeito_reclamado: ap.defeito_reclamado || "",
+            estado_equipamento: ap.estado_equipamento || "",
+            acessorios_entregues: ap.acessorios_entregues || "",
+            diagnostico: ap.diagnostico || "",
+            observacoes_tecnicas: ap.observacoes_tecnicas || "",
+            servico_realizado: ap.servico_realizado || "",
+            servicos: (ap.servicos || []).map((s: any) => ({
+              id: s.id,
+              descricao: s.descricao,
+              valor: Number(s.valor) || 0,
+            })),
+          }))
+        );
+      } else {
+        setAparelhos([
+          {
+            ...criarAparelhoVazio(),
+            id_loja: ordem.id_loja,
+            equipamento_tipo: ordem.equipamento_tipo || "",
+            equipamento_marca: ordem.equipamento_marca || "",
+            equipamento_modelo: ordem.equipamento_modelo || "",
+            equipamento_numero_serie: ordem.equipamento_numero_serie || "",
+            equipamento_imei: ordem.equipamento_numero_serie || "",
+            equipamento_senha: ordem.equipamento_senha || "",
+            defeito_reclamado: ordem.defeito_reclamado || "",
+            estado_equipamento: ordem.estado_equipamento || "",
+            acessorios_entregues: ordem.acessorios_entregues || "",
+            diagnostico: ordem.diagnostico || "",
+            observacoes_tecnicas: ordem.observacoes_tecnicas || "",
+            servicos: [],
+          },
+        ]);
+      }
+
       // Carregar peças existentes da OS
       carregarPecasExistentes(ordem.id);
 
@@ -185,6 +253,7 @@ export default function OrdemServicoFormModal({
       carregarPagamentosExistentes(ordem.id);
     } else {
       limparForm();
+      setAparelhos([criarAparelhoVazio()]);
     }
   }, [ordem, isOpen]);
 
@@ -448,6 +517,7 @@ export default function OrdemServicoFormModal({
     setDiagnostico("");
     setServicoRealizado("");
     setObservacoesTecnicas("");
+    setAparelhos([]);
 
     setValorOrcamento("");
     setValorDesconto("0");
@@ -468,8 +538,20 @@ export default function OrdemServicoFormModal({
   };
 
   const calcularValorTotal = () => {
-    const orcamento = parseFloat(valorOrcamento) || 0;
     const desconto = parseFloat(valorDesconto) || 0;
+
+    if (aparelhos.length > 0) {
+      const totalAparelhos = aparelhos.reduce((sum, ap) => {
+        const totalServicos = (ap.servicos || []).reduce(
+          (s, svc) => s + (Number(svc.valor) || 0),
+          0
+        );
+        return sum + totalServicos;
+      }, 0);
+      return totalAparelhos - desconto;
+    }
+
+    const orcamento = parseFloat(valorOrcamento) || 0;
     return orcamento - desconto;
   };
 
@@ -556,16 +638,24 @@ export default function OrdemServicoFormModal({
       return;
     }
 
-    if (!equipamentoTipo.trim()) {
-      alert("Tipo de equipamento é obrigatório");
-      setTabSelecionada("equipamento");
+    if (aparelhos.length === 0) {
+      alert("Adicione pelo menos um aparelho");
+      setTabSelecionada("aparelhos");
       return;
     }
 
-    if (!defeitoReclamado.trim()) {
-      alert("Defeito reclamado é obrigatório");
-      setTabSelecionada("problema");
-      return;
+    for (let idx = 0; idx < aparelhos.length; idx++) {
+      const ap = aparelhos[idx];
+      if (!ap.equipamento_tipo.trim()) {
+        alert(`Informe o tipo do aparelho #${idx + 1}`);
+        setTabSelecionada("aparelhos");
+        return;
+      }
+      if (!ap.defeito_reclamado.trim()) {
+        alert(`Informe o defeito reclamado do aparelho #${idx + 1}`);
+        setTabSelecionada("aparelhos");
+        return;
+      }
     }
 
     // Validar que todas as peças de estoque têm loja definida
@@ -624,29 +714,43 @@ export default function OrdemServicoFormModal({
         idLojaOS = lojas[0].id;
       }
 
+      const aparelhoPrincipal = aparelhos[0];
+
+      const totalAparelhos = aparelhos.reduce((sum, ap) => {
+        const totalServicos = (ap.servicos || []).reduce(
+          (s, svc) => s + (Number(svc.valor) || 0),
+          0
+        );
+        return sum + totalServicos;
+      }, 0);
+
       const dados: OrdemServicoFormData = {
         cliente_nome: clienteNome,
         cliente_telefone: clienteTelefone || undefined,
         cliente_email: clienteEmail || undefined,
         tipo_cliente: tipoCliente,
 
-        equipamento_tipo: equipamentoTipo,
-        equipamento_marca: equipamentoMarca || undefined,
-        equipamento_modelo: equipamentoModelo || undefined,
-        equipamento_numero_serie: equipamentoNumeroSerie || undefined,
-        equipamento_senha: equipamentoSenha || undefined,
+        // Campos legados (preenchem a partir do primeiro aparelho)
+        equipamento_tipo: aparelhoPrincipal.equipamento_tipo,
+        equipamento_marca: aparelhoPrincipal.equipamento_marca || undefined,
+        equipamento_modelo: aparelhoPrincipal.equipamento_modelo || undefined,
+        equipamento_numero_serie:
+          aparelhoPrincipal.equipamento_numero_serie ||
+          aparelhoPrincipal.equipamento_imei ||
+          undefined,
+        equipamento_senha: aparelhoPrincipal.equipamento_senha || undefined,
 
-        defeito_reclamado: defeitoReclamado,
-        estado_equipamento: estadoEquipamento || undefined,
-        acessorios_entregues: acessoriosEntregues || undefined,
+        defeito_reclamado: aparelhoPrincipal.defeito_reclamado,
+        estado_equipamento: aparelhoPrincipal.estado_equipamento || undefined,
+        acessorios_entregues:
+          aparelhoPrincipal.acessorios_entregues || undefined,
 
-        diagnostico: diagnostico || undefined,
-        servico_realizado: servicoRealizado || undefined,
-        observacoes_tecnicas: observacoesTecnicas || undefined,
+        diagnostico: aparelhoPrincipal.diagnostico || undefined,
+        servico_realizado: aparelhoPrincipal.servico_realizado || undefined,
+        observacoes_tecnicas:
+          aparelhoPrincipal.observacoes_tecnicas || undefined,
 
-        valor_orcamento: valorOrcamento
-          ? parseFloat(valorOrcamento)
-          : undefined,
+        valor_orcamento: totalAparelhos,
         valor_desconto: valorDesconto ? parseFloat(valorDesconto) : 0,
         valor_total: calcularValorTotal(),
         valor_pago: valorPago ? parseFloat(valorPago) : 0,
@@ -658,6 +762,16 @@ export default function OrdemServicoFormModal({
 
         id_loja: idLojaOS, // Loja da primeira peça ou primeira loja disponível
         tecnico_responsavel: tecnicoId || undefined,
+
+        aparelhos: aparelhos.map((ap, idx) => ({
+          ...ap,
+          id_loja: ap.id_loja || idLojaOS || lojas[0]?.id || 0,
+          sequencia: ap.sequencia || idx + 1,
+          servicos: (ap.servicos || []).map((svc) => ({
+            ...svc,
+            valor: Number(svc.valor) || 0,
+          })),
+        })),
       };
 
       // Criar/atualizar a OS
@@ -980,150 +1094,253 @@ export default function OrdemServicoFormModal({
                 </div>
               </Tab>
 
-              {/* ABA 2: EQUIPAMENTO */}
-              <Tab key="equipamento" title="2. Equipamento">
+              {/* ABA 2: APARELHOS (múltiplos) */}
+              <Tab key="aparelhos" title="2. Aparelhos">
                 <div className="space-y-4 py-4">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold mb-1">
-                      Dados do Equipamento
-                    </h3>
-                    <p className="text-sm text-default-500">
-                      Informe os detalhes do aparelho para reparo
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-1">
+                        Aparelhos da OS
+                      </h3>
+                      <p className="text-sm text-default-500">
+                        Adicione um ou mais aparelhos, cada um com seus serviços e valores
+                      </p>
+                    </div>
+                    <Button
+                      color="primary"
+                      onPress={() => setAparelhos([...aparelhos, criarAparelhoVazio()])}
+                    >
+                      Adicionar aparelho
+                    </Button>
                   </div>
 
-                  <Select
-                    label="Tipo de Equipamento"
-                    placeholder="Selecione o tipo"
-                    selectedKeys={equipamentoTipo ? [equipamentoTipo] : []}
-                    onSelectionChange={(keys) =>
-                      setEquipamentoTipo(Array.from(keys)[0] as string)
-                    }
-                    isRequired
-                    variant="bordered"
-                  >
-                    {tiposEquipamento.map((tipo) => (
-                      <SelectItem key={tipo}>{tipo}</SelectItem>
-                    ))}
-                  </Select>
+                  {aparelhos.length === 0 && (
+                    <div className="text-default-500 text-sm">Nenhum aparelho adicionado.</div>
+                  )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Marca"
-                      placeholder="Ex: Samsung, Apple"
-                      value={equipamentoMarca}
-                      onValueChange={setEquipamentoMarca}
-                      variant="bordered"
-                    />
+                  {aparelhos.map((ap, idx) => (
+                    <Card key={idx} className="border border-default-200">
+                      <CardBody className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Chip color="primary" variant="flat">
+                              Aparelho #{idx + 1}
+                            </Chip>
+                          </div>
+                          <Button
+                            size="sm"
+                            color="danger"
+                            variant="light"
+                            onPress={() =>
+                              setAparelhos(aparelhos.filter((_, i) => i !== idx))
+                            }
+                          >
+                            Remover
+                          </Button>
+                        </div>
 
-                    <Input
-                      label="Modelo"
-                      placeholder="Ex: Galaxy S23, iPhone 14"
-                      value={equipamentoModelo}
-                      onValueChange={setEquipamentoModelo}
-                      variant="bordered"
-                    />
-                  </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <Select
+                            label="Tipo"
+                            placeholder="Selecione"
+                            selectedKeys={ap.equipamento_tipo ? [ap.equipamento_tipo] : []}
+                            onSelectionChange={(keys) => {
+                              const valor = Array.from(keys)[0] as string;
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, equipamento_tipo: valor };
+                              setAparelhos(copia);
+                            }}
+                            isRequired
+                            variant="bordered"
+                          >
+                            {tiposEquipamento.map((tipo) => (
+                              <SelectItem key={tipo}>{tipo}</SelectItem>
+                            ))}
+                          </Select>
 
-                  <Input
-                    label="Número de Série / IMEI"
-                    placeholder="Número de identificação"
-                    value={equipamentoNumeroSerie}
-                    onValueChange={setEquipamentoNumeroSerie}
-                    variant="bordered"
-                  />
+                          <Input
+                            label="Marca"
+                            value={ap.equipamento_marca || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, equipamento_marca: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                          />
 
-                  <Input
-                    label="Senha / PIN"
-                    type="password"
-                    placeholder="Senha do aparelho (se fornecida)"
-                    value={equipamentoSenha}
-                    onValueChange={setEquipamentoSenha}
-                    variant="bordered"
-                  />
-                </div>
-              </Tab>
+                          <Input
+                            label="Modelo"
+                            value={ap.equipamento_modelo || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, equipamento_modelo: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                          />
+                        </div>
 
-              {/* ABA 3: PROBLEMA RELATADO */}
-              <Tab key="problema" title="3. Problema">
-                <div className="space-y-4 py-4">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold mb-1">
-                      Informações da Recepção
-                    </h3>
-                    <p className="text-sm text-default-500">
-                      Registre o problema relatado e o estado do equipamento
-                    </p>
-                  </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <Input
+                            label="Número de Série / IMEI"
+                            value={ap.equipamento_numero_serie || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, equipamento_numero_serie: v, equipamento_imei: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                          />
 
-                  <Textarea
-                    label="Defeito Reclamado"
-                    placeholder="Descreva o problema relatado pelo cliente"
-                    value={defeitoReclamado}
-                    onValueChange={setDefeitoReclamado}
-                    isRequired
-                    variant="bordered"
-                    minRows={3}
-                  />
+                          <Input
+                            label="Senha / PIN"
+                            type="password"
+                            value={ap.equipamento_senha || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, equipamento_senha: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                          />
 
-                  <Textarea
-                    label="Estado do Equipamento"
-                    placeholder="Condições físicas, arranhões, trincas, etc"
-                    value={estadoEquipamento}
-                    onValueChange={setEstadoEquipamento}
-                    variant="bordered"
-                    minRows={2}
-                  />
+                          <Input
+                            label="Acessórios"
+                            value={ap.acessorios_entregues || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, acessorios_entregues: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                          />
+                        </div>
 
-                  <Textarea
-                    label="Acessórios Entregues"
-                    placeholder="Carregador, capa, fones, etc"
-                    value={acessoriosEntregues}
-                    onValueChange={setAcessoriosEntregues}
-                    variant="bordered"
-                    minRows={2}
-                  />
-                </div>
-              </Tab>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Textarea
+                            label="Defeito Reclamado"
+                            value={ap.defeito_reclamado}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, defeito_reclamado: v };
+                              setAparelhos(copia);
+                            }}
+                            isRequired
+                            variant="bordered"
+                            minRows={2}
+                          />
 
-              {/* ABA 4: DIAGNÓSTICO E SERVIÇO */}
-              <Tab key="servico" title="4. Serviço">
-                <div className="space-y-4 py-4">
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold mb-1">
-                      Diagnóstico e Execução
-                    </h3>
-                    <p className="text-sm text-default-500">
-                      Registre o diagnóstico técnico e o serviço realizado
-                    </p>
-                  </div>
+                          <Textarea
+                            label="Estado do Equipamento"
+                            value={ap.estado_equipamento || ""}
+                            onValueChange={(v) => {
+                              const copia = [...aparelhos];
+                              copia[idx] = { ...ap, estado_equipamento: v };
+                              setAparelhos(copia);
+                            }}
+                            variant="bordered"
+                            minRows={2}
+                          />
+                        </div>
 
-                  <Textarea
-                    label="Diagnóstico"
-                    placeholder="Diagnóstico técnico do problema"
-                    value={diagnostico}
-                    onValueChange={setDiagnostico}
-                    variant="bordered"
-                    minRows={3}
-                  />
+                        <Textarea
+                          label="Observações Técnicas / Diagnóstico"
+                          value={ap.observacoes_tecnicas || ""}
+                          onValueChange={(v) => {
+                            const copia = [...aparelhos];
+                            copia[idx] = { ...ap, observacoes_tecnicas: v, diagnostico: v };
+                            setAparelhos(copia);
+                          }}
+                          variant="bordered"
+                          minRows={2}
+                        />
 
-                  <Textarea
-                    label="Serviço Realizado"
-                    placeholder="Descrição do serviço executado"
-                    value={servicoRealizado}
-                    onValueChange={setServicoRealizado}
-                    variant="bordered"
-                    minRows={3}
-                  />
+                        <Divider />
 
-                  <Textarea
-                    label="Observações Técnicas"
-                    placeholder="Observações adicionais"
-                    value={observacoesTecnicas}
-                    onValueChange={setObservacoesTecnicas}
-                    variant="bordered"
-                    minRows={2}
-                  />
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold">Serviços deste aparelho</h4>
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            onPress={() => {
+                              const copia = [...aparelhos];
+                              const servicos = ap.servicos || [];
+                              copia[idx] = {
+                                ...ap,
+                                servicos: [...servicos, { descricao: "", valor: 0 }],
+                              };
+                              setAparelhos(copia);
+                            }}
+                          >
+                            Adicionar serviço
+                          </Button>
+                        </div>
+
+                        {(ap.servicos || []).length === 0 && (
+                          <p className="text-default-500 text-sm">Nenhum serviço adicionado.</p>
+                        )}
+
+                        {(ap.servicos || []).map((svc, sIdx) => (
+                          <div
+                            key={sIdx}
+                            className="grid grid-cols-1 md:grid-cols-[1fr,160px,80px] gap-3 items-end"
+                          >
+                            <Input
+                              label="Descrição"
+                              value={svc.descricao}
+                              onValueChange={(v) => {
+                                const copia = [...aparelhos];
+                                const servicos = [...(ap.servicos || [])];
+                                servicos[sIdx] = { ...servicos[sIdx], descricao: v };
+                                copia[idx] = { ...ap, servicos };
+                                setAparelhos(copia);
+                              }}
+                              variant="bordered"
+                            />
+                            <Input
+                              label="Valor"
+                              type="number"
+                              startContent={<span className="text-default-400">R$</span>}
+                              value={svc.valor?.toString() || "0"}
+                              onValueChange={(v) => {
+                                const copia = [...aparelhos];
+                                const servicos = [...(ap.servicos || [])];
+                                servicos[sIdx] = {
+                                  ...servicos[sIdx],
+                                  valor: parseFloat(v || "0") || 0,
+                                };
+                                copia[idx] = { ...ap, servicos };
+                                setAparelhos(copia);
+                              }}
+                              variant="bordered"
+                            />
+                            <Button
+                              size="sm"
+                              color="danger"
+                              variant="light"
+                              onPress={() => {
+                                const copia = [...aparelhos];
+                                const servicos = [...(ap.servicos || [])];
+                                servicos.splice(sIdx, 1);
+                                copia[idx] = { ...ap, servicos };
+                                setAparelhos(copia);
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        ))}
+
+                        <div className="flex justify-between items-center p-3 bg-default-100 rounded-lg">
+                          <span className="font-semibold">Total do aparelho</span>
+                          <span className="text-lg font-bold text-primary">
+                            R$ {((ap.servicos || []).reduce((s, svc) => s + (Number(svc.valor) || 0), 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  ))}
                 </div>
               </Tab>
 

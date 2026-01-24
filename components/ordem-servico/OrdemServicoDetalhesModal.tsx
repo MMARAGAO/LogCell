@@ -54,6 +54,7 @@ import { useToast } from "@/components/Toast";
 import StatusProgressBar from "./StatusProgressBar";
 import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
 import GarantiaModal from "./GarantiaModal";
+import ImpressaoOrcamentoModal from "./ImpressaoOrcamentoModal";
 import DevolverOSModal from "./DevolverOSModal";
 import GerenciarMultiplosAparelhos from "./GerenciarMultiplosAparelhos";
 import {
@@ -132,6 +133,7 @@ export default function OrdemServicoDetalhesModal({
   const [modalDevolverOpen, setModalDevolverOpen] = useState(false);
   const [modalFotos, setModalFotos] = useState(false);
   const [modalGarantiaOpen, setModalGarantiaOpen] = useState(false);
+  const [modalImpressaoOpen, setModalImpressaoOpen] = useState(false);
   const [modalConfirmGarantia, setModalConfirmGarantia] = useState(false);
   const [modalMultiplosAparelhos, setModalMultiplosAparelhos] = useState(false);
   const [loadingOrcamento, setLoadingOrcamento] = useState(false);
@@ -196,7 +198,7 @@ export default function OrdemServicoDetalhesModal({
     // Verificar se tem tipo de garantia definido
     if (!osAtual.tipo_garantia) {
       const confirmar = window.confirm(
-        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de imprimir o cupom?"
+        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de imprimir o cupom?",
       );
 
       if (confirmar) {
@@ -240,7 +242,7 @@ export default function OrdemServicoDetalhesModal({
             marca,
             categoria
           )
-        `
+        `,
         )
         .eq("id_ordem_servico", osAtual.id);
 
@@ -297,7 +299,7 @@ export default function OrdemServicoDetalhesModal({
             id,
             descricao
           )
-        `
+        `,
         )
         .eq("id_ordem_servico", osAtual.id)
         .order("criado_em", { ascending: false });
@@ -319,7 +321,7 @@ export default function OrdemServicoDetalhesModal({
               .eq("id", quebra.criado_por)
               .maybeSingle();
             return userData;
-          })
+          }),
         );
 
         const quebrasComTecnicos = data.map((quebra: any, index: number) => {
@@ -380,7 +382,7 @@ export default function OrdemServicoDetalhesModal({
       if (error) throw error;
 
       toast.success(
-        "Quebra aprovada! O estoque será atualizado automaticamente."
+        "Quebra aprovada! O estoque será atualizado automaticamente.",
       );
       await carregarQuebras(); // Recarrega lista
     } catch (error) {
@@ -412,7 +414,7 @@ export default function OrdemServicoDetalhesModal({
 
       toast.showToast(
         "OS cancelada! Produtos devolvidos ao estoque.",
-        "success"
+        "success",
       );
       setModalConfirmCancelar(false);
 
@@ -426,7 +428,7 @@ export default function OrdemServicoDetalhesModal({
       console.error("Erro ao cancelar OS:", error);
       toast.showToast(
         error.message || "Erro ao cancelar ordem de serviço",
-        "error"
+        "error",
       );
     } finally {
       setLoadingCancelar(false);
@@ -450,7 +452,7 @@ export default function OrdemServicoDetalhesModal({
       const { data, error } = await devolverOrdemServico(
         osAtual.id,
         user.id,
-        tipo
+        tipo,
       );
 
       if (error) throw error;
@@ -474,7 +476,7 @@ export default function OrdemServicoDetalhesModal({
       console.error("Erro ao devolver OS:", error);
       toast.showToast(
         error.message || "Erro ao devolver ordem de serviço",
-        "error"
+        "error",
       );
     }
   };
@@ -527,7 +529,7 @@ export default function OrdemServicoDetalhesModal({
 
       toast.showToast(
         `Status atualizado para: ${STATUS_OS_LABELS[newStatus]}`,
-        "success"
+        "success",
       );
 
       // Notificar componente pai para atualizar a lista
@@ -538,7 +540,7 @@ export default function OrdemServicoDetalhesModal({
       console.error("Erro ao atualizar status:", error);
       toast.showToast(
         error.message || "Erro ao atualizar status da OS",
-        "error"
+        "error",
       );
     } finally {
       setLoadingStatus(false);
@@ -546,6 +548,19 @@ export default function OrdemServicoDetalhesModal({
   };
 
   if (!osAtual) return null;
+
+  const temAparelhos = (osAtual.aparelhos?.length || 0) > 0;
+
+  const calcularTotalServicosAparelho = (aparelho: any) =>
+    (aparelho?.servicos || []).reduce(
+      (sum: number, svc: any) => sum + (Number(svc.valor) || 0),
+      0,
+    );
+
+  const totalAparelhos = (osAtual.aparelhos || []).reduce(
+    (sum, ap) => sum + (ap.valor_total || calcularTotalServicosAparelho(ap)),
+    0,
+  );
 
   const formatarData = (data?: string) => {
     if (!data) return "-";
@@ -685,57 +700,174 @@ export default function OrdemServicoDetalhesModal({
               </CardBody>
             </Card>
 
-            {/* EQUIPAMENTO */}
-            <Card>
-              <CardBody>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Smartphone className="w-5 h-5" />
-                    Equipamento
-                  </h3>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="primary"
-                    onPress={() => setModalMultiplosAparelhos(true)}
-                  >
-                    🔧 Gerenciar Aparelhos
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <InfoItem
-                    icon={Smartphone}
-                    label="Tipo"
-                    value={osAtual.equipamento_tipo}
-                  />
-                  <InfoItem
-                    icon={Tag}
-                    label="Marca"
-                    value={osAtual.equipamento_marca}
-                  />
-                  <InfoItem
-                    icon={Tag}
-                    label="Modelo"
-                    value={osAtual.equipamento_modelo}
-                  />
-                  <InfoItem
-                    icon={Tag}
-                    label="Número de Série"
-                    value={osAtual.equipamento_numero_serie}
-                  />
-                </div>
-                {osAtual.equipamento_senha && (
-                  <div className="mt-4 p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
-                    <p className="text-xs text-warning-600 dark:text-warning-400 mb-1">
-                      🔒 Senha do Equipamento
-                    </p>
-                    <p className="text-sm font-mono font-semibold">
-                      {osAtual.equipamento_senha}
-                    </p>
+            {/* APARELHOS */}
+            {temAparelhos ? (
+              <Card>
+                <CardBody className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Smartphone className="w-5 h-5" />
+                      Aparelhos
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      onPress={() => setModalMultiplosAparelhos(true)}
+                    >
+                      🔧 Gerenciar Aparelhos
+                    </Button>
                   </div>
-                )}
-              </CardBody>
-            </Card>
+
+                  <div className="space-y-3">
+                    {osAtual.aparelhos?.map((aparelho) => {
+                      const totalServicos = calcularTotalServicosAparelho(aparelho);
+                      const totalAparelho =
+                        aparelho.valor_total !== undefined
+                          ? aparelho.valor_total
+                          : totalServicos;
+
+                      return (
+                        <Card key={aparelho.id} className="bg-default-50">
+                          <CardBody className="space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="space-y-1">
+                                <p className="font-semibold text-sm">
+                                  Aparelho {aparelho.sequencia || "-"} — {aparelho.equipamento_tipo}
+                                </p>
+                                <p className="text-xs text-default-500">
+                                  {[aparelho.equipamento_marca, aparelho.equipamento_modelo]
+                                    .filter(Boolean)
+                                    .join(" • ") || "-"}
+                                </p>
+                                {(aparelho.equipamento_imei || aparelho.equipamento_numero_serie) && (
+                                  <p className="text-xs text-default-500">
+                                    {aparelho.equipamento_imei
+                                      ? `IMEI: ${aparelho.equipamento_imei}`
+                                      : `Nº Série: ${aparelho.equipamento_numero_serie}`}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-default-500">Total</p>
+                                <p className="text-lg font-bold text-primary">
+                                  R$ {totalAparelho.toFixed(2)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                              <div className="space-y-1">
+                                <p className="text-xs text-default-500">Defeito</p>
+                                <p>{aparelho.defeito_reclamado}</p>
+                                {aparelho.estado_equipamento && (
+                                  <p className="text-xs text-default-500">
+                                    Estado: {aparelho.estado_equipamento}
+                                  </p>
+                                )}
+                                {aparelho.acessorios_entregues && (
+                                  <p className="text-xs text-default-500">
+                                    Acessórios: {aparelho.acessorios_entregues}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                <p className="text-xs text-default-500">Serviços</p>
+                                {aparelho.servicos && aparelho.servicos.length > 0 ? (
+                                  <div className="space-y-1">
+                                    {aparelho.servicos.map((svc) => (
+                                      <div
+                                        key={svc.id || `${aparelho.id}-${svc.descricao}`}
+                                        className="flex justify-between text-sm"
+                                      >
+                                        <span className="text-default-600">{svc.descricao}</span>
+                                        <span className="font-semibold">
+                                          R$ {(Number(svc.valor) || 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-default-500 text-sm">
+                                    Nenhum serviço informado.
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {(aparelho.observacoes_tecnicas || aparelho.diagnostico) && (
+                              <div className="text-sm">
+                                <p className="text-xs text-default-500">Observações</p>
+                                <p>{aparelho.observacoes_tecnicas || aparelho.diagnostico}</p>
+                              </div>
+                            )}
+                          </CardBody>
+                        </Card>
+                      );
+                    })}
+                  </div>
+
+                  <Divider />
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-semibold">Total geral dos aparelhos</span>
+                    <span className="text-lg font-bold text-primary">
+                      R$ {totalAparelhos.toFixed(2)}
+                    </span>
+                  </div>
+                </CardBody>
+              </Card>
+            ) : (
+              <Card>
+                <CardBody>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Smartphone className="w-5 h-5" />
+                      Equipamento
+                    </h3>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      onPress={() => setModalMultiplosAparelhos(true)}
+                    >
+                      🔧 Gerenciar Aparelhos
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InfoItem
+                      icon={Smartphone}
+                      label="Tipo"
+                      value={osAtual.equipamento_tipo}
+                    />
+                    <InfoItem
+                      icon={Tag}
+                      label="Marca"
+                      value={osAtual.equipamento_marca}
+                    />
+                    <InfoItem
+                      icon={Tag}
+                      label="Modelo"
+                      value={osAtual.equipamento_modelo}
+                    />
+                    <InfoItem
+                      icon={Tag}
+                      label="Número de Série"
+                      value={osAtual.equipamento_numero_serie}
+                    />
+                  </div>
+                  {osAtual.equipamento_senha && (
+                    <div className="mt-4 p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+                      <p className="text-xs text-warning-600 dark:text-warning-400 mb-1">
+                        🔒 Senha do Equipamento
+                      </p>
+                      <p className="text-sm font-mono font-semibold">
+                        {osAtual.equipamento_senha}
+                      </p>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
+            )}
 
             {/* PROBLEMA */}
             <Card>
@@ -917,7 +1049,7 @@ export default function OrdemServicoDetalhesModal({
                               <div className="text-right font-semibold">
                                 R${" "}
                                 {(peca.valor_venda * peca.quantidade).toFixed(
-                                  2
+                                  2,
                                 )}
                               </div>
                             </TableCell>
@@ -938,7 +1070,7 @@ export default function OrdemServicoDetalhesModal({
                           .reduce(
                             (sum, peca) =>
                               sum + peca.valor_venda * peca.quantidade,
-                            0
+                            0,
                           )
                           .toFixed(2)}
                       </span>
@@ -1057,11 +1189,11 @@ export default function OrdemServicoDetalhesModal({
                                         </span>
                                         <span>
                                           {new Date(
-                                            quebra.criado_em
+                                            quebra.criado_em,
                                           ).toLocaleDateString("pt-BR")}{" "}
                                           às{" "}
                                           {new Date(
-                                            quebra.criado_em
+                                            quebra.criado_em,
                                           ).toLocaleTimeString("pt-BR")}
                                         </span>
                                       </div>
@@ -1155,7 +1287,7 @@ export default function OrdemServicoDetalhesModal({
                                           <span>
                                             Aprovada em:{" "}
                                             {new Date(
-                                              quebra.aprovado_em
+                                              quebra.aprovado_em,
                                             ).toLocaleDateString("pt-BR")}
                                           </span>
                                         )}
@@ -1187,7 +1319,7 @@ export default function OrdemServicoDetalhesModal({
                             {quebras
                               .reduce(
                                 (sum, quebra) => sum + quebra.valor_total,
-                                0
+                                0,
                               )
                               .toFixed(2)}
                           </span>
@@ -1196,59 +1328,6 @@ export default function OrdemServicoDetalhesModal({
                     )}
                   </div>
                 )}
-              </CardBody>
-            </Card>
-
-            {/* VALORES */}
-            <Card>
-              <CardBody>
-                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5" />
-                  Valores
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-default-500">Orçamento</span>
-                    <span className="text-sm font-medium">
-                      R$ {osAtual.valor_orcamento?.toFixed(2) || "0.00"}
-                    </span>
-                  </div>
-                  {(osAtual.valor_desconto || 0) > 0 && (
-                    <div className="flex justify-between items-center text-danger">
-                      <span className="text-sm">Desconto</span>
-                      <span className="text-sm font-medium">
-                        - R$ {(osAtual.valor_desconto || 0).toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                  <Divider />
-                  <div className="flex justify-between items-center">
-                    <span className="text-base font-semibold">Valor Total</span>
-                    <span className="text-lg font-bold text-primary">
-                      R$ {(osAtual.valor_total || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-default-500">Valor Pago</span>
-                    <span className="text-sm font-medium text-success">
-                      R$ {(osAtual.valor_pago || 0).toFixed(2)}
-                    </span>
-                  </div>
-                  {(osAtual.valor_total || 0) - (osAtual.valor_pago || 0) >
-                    0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-default-500">
-                        Saldo Devedor
-                      </span>
-                      <span className="text-sm font-medium text-warning">
-                        R${" "}
-                        {(
-                          (osAtual.valor_total || 0) - (osAtual.valor_pago || 0)
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                </div>
               </CardBody>
             </Card>
 
@@ -1285,12 +1364,14 @@ export default function OrdemServicoDetalhesModal({
           </div>
         </ModalBody>
 
-        <ModalFooter>
+        <ModalFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap">
           {osAtual?.status !== "cancelado" &&
             osAtual?.status !== "devolvida" && (
               <Button
                 color="danger"
                 variant="flat"
+                size="sm"
+                className="w-full sm:w-auto"
                 startContent={<XCircle className="w-4 h-4" />}
                 onPress={() => setModalConfirmCancelar(true)}
                 isDisabled={loadingCancelar}
@@ -1303,6 +1384,8 @@ export default function OrdemServicoDetalhesModal({
               <Button
                 color="warning"
                 variant="flat"
+                size="sm"
+                className="w-full sm:w-auto"
                 startContent={<AlertTriangle className="w-4 h-4" />}
                 onPress={() => setModalDevolverOpen(true)}
               >
@@ -1312,6 +1395,8 @@ export default function OrdemServicoDetalhesModal({
           <Button
             color="primary"
             variant="flat"
+            size="sm"
+            className="w-full sm:w-auto"
             startContent={<Camera className="w-4 h-4" />}
             onPress={() => setModalFotos(true)}
           >
@@ -1320,30 +1405,31 @@ export default function OrdemServicoDetalhesModal({
           <Button
             color="primary"
             variant="flat"
+            size="sm"
+            className="w-full sm:w-auto"
             startContent={<FileText className="w-4 h-4" />}
-            onPress={handleGerarOrcamento}
-            isLoading={loadingOrcamento}
+            onPress={() => setModalImpressaoOpen(true)}
           >
-            Imprimir Orçamento
-          </Button>
-          <Button
-            color="success"
-            variant="flat"
-            startContent={<FileCheck className="w-4 h-4" />}
-            onPress={handleGerarGarantia}
-          >
-            Imprimir Garantia
+            Imprimir Documentos
           </Button>
           <Button
             color="secondary"
             variant="flat"
+            size="sm"
+            className="w-full sm:w-auto"
             startContent={<Printer className="w-4 h-4" />}
             onPress={handleImprimirCupom}
             isLoading={loadingCupom}
           >
             Cupom Térmico
           </Button>
-          <Button color="default" variant="flat" onPress={onClose}>
+          <Button
+            color="default"
+            variant="flat"
+            size="sm"
+            className="w-full sm:w-auto"
+            onPress={onClose}
+          >
             Fechar
           </Button>
         </ModalFooter>
@@ -1417,6 +1503,39 @@ export default function OrdemServicoDetalhesModal({
           os={osAtual}
           pecas={pecas}
           dadosLoja={dadosLoja}
+        />
+      )}
+
+      {/* Modal de Impressão e Orçamento */}
+      {osAtual && (
+        <ImpressaoOrcamentoModal
+          isOpen={modalImpressaoOpen}
+          onClose={() => setModalImpressaoOpen(false)}
+          os={osAtual}
+          pecas={pecas}
+          dadosLoja={dadosLoja}
+          onSalvarGarantia={async (tipo, dias) => {
+            try {
+              const { supabase } = await import("@/lib/supabaseClient");
+              await supabase
+                .from("ordem_servico")
+                .update({
+                  tipo_garantia: tipo,
+                  dias_garantia: dias,
+                })
+                .eq("id", osAtual.id);
+
+              setOsAtual({
+                ...osAtual,
+                tipo_garantia: tipo,
+                dias_garantia: dias,
+              });
+              toast.success("Garantia atualizada!");
+            } catch (error) {
+              console.error("Erro ao salvar garantia:", error);
+              toast.error("Erro ao salvar garantia");
+            }
+          }}
         />
       )}
 

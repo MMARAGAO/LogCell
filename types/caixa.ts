@@ -98,6 +98,16 @@ export interface ResumoCaixa {
     total: number;
     lista?: any[];
   };
+  devolu_os_reembolso?: {
+    quantidade: number;
+    total: number;
+    lista?: any[];
+  };
+  devolu_os_credito?: {
+    quantidade: number;
+    total: number;
+    lista?: any[];
+  };
   sangrias: {
     quantidade: number;
     total: number;
