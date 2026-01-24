@@ -60,7 +60,7 @@ export default function OrdemServicoFormModal({
   // Cliente selecionado
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(
-    null
+    null,
   );
 
   // Dados do Cliente (para quando não for cadastrado)
@@ -107,7 +107,7 @@ export default function OrdemServicoFormModal({
     }>
   >([]);
   const [dataPagamento, setDataPagamento] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [valorPagamento, setValorPagamento] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
@@ -121,7 +121,10 @@ export default function OrdemServicoFormModal({
   const [prioridade, setPrioridade] = useState<PrioridadeOS>("normal");
 
   // Múltiplos aparelhos
-  const criarAparelhoVazio = (): Omit<OrdemServicoAparelhoFormData, 'id_loja'> & { id_loja?: number } => ({
+  const criarAparelhoVazio = (): Omit<
+    OrdemServicoAparelhoFormData,
+    "id_loja"
+  > & { id_loja?: number } => ({
     equipamento_tipo: "",
     equipamento_marca: "",
     equipamento_modelo: "",
@@ -138,7 +141,13 @@ export default function OrdemServicoFormModal({
   });
 
   const [aparelhos, setAparelhos] = useState<
-    Array<ReturnType<typeof criarAparelhoVazio> & { id?: string; sequencia?: number; id_loja?: number }>
+    Array<
+      ReturnType<typeof criarAparelhoVazio> & {
+        id?: string;
+        sequencia?: number;
+        id_loja?: number;
+      }
+    >
   >([]);
 
   // Peças temporárias (antes de salvar a OS) - cada peça tem sua própria loja
@@ -193,7 +202,7 @@ export default function OrdemServicoFormModal({
       setPrevisaoEntrega(
         ordem.previsao_entrega
           ? new Date(ordem.previsao_entrega).toISOString().split("T")[0]
-          : ""
+          : "",
       );
 
       setStatus(ordem.status);
@@ -223,7 +232,7 @@ export default function OrdemServicoFormModal({
               descricao: s.descricao,
               valor: Number(s.valor) || 0,
             })),
-          }))
+          })),
         );
       } else {
         setAparelhos([
@@ -318,7 +327,7 @@ export default function OrdemServicoFormModal({
       // Atualizar valor pago total
       const totalPago = pagamentosFormatados.reduce(
         (sum, p) => sum + p.valor,
-        0
+        0,
       );
       setValorPago(totalPago.toString());
     } catch (error) {
@@ -359,7 +368,7 @@ export default function OrdemServicoFormModal({
             id,
             nome
           )
-        `
+        `,
         )
         .eq("id_loja", lojaId)
         .gt("quantidade", 0);
@@ -433,7 +442,7 @@ export default function OrdemServicoFormModal({
       if (quantidade > produtoSelecionado.estoque_disponivel) {
         toast.showToast(
           `Quantidade indisponível. Estoque: ${produtoSelecionado.estoque_disponivel}`,
-          "error"
+          "error",
         );
         return;
       }
@@ -544,7 +553,7 @@ export default function OrdemServicoFormModal({
       const totalAparelhos = aparelhos.reduce((sum, ap) => {
         const totalServicos = (ap.servicos || []).reduce(
           (s, svc) => s + (Number(svc.valor) || 0),
-          0
+          0,
         );
         return sum + totalServicos;
       }, 0);
@@ -694,7 +703,7 @@ export default function OrdemServicoFormModal({
                   `Produto: ${produtoNome}\n` +
                   `Disponível: ${estoqueAtual?.quantidade || 0}\n` +
                   `Solicitado: ${peca.quantidade}\n\n` +
-                  `Por favor, ajuste a quantidade ou remova a peça.`
+                  `Por favor, ajuste a quantidade ou remova a peça.`,
               );
               setLoading(false);
               return;
@@ -719,7 +728,7 @@ export default function OrdemServicoFormModal({
       const totalAparelhos = aparelhos.reduce((sum, ap) => {
         const totalServicos = (ap.servicos || []).reduce(
           (s, svc) => s + (Number(svc.valor) || 0),
-          0
+          0,
         );
         return sum + totalServicos;
       }, 0);
@@ -868,15 +877,15 @@ export default function OrdemServicoFormModal({
                 if (
                   errorEstoque.code === "23514" ||
                   errorEstoque.message?.includes(
-                    "estoque_lojas_quantidade_check"
+                    "estoque_lojas_quantidade_check",
                   )
                 ) {
                   throw new Error(
-                    `Estoque insuficiente para ${peca.descricao_peca}. Disponível: ${estoqueAtual.quantidade}, Solicitado: ${peca.quantidade}`
+                    `Estoque insuficiente para ${peca.descricao_peca}. Disponível: ${estoqueAtual.quantidade}, Solicitado: ${peca.quantidade}`,
                   );
                 }
                 throw new Error(
-                  `Erro ao atualizar estoque: ${errorEstoque.message}`
+                  `Erro ao atualizar estoque: ${errorEstoque.message}`,
                 );
               }
 
@@ -1079,7 +1088,7 @@ export default function OrdemServicoFormModal({
                     selectedKeys={[tipoCliente]}
                     onSelectionChange={(keys) =>
                       setTipoCliente(
-                        Array.from(keys)[0] as "lojista" | "consumidor_final"
+                        Array.from(keys)[0] as "lojista" | "consumidor_final",
                       )
                     }
                     isRequired
@@ -1103,19 +1112,24 @@ export default function OrdemServicoFormModal({
                         Aparelhos da OS
                       </h3>
                       <p className="text-sm text-default-500">
-                        Adicione um ou mais aparelhos, cada um com seus serviços e valores
+                        Adicione um ou mais aparelhos, cada um com seus serviços
+                        e valores
                       </p>
                     </div>
                     <Button
                       color="primary"
-                      onPress={() => setAparelhos([...aparelhos, criarAparelhoVazio()])}
+                      onPress={() =>
+                        setAparelhos([...aparelhos, criarAparelhoVazio()])
+                      }
                     >
                       Adicionar aparelho
                     </Button>
                   </div>
 
                   {aparelhos.length === 0 && (
-                    <div className="text-default-500 text-sm">Nenhum aparelho adicionado.</div>
+                    <div className="text-default-500 text-sm">
+                      Nenhum aparelho adicionado.
+                    </div>
                   )}
 
                   {aparelhos.map((ap, idx) => (
@@ -1132,7 +1146,9 @@ export default function OrdemServicoFormModal({
                             color="danger"
                             variant="light"
                             onPress={() =>
-                              setAparelhos(aparelhos.filter((_, i) => i !== idx))
+                              setAparelhos(
+                                aparelhos.filter((_, i) => i !== idx),
+                              )
                             }
                           >
                             Remover
@@ -1143,7 +1159,9 @@ export default function OrdemServicoFormModal({
                           <Select
                             label="Tipo"
                             placeholder="Selecione"
-                            selectedKeys={ap.equipamento_tipo ? [ap.equipamento_tipo] : []}
+                            selectedKeys={
+                              ap.equipamento_tipo ? [ap.equipamento_tipo] : []
+                            }
                             onSelectionChange={(keys) => {
                               const valor = Array.from(keys)[0] as string;
                               const copia = [...aparelhos];
@@ -1187,7 +1205,11 @@ export default function OrdemServicoFormModal({
                             value={ap.equipamento_numero_serie || ""}
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
-                              copia[idx] = { ...ap, equipamento_numero_serie: v, equipamento_imei: v };
+                              copia[idx] = {
+                                ...ap,
+                                equipamento_numero_serie: v,
+                                equipamento_imei: v,
+                              };
                               setAparelhos(copia);
                             }}
                             variant="bordered"
@@ -1249,7 +1271,11 @@ export default function OrdemServicoFormModal({
                           value={ap.observacoes_tecnicas || ""}
                           onValueChange={(v) => {
                             const copia = [...aparelhos];
-                            copia[idx] = { ...ap, observacoes_tecnicas: v, diagnostico: v };
+                            copia[idx] = {
+                              ...ap,
+                              observacoes_tecnicas: v,
+                              diagnostico: v,
+                            };
                             setAparelhos(copia);
                           }}
                           variant="bordered"
@@ -1259,7 +1285,9 @@ export default function OrdemServicoFormModal({
                         <Divider />
 
                         <div className="flex items-center justify-between">
-                          <h4 className="font-semibold">Serviços deste aparelho</h4>
+                          <h4 className="font-semibold">
+                            Serviços deste aparelho
+                          </h4>
                           <Button
                             size="sm"
                             variant="flat"
@@ -1268,7 +1296,10 @@ export default function OrdemServicoFormModal({
                               const servicos = ap.servicos || [];
                               copia[idx] = {
                                 ...ap,
-                                servicos: [...servicos, { descricao: "", valor: 0 }],
+                                servicos: [
+                                  ...servicos,
+                                  { descricao: "", valor: 0 },
+                                ],
                               };
                               setAparelhos(copia);
                             }}
@@ -1278,7 +1309,9 @@ export default function OrdemServicoFormModal({
                         </div>
 
                         {(ap.servicos || []).length === 0 && (
-                          <p className="text-default-500 text-sm">Nenhum serviço adicionado.</p>
+                          <p className="text-default-500 text-sm">
+                            Nenhum serviço adicionado.
+                          </p>
                         )}
 
                         {(ap.servicos || []).map((svc, sIdx) => (
@@ -1292,7 +1325,10 @@ export default function OrdemServicoFormModal({
                               onValueChange={(v) => {
                                 const copia = [...aparelhos];
                                 const servicos = [...(ap.servicos || [])];
-                                servicos[sIdx] = { ...servicos[sIdx], descricao: v };
+                                servicos[sIdx] = {
+                                  ...servicos[sIdx],
+                                  descricao: v,
+                                };
                                 copia[idx] = { ...ap, servicos };
                                 setAparelhos(copia);
                               }}
@@ -1301,7 +1337,9 @@ export default function OrdemServicoFormModal({
                             <Input
                               label="Valor"
                               type="number"
-                              startContent={<span className="text-default-400">R$</span>}
+                              startContent={
+                                <span className="text-default-400">R$</span>
+                              }
                               value={svc.valor?.toString() || "0"}
                               onValueChange={(v) => {
                                 const copia = [...aparelhos];
@@ -1333,9 +1371,17 @@ export default function OrdemServicoFormModal({
                         ))}
 
                         <div className="flex justify-between items-center p-3 bg-default-100 rounded-lg">
-                          <span className="font-semibold">Total do aparelho</span>
+                          <span className="font-semibold">
+                            Total do aparelho
+                          </span>
                           <span className="text-lg font-bold text-primary">
-                            R$ {((ap.servicos || []).reduce((s, svc) => s + (Number(svc.valor) || 0), 0)).toFixed(2)}
+                            R${" "}
+                            {(ap.servicos || [])
+                              .reduce(
+                                (s, svc) => s + (Number(svc.valor) || 0),
+                                0,
+                              )
+                              .toFixed(2)}
                           </span>
                         </div>
                       </CardBody>
@@ -1419,7 +1465,7 @@ export default function OrdemServicoFormModal({
                             variant="light"
                             onPress={() =>
                               setPecasTemp(
-                                pecasTemp.filter((_, i) => i !== index)
+                                pecasTemp.filter((_, i) => i !== index),
                               )
                             }
                           >
@@ -1437,7 +1483,7 @@ export default function OrdemServicoFormModal({
                           {pecasTemp
                             .reduce(
                               (acc, p) => acc + p.quantidade * p.valor_venda,
-                              0
+                              0,
                             )
                             .toFixed(2)}
                         </span>
@@ -1724,7 +1770,7 @@ export default function OrdemServicoFormModal({
                                 </div>
                                 <p className="text-xs text-default-600">
                                   {new Date(
-                                    pag.data_pagamento
+                                    pag.data_pagamento,
                                   ).toLocaleDateString("pt-BR")}
                                   {pag.observacao && ` - ${pag.observacao}`}
                                 </p>
@@ -1808,7 +1854,7 @@ export default function OrdemServicoFormModal({
                       {Object.entries(PRIORIDADE_OS_LABELS).map(
                         ([key, label]) => (
                           <SelectItem key={key}>{label}</SelectItem>
-                        )
+                        ),
                       )}
                     </Select>
                   </div>
@@ -1929,7 +1975,7 @@ export default function OrdemServicoFormModal({
                         .filter((term) => term.length > 0);
 
                       const produto = produtosEstoque.find(
-                        (p) => p.descricao === textValue
+                        (p) => p.descricao === textValue,
                       );
                       if (!produto) return false;
 
@@ -1941,7 +1987,7 @@ export default function OrdemServicoFormModal({
                           .replace(/[\u0300-\u036f]/g, "");
 
                       return searchTerms.every((term) =>
-                        textoBusca.includes(term)
+                        textoBusca.includes(term),
                       );
                     }}
                   >

@@ -70,10 +70,10 @@ export default function GarantiaModal({
   dadosLoja,
 }: GarantiaModalProps) {
   const [tipoGarantia, setTipoGarantia] = useState<TipoServicoGarantia>(
-    (os?.tipo_garantia as TipoServicoGarantia) || "servico_geral"
+    (os?.tipo_garantia as TipoServicoGarantia) || "servico_geral",
   );
   const [diasGarantia, setDiasGarantia] = useState<string>(
-    (os?.dias_garantia || 90).toString()
+    (os?.dias_garantia || 90).toString(),
   );
   const [textoGarantia, setTextoGarantia] =
     useState<TextoGarantiaResponse | null>(null);
@@ -85,7 +85,7 @@ export default function GarantiaModal({
   useEffect(() => {
     if (os) {
       setTipoGarantia(
-        (os.tipo_garantia as TipoServicoGarantia) || "servico_geral"
+        (os.tipo_garantia as TipoServicoGarantia) || "servico_geral",
       );
       setDiasGarantia((os.dias_garantia || 90).toString());
     }
@@ -143,7 +143,12 @@ export default function GarantiaModal({
         dias_garantia: parseInt(diasGarantia) || 90,
       };
 
-      const doc = await gerarGarantiaOS(osAtualizada, dadosLoja, tipoGarantia, parseInt(diasGarantia) || 90);
+      const doc = await gerarGarantiaOS(
+        osAtualizada,
+        dadosLoja,
+        tipoGarantia,
+        parseInt(diasGarantia) || 90,
+      );
       doc.save(`Garantia_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Termo de garantia gerado com sucesso!");
       onClose();

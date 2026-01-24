@@ -721,7 +721,8 @@ export default function OrdemServicoDetalhesModal({
 
                   <div className="space-y-3">
                     {osAtual.aparelhos?.map((aparelho) => {
-                      const totalServicos = calcularTotalServicosAparelho(aparelho);
+                      const totalServicos =
+                        calcularTotalServicosAparelho(aparelho);
                       const totalAparelho =
                         aparelho.valor_total !== undefined
                           ? aparelho.valor_total
@@ -733,14 +734,19 @@ export default function OrdemServicoDetalhesModal({
                             <div className="flex items-start justify-between gap-3">
                               <div className="space-y-1">
                                 <p className="font-semibold text-sm">
-                                  Aparelho {aparelho.sequencia || "-"} — {aparelho.equipamento_tipo}
+                                  Aparelho {aparelho.sequencia || "-"} —{" "}
+                                  {aparelho.equipamento_tipo}
                                 </p>
                                 <p className="text-xs text-default-500">
-                                  {[aparelho.equipamento_marca, aparelho.equipamento_modelo]
+                                  {[
+                                    aparelho.equipamento_marca,
+                                    aparelho.equipamento_modelo,
+                                  ]
                                     .filter(Boolean)
                                     .join(" • ") || "-"}
                                 </p>
-                                {(aparelho.equipamento_imei || aparelho.equipamento_numero_serie) && (
+                                {(aparelho.equipamento_imei ||
+                                  aparelho.equipamento_numero_serie) && (
                                   <p className="text-xs text-default-500">
                                     {aparelho.equipamento_imei
                                       ? `IMEI: ${aparelho.equipamento_imei}`
@@ -749,7 +755,9 @@ export default function OrdemServicoDetalhesModal({
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="text-xs text-default-500">Total</p>
+                                <p className="text-xs text-default-500">
+                                  Total
+                                </p>
                                 <p className="text-lg font-bold text-primary">
                                   R$ {totalAparelho.toFixed(2)}
                                 </p>
@@ -758,7 +766,9 @@ export default function OrdemServicoDetalhesModal({
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                               <div className="space-y-1">
-                                <p className="text-xs text-default-500">Defeito</p>
+                                <p className="text-xs text-default-500">
+                                  Defeito
+                                </p>
                                 <p>{aparelho.defeito_reclamado}</p>
                                 {aparelho.estado_equipamento && (
                                   <p className="text-xs text-default-500">
@@ -772,17 +782,26 @@ export default function OrdemServicoDetalhesModal({
                                 )}
                               </div>
                               <div className="space-y-1">
-                                <p className="text-xs text-default-500">Serviços</p>
-                                {aparelho.servicos && aparelho.servicos.length > 0 ? (
+                                <p className="text-xs text-default-500">
+                                  Serviços
+                                </p>
+                                {aparelho.servicos &&
+                                aparelho.servicos.length > 0 ? (
                                   <div className="space-y-1">
                                     {aparelho.servicos.map((svc) => (
                                       <div
-                                        key={svc.id || `${aparelho.id}-${svc.descricao}`}
+                                        key={
+                                          svc.id ||
+                                          `${aparelho.id}-${svc.descricao}`
+                                        }
                                         className="flex justify-between text-sm"
                                       >
-                                        <span className="text-default-600">{svc.descricao}</span>
+                                        <span className="text-default-600">
+                                          {svc.descricao}
+                                        </span>
                                         <span className="font-semibold">
-                                          R$ {(Number(svc.valor) || 0).toFixed(2)}
+                                          R${" "}
+                                          {(Number(svc.valor) || 0).toFixed(2)}
                                         </span>
                                       </div>
                                     ))}
@@ -795,10 +814,16 @@ export default function OrdemServicoDetalhesModal({
                               </div>
                             </div>
 
-                            {(aparelho.observacoes_tecnicas || aparelho.diagnostico) && (
+                            {(aparelho.observacoes_tecnicas ||
+                              aparelho.diagnostico) && (
                               <div className="text-sm">
-                                <p className="text-xs text-default-500">Observações</p>
-                                <p>{aparelho.observacoes_tecnicas || aparelho.diagnostico}</p>
+                                <p className="text-xs text-default-500">
+                                  Observações
+                                </p>
+                                <p>
+                                  {aparelho.observacoes_tecnicas ||
+                                    aparelho.diagnostico}
+                                </p>
                               </div>
                             )}
                           </CardBody>
@@ -809,7 +834,9 @@ export default function OrdemServicoDetalhesModal({
 
                   <Divider />
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-semibold">Total geral dos aparelhos</span>
+                    <span className="text-sm font-semibold">
+                      Total geral dos aparelhos
+                    </span>
                     <span className="text-lg font-bold text-primary">
                       R$ {totalAparelhos.toFixed(2)}
                     </span>
