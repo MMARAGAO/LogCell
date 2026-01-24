@@ -550,7 +550,7 @@ export default function OrdemServicoDetalhesModal({
   if (!osAtual) return null;
 
   const temAparelhos = (osAtual.aparelhos?.length || 0) > 0;
-  
+
   // Debug: verificar aparelhos
   console.log("OS Atual:", osAtual);
   console.log("Aparelhos:", osAtual.aparelhos);
