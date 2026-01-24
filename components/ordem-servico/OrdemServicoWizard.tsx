@@ -77,7 +77,7 @@ export default function OrdemServicoWizard({
   // Passo 1: Cliente
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(
-    null
+    null,
   );
   const [clienteBusca, setClienteBusca] = useState("");
   const [clienteNome, setClienteNome] = useState("");
@@ -205,17 +205,24 @@ export default function OrdemServicoWizard({
     );
   };
 
-  const removerServicoAparelho = (indexAparelho: number, indexServico: number) => {
+  const removerServicoAparelho = (
+    indexAparelho: number,
+    indexServico: number,
+  ) => {
     setAparelhos((prev) =>
       prev.map((ap, idx) => {
         if (idx !== indexAparelho) return ap;
-        const servicos = (ap.servicos || []).filter((_, sIdx) => sIdx !== indexServico);
+        const servicos = (ap.servicos || []).filter(
+          (_, sIdx) => sIdx !== indexServico,
+        );
         return { ...ap, servicos };
       }),
     );
   };
 
-  const calcularTotalAparelho = (aparelho: ReturnType<typeof criarAparelhoVazio>) => {
+  const calcularTotalAparelho = (
+    aparelho: ReturnType<typeof criarAparelhoVazio>,
+  ) => {
     return (aparelho.servicos || []).reduce(
       (sum, svc) => sum + (Number(svc.valor) || 0),
       0,
@@ -301,7 +308,7 @@ export default function OrdemServicoWizard({
     setPrevisaoEntrega(
       ordem.previsao_entrega
         ? new Date(ordem.previsao_entrega).toISOString().split("T")[0]
-        : ""
+        : "",
     );
 
     // Valores
@@ -337,7 +344,7 @@ export default function OrdemServicoWizard({
         setClienteEmail(cliente.email || "");
         setClienteCpfCnpj(cliente.doc || "");
         setClienteEndereco(
-          `${cliente.logradouro || ""} ${cliente.numero || ""} ${cliente.bairro || ""} ${cliente.cidade || ""}`.trim()
+          `${cliente.logradouro || ""} ${cliente.numero || ""} ${cliente.bairro || ""} ${cliente.cidade || ""}`.trim(),
         );
       }
     } else {
@@ -652,7 +659,7 @@ export default function OrdemServicoWizard({
                 selectedKeys={[tipoCliente]}
                 onSelectionChange={(keys) =>
                   setTipoCliente(
-                    Array.from(keys)[0] as "lojista" | "consumidor_final"
+                    Array.from(keys)[0] as "lojista" | "consumidor_final",
                   )
                 }
                 isRequired
@@ -748,7 +755,9 @@ export default function OrdemServicoWizard({
                         />
                         <Input
                           label="IMEI ou Nº de Série"
-                          value={ap.equipamento_imei || ap.equipamento_numero_serie}
+                          value={
+                            ap.equipamento_imei || ap.equipamento_numero_serie
+                          }
                           onChange={(e) => {
                             atualizarAparelhoCampo(
                               index,
@@ -986,7 +995,9 @@ export default function OrdemServicoWizard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card>
                   <CardBody className="space-y-1">
-                    <p className="text-sm text-default-500">Total dos aparelhos</p>
+                    <p className="text-sm text-default-500">
+                      Total dos aparelhos
+                    </p>
                     <p className="text-2xl font-bold text-primary">
                       R$ {totalAparelhos.toFixed(2)}
                     </p>
@@ -1002,7 +1013,9 @@ export default function OrdemServicoWizard({
                       placeholder="0.00"
                       value={valorDesconto}
                       onChange={(e) => setValorDesconto(e.target.value)}
-                      startContent={<span className="text-default-400">R$</span>}
+                      startContent={
+                        <span className="text-default-400">R$</span>
+                      }
                     />
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-default-500">
@@ -1095,7 +1108,7 @@ export default function OrdemServicoWizard({
                         <strong>Técnico:</strong>{" "}
                         {
                           tecnicos.find(
-                            (t) => (t.usuario_id || t.id) === tecnicoId
+                            (t) => (t.usuario_id || t.id) === tecnicoId,
                           )?.nome
                         }
                       </p>
@@ -1106,21 +1119,19 @@ export default function OrdemServicoWizard({
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-primary mb-2">
-                      Valores
-                    </h4>
+                    <h4 className="font-semibold text-primary mb-2">Valores</h4>
                     <p>
-                      <strong>Total dos aparelhos:</strong> R$ {" "}
+                      <strong>Total dos aparelhos:</strong> R${" "}
                       {totalAparelhos.toFixed(2)}
                     </p>
                     {valorDesconto && (
                       <p>
-                        <strong>Desconto:</strong> R$ {" "}
+                        <strong>Desconto:</strong> R${" "}
                         {(parseFloat(valorDesconto) || 0).toFixed(2)}
                       </p>
                     )}
                     <p className="text-lg font-bold mt-2">
-                      <strong>Total:</strong> R$ {" "}
+                      <strong>Total:</strong> R${" "}
                       {totalAparelhosComDesconto.toFixed(2)}
                     </p>
                   </div>
