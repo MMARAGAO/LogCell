@@ -113,7 +113,7 @@ export default function OrdemServicoPage() {
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<StatusOS | "">("");
   const [modoVisualizacao, setModoVisualizacao] = useState<"grid" | "table">(
-    "grid"
+    "grid",
   );
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
@@ -179,7 +179,7 @@ export default function OrdemServicoPage() {
       total: dados.length,
       aguardando: dados.filter((os) => os.status === "aguardando").length,
       em_andamento: dados.filter(
-        (os) => os.status === "em_andamento" || os.status === "aprovado"
+        (os) => os.status === "em_andamento" || os.status === "aprovado",
       ).length,
       concluido: dados.filter((os) => os.status === "concluido").length,
       entregue: dados.filter((os) => os.status === "entregue").length,
@@ -369,7 +369,7 @@ export default function OrdemServicoPage() {
       const { data, error } = await devolverOrdemServico(
         osSelecionada.id,
         usuario.id,
-        tipo
+        tipo,
       );
 
       if (error) {
@@ -437,7 +437,7 @@ export default function OrdemServicoPage() {
         const { error } = await atualizarOrdemServico(
           osEditando.id,
           dados,
-          usuario.id
+          usuario.id,
         );
         if (error) {
           toast.error(error);
@@ -548,11 +548,11 @@ export default function OrdemServicoPage() {
       });
       return acc;
     },
-    {} as { [key: string]: number }
+    {} as { [key: string]: number },
   );
 
   const getStatusColor = (
-    status: StatusOS
+    status: StatusOS,
   ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
     const cores: Record<StatusOS, any> = {
       aguardando: "warning",
@@ -602,12 +602,12 @@ export default function OrdemServicoPage() {
           tecnico_responsavel: tecnico.id,
           status: os.status === "aguardando" ? "em_andamento" : os.status,
         },
-        usuario.id
+        usuario.id,
       );
 
       await carregarOrdensServico();
       toast.success(
-        "Ordem de serviço assumida com sucesso! Status alterado para 'Em Andamento'"
+        "Ordem de serviço assumida com sucesso! Status alterado para 'Em Andamento'",
       );
     } catch (error) {
       console.error("Erro ao assumir OS:", error);
@@ -775,77 +775,6 @@ export default function OrdemServicoPage() {
             Nova OS
           </Button>
         </Permissao>
-      </div>
-
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-default-100 rounded-lg">
-              <FileText className="w-6 h-6 text-default-600" />
-            </div>
-            <div>
-              <p className="text-sm text-default-500">Total</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-warning-100 rounded-lg">
-              <Clock className="w-6 h-6 text-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-default-500">Aguardando</p>
-              <p className="text-2xl font-bold text-warning">
-                {stats.aguardando}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-primary-100 rounded-lg">
-              <Package className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-default-500">Em Andamento</p>
-              <p className="text-2xl font-bold text-primary">
-                {stats.em_andamento}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-secondary-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-secondary" />
-            </div>
-            <div>
-              <p className="text-sm text-default-500">Concluído</p>
-              <p className="text-2xl font-bold text-secondary">
-                {stats.concluido}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-success-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-default-500">Entregue</p>
-              <p className="text-2xl font-bold text-success">
-                {stats.entregue}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
       </div>
 
       {/* Filtros */}
@@ -1018,75 +947,6 @@ export default function OrdemServicoPage() {
         </CardBody>
       </Card>
 
-      {/* Card de Resumo de Pagamentos */}
-      {Object.keys(resumoPagamentos).length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-success" />
-              <h3 className="font-bold text-lg">Resumo de Pagamentos</h3>
-              <span className="text-sm text-default-500 ml-2">
-                ({ordensFiltradas.length}{" "}
-                {ordensFiltradas.length === 1 ? "OS" : "OS's"})
-              </span>
-            </div>
-          </CardHeader>
-          <CardBody>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {Object.entries(resumoPagamentos)
-                .sort(([, a], [, b]) => b - a)
-                .map(([tipo, valor]) => (
-                  <div
-                    key={tipo}
-                    className="bg-default-100 p-4 rounded-lg border border-default-200 hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xl">
-                        {tipo === "dinheiro"
-                          ? "💵"
-                          : tipo === "pix"
-                            ? "📱"
-                            : tipo === "cartao_credito"
-                              ? "💳"
-                              : tipo === "cartao_debito"
-                                ? "💳"
-                                : tipo === "transferencia"
-                                  ? "🏦"
-                                  : tipo === "cheque"
-                                    ? "📄"
-                                    : "💰"}
-                      </span>
-                      <p className="text-xs text-default-600 font-medium uppercase">
-                        {tipo.replace("_", " ")}
-                      </p>
-                    </div>
-                    <p className="text-xl font-bold text-success">
-                      {formatarMoeda(valor)}
-                    </p>
-                  </div>
-                ))}
-              {/* Total Geral */}
-              <div className="bg-primary/10 p-4 rounded-lg border-2 border-primary">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">💰</span>
-                  <p className="text-xs text-primary font-bold uppercase">
-                    Total Geral
-                  </p>
-                </div>
-                <p className="text-xl font-bold text-primary">
-                  {formatarMoeda(
-                    Object.values(resumoPagamentos).reduce(
-                      (sum, val) => sum + val,
-                      0
-                    )
-                  )}
-                </p>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
-
       {/* Lista de OS */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -1192,7 +1052,7 @@ export default function OrdemServicoPage() {
                         </Chip>
                         {os.caixa &&
                           os.caixa.some(
-                            (c) => c.status_caixa === "cancelado"
+                            (c) => c.status_caixa === "cancelado",
                           ) && (
                             <Chip color="danger" variant="flat" size="sm">
                               Caixa cancelado
