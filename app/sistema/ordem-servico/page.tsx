@@ -46,6 +46,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/hooks/useConfirm";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { Permissao } from "@/components/Permissao";
 import { formatarMoeda } from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
@@ -92,6 +93,7 @@ export default function OrdemServicoPage() {
   const toast = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
+  const { lojaId, podeVerTodasLojas } = useLojaFilter();
 
   // Estados (DEVEM vir antes de qualquer return condicional)
   const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
@@ -116,8 +118,9 @@ export default function OrdemServicoPage() {
     "grid",
   );
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
-  const [filtroDataInicio, setFiltroDataInicio] = useState<string>("");
-  const [filtroDataFim, setFiltroDataFim] = useState<string>("");
+  const hoje = new Date().toISOString().split("T")[0];
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(hoje);
+  const [filtroDataFim, setFiltroDataFim] = useState<string>(hoje);
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
@@ -162,7 +165,26 @@ export default function OrdemServicoPage() {
       filtros.status = statusFiltro;
     }
 
-    const { data, error } = await buscarOrdensServico(filtros);
+    if (filtroDataInicio) {
+      filtros.dataInicio = filtroDataInicio;
+    }
+
+    if (filtroDataFim) {
+      filtros.dataFim = filtroDataFim;
+    }
+
+    // Aplicar filtro de loja se usuário não tiver acesso a todas
+    if (lojaId !== null && !podeVerTodasLojas) {
+      filtros.idLoja = lojaId;
+      console.log(`🏪 Filtrando Ordens de Serviço da loja ${lojaId}`);
+    }
+
+    const { data, error } = await buscarOrdensServico({
+      status: filtros.status,
+      id_loja: filtros.idLoja,
+      data_inicio: filtros.dataInicio,
+      data_fim: filtros.dataFim,
+    });
 
     if (data) {
       setOrdensServico(data);
@@ -196,7 +218,7 @@ export default function OrdemServicoPage() {
   useEffect(() => {
     carregarLojas();
     carregarOrdensServico();
-  }, [statusFiltro]);
+  }, [statusFiltro, lojaId, podeVerTodasLojas, filtroDataInicio, filtroDataFim]);
 
   // Returns condicionais (devem vir APÓS todos os hooks e funções)
   // Se for técnico, mostrar loading enquanto redireciona
@@ -558,13 +580,13 @@ export default function OrdemServicoPage() {
       aguardando: "warning",
       aprovado: "primary",
       em_diagnostico: "secondary",
-      em_andamento: "primary",
+      em_andamento: "warning",
       aguardando_peca: "warning",
-      concluido: "secondary",
+      concluido: "success",
       entregue: "success",
-      devolvida: "default",
+      devolvida: "danger",
       cancelado: "danger",
-      garantia: "default",
+      garantia: "secondary",
     };
     return cores[status] || "default";
   };
@@ -887,6 +909,19 @@ export default function OrdemServicoPage() {
                   onChange={(e) => setFiltroDataFim(e.target.value)}
                   size="sm"
                 />
+
+                <Button
+                  variant="flat"
+                  color="default"
+                  size="sm"
+                  className="sm:col-span-2"
+                  onPress={() => {
+                    setFiltroDataInicio("");
+                    setFiltroDataFim("");
+                  }}
+                >
+                  Limpar Datas
+                </Button>
 
                 <Select
                   label="Ordenar por"

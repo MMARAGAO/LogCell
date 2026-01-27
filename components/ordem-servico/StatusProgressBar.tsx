@@ -26,7 +26,7 @@ const STATUS_FLOW = [
     key: "em_andamento",
     label: "Em Andamento",
     icon: Wrench,
-    color: "secondary",
+    color: "warning",
   },
   {
     key: "aguardando_peca",

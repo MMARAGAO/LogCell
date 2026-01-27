@@ -1223,6 +1223,154 @@ export const gerarCupomTermicoOS = async (
   return cupom;
 };
 
+export const gerarCupomTermicoGarantia = async (
+  os: OrdemServico,
+  dadosLoja: DadosLoja,
+  tipoGarantia?: string,
+  diasGarantia?: number
+): Promise<string> => {
+  const linhaDiv = "=".repeat(48);
+  const linhaTracejada = "-".repeat(48);
+
+  const centralizar = (texto: string): string => {
+    const espacos = Math.max(0, Math.floor((48 - texto.length) / 2));
+    return " ".repeat(espacos) + texto;
+  };
+
+  const quebraLinhas = (texto: string, limite = 46): string[] => {
+    const palavras = texto.split(" ");
+    const linhas: string[] = [];
+    let atual = "";
+
+    palavras.forEach((palavra) => {
+      if ((atual + palavra).length > limite) {
+        linhas.push(atual.trim());
+        atual = palavra + " ";
+      } else {
+        atual += palavra + " ";
+      }
+    });
+
+    if (atual.trim()) linhas.push(atual.trim());
+    return linhas;
+  };
+
+  let cupom = "";
+
+  // Cabeçalho
+  cupom += centralizar((dadosLoja.nome || "").toUpperCase()) + "\n";
+  if (dadosLoja.endereco) cupom += centralizar(dadosLoja.endereco) + "\n";
+  if (dadosLoja.telefone)
+    cupom += centralizar(`Tel: ${dadosLoja.telefone}`) + "\n";
+  if (dadosLoja.cnpj) cupom += centralizar(`CNPJ: ${dadosLoja.cnpj}`) + "\n";
+
+  cupom += linhaDiv + "\n";
+  cupom += centralizar("TERMO DE GARANTIA") + "\n";
+  cupom += linhaDiv + "\n\n";
+
+  // Dados principais
+  cupom += `OS: ${os.numero_os || os.id}\n`;
+  cupom += `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")} ${new Date(os.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n`;
+
+  const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
+  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : os.dias_garantia || 90;
+  cupom += `Garantia: ${tipoGarantiaFinal.toString().toUpperCase()} - ${diasGarantiaFinal} dias\n\n`;
+
+  // Cliente
+  cupom += linhaTracejada + "\n";
+  cupom += "CLIENTE\n";
+  cupom += linhaTracejada + "\n";
+  cupom += `Nome: ${os.cliente_nome}\n`;
+  if (os.cliente_telefone) cupom += `Tel: ${os.cliente_telefone}\n`;
+  if (os.cliente_email) cupom += `Email: ${os.cliente_email}\n`;
+  cupom += "\n";
+
+  // Equipamento (suporta múltiplos aparelhos resumidos)
+  cupom += linhaTracejada + "\n";
+  cupom += "EQUIPAMENTO\n";
+  cupom += linhaTracejada + "\n";
+  if (os.aparelhos && os.aparelhos.length > 0) {
+    os.aparelhos.forEach((aparelho, idx) => {
+      const titulo = `Aparelho ${aparelho.sequencia || idx + 1}`;
+      cupom += `${titulo}: ${aparelho.equipamento_tipo || "Aparelho"}\n`;
+      if (aparelho.equipamento_marca)
+        cupom += `  Marca: ${aparelho.equipamento_marca}\n`;
+      if (aparelho.equipamento_modelo)
+        cupom += `  Modelo: ${aparelho.equipamento_modelo}\n`;
+      if (aparelho.equipamento_imei)
+        cupom += `  IMEI: ${aparelho.equipamento_imei}\n`;
+    });
+  } else {
+    cupom += `Equip.: ${os.equipamento_tipo}\n`;
+    if (os.equipamento_marca) cupom += `Marca: ${os.equipamento_marca}\n`;
+    if (os.equipamento_modelo) cupom += `Modelo: ${os.equipamento_modelo}\n`;
+    if (os.equipamento_numero_serie)
+      cupom += `Serie: ${os.equipamento_numero_serie}\n`;
+  }
+  cupom += "\n";
+
+  // Serviço realizado / Laudo / Defeito
+  cupom += linhaTracejada + "\n";
+  cupom += "SERVICO REALIZADO\n";
+  cupom += linhaTracejada + "\n";
+  const servicoTexto =
+    os.aparelhos && os.aparelhos[0]?.servico_realizado
+      ? os.aparelhos[0].servico_realizado
+      : os.laudo_diagnostico || os.defeito_reclamado || "[Servico a descrever]";
+  quebraLinhas(servicoTexto).forEach((linha) => (cupom += linha + "\n"));
+  cupom += "\n";
+
+  // Termos de garantia (compactados)
+  cupom += linhaDiv + "\n";
+  let tituloGarantia = "TERMOS DE GARANTIA";
+  let termosTexto = [
+    "(1) Garantia valida com este cupom.",
+    "(2) Prazo conforme acima, a partir da entrega.",
+    "(3) Cobre servico/pecas realizados pela loja.",
+    "(4) Exclui mau uso, quedas, liquidos, oxidacao, surtos, software nao autorizado.",
+    "(5) Apos prazo, apresentar cupom para possivel desconto.",
+    "(6) Aparelho nao retirado em 90 dias: sem responsabilidade da loja.",
+    "(7) Brindes sem garantia, conferir no ato.",
+    "(8) Cliente ciente de todos os termos.",
+  ];
+
+  if (os.tipo_garantia) {
+    try {
+      const { data } = await supabase
+        .from("textos_garantia")
+        .select("titulo, clausulas")
+        .eq("tipo_servico", os.tipo_garantia)
+        .eq("ativo", true)
+        .single();
+
+      if (data) {
+        tituloGarantia = (data.titulo || tituloGarantia).toUpperCase();
+        termosTexto = data.clausulas.map((c: any) =>
+          quebraLinhas(`(${c.numero}) ${c.texto}`).join("\n"),
+        );
+      }
+    } catch (error) {
+      console.error("Erro ao buscar texto de garantia para cupom:", error);
+    }
+  }
+
+  cupom += centralizar(tituloGarantia) + "\n";
+  cupom += linhaDiv + "\n\n";
+  termosTexto.forEach((termo) => {
+    quebraLinhas(termo).forEach((linha) => (cupom += linha + "\n"));
+    cupom += "\n";
+  });
+
+  // Assinatura
+  cupom += "\n\n";
+  cupom += "_______________________\n";
+  cupom += "Assinatura do Cliente\n";
+  cupom += centralizar("Obrigado pela preferencia!") + "\n";
+  cupom += "\n\n";
+
+  return cupom;
+};
+
 export const imprimirCupomTermico = (cupom: string) => {
   // Abre uma nova janela com o conteúdo do cupom
   const janelaImpressao = window.open("", "_blank", "width=300,height=600");
@@ -1246,10 +1394,10 @@ export const imprimirCupomTermico = (cupom: string) => {
         
         body {
           font-family: 'Courier New', monospace;
-          font-size: 12px;
-          line-height: 1.3;
+          font-size: 13px;
+          line-height: 1.35;
           margin: 0;
-          padding: 5mm;
+          padding: 4mm;
           width: 80mm;
           background: white;
         }

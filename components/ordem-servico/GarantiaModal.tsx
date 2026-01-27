@@ -46,7 +46,11 @@ import {
 } from "@/types/garantia";
 import { OrdemServico } from "@/types/ordemServico";
 import { useToast } from "@/components/Toast";
-import { gerarGarantiaOS } from "@/lib/impressaoOS";
+import {
+  gerarGarantiaOS,
+  gerarCupomTermicoGarantia,
+  imprimirCupomTermico,
+} from "@/lib/impressaoOS";
 
 interface GarantiaModalProps {
   isOpen: boolean;
@@ -79,6 +83,7 @@ export default function GarantiaModal({
     useState<TextoGarantiaResponse | null>(null);
   const [loadingTexto, setLoadingTexto] = useState(false);
   const [loadingGerar, setLoadingGerar] = useState(false);
+  const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
 
   // Atualizar tipo de garantia quando a OS mudar
@@ -157,6 +162,34 @@ export default function GarantiaModal({
       toast.error("Erro ao gerar garantia");
     } finally {
       setLoadingGerar(false);
+    }
+  };
+
+  const handleImprimirCupom = async () => {
+    if (!os) return;
+
+    setLoadingCupom(true);
+    try {
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
+      const cupom = await gerarCupomTermicoGarantia(
+        osAtualizada,
+        dadosLoja,
+        tipoGarantia,
+        parseInt(diasGarantia) || 90,
+      );
+      imprimirCupomTermico(cupom);
+      toast.success("Cupom térmico de garantia gerado com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao gerar cupom de garantia:", error);
+      toast.error("Erro ao gerar cupom de garantia");
+    } finally {
+      setLoadingCupom(false);
     }
   };
 
@@ -285,6 +318,15 @@ export default function GarantiaModal({
         <ModalFooter>
           <Button color="default" variant="light" onPress={onClose}>
             Cancelar
+          </Button>
+          <Button
+            color="primary"
+            variant="flat"
+            onPress={handleImprimirCupom}
+            isLoading={loadingCupom}
+            startContent={!loadingCupom && <Printer className="w-4 h-4" />}
+          >
+            Imprimir cupom térmico
           </Button>
           <Button
             color="success"

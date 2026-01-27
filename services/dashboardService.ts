@@ -869,4 +869,256 @@ export class DashboardService {
 			},
 		};
 	}
+
+	// ==================== FUNÇÕES PARA GRÁFICOS ====================
+
+	/**
+	 * Busca evolução diária de vendas e receita para gráfico de linha
+	 */
+	static async buscarEvolucaoVendas(filtro: FiltroDashboard): Promise<
+		Array<{
+			data: string;
+			vendas: number;
+			receita: number;
+		}>
+	> {
+		const { data_inicio, data_fim, loja_id } = filtro;
+		const inicioISO = `${data_inicio}T00:00:00`;
+		const fimISO = `${data_fim}T23:59:59`;
+
+		try {
+			let query = supabase
+				.from("vendas")
+				.select("criado_em, valor_total")
+				.gte("criado_em", inicioISO)
+				.lte("criado_em", fimISO)
+				.neq("status", "cancelada")
+				.order("criado_em");
+
+			if (loja_id) {
+				query = query.eq("loja_id", loja_id);
+			}
+
+			const { data, error } = await query;
+
+			if (error) throw error;
+
+			// Agrupar por data
+			const agrupado = (data || []).reduce(
+				(acc, venda) => {
+					const data_str = venda.criado_em.split("T")[0];
+					if (!acc[data_str]) {
+						acc[data_str] = { vendas: 0, receita: 0 };
+					}
+					acc[data_str].vendas += 1;
+					acc[data_str].receita += Number(venda.valor_total) || 0;
+					return acc;
+				},
+				{} as Record<string, { vendas: number; receita: number }>
+			);
+
+			return Object.entries(agrupado).map(([data, valor]) => ({
+				data,
+				vendas: valor.vendas,
+				receita: Math.round(valor.receita * 100) / 100,
+			}));
+		} catch (error) {
+			console.error("Erro ao buscar evolução de vendas:", error);
+			return [];
+		}
+	}
+
+	/**
+	 * Busca top 10 produtos mais vendidos
+	 */
+	static async buscarTop10Produtos(filtro: FiltroDashboard): Promise<
+		Array<{
+			produto_id: string;
+			descricao: string;
+			quantidade: number;
+			receita: number;
+		}>
+	> {
+		const { data_inicio, data_fim, loja_id } = filtro;
+		const inicioISO = `${data_inicio}T00:00:00`;
+		const fimISO = `${data_fim}T23:59:59`;
+
+		try {
+			let query = supabase
+				.from("itens_venda")
+				.select(
+					"produto_id, produtos(descricao), quantidade, devolvido, subtotal, venda_id, venda:vendas!inner(loja_id, criado_em)"
+				)
+				.gte("venda.criado_em", inicioISO)
+				.lte("venda.criado_em", fimISO);
+
+			if (loja_id) {
+				query = query.eq("venda.loja_id", loja_id);
+			}
+
+			const { data, error } = await query;
+
+			if (error) {
+				console.error("Erro na query de top 10 produtos:", error);
+				throw error;
+			}
+
+			const itens = data || [];
+
+			// Agrupar por produto
+			const agrupado = itens.reduce(
+				(acc, item) => {
+					const produtoId = item.produto_id;
+					if (!acc[produtoId]) {
+						acc[produtoId] = {
+							produto_id: produtoId,
+							descricao: (item.produtos as any)?.descricao || "Produto desconhecido",
+							quantidade: 0,
+							receita: 0,
+						};
+					}
+					// Quantidade vendida = quantidade total - devolvida
+					const quantidadeVendida = (item.quantidade || 0) - (item.devolvido || 0);
+					acc[produtoId].quantidade += Math.max(0, quantidadeVendida);
+					acc[produtoId].receita += Number(item.subtotal) || 0;
+					return acc;
+				},
+				{} as Record<
+					string,
+					{ produto_id: string; descricao: string; quantidade: number; receita: number }
+				>
+			);
+
+			return Object.values(agrupado)
+				.sort((a, b) => b.quantidade - a.quantidade)
+				.slice(0, 10);
+		} catch (error) {
+			console.error("Erro ao buscar top 10 produtos:", error);
+			return [];
+		}
+	}
+
+	/**
+	 * Busca top 10 clientes com mais vendas
+	 */
+	static async buscarTop10Clientes(filtro: FiltroDashboard): Promise<
+		Array<{
+			cliente_id: string;
+			cliente_nome: string;
+			total_vendas: number;
+			receita_total: number;
+		}>
+	> {
+		const { data_inicio, data_fim, loja_id } = filtro;
+		const inicioISO = `${data_inicio}T00:00:00`;
+		const fimISO = `${data_fim}T23:59:59`;
+
+		try {
+			let query = supabase
+				.from("vendas")
+				.select("cliente_id, cliente:clientes(nome), valor_total")
+				.gte("criado_em", inicioISO)
+				.lte("criado_em", fimISO)
+				.neq("status", "cancelada");
+
+			if (loja_id) {
+				query = query.eq("loja_id", loja_id);
+			}
+
+			const { data, error } = await query;
+
+			if (error) throw error;
+
+			// Agrupar por cliente
+			const agrupado = (data || []).reduce(
+				(acc, venda) => {
+					const clienteId = venda.cliente_id;
+					if (!acc[clienteId]) {
+						acc[clienteId] = {
+							cliente_id: clienteId,
+							cliente_nome: (venda.cliente as any)?.nome || "Cliente desconhecido",
+							total_vendas: 0,
+							receita_total: 0,
+						};
+					}
+					acc[clienteId].total_vendas += 1;
+					acc[clienteId].receita_total += Number(venda.valor_total) || 0;
+					return acc;
+				},
+				{} as Record<
+					string,
+					{ cliente_id: string; cliente_nome: string; total_vendas: number; receita_total: number }
+				>
+			);
+
+			return Object.values(agrupado)
+				.sort((a, b) => b.receita_total - a.receita_total)
+				.slice(0, 10);
+		} catch (error) {
+			console.error("Erro ao buscar top 10 clientes:", error);
+			return [];
+		}
+	}
+
+	/**
+	 * Busca top 10 vendedores com mais vendas
+	 */
+	static async buscarTop10Vendedores(filtro: FiltroDashboard): Promise<
+		Array<{
+			vendedor_id: string;
+			vendedor_nome: string;
+			total_vendas: number;
+			receita_total: number;
+		}>
+	> {
+		const { data_inicio, data_fim, loja_id } = filtro;
+		const inicioISO = `${data_inicio}T00:00:00`;
+		const fimISO = `${data_fim}T23:59:59`;
+
+		try {
+			let query = supabase
+				.from("vendas")
+				.select("vendedor_id, vendedor:usuarios!vendas_vendedor_id_fkey(nome), valor_total")
+				.gte("criado_em", inicioISO)
+				.lte("criado_em", fimISO)
+				.neq("status", "cancelada");
+
+			if (loja_id) {
+				query = query.eq("loja_id", loja_id);
+			}
+
+			const { data, error } = await query;
+
+			if (error) throw error;
+
+			// Agrupar por vendedor
+			const agrupado = (data || []).reduce(
+				(acc, venda) => {
+					const vendedorId = venda.vendedor_id;
+					if (!acc[vendedorId]) {
+						acc[vendedorId] = {
+							vendedor_id: vendedorId,
+							vendedor_nome: (venda.vendedor as any)?.nome || "Vendedor desconhecido",
+							total_vendas: 0,
+							receita_total: 0,
+						};
+					}
+					acc[vendedorId].total_vendas += 1;
+					acc[vendedorId].receita_total += Number(venda.valor_total) || 0;
+					return acc;
+				},
+				{} as Record<
+					string,
+					{ vendedor_id: string; vendedor_nome: string; total_vendas: number; receita_total: number }
+				>
+			);
+
+			return Object.values(agrupado)
+				.sort((a, b) => b.receita_total - a.receita_total)
+				.slice(0, 10);
+		} catch (error) {
+			console.error("Erro ao buscar top 10 vendedores:", error);
+			return [];
+		}
+	}
 }
