@@ -67,7 +67,9 @@ export async function buscarOrdensServico(filtros?: {
     }
 
     if (filtros?.data_fim) {
-      query = query.lte("data_entrada", filtros.data_fim);
+      // Adicionar 23:59:59 para incluir todo o dia
+      const dataFimCompleta = `${filtros.data_fim}T23:59:59`;
+      query = query.lte("data_entrada", dataFimCompleta);
     }
 
     const { data, error } = await query;
