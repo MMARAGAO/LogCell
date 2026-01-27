@@ -218,7 +218,13 @@ export default function OrdemServicoPage() {
   useEffect(() => {
     carregarLojas();
     carregarOrdensServico();
-  }, [statusFiltro, lojaId, podeVerTodasLojas, filtroDataInicio, filtroDataFim]);
+  }, [
+    statusFiltro,
+    lojaId,
+    podeVerTodasLojas,
+    filtroDataInicio,
+    filtroDataFim,
+  ]);
 
   // Returns condicionais (devem vir APÓS todos os hooks e funções)
   // Se for técnico, mostrar loading enquanto redireciona

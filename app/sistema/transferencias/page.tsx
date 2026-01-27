@@ -58,7 +58,7 @@ export default function TransferenciasPage() {
   const router = useRouter();
 
   const [transferencias, setTransferencias] = useState<TransferenciaCompleta[]>(
-    []
+    [],
   );
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +135,7 @@ export default function TransferenciasPage() {
         // Aplicar filtro de loja do usuário se não tiver acesso a todas
         filtros.loja_id = lojaId;
         console.log(
-          `🏪 Filtrando transferências da loja ${lojaId} (enviadas ou recebidas)`
+          `🏪 Filtrando transferências da loja ${lojaId} (enviadas ou recebidas)`,
         );
       }
 
@@ -151,7 +151,7 @@ export default function TransferenciasPage() {
         mensagemErro.includes("does not exist")
       ) {
         toast.error(
-          "Tabela de transferências não encontrada. Execute o script CRIAR_SISTEMA_TRANSFERENCIAS_COMPLETO.sql no Supabase."
+          "Tabela de transferências não encontrada. Execute o script CRIAR_SISTEMA_TRANSFERENCIAS_COMPLETO.sql no Supabase.",
         );
       } else {
         toast.error(`Erro ao buscar transferências: ${mensagemErro}`);
@@ -200,12 +200,12 @@ export default function TransferenciasPage() {
       const mensagem = itensComProblema
         .map(
           (item) =>
-            `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}`
+            `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}`,
         )
         .join("\n");
 
       toast.error(
-        `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nVerifique o estoque antes de confirmar a transferência.`
+        `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nVerifique o estoque antes de confirmar a transferência.`,
       );
       setConfirmarModal({ isOpen: false, transferencia: null });
       setProcessando(null);
@@ -218,7 +218,7 @@ export default function TransferenciasPage() {
     try {
       const resultado = await confirmarTransferencia(
         transferencia.id,
-        usuario.id
+        usuario.id,
       );
 
       if (resultado.success) {
@@ -252,7 +252,7 @@ export default function TransferenciasPage() {
       const resultado = await cancelarTransferencia(
         transferencia.id,
         usuario.id,
-        motivo
+        motivo,
       );
 
       if (resultado.success) {
@@ -291,13 +291,13 @@ export default function TransferenciasPage() {
 
   const estatisticas = useMemo(() => {
     const pendentes = transferencias.filter(
-      (t) => t.status === "pendente"
+      (t) => t.status === "pendente",
     ).length;
     const confirmadas = transferencias.filter(
-      (t) => t.status === "confirmada"
+      (t) => t.status === "confirmada",
     ).length;
     const canceladas = transferencias.filter(
-      (t) => t.status === "cancelada"
+      (t) => t.status === "cancelada",
     ).length;
 
     return { pendentes, confirmadas, canceladas, total: transferencias.length };
@@ -445,7 +445,7 @@ export default function TransferenciasPage() {
                     const primeira = grupo[0];
                     const totalItens = grupo.reduce(
                       (acc, t) => acc + t.itens.length,
-                      0
+                      0,
                     );
 
                     return (
@@ -467,7 +467,7 @@ export default function TransferenciasPage() {
                               </div>
                               <span className="text-sm text-default-500">
                                 {new Date(
-                                  primeira.criado_em
+                                  primeira.criado_em,
                                 ).toLocaleDateString("pt-BR")}
                               </span>
                             </div>
@@ -490,7 +490,7 @@ export default function TransferenciasPage() {
                         </CardBody>
                       </Card>
                     );
-                  }
+                  },
                 )}
                 <Divider className="my-4" />
               </>
@@ -621,7 +621,8 @@ function TransferenciaCard({
             {/* Informações */}
             <div className="text-sm text-default-500 space-y-1">
               <div>
-                <span className="font-semibold text-foreground">Saída:</span> {transferencia.usuario_nome} -{" "}
+                <span className="font-semibold text-foreground">Saída:</span>{" "}
+                {transferencia.usuario_nome} -{" "}
                 {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
                   day: "2-digit",
                   month: "2-digit",
@@ -632,7 +633,10 @@ function TransferenciaCard({
               </div>
               {transferencia.confirmado_em && (
                 <div>
-                  <span className="font-semibold text-foreground">Confirmação:</span> {transferencia.confirmado_por_nome} -{" "}
+                  <span className="font-semibold text-foreground">
+                    Confirmação:
+                  </span>{" "}
+                  {transferencia.confirmado_por_nome} -{" "}
                   {new Date(transferencia.confirmado_em).toLocaleString(
                     "pt-BR",
                     {
@@ -641,18 +645,23 @@ function TransferenciaCard({
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }
+                    },
                   )}
                 </div>
               )}
-              {!transferencia.confirmado_em && transferencia.status === "pendente" && (
-                <div className="text-yellow-600">
-                  <span className="font-semibold">Aguardando:</span> confirmação de recebimento
-                </div>
-              )}
+              {!transferencia.confirmado_em &&
+                transferencia.status === "pendente" && (
+                  <div className="text-yellow-600">
+                    <span className="font-semibold">Aguardando:</span>{" "}
+                    confirmação de recebimento
+                  </div>
+                )}
               {transferencia.cancelado_em && (
                 <div>
-                  <span className="font-semibold text-foreground">Cancelamento:</span> {transferencia.cancelado_por_nome} -{" "}
+                  <span className="font-semibold text-foreground">
+                    Cancelamento:
+                  </span>{" "}
+                  {transferencia.cancelado_por_nome} -{" "}
                   {new Date(transferencia.cancelado_em).toLocaleString(
                     "pt-BR",
                     {
@@ -661,7 +670,7 @@ function TransferenciaCard({
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
-                    }
+                    },
                   )}
                   {transferencia.motivo_cancelamento &&
                     ` - ${transferencia.motivo_cancelamento}`}
@@ -831,11 +840,15 @@ function DetalhesTransferenciaModal({
               </div>
               <div>
                 <span className="text-default-500">Destino:</span>{" "}
-                <span className="font-medium">{transferencia.loja_destino}</span>
+                <span className="font-medium">
+                  {transferencia.loja_destino}
+                </span>
               </div>
               <div>
                 <span className="text-default-500">Total de Itens:</span>{" "}
-                <span className="font-medium">{transferencia.itens.length}</span>
+                <span className="font-medium">
+                  {transferencia.itens.length}
+                </span>
               </div>
             </div>
           </div>
@@ -855,7 +868,9 @@ function DetalhesTransferenciaModal({
                   <div className="w-1 h-12 bg-gray-300 mt-2"></div>
                 </div>
                 <div className="flex-1 pb-4">
-                  <div className="font-semibold text-sm text-blue-600">Saída Autorizada</div>
+                  <div className="font-semibold text-sm text-blue-600">
+                    Saída Autorizada
+                  </div>
                   <div className="text-xs text-default-500 mt-0.5">
                     {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
                       day: "2-digit",
@@ -866,14 +881,26 @@ function DetalhesTransferenciaModal({
                     })}
                   </div>
                   <div className="text-sm mt-2 bg-blue-50 p-3 rounded-lg">
-                    <span className="font-medium text-foreground">{transferencia.usuario_nome}</span> 
-                    <span className="text-default-600"> autorizou a saída de </span>
-                    <span className="font-semibold text-foreground">{transferencia.itens.length} {transferencia.itens.length === 1 ? "item" : "itens"}</span>
+                    <span className="font-medium text-foreground">
+                      {transferencia.usuario_nome}
+                    </span>
+                    <span className="text-default-600">
+                      {" "}
+                      autorizou a saída de{" "}
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {transferencia.itens.length}{" "}
+                      {transferencia.itens.length === 1 ? "item" : "itens"}
+                    </span>
                     <br />
                     <span className="text-default-600">de </span>
-                    <span className="font-medium text-foreground">{transferencia.loja_origem}</span>
+                    <span className="font-medium text-foreground">
+                      {transferencia.loja_origem}
+                    </span>
                     <span className="text-default-600"> para </span>
-                    <span className="font-medium text-foreground">{transferencia.loja_destino}</span>
+                    <span className="font-medium text-foreground">
+                      {transferencia.loja_destino}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -881,9 +908,15 @@ function DetalhesTransferenciaModal({
               {/* Evento 2: Recebimento (Pendente ou Confirmado) */}
               <div className="flex gap-4">
                 <div className="flex flex-col items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                    transferencia.status === "confirmada" ? "bg-green-500" : transferencia.status === "cancelada" ? "bg-red-500" : "bg-yellow-500"
-                  }`}>
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                      transferencia.status === "confirmada"
+                        ? "bg-green-500"
+                        : transferencia.status === "cancelada"
+                          ? "bg-red-500"
+                          : "bg-yellow-500"
+                    }`}
+                  >
                     {transferencia.status === "confirmada" ? (
                       <CheckCircleIcon className="w-4 h-4" />
                     ) : transferencia.status === "cancelada" ? (
@@ -899,9 +932,15 @@ function DetalhesTransferenciaModal({
                   )}
                 </div>
                 <div className="flex-1 pb-4">
-                  <div className={`font-semibold text-sm ${
-                    transferencia.status === "confirmada" ? "text-green-600" : transferencia.status === "cancelada" ? "text-red-600" : "text-yellow-600"
-                  }`}>
+                  <div
+                    className={`font-semibold text-sm ${
+                      transferencia.status === "confirmada"
+                        ? "text-green-600"
+                        : transferencia.status === "cancelada"
+                          ? "text-red-600"
+                          : "text-yellow-600"
+                    }`}
+                  >
                     {transferencia.status === "confirmada"
                       ? "Recebimento Confirmado"
                       : transferencia.status === "pendente"
@@ -919,60 +958,81 @@ function DetalhesTransferenciaModal({
                             year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
-                          }
+                          },
                         )}
                       </div>
                       <div className="text-sm mt-2 bg-green-50 p-3 rounded-lg">
-                        <span className="font-medium text-foreground">{transferencia.confirmado_por_nome}</span>
-                        <span className="text-default-600"> confirmou o recebimento dos itens em </span>
-                        <span className="font-medium text-foreground">{transferencia.loja_destino}</span>
+                        <span className="font-medium text-foreground">
+                          {transferencia.confirmado_por_nome}
+                        </span>
+                        <span className="text-default-600">
+                          {" "}
+                          confirmou o recebimento dos itens em{" "}
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {transferencia.loja_destino}
+                        </span>
                       </div>
                     </>
                   ) : transferencia.status === "cancelada" ? (
                     <div></div>
                   ) : (
                     <div className="text-xs text-yellow-700 mt-2 bg-yellow-50 p-3 rounded-lg">
-                      ⏳ <span className="font-medium">Pendente</span> - Aguardando confirmação de recebimento em <span className="font-medium">{transferencia.loja_destino}</span>
+                      ⏳ <span className="font-medium">Pendente</span> -
+                      Aguardando confirmação de recebimento em{" "}
+                      <span className="font-medium">
+                        {transferencia.loja_destino}
+                      </span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Evento 3: Cancelamento (se aplicável) */}
-              {transferencia.status === "cancelada" && transferencia.cancelado_em && (
-                <div className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
-                      <XCircleIcon className="w-4 h-4" />
+              {transferencia.status === "cancelada" &&
+                transferencia.cancelado_em && (
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
+                        <XCircleIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm text-red-600">
+                        Transferência Cancelada
+                      </div>
+                      <div className="text-xs text-default-500 mt-0.5">
+                        {new Date(transferencia.cancelado_em).toLocaleString(
+                          "pt-BR",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </div>
+                      <div className="text-sm mt-2 bg-red-50 p-3 rounded-lg">
+                        <span className="font-medium text-foreground">
+                          {transferencia.cancelado_por_nome}
+                        </span>
+                        <span className="text-default-600">
+                          {" "}
+                          cancelou a transferência
+                        </span>
+                        {transferencia.motivo_cancelamento && (
+                          <>
+                            <br />
+                            <span className="text-xs italic">
+                              Motivo: {transferencia.motivo_cancelamento}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm text-red-600">Transferência Cancelada</div>
-                    <div className="text-xs text-default-500 mt-0.5">
-                      {new Date(transferencia.cancelado_em).toLocaleString(
-                        "pt-BR",
-                        {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }
-                      )}
-                    </div>
-                    <div className="text-sm mt-2 bg-red-50 p-3 rounded-lg">
-                      <span className="font-medium text-foreground">{transferencia.cancelado_por_nome}</span>
-                      <span className="text-default-600"> cancelou a transferência</span>
-                      {transferencia.motivo_cancelamento && (
-                        <>
-                          <br />
-                          <span className="text-xs italic">Motivo: {transferencia.motivo_cancelamento}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
 
