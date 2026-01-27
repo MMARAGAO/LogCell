@@ -47,7 +47,7 @@ interface PagamentosPanelProps {
   onAplicarDescontoRapido?: (
     tipo: "valor" | "percentual",
     valor: number,
-    motivo: string
+    motivo: string,
   ) => void;
   descontoAplicado?: {
     tipo: "valor" | "percentual";
@@ -88,13 +88,13 @@ export function PagamentosPanel({
   const [tipoPagamento, setTipoPagamento] = useState("dinheiro");
   const [valor, setValor] = useState("");
   const [dataPagamento, setDataPagamento] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
   const [modalSeletorProdutoOpen, setModalSeletorProdutoOpen] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
   const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
-    "percentual"
+    "percentual",
   );
   const [valorDesconto, setValorDesconto] = useState("");
   const [motivoDesconto, setMotivoDesconto] = useState("");
@@ -231,7 +231,7 @@ export function PagamentosPanel({
       acc[tipo].push(pagamento);
       return acc;
     },
-    {} as Record<string, PagamentoCarrinho[]>
+    {} as Record<string, PagamentoCarrinho[]>,
   );
 
   const calcularTotalPorTipo = (tipo: string) => {
@@ -286,7 +286,7 @@ export function PagamentosPanel({
                             subtotalItens - descontosItens,
                             ((subtotalItens - descontosItens) *
                               descontoMaximo) /
-                              100
+                              100,
                           )
                     }
                     placeholder={
@@ -296,7 +296,7 @@ export function PagamentosPanel({
                             subtotalItens - descontosItens,
                             ((subtotalItens - descontosItens) *
                               descontoMaximo) /
-                              100
+                              100,
                           ).toFixed(2)}`
                     }
                     startContent={
@@ -443,7 +443,7 @@ export function PagamentosPanel({
                       (p) =>
                         p.tipo_pagamento === pagamento.tipo_pagamento &&
                         p.valor === pagamento.valor &&
-                        p.data_pagamento === pagamento.data_pagamento
+                        p.data_pagamento === pagamento.data_pagamento,
                     );
                     return (
                       <div
@@ -454,7 +454,7 @@ export function PagamentosPanel({
                           <Calendar className="w-3 h-3" />
                           <span>
                             {new Date(
-                              pagamento.data_pagamento
+                              pagamento.data_pagamento,
                             ).toLocaleDateString("pt-BR")}
                           </span>
                         </div>
@@ -487,7 +487,7 @@ export function PagamentosPanel({
                     );
                   })}
                 </div>
-              )
+              ),
             )}
 
             <Divider className="my-2" />
