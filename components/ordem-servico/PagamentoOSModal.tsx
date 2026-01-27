@@ -471,7 +471,7 @@ export default function PagamentoOSModal({
               <Card
                 className={
                   calcularSaldoRestante() > 0
-                    ? "bg-warning-50 dark:bg-warning-900/20"
+                    ? "bg-danger-50 dark:bg-danger-900/20"
                     : "bg-primary-50 dark:bg-primary-900/20"
                 }
               >
@@ -482,7 +482,7 @@ export default function PagamentoOSModal({
                   <p
                     className={`text-xl font-bold ${
                       calcularSaldoRestante() > 0
-                        ? "text-warning"
+                        ? "text-danger"
                         : "text-primary"
                     }`}
                   >

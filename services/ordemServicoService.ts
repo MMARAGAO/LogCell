@@ -238,6 +238,7 @@ export async function criarOrdemServico(
         equipamento_tipo: ap.equipamento_tipo,
         equipamento_marca: ap.equipamento_marca,
         equipamento_modelo: ap.equipamento_modelo,
+        equipamento_cor: ap.equipamento_cor,
         equipamento_numero_serie: ap.equipamento_numero_serie,
         equipamento_imei: ap.equipamento_imei,
         equipamento_senha: ap.equipamento_senha,
@@ -347,6 +348,7 @@ export async function atualizarOrdemServico(
               equipamento_tipo: ap.equipamento_tipo,
               equipamento_marca: ap.equipamento_marca,
               equipamento_modelo: ap.equipamento_modelo,
+              equipamento_cor: (ap as any).equipamento_cor,
               equipamento_numero_serie: ap.equipamento_numero_serie,
               equipamento_imei: (ap as any).equipamento_imei,
               equipamento_senha: (ap as any).equipamento_senha,
@@ -406,6 +408,7 @@ export async function atualizarOrdemServico(
               equipamento_tipo: ap.equipamento_tipo,
               equipamento_marca: ap.equipamento_marca,
               equipamento_modelo: ap.equipamento_modelo,
+              equipamento_cor: (ap as any).equipamento_cor,
               equipamento_numero_serie: ap.equipamento_numero_serie,
               equipamento_imei: (ap as any).equipamento_imei,
               equipamento_senha: (ap as any).equipamento_senha,
@@ -1139,6 +1142,7 @@ export async function buscarLancamentosCaixaOS(idLoja?: number) {
           equipamento_tipo,
           equipamento_marca,
           equipamento_modelo,
+          equipamento_cor,
           data_entrada,
           data_entrega_cliente
         )

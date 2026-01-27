@@ -57,6 +57,7 @@ export interface OrdemServico {
   equipamento_tipo: string;
   equipamento_marca?: string;
   equipamento_modelo?: string;
+  equipamento_cor?: string;
   equipamento_numero_serie?: string;
   equipamento_senha?: string;
 
@@ -150,6 +151,7 @@ export interface OrdemServicoAparelho {
   equipamento_tipo: string;
   equipamento_marca?: string;
   equipamento_modelo?: string;
+  equipamento_cor?: string;
   equipamento_numero_serie?: string;
   equipamento_imei?: string;
   equipamento_senha?: string;
@@ -325,6 +327,7 @@ export interface OrdemServicoFormData {
   equipamento_tipo: string;
   equipamento_marca?: string;
   equipamento_modelo?: string;
+  equipamento_cor?: string;
   equipamento_numero_serie?: string;
   equipamento_senha?: string;
 
@@ -370,6 +373,7 @@ export interface OrdemServicoAparelhoFormData {
   equipamento_tipo: string;
   equipamento_marca?: string;
   equipamento_modelo?: string;
+  equipamento_cor?: string;
   equipamento_numero_serie?: string;
   equipamento_imei?: string;
   equipamento_senha?: string;
@@ -457,12 +461,12 @@ export const STATUS_OS_COLORS: Record<
 > = {
   aguardando: "warning",
   aprovado: "primary",
-  em_diagnostico: "primary",
-  em_andamento: "secondary",
+  em_diagnostico: "secondary",
+  em_andamento: "warning",
   aguardando_peca: "warning",
   concluido: "success",
   entregue: "success",
-  devolvida: "warning",
+  devolvida: "danger",
   cancelado: "danger",
   garantia: "secondary",
 };

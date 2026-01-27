@@ -500,9 +500,9 @@ export function PagamentosPanel({
             </div>
 
             {saldoDevedor > 0 && (
-              <div className="flex justify-between items-center p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+              <div className="flex justify-between items-center p-3 bg-danger-50 dark:bg-danger-900/20 rounded-lg">
                 <span className="font-semibold">Saldo Devedor:</span>
-                <span className="text-xl font-bold text-warning">
+                <span className="text-xl font-bold text-danger">
                   {formatarMoeda(saldoDevedor)}
                 </span>
               </div>

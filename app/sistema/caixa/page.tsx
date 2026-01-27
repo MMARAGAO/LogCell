@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -28,6 +28,7 @@ import {
   Select,
   SelectItem,
 } from "@heroui/react";
+import { Pagination } from "@heroui/pagination";
 import {
   DollarSign,
   TrendingUp,
@@ -61,6 +62,8 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { toast } from "sonner";
 
+const ITENS_POR_PAGINA_HISTORICO = 10;
+
 interface LojaComCaixa {
   id: number;
   nome: string;
@@ -82,6 +85,7 @@ export default function CaixaPage() {
     useState<string>("todos");
   const [dataInicioHistorico, setDataInicioHistorico] = useState("");
   const [dataFimHistorico, setDataFimHistorico] = useState("");
+  const [paginaHistorico, setPaginaHistorico] = useState(1);
 
   // Modais
   const [modalAbrirAberto, setModalAbrirAberto] = useState(false);
@@ -123,6 +127,27 @@ export default function CaixaPage() {
       carregarHistorico();
     }
   }, [abaAtiva, lojaFiltroHistorico, dataInicioHistorico, dataFimHistorico]);
+
+  const totalPaginasHistorico = useMemo(() => {
+    return Math.max(
+      1,
+      Math.ceil(historicosCaixa.length / ITENS_POR_PAGINA_HISTORICO),
+    );
+  }, [historicosCaixa.length]);
+
+  const historicosPaginados = useMemo(() => {
+    const indiceInicial = (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO;
+    return historicosCaixa.slice(
+      indiceInicial,
+      indiceInicial + ITENS_POR_PAGINA_HISTORICO,
+    );
+  }, [historicosCaixa, paginaHistorico]);
+
+  useEffect(() => {
+    if (paginaHistorico > totalPaginasHistorico) {
+      setPaginaHistorico(totalPaginasHistorico);
+    }
+  }, [paginaHistorico, totalPaginasHistorico]);
 
   const carregarLojas = async () => {
     try {
@@ -188,7 +213,30 @@ export default function CaixaPage() {
       }
 
       const historicos = await CaixaService.listarCaixas(filtros);
-      setHistoricosCaixa(historicos);
+
+      const historicosComSaldoEsperado = await Promise.all(
+        historicos.map(async (caixa) => {
+          try {
+            const resumoHistorico = await CaixaService.buscarResumoCaixa(
+              caixa.id,
+            );
+
+            return {
+              ...caixa,
+              saldo_esperado: resumoHistorico.saldo_esperado,
+            };
+          } catch (error) {
+            console.error(
+              "Erro ao calcular saldo esperado para caixa histórico:",
+              error,
+            );
+            return caixa;
+          }
+        }),
+      );
+
+      setHistoricosCaixa(historicosComSaldoEsperado);
+      setPaginaHistorico(1);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
     } finally {
@@ -240,13 +288,13 @@ export default function CaixaPage() {
   };
 
   const handleFecharCaixa = async () => {
-    if (!usuario || !lojaSelecionada?.caixa || !saldoFinal) return;
+    if (!usuario || !lojaSelecionada?.caixa) return;
 
     setLoading(true);
     try {
       await CaixaService.fecharCaixa({
         caixa_id: lojaSelecionada.caixa.id,
-        saldo_final: parseFloat(saldoFinal),
+        saldo_final: 0,
         observacoes_fechamento: observacoesFechamento,
         usuario_id: usuario.id,
       });
@@ -1686,8 +1734,7 @@ export default function CaixaPage() {
                   <TableColumn>USUÁRIO ABERTURA</TableColumn>
                   <TableColumn>USUÁRIO FECHAMENTO</TableColumn>
                   <TableColumn>SALDO INICIAL</TableColumn>
-                  <TableColumn>SALDO FINAL</TableColumn>
-                  <TableColumn>DIFERENÇA</TableColumn>
+                  <TableColumn>SALDO ESPERADO</TableColumn>
                   <TableColumn>AÇÕES</TableColumn>
                 </TableHeader>
                 <TableBody
@@ -1695,11 +1742,12 @@ export default function CaixaPage() {
                     loading ? "Carregando..." : "Nenhum caixa encontrado"
                   }
                 >
-                  {historicosCaixa.map((caixa) => {
-                    const diferenca = caixa.saldo_final
-                      ? parseFloat(caixa.saldo_final.toString()) -
-                        parseFloat(caixa.saldo_inicial.toString())
-                      : 0;
+                  {historicosPaginados.map((caixa) => {
+                    const saldoEsperado =
+                      caixa.saldo_esperado !== undefined &&
+                      caixa.saldo_esperado !== null
+                        ? Number(caixa.saldo_esperado)
+                        : 0;
 
                     return (
                       <TableRow key={caixa.id}>
@@ -1756,21 +1804,8 @@ export default function CaixaPage() {
                         </TableCell>
                         <TableCell>
                           <span className="text-primary font-semibold">
-                            {caixa.saldo_final
-                              ? formatarMoeda(
-                                  parseFloat(caixa.saldo_final.toString()),
-                                )
-                              : formatarMoeda(0)}
+                            {formatarMoeda(saldoEsperado)}
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            color={diferenca >= 0 ? "success" : "danger"}
-                            variant="flat"
-                            size="sm"
-                          >
-                            {formatarMoeda(diferenca)}
-                          </Chip>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -1787,6 +1822,17 @@ export default function CaixaPage() {
                   })}
                 </TableBody>
               </Table>
+              {historicosCaixa.length > 0 && totalPaginasHistorico > 1 && (
+                <div className="flex justify-center mt-4">
+                  <Pagination
+                    page={paginaHistorico}
+                    total={totalPaginasHistorico}
+                    onChange={setPaginaHistorico}
+                    showControls
+                    color="primary"
+                  />
+                </div>
+              )}
             </CardBody>
           </Card>
         </Tab>
@@ -1881,16 +1927,6 @@ export default function CaixaPage() {
               </div>
             )}
 
-            <Input
-              label="Saldo Final (Dinheiro em espécie)"
-              placeholder="0,00"
-              value={saldoFinal}
-              onChange={(e) => setSaldoFinal(e.target.value)}
-              type="number"
-              step="0.01"
-              startContent={<DollarSign className="w-4 h-4" />}
-              description="Conte o dinheiro no caixa e informe o valor"
-            />
             <Textarea
               label="Observações do Fechamento (opcional)"
               placeholder="Ex: Diferença devido a troco errado..."
@@ -1907,7 +1943,6 @@ export default function CaixaPage() {
               color="danger"
               onPress={handleFecharCaixa}
               isLoading={loading}
-              isDisabled={!saldoFinal}
             >
               Fechar Caixa
             </Button>

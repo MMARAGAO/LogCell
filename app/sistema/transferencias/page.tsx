@@ -620,9 +620,8 @@ function TransferenciaCard({
 
             {/* Informações */}
             <div className="text-sm text-default-500 space-y-1">
-              <div>Criado por: {transferencia.usuario_nome}</div>
               <div>
-                Data:{" "}
+                <span className="font-semibold text-foreground">Saída:</span> {transferencia.usuario_nome} -{" "}
                 {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
                   day: "2-digit",
                   month: "2-digit",
@@ -631,14 +630,9 @@ function TransferenciaCard({
                   minute: "2-digit",
                 })}
               </div>
-              {transferencia.observacao && (
-                <div className="text-xs italic">
-                  Obs: {transferencia.observacao}
-                </div>
-              )}
               {transferencia.confirmado_em && (
-                <div className="text-success">
-                  Confirmado em:{" "}
+                <div>
+                  <span className="font-semibold text-foreground">Confirmação:</span> {transferencia.confirmado_por_nome} -{" "}
                   {new Date(transferencia.confirmado_em).toLocaleString(
                     "pt-BR",
                     {
@@ -649,13 +643,16 @@ function TransferenciaCard({
                       minute: "2-digit",
                     }
                   )}
-                  {transferencia.confirmado_por_nome &&
-                    ` por ${transferencia.confirmado_por_nome}`}
+                </div>
+              )}
+              {!transferencia.confirmado_em && transferencia.status === "pendente" && (
+                <div className="text-yellow-600">
+                  <span className="font-semibold">Aguardando:</span> confirmação de recebimento
                 </div>
               )}
               {transferencia.cancelado_em && (
-                <div className="text-danger">
-                  Cancelado em:{" "}
+                <div>
+                  <span className="font-semibold text-foreground">Cancelamento:</span> {transferencia.cancelado_por_nome} -{" "}
                   {new Date(transferencia.cancelado_em).toLocaleString(
                     "pt-BR",
                     {
@@ -666,8 +663,6 @@ function TransferenciaCard({
                       minute: "2-digit",
                     }
                   )}
-                  {transferencia.cancelado_por_nome &&
-                    ` por ${transferencia.cancelado_por_nome}`}
                   {transferencia.motivo_cancelamento &&
                     ` - ${transferencia.motivo_cancelamento}`}
                 </div>
@@ -823,31 +818,161 @@ function DetalhesTransferenciaModal({
                         : "danger"
                   }
                 >
-                  {transferencia.status}
+                  {transferencia.status === "pendente"
+                    ? "Pendente"
+                    : transferencia.status === "confirmada"
+                      ? "Confirmada"
+                      : "Cancelada"}
                 </Chip>
               </div>
               <div>
-                <span className="text-default-500">Criado por:</span>{" "}
-                {transferencia.usuario_nome}
-              </div>
-              <div>
                 <span className="text-default-500">Origem:</span>{" "}
-                {transferencia.loja_origem}
+                <span className="font-medium">{transferencia.loja_origem}</span>
               </div>
               <div>
                 <span className="text-default-500">Destino:</span>{" "}
-                {transferencia.loja_destino}
+                <span className="font-medium">{transferencia.loja_destino}</span>
               </div>
               <div>
-                <span className="text-default-500">Data:</span>{" "}
-                {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                <span className="text-default-500">Total de Itens:</span>{" "}
+                <span className="font-medium">{transferencia.itens.length}</span>
               </div>
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* Histórico / Timeline */}
+          <div>
+            <h4 className="font-semibold mb-4">Histórico de Movimentação</h4>
+            <div className="space-y-4">
+              {/* Evento 1: Criação / Saída */}
+              <div className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                    <ArrowRightIcon className="w-4 h-4" />
+                  </div>
+                  <div className="w-1 h-12 bg-gray-300 mt-2"></div>
+                </div>
+                <div className="flex-1 pb-4">
+                  <div className="font-semibold text-sm text-blue-600">Saída Autorizada</div>
+                  <div className="text-xs text-default-500 mt-0.5">
+                    {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div className="text-sm mt-2 bg-blue-50 p-3 rounded-lg">
+                    <span className="font-medium text-foreground">{transferencia.usuario_nome}</span> 
+                    <span className="text-default-600"> autorizou a saída de </span>
+                    <span className="font-semibold text-foreground">{transferencia.itens.length} {transferencia.itens.length === 1 ? "item" : "itens"}</span>
+                    <br />
+                    <span className="text-default-600">de </span>
+                    <span className="font-medium text-foreground">{transferencia.loja_origem}</span>
+                    <span className="text-default-600"> para </span>
+                    <span className="font-medium text-foreground">{transferencia.loja_destino}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Evento 2: Recebimento (Pendente ou Confirmado) */}
+              <div className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                    transferencia.status === "confirmada" ? "bg-green-500" : transferencia.status === "cancelada" ? "bg-red-500" : "bg-yellow-500"
+                  }`}>
+                    {transferencia.status === "confirmada" ? (
+                      <CheckCircleIcon className="w-4 h-4" />
+                    ) : transferencia.status === "cancelada" ? (
+                      <XCircleIcon className="w-4 h-4" />
+                    ) : (
+                      <ClockIcon className="w-4 h-4" />
+                    )}
+                  </div>
+                  {transferencia.status === "cancelada" ? (
+                    <div className="w-1 h-0 mt-2"></div>
+                  ) : (
+                    <div className="w-1 h-0 mt-2"></div>
+                  )}
+                </div>
+                <div className="flex-1 pb-4">
+                  <div className={`font-semibold text-sm ${
+                    transferencia.status === "confirmada" ? "text-green-600" : transferencia.status === "cancelada" ? "text-red-600" : "text-yellow-600"
+                  }`}>
+                    {transferencia.status === "confirmada"
+                      ? "Recebimento Confirmado"
+                      : transferencia.status === "pendente"
+                        ? "Aguardando Confirmação"
+                        : "Cancelado"}
+                  </div>
+                  {transferencia.confirmado_em ? (
+                    <>
+                      <div className="text-xs text-default-500 mt-0.5">
+                        {new Date(transferencia.confirmado_em).toLocaleString(
+                          "pt-BR",
+                          {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </div>
+                      <div className="text-sm mt-2 bg-green-50 p-3 rounded-lg">
+                        <span className="font-medium text-foreground">{transferencia.confirmado_por_nome}</span>
+                        <span className="text-default-600"> confirmou o recebimento dos itens em </span>
+                        <span className="font-medium text-foreground">{transferencia.loja_destino}</span>
+                      </div>
+                    </>
+                  ) : transferencia.status === "cancelada" ? (
+                    <div></div>
+                  ) : (
+                    <div className="text-xs text-yellow-700 mt-2 bg-yellow-50 p-3 rounded-lg">
+                      ⏳ <span className="font-medium">Pendente</span> - Aguardando confirmação de recebimento em <span className="font-medium">{transferencia.loja_destino}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Evento 3: Cancelamento (se aplicável) */}
+              {transferencia.status === "cancelada" && transferencia.cancelado_em && (
+                <div className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
+                      <XCircleIcon className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm text-red-600">Transferência Cancelada</div>
+                    <div className="text-xs text-default-500 mt-0.5">
+                      {new Date(transferencia.cancelado_em).toLocaleString(
+                        "pt-BR",
+                        {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }
+                      )}
+                    </div>
+                    <div className="text-sm mt-2 bg-red-50 p-3 rounded-lg">
+                      <span className="font-medium text-foreground">{transferencia.cancelado_por_nome}</span>
+                      <span className="text-default-600"> cancelou a transferência</span>
+                      {transferencia.motivo_cancelamento && (
+                        <>
+                          <br />
+                          <span className="text-xs italic">Motivo: {transferencia.motivo_cancelamento}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

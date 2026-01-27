@@ -9,6 +9,7 @@ export interface Caixa {
   data_fechamento?: string;
   saldo_inicial: number;
   saldo_final?: number;
+  saldo_esperado?: number;
   status: "aberto" | "fechado";
   observacoes_abertura?: string;
   observacoes_fechamento?: string;

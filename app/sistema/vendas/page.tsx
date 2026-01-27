@@ -25,7 +25,6 @@ import {
   Select,
   SelectItem,
 } from "@heroui/react";
-import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
 import {
   ShoppingCart,
   Plus,
@@ -54,6 +53,8 @@ import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
 import { EditarPagamentoVendaModal } from "@/components/vendas/EditarPagamentoVendaModal";
 import { DetalhesVendaModal } from "@/components/vendas/DetalhesVendaModal";
+import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
+import { TrocaDeCliente } from "@/components/vendas/TrocaDeCliente";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
 import { useToast } from "@/components/Toast";
@@ -114,6 +115,15 @@ export default function VendasPage() {
   const [vendaParaTrocarVendedor, setVendaParaTrocarVendedor] =
     useState<VendaCompleta | null>(null);
 
+  // --- Troca de Cliente ---
+  const [clientesAtivos, setClientesAtivos] = useState<Cliente[]>([]);
+  const [loadingClientes, setLoadingClientes] = useState(false);
+  const [novoClienteId, setNovoClienteId] = useState("");
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
+  const [modalTrocarClienteOpen, setModalTrocarClienteOpen] = useState(false);
+  const [vendaParaTrocarCliente, setVendaParaTrocarCliente] =
+    useState<VendaCompleta | null>(null);
+
   useEffect(() => {
     if (modalTrocarVendedorOpen) {
       setLoadingUsuarios(true);
@@ -136,7 +146,7 @@ export default function VendasPage() {
           supabase
             .from("vendas")
             .update({ vendedor_id: novoVendedorId })
-            .eq("id", vendaParaTrocarVendedor.id)
+            .eq("id", vendaParaTrocarVendedor.id),
       );
       if (error) throw error;
       toast.success("Vendedor alterado com sucesso!");
@@ -157,7 +167,43 @@ export default function VendasPage() {
     setModalTrocarVendedorOpen(true);
   };
 
-  // Troca de Vendedor
+  useEffect(() => {
+    if (modalTrocarClienteOpen) {
+      setLoadingClientes(true);
+      buscarTodosClientesAtivos().then((clientesList) => {
+        setClientesAtivos(clientesList);
+        setLoadingClientes(false);
+      });
+      setNovoClienteId("");
+    }
+  }, [modalTrocarClienteOpen]);
+
+  const handleConfirmarTrocaCliente = async () => {
+    if (!vendaParaTrocarCliente || !novoClienteId) return;
+    setSalvandoCliente(true);
+    try {
+      const { data, error } = await supabase
+        .from("vendas")
+        .update({ cliente_id: novoClienteId })
+        .eq("id", vendaParaTrocarCliente.id);
+      if (error) throw error;
+      toast.success("Cliente alterado com sucesso!");
+      setModalTrocarClienteOpen(false);
+      setVendaParaTrocarCliente(null);
+      await carregarVendas();
+    } catch (err: any) {
+      toast.error("Erro ao trocar cliente: " + (err.message || ""));
+    } finally {
+      setSalvandoCliente(false);
+    }
+  };
+
+  const handleAbrirModalTrocarCliente = (venda: VendaCompleta) => {
+    setVendaParaTrocarCliente(venda);
+    setModalTrocarClienteOpen(true);
+  };
+
+  // Troca de Vendedor e Cliente
 
   const { usuario } = useAuth();
   const {
@@ -202,7 +248,7 @@ export default function VendasPage() {
   const [vendaSelecionada, setVendaSelecionada] =
     useState<VendaCompleta | null>(null);
   const [vendaParaEditar, setVendaParaEditar] = useState<VendaCompleta | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
@@ -211,10 +257,10 @@ export default function VendasPage() {
     useState<string>("todas");
   const [filtroCliente, setFiltroCliente] = useState<string>("todos");
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>(
-    new Date().toISOString().split("T")[0] // Data de hoje como padrão
+    new Date().toISOString().split("T")[0], // Data de hoje como padrão
   );
   const [filtroDataFim, setFiltroDataFim] = useState<string>(
-    new Date().toISOString().split("T")[0] // Data de hoje como padrão
+    new Date().toISOString().split("T")[0], // Data de hoje como padrão
   );
   const [filtroVencidas, setFiltroVencidas] = useState<boolean>(false);
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
@@ -264,7 +310,7 @@ export default function VendasPage() {
     // Só carregar quando as permissões já tiverem sido carregadas
     if (!loadingPermissoes) {
       console.log(
-        "✅ [VENDAS] Permissões carregadas, iniciando carregamento de dados"
+        "✅ [VENDAS] Permissões carregadas, iniciando carregamento de dados",
       );
       carregarDados();
     } else {
@@ -344,7 +390,7 @@ export default function VendasPage() {
 
     // Log das lojas das vendas carregadas
     const lojasNasVendas = Array.from(
-      new Set(dados.map((v) => `${v.loja?.nome} (ID: ${v.loja_id})`))
+      new Set(dados.map((v) => `${v.loja?.nome} (ID: ${v.loja_id})`)),
     );
     console.log("🏪 Lojas presentes nas vendas:", lojasNasVendas);
 
@@ -359,7 +405,7 @@ export default function VendasPage() {
     // Total de vendas concluídas
     const vendasConcluidas = vendas.filter((v) => v.status === "concluida");
     const vendasHoje = vendasConcluidas.filter((v) =>
-      v.criado_em?.startsWith(hoje)
+      v.criado_em?.startsWith(hoje),
     );
 
     // Faturamento = soma dos valores PAGOS excluindo crédito do cliente (não valor_total)
@@ -367,12 +413,12 @@ export default function VendasPage() {
       // Filtrar pagamentos que não sejam crédito do cliente
       const pagamentosReais =
         v.pagamentos?.filter(
-          (p: any) => p.tipo_pagamento !== "credito_cliente"
+          (p: any) => p.tipo_pagamento !== "credito_cliente",
         ) || [];
 
       const totalPagamentosReais = pagamentosReais.reduce(
         (s: number, p: any) => s + (p.valor || 0),
-        0
+        0,
       );
 
       return sum + totalPagamentosReais;
@@ -385,12 +431,12 @@ export default function VendasPage() {
         v.pagamentos?.filter(
           (p: any) =>
             p.criado_em?.startsWith(hoje) &&
-            p.tipo_pagamento !== "credito_cliente"
+            p.tipo_pagamento !== "credito_cliente",
         ) || [];
 
       const totalPagamentosHoje = pagamentosHoje.reduce(
         (s: number, p: any) => s + (p.valor || 0),
-        0
+        0,
       );
 
       return sum + totalPagamentosHoje;
@@ -429,7 +475,7 @@ export default function VendasPage() {
       const creditosComSaldo = data || [];
       const totalCreditos = creditosComSaldo.reduce(
         (sum, c) => sum + Number(c.saldo),
-        0
+        0,
       );
 
       setEstatisticas((prev) => ({
@@ -483,7 +529,7 @@ export default function VendasPage() {
             codigo_fabricante,
             preco_venda,
             categoria
-          `
+          `,
           )
           .eq("ativo", true)
           .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -543,7 +589,7 @@ export default function VendasPage() {
           categoria: p.categoria,
           estoque_disponivel: estoque,
         };
-      })
+      }),
     );
 
     return produtosComEstoque;
@@ -601,7 +647,7 @@ export default function VendasPage() {
             valor,
             motivo
           )
-        `
+        `,
         )
         .eq("id", venda.id)
         .single();
@@ -630,7 +676,7 @@ export default function VendasPage() {
         motivo: string;
       } | null;
     },
-    vendaId?: string
+    vendaId?: string,
   ) => {
     console.log("🎯 handleCriarVenda chamado:", {
       vendaId,
@@ -676,7 +722,7 @@ export default function VendasPage() {
                 }
               : null,
           },
-          usuario?.id || ""
+          usuario?.id || "",
         );
 
         if (!resultado.success) {
@@ -727,7 +773,7 @@ export default function VendasPage() {
 
         const resultado = await VendasService.adicionarItem(
           novaVendaId,
-          itemParaAdicionar
+          itemParaAdicionar,
         );
 
         if (!resultado.success) {
@@ -771,7 +817,7 @@ export default function VendasPage() {
     try {
       const resultado = await VendasService.finalizarVenda(
         vendaId,
-        usuario?.id || ""
+        usuario?.id || "",
       );
 
       if (!resultado.success) {
@@ -818,7 +864,7 @@ export default function VendasPage() {
     if (vendaSelecionada) {
       // Atualiza a venda selecionada com dados frescos
       const vendaAtualizada = await VendasService.buscarVendaCompleta(
-        vendaSelecionada.id
+        vendaSelecionada.id,
       );
       if (vendaAtualizada) {
         setVendaSelecionada(vendaAtualizada);
@@ -863,7 +909,7 @@ export default function VendasPage() {
       const resultado = await VendasService.cancelarVenda(
         vendaSelecionada.id,
         usuario?.id || "",
-        motivoCancelamento
+        motivoCancelamento,
       );
 
       if (!resultado.success) {
@@ -903,7 +949,7 @@ export default function VendasPage() {
     try {
       const resultado = await VendasService.excluirVenda(
         vendaSelecionada.id,
-        usuario?.id || ""
+        usuario?.id || "",
       );
 
       if (!resultado.success) {
@@ -937,6 +983,14 @@ export default function VendasPage() {
       label: "Trocar Vendedor",
       icon: <Users className="w-4 h-4" />,
       onClick: () => handleAbrirModalTrocarVendedor(venda),
+    });
+
+    // Trocar Cliente
+    items.push({
+      key: "trocar-cliente",
+      label: "Trocar Cliente",
+      icon: <Users className="w-4 h-4" />,
+      onClick: () => handleAbrirModalTrocarCliente(venda),
     });
 
     // Adicionar Pagamento
@@ -1060,7 +1114,7 @@ export default function VendasPage() {
       // Verificar se a venda tem pagamento do tipo selecionado
       matchFormaPagamento =
         venda.pagamentos?.some(
-          (p) => p.tipo_pagamento === filtroFormaPagamento
+          (p) => p.tipo_pagamento === filtroFormaPagamento,
         ) || false;
     }
 
@@ -1099,7 +1153,7 @@ export default function VendasPage() {
         venda.status === "concluida" &&
           venda.saldo_devedor > 0 &&
           dataVencimento &&
-          dataVencimento < hoje
+          dataVencimento < hoje,
       );
     } else if (filtroVencidas) {
       // Se filtro de vencidas está ativo mas não é fiada, não mostrar
@@ -1228,7 +1282,7 @@ export default function VendasPage() {
       });
       return acc;
     },
-    {} as { [key: string]: number }
+    {} as { [key: string]: number },
   );
 
   // Verificar permissão de visualizar
@@ -1531,7 +1585,7 @@ export default function VendasPage() {
                         ? "danger"
                         : venda.status === "devolvida"
                           ? "warning"
-                          : "primary"
+                          : "warning"
                   }
                   size="sm"
                   variant="flat"
@@ -1617,12 +1671,12 @@ export default function VendasPage() {
                     const qtdDevolvida =
                       venda.itens?.reduce(
                         (total, item) => total + (item.devolvido || 0),
-                        0
+                        0,
                       ) || 0;
                     const qtdTotal =
                       venda.itens?.reduce(
                         (total, item) => total + item.quantidade,
-                        0
+                        0,
                       ) || 0;
 
                     if (qtdDevolvida > 0) {
@@ -1702,6 +1756,8 @@ export default function VendasPage() {
                 <TableColumn>TIPO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>VALOR</TableColumn>
+                <TableColumn>PAGO</TableColumn>
+                <TableColumn>RESTANTE</TableColumn>
                 <TableColumn>DEVOLUÇÕES</TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
@@ -1740,7 +1796,7 @@ export default function VendasPage() {
                               ? "danger"
                               : venda.status === "devolvida"
                                 ? "warning"
-                                : "primary"
+                                : "warning"
                         }
                         size="sm"
                         variant="flat"
@@ -1760,16 +1816,28 @@ export default function VendasPage() {
                       </span>
                     </TableCell>
                     <TableCell>
+                      <span className="font-semibold text-success">
+                        {formatarMoeda(venda.valor_pago)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`font-semibold ${venda.saldo_devedor > 0 ? "text-warning" : "text-gray-400"}`}
+                      >
+                        {formatarMoeda(venda.saldo_devedor)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       {(() => {
                         const qtdDevolvida =
                           venda.itens?.reduce(
                             (total, item) => total + (item.devolvido || 0),
-                            0
+                            0,
                           ) || 0;
                         const qtdTotal =
                           venda.itens?.reduce(
                             (total, item) => total + item.quantidade,
-                            0
+                            0,
                           ) || 0;
 
                         if (qtdDevolvida > 0) {
@@ -1924,7 +1992,7 @@ export default function VendasPage() {
           if (vendaSelecionada) {
             // Atualiza a venda selecionada com dados frescos
             const vendaAtualizada = await VendasService.buscarVendaCompleta(
-              vendaSelecionada.id
+              vendaSelecionada.id,
             );
             if (vendaAtualizada) {
               setVendaSelecionada(vendaAtualizada);
@@ -2019,6 +2087,40 @@ export default function VendasPage() {
         confirmText="Sim, excluir permanentemente"
         confirmColor="danger"
         isLoading={processando}
+      />
+
+      {/* Modal Trocar Cliente */}
+      <TrocaDeCliente
+        isOpen={modalTrocarClienteOpen}
+        onClose={() => {
+          setModalTrocarClienteOpen(false);
+          setVendaParaTrocarCliente(null);
+          setNovoClienteId("");
+        }}
+        clientes={clientesAtivos}
+        loadingClientes={loadingClientes}
+        clienteSelecionado={novoClienteId}
+        clienteAtualId={vendaParaTrocarCliente?.cliente_id || null}
+        onSelecionarCliente={setNovoClienteId}
+        onConfirmar={handleConfirmarTrocaCliente}
+        salvando={salvandoCliente}
+      />
+
+      {/* Modal Trocar Vendedor */}
+      <TrocaDeVendedor
+        isOpen={modalTrocarVendedorOpen}
+        onClose={() => {
+          setModalTrocarVendedorOpen(false);
+          setVendaParaTrocarVendedor(null);
+          setNovoVendedorId("");
+        }}
+        usuarios={usuariosAtivos}
+        loadingUsuarios={loadingUsuarios}
+        vendedorSelecionado={novoVendedorId}
+        vendedorAtualId={vendaParaTrocarVendedor?.vendedor_id || null}
+        onSelecionarVendedor={setNovoVendedorId}
+        onConfirmar={handleConfirmarTrocaVendedor}
+        salvando={salvandoVendedor}
       />
 
       {toast.ToastComponent}

@@ -29,7 +29,7 @@ interface BarcodeScannerProps {
 const logToTerminal = async (
   message: string,
   type: "info" | "error" | "success" = "info",
-  data?: any
+  data?: any,
 ) => {
   try {
     await fetch("/api/log", {
@@ -132,7 +132,7 @@ export function BarcodeScanner({
               const maxHeight = 150;
               const scanHeightPx = Math.max(
                 minHeight,
-                Math.min(maxHeight, scanHeightVh)
+                Math.min(maxHeight, scanHeightVh),
               );
 
               // Calcular em relação ao vídeo real
@@ -146,7 +146,7 @@ export function BarcodeScanner({
                 scanX,
                 scanY,
                 scanWidth,
-                scanHeight
+                scanHeight,
               );
               const scanCanvas = document.createElement("canvas");
               scanCanvas.width = scanWidth;
@@ -161,7 +161,7 @@ export function BarcodeScanner({
                   0,
                   0,
                   scanWidth,
-                  scanHeight
+                  scanHeight,
                 );
                 const data = imgData.data;
                 const contrast = 1.5;
@@ -187,7 +187,7 @@ export function BarcodeScanner({
                         if (scannerRef.current) {
                           const result =
                             await scannerRef.current.decodeFromImageElement(
-                              img
+                              img,
                             );
                           if (result) {
                             const code = result.getText();
@@ -205,7 +205,7 @@ export function BarcodeScanner({
                               await logToTerminal(
                                 "IMEI válido detectado",
                                 "success",
-                                apenasNumeros
+                                apenasNumeros,
                               );
                               onScan(apenasNumeros);
                               setScanning(false);
@@ -219,7 +219,7 @@ export function BarcodeScanner({
                                 "info",
                                 {
                                   encontrado: apenasNumeros.length,
-                                }
+                                },
                               );
                             }
                           }
@@ -229,7 +229,7 @@ export function BarcodeScanner({
                           await logToTerminal(
                             "Erro ao decodificar",
                             "error",
-                            String(err)
+                            String(err),
                           );
                         }
                       }
@@ -343,7 +343,7 @@ export function BarcodeScanner({
                 onUserMediaError={(err) => {
                   logToTerminal("Erro ao acessar câmera", "error", err);
                   setError(
-                    "Não foi possível acessar a câmera. Verifique as permissões."
+                    "Não foi possível acessar a câmera. Verifique as permissões.",
                   );
                 }}
               />

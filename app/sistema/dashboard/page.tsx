@@ -5,6 +5,7 @@ import { DashboardService } from "@/services/dashboardService";
 import type { DadosDashboard } from "@/types/dashboard";
 import { supabase } from "@/lib/supabaseClient";
 import { Select, SelectItem } from "@heroui/react";
+import { useTheme } from "next-themes";
 import {
   FaDollarSign,
   FaShoppingCart,
@@ -21,8 +22,39 @@ import {
   FaCreditCard,
   FaUserTie,
   FaQuestion,
+  FaChartLine,
+  FaTrophy,
+  FaUsers,
+  FaBriefcase,
 } from "react-icons/fa";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend,
+  Filler,
+} from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+import { Line, Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  ChartTooltip,
+  ChartLegend,
+  Filler,
+  ChartDataLabels,
+);
 
 // Formata número em BRL
 const formatarMoeda = (valor: number) =>
@@ -31,7 +63,21 @@ const formatarMoeda = (valor: number) =>
     currency: "BRL",
   }).format(valor || 0);
 
+const CORES_GRAFICOS = [
+  "#3B82F6", // azul
+  "#10B981", // verde
+  "#F59E0B", // amarelo
+  "#EF4444", // vermelho
+  "#8B5CF6", // roxo
+  "#EC4899", // rosa
+  "#14B8A6", // teal
+  "#F97316", // laranja
+  "#06B6D4", // cyan
+  "#6366F1", // índigo
+];
+
 export default function DashboardPage() {
+  const { theme } = useTheme();
   const hojeISO = useMemo(() => new Date().toISOString().split("T")[0], []);
   const [dados, setDados] = useState<DadosDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +90,13 @@ export default function DashboardPage() {
   const [lojaId, setLojaId] = useState<string>("");
   const [lojas, setLojas] = useState<Array<{ id: number; nome: string }>>([]);
 
+  // Dados dos gráficos
+  const [evolucaoVendas, setEvolucaoVendas] = useState<any[]>([]);
+  const [top10Produtos, setTop10Produtos] = useState<any[]>([]);
+  const [top10Clientes, setTop10Clientes] = useState<any[]>([]);
+  const [top10Vendedores, setTop10Vendedores] = useState<any[]>([]);
+  const [loadingGraficos, setLoadingGraficos] = useState(false);
+
   const carregar = async () => {
     try {
       setLoading(true);
@@ -54,11 +107,47 @@ export default function DashboardPage() {
         loja_id: lojaId ? Number(lojaId) : undefined,
       });
       setDados(data);
+
+      // Carregar dados dos gráficos
+      await carregarGraficos();
     } catch (err: any) {
       console.error(err);
       setError("Não foi possível carregar o dashboard.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarGraficos = async () => {
+    try {
+      setLoadingGraficos(true);
+      const filtro = {
+        data_inicio: dataInicio || "2000-01-01",
+        data_fim: dataFim || hojeISO,
+        loja_id: lojaId ? Number(lojaId) : undefined,
+      };
+
+      const [evolucao, produtos, clientes, vendedores] = await Promise.all([
+        DashboardService.buscarEvolucaoVendas(filtro),
+        DashboardService.buscarTop10Produtos(filtro),
+        DashboardService.buscarTop10Clientes(filtro),
+        DashboardService.buscarTop10Vendedores(filtro),
+      ]);
+
+      console.log("📊 Dados dos Gráficos Carregados:");
+      console.log("Evolução de Vendas:", evolucao);
+      console.log("Top 10 Produtos:", produtos);
+      console.log("Top 10 Clientes:", clientes);
+      console.log("Top 10 Vendedores:", vendedores);
+
+      setEvolucaoVendas(evolucao);
+      setTop10Produtos(produtos);
+      setTop10Clientes(clientes);
+      setTop10Vendedores(vendedores);
+    } catch (err) {
+      console.error("Erro ao carregar gráficos:", err);
+    } finally {
+      setLoadingGraficos(false);
     }
   };
 
@@ -202,7 +291,7 @@ export default function DashboardPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">Vendas</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-success/20 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-success dark:text-green-400">
@@ -216,7 +305,7 @@ export default function DashboardPage() {
                         ? "..."
                         : formatarMoeda(
                             dados?.metricas_adicionais
-                              .pagamentos_sem_credito_cliente || 0
+                              .pagamentos_sem_credito_cliente || 0,
                           )}
                     </p>
                   </div>
@@ -230,7 +319,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-primary dark:text-blue-400">
@@ -256,7 +345,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-warning dark:text-amber-400">
@@ -269,7 +358,7 @@ export default function DashboardPage() {
                       {loading
                         ? "..."
                         : formatarMoeda(
-                            dados?.metricas_adicionais.ganho_total_vendas || 0
+                            dados?.metricas_adicionais.ganho_total_vendas || 0,
                           )}
                     </p>
                   </div>
@@ -283,7 +372,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-secondary/20 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-secondary dark:text-purple-400">
@@ -296,7 +385,7 @@ export default function DashboardPage() {
                       {loading
                         ? "..."
                         : formatarMoeda(
-                            dados?.metricas_adicionais.ticket_medio || 0
+                            dados?.metricas_adicionais.ticket_medio || 0,
                           )}
                     </p>
                   </div>
@@ -309,7 +398,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-danger/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-danger dark:text-red-400">
@@ -322,7 +411,7 @@ export default function DashboardPage() {
                       {loading
                         ? "..."
                         : formatarMoeda(
-                            dados?.metricas_adicionais.contas_nao_pagas || 0
+                            dados?.metricas_adicionais.contas_nao_pagas || 0,
                           )}
                     </p>
                   </div>
@@ -343,7 +432,7 @@ export default function DashboardPage() {
               Ordens de Serviço
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-teal-500/20 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-teal-700 dark:text-teal-400">
@@ -357,7 +446,7 @@ export default function DashboardPage() {
                         ? "..."
                         : formatarMoeda(
                             dados?.metricas_adicionais
-                              .faturamento_os_processadas || 0
+                              .faturamento_os_processadas || 0,
                           )}
                     </p>
                   </div>
@@ -369,7 +458,7 @@ export default function DashboardPage() {
                   Valor total faturado em OS processadas.
                 </p>
               </div>
-              <div className="rounded-xl border border-info/20 bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-cyan-950 dark:to-sky-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-sky-200 dark:border-sky-800 bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-cyan-950 dark:to-sky-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-info dark:text-cyan-400">
@@ -395,7 +484,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-warning/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-warning dark:text-amber-400">
@@ -423,7 +512,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-danger/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-danger dark:text-red-400">
@@ -449,7 +538,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-lime-500/20 bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950 dark:to-green-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950 dark:to-green-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-lime-700 dark:text-lime-400">
@@ -462,7 +551,8 @@ export default function DashboardPage() {
                       {loading
                         ? "..."
                         : formatarMoeda(
-                            dados?.metricas_adicionais.ganho_os_processadas || 0
+                            dados?.metricas_adicionais.ganho_os_processadas ||
+                              0,
                           )}
                     </p>
                   </div>
@@ -476,7 +566,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
@@ -510,7 +600,7 @@ export default function DashboardPage() {
               OS por Tipo de Cliente (Pagas)
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-violet-500/20 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-violet-700 dark:text-violet-400">
@@ -539,7 +629,7 @@ export default function DashboardPage() {
                             ? "..."
                             : formatarMoeda(
                                 dados?.metricas_adicionais
-                                  .os_lojista_faturamento || 0
+                                  .os_lojista_faturamento || 0,
                               )}
                         </p>
                       </div>
@@ -549,7 +639,8 @@ export default function DashboardPage() {
                           {loading
                             ? "..."
                             : formatarMoeda(
-                                dados?.metricas_adicionais.os_lojista_lucro || 0
+                                dados?.metricas_adicionais.os_lojista_lucro ||
+                                  0,
                               )}
                         </p>
                       </div>
@@ -561,7 +652,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-orange-500/20 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
@@ -591,7 +682,7 @@ export default function DashboardPage() {
                             ? "..."
                             : formatarMoeda(
                                 dados?.metricas_adicionais
-                                  .os_consumidor_final_faturamento || 0
+                                  .os_consumidor_final_faturamento || 0,
                               )}
                         </p>
                       </div>
@@ -602,7 +693,7 @@ export default function DashboardPage() {
                             ? "..."
                             : formatarMoeda(
                                 dados?.metricas_adicionais
-                                  .os_consumidor_final_lucro || 0
+                                  .os_consumidor_final_lucro || 0,
                               )}
                         </p>
                       </div>
@@ -614,7 +705,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-500/20 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950 dark:to-gray-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950 dark:to-gray-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-400">
@@ -644,7 +735,7 @@ export default function DashboardPage() {
                             ? "..."
                             : formatarMoeda(
                                 dados?.metricas_adicionais
-                                  .os_sem_tipo_faturamento || 0
+                                  .os_sem_tipo_faturamento || 0,
                               )}
                         </p>
                       </div>
@@ -655,7 +746,7 @@ export default function DashboardPage() {
                             ? "..."
                             : formatarMoeda(
                                 dados?.metricas_adicionais.os_sem_tipo_lucro ||
-                                  0
+                                  0,
                               )}
                         </p>
                       </div>
@@ -675,7 +766,7 @@ export default function DashboardPage() {
               Transferências
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-cyan-700 dark:text-cyan-400">
@@ -701,7 +792,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-orange-500/20 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
@@ -736,7 +827,7 @@ export default function DashboardPage() {
               Quebras, Créditos e Devoluções
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-red-500/20 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-red-700 dark:text-red-400">
@@ -750,7 +841,7 @@ export default function DashboardPage() {
                         {loading
                           ? "..."
                           : formatarMoeda(
-                              dados?.metricas_adicionais.total_quebras || 0
+                              dados?.metricas_adicionais.total_quebras || 0,
                             )}
                       </p>
                       <p className="text-sm font-semibold text-red-600">
@@ -769,7 +860,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
@@ -783,7 +874,7 @@ export default function DashboardPage() {
                         ? "..."
                         : formatarMoeda(
                             dados?.metricas_adicionais.total_creditos_cliente ||
-                              0
+                              0,
                           )}
                     </p>
                   </div>
@@ -796,7 +887,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-amber-500/20 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -811,7 +902,7 @@ export default function DashboardPage() {
                           ? "..."
                           : formatarMoeda(
                               dados?.metricas_adicionais
-                                .devolucoes_com_credito_total || 0
+                                .devolucoes_com_credito_total || 0,
                             )}
                       </p>
                       <p className="text-sm font-semibold text-amber-600">
@@ -830,7 +921,7 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-pink-500/20 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950 dark:to-rose-900 p-6 shadow-sm">
+              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950 dark:to-rose-900 p-6 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-pink-700 dark:text-pink-400">
@@ -845,7 +936,7 @@ export default function DashboardPage() {
                           ? "..."
                           : formatarMoeda(
                               dados?.metricas_adicionais
-                                .devolucoes_sem_credito_total || 0
+                                .devolucoes_sem_credito_total || 0,
                             )}
                       </p>
                       <p className="text-sm font-semibold text-pink-600">
@@ -865,6 +956,428 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+
+          {/* SEÇÃO DE GRÁFICOS */}
+          {!loading && (
+            <section className="space-y-8">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded"></div>
+                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Análises Detalhadas
+                </h2>
+              </div>
+
+              {/* Gráfico de Evolução de Vendas e Receita */}
+              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 bg-blue-500/20 rounded-lg">
+                    <FaChartLine className="text-2xl text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Evolução de Vendas e Receita
+                    </h3>
+                    <p className="text-sm text-default-500">
+                      Visualize o crescimento diário das vendas e faturamento
+                    </p>
+                  </div>
+                </div>
+                {loadingGraficos ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-b-blue-500 mx-auto mb-3"></div>
+                      <p className="text-default-500">Carregando gráfico...</p>
+                    </div>
+                  </div>
+                ) : evolucaoVendas.length > 0 ? (
+                  <div className="h-[420px]">
+                    <Line
+                      data={{
+                        labels: evolucaoVendas.map((item) => {
+                          const [ano, mes, dia] = item.data.split("-");
+                          return `${dia}/${mes}`;
+                        }),
+                        datasets: [
+                          {
+                            label: "Vendas",
+                            data: evolucaoVendas.map((item) => item.vendas),
+                            borderColor:
+                              theme === "dark" ? "#60A5FA" : "#3B82F6",
+                            backgroundColor:
+                              theme === "dark"
+                                ? "rgba(96, 165, 250, 0.1)"
+                                : "rgba(59, 130, 246, 0.08)",
+                            borderWidth: 2.5,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor:
+                              theme === "dark" ? "#60A5FA" : "#3B82F6",
+                            pointBorderColor:
+                              theme === "dark" ? "#60A5FA" : "#3B82F6",
+                            pointBorderWidth: 0,
+                            pointHoverBackgroundColor:
+                              theme === "dark" ? "#93C5FD" : "#2563EB",
+                            pointHoverBorderColor:
+                              theme === "dark" ? "#93C5FD" : "#2563EB",
+                            pointHoverBorderWidth: 0,
+                            yAxisID: "y",
+                          },
+                          {
+                            label: "Receita (R$)",
+                            data: evolucaoVendas.map((item) => item.receita),
+                            borderColor:
+                              theme === "dark" ? "#34D399" : "#10B981",
+                            backgroundColor:
+                              theme === "dark"
+                                ? "rgba(52, 211, 153, 0.1)"
+                                : "rgba(16, 185, 129, 0.08)",
+                            borderWidth: 2.5,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor:
+                              theme === "dark" ? "#34D399" : "#10B981",
+                            pointBorderColor:
+                              theme === "dark" ? "#34D399" : "#10B981",
+                            pointBorderWidth: 0,
+                            pointHoverBackgroundColor:
+                              theme === "dark" ? "#6EE7B7" : "#059669",
+                            pointHoverBorderColor:
+                              theme === "dark" ? "#6EE7B7" : "#059669",
+                            pointHoverBorderWidth: 0,
+                            yAxisID: "y1",
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                          mode: "index",
+                          intersect: false,
+                        },
+                        plugins: {
+                          legend: {
+                            display: true,
+                            position: "top",
+                            labels: {
+                              usePointStyle: true,
+                              padding: 20,
+                              font: { size: 15, weight: 600 },
+                              color: theme === "dark" ? "#f3f4f6" : "#1f2937",
+                            },
+                          },
+                          tooltip: {
+                            backgroundColor:
+                              theme === "dark" ? "#0f172a" : "#111827",
+                            titleColor: "#f9fafb",
+                            bodyColor: "#f3f4f6",
+                            borderColor:
+                              theme === "dark" ? "#475569" : "#4b5563",
+                            borderWidth: 1,
+                            padding: 16,
+                            titleFont: { size: 15, weight: "bold" },
+                            bodyFont: { size: 14 },
+                            displayColors: true,
+                            boxWidth: 12,
+                            boxHeight: 12,
+                            callbacks: {
+                              label: (context) => {
+                                const label = context.dataset.label || "";
+                                const value = context.parsed.y;
+                                if (label.includes("Receita")) {
+                                  return `${label}: ${formatarMoeda(value ?? 0)}`;
+                                }
+                                return `${label}: ${value ?? 0}`;
+                              },
+                            },
+                          },
+                        },
+                        scales: {
+                          y: {
+                            type: "linear",
+                            display: true,
+                            position: "left",
+                            grid: {
+                              color: theme === "dark" ? "#334155" : "#d1d5db",
+                              lineWidth: 1,
+                            },
+                            ticks: {
+                              font: { size: 13, weight: 500 },
+                              color: theme === "dark" ? "#cbd5e1" : "#4b5563",
+                              padding: 8,
+                            },
+                            title: {
+                              display: true,
+                              text: "Vendas",
+                              color: theme === "dark" ? "#60A5FA" : "#2563EB",
+                              font: { size: 14, weight: "bold" },
+                              padding: { top: 10, bottom: 10 },
+                            },
+                          },
+                          y1: {
+                            type: "linear",
+                            display: true,
+                            position: "right",
+                            grid: { drawOnChartArea: false },
+                            ticks: {
+                              font: { size: 13, weight: 500 },
+                              color: theme === "dark" ? "#cbd5e1" : "#4b5563",
+                              padding: 8,
+                            },
+                            title: {
+                              display: true,
+                              text: "Receita (R$)",
+                              color: theme === "dark" ? "#34D399" : "#059669",
+                              font: { size: 14, weight: "bold" },
+                              padding: { top: 10, bottom: 10 },
+                            },
+                          },
+                          x: {
+                            grid: { display: false },
+                            ticks: {
+                              font: { size: 13, weight: 500 },
+                              color: theme === "dark" ? "#cbd5e1" : "#4b5563",
+                              padding: 8,
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                    <span className="text-4xl mb-3">📭</span>
+                    <p>Nenhum dado disponível para o período</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Grid de Gráficos */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Top 10 Produtos */}
+                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2.5 bg-amber-500/20 rounded-lg">
+                      <FaTrophy className="text-2xl text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">
+                        Top 10 Produtos
+                      </h3>
+                      <p className="text-sm text-default-500">
+                        Produtos mais vendidos
+                      </p>
+                    </div>
+                  </div>
+                  {loadingGraficos ? (
+                    <div className="h-96 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-200 border-b-amber-500 mx-auto mb-3"></div>
+                        <p className="text-default-500">Carregando...</p>
+                      </div>
+                    </div>
+                  ) : top10Produtos.length > 0 ? (
+                    <div className="space-y-3">
+                      {top10Produtos.map((produto, index) => (
+                        <div
+                          key={produto.produto_id}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-amber-700">
+                              #{index + 1}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <p
+                                className="text-sm font-semibold text-foreground truncate"
+                                title={produto.descricao}
+                              >
+                                {produto.descricao}
+                              </p>
+                              <span className="text-sm font-bold text-amber-600 ml-2">
+                                {produto.quantidade.toLocaleString("pt-BR")} un
+                              </span>
+                            </div>
+                            <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-400 to-orange-500 rounded-lg transition-all duration-500"
+                                style={{
+                                  width: `${Math.min((produto.quantidade / top10Produtos[0].quantidade) * 100, 100)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                      <span className="text-4xl mb-3">📭</span>
+                      <p>Nenhum dado disponível</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Top 5 Clientes */}
+                <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2.5 bg-green-500/20 rounded-lg">
+                      <FaUsers className="text-2xl text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground">
+                        Top 10 Clientes
+                      </h3>
+                      <p className="text-sm text-default-500">
+                        Clientes com maior faturamento
+                      </p>
+                    </div>
+                  </div>
+                  {loadingGraficos ? (
+                    <div className="h-96 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-b-green-500 mx-auto mb-3"></div>
+                        <p className="text-default-500">Carregando...</p>
+                      </div>
+                    </div>
+                  ) : top10Clientes.length > 0 ? (
+                    <div className="space-y-3">
+                      {top10Clientes.map((cliente, index) => (
+                        <div
+                          key={cliente.cliente_id}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-green-700">
+                              #{index + 1}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <p
+                                className="text-sm font-semibold text-foreground truncate"
+                                title={cliente.cliente_nome}
+                              >
+                                {cliente.cliente_nome}
+                              </p>
+                              <div className="flex items-center gap-2 ml-2">
+                                <span className="text-xs font-medium text-green-500">
+                                  {cliente.total_vendas} vendas
+                                </span>
+                                <span className="text-sm font-bold text-green-600">
+                                  {formatarMoeda(cliente.receita_total)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg transition-all duration-500"
+                                style={{
+                                  width: `${Math.min((cliente.receita_total / top10Clientes[0].receita_total) * 100, 100)}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                      <span className="text-4xl mb-3">📭</span>
+                      <p>Nenhum dado disponível</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Top 10 Vendedores */}
+              <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2.5 bg-purple-500/20 rounded-lg">
+                    <FaBriefcase className="text-2xl text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">
+                      Top 10 Vendedores
+                    </h3>
+                    <p className="text-sm text-default-500">
+                      Vendedores com melhor performance
+                    </p>
+                  </div>
+                </div>
+                {loadingGraficos ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-b-purple-500 mx-auto mb-3"></div>
+                      <p className="text-default-500">Carregando...</p>
+                    </div>
+                  </div>
+                ) : top10Vendedores.length > 0 ? (
+                  <div className="space-y-3">
+                    {top10Vendedores.map((vendedor, index) => (
+                      <div
+                        key={vendedor.vendedor_id}
+                        className="flex items-center gap-3"
+                      >
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                            <span className="text-xs font-bold text-purple-700">
+                              #{index + 1}
+                            </span>
+                          </div>
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                            {vendedor.vendedor_nome
+                              .split(" ")
+                              .slice(0, 2)
+                              .map((n: string) => n[0])
+                              .join("")
+                              .toUpperCase()}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p
+                              className="text-sm font-semibold text-foreground truncate"
+                              title={vendedor.vendedor_nome}
+                            >
+                              {vendedor.vendedor_nome}
+                            </p>
+                            <div className="flex items-center gap-2 ml-2">
+                              <span className="text-xs font-medium text-purple-500">
+                                {vendedor.total_vendas} vendas
+                              </span>
+                              <span className="text-sm font-bold text-purple-600">
+                                {formatarMoeda(vendedor.receita_total)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
+                            <div
+                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg transition-all duration-500"
+                              style={{
+                                width: `${Math.min((vendedor.receita_total / top10Vendedores[0].receita_total) * 100, 100)}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                    <span className="text-4xl mb-3">📭</span>
+                    <p>Nenhum dado disponível</p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>

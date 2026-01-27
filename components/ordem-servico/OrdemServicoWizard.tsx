@@ -94,6 +94,7 @@ export default function OrdemServicoWizard({
     equipamento_tipo: "",
     equipamento_marca: "",
     equipamento_modelo: "",
+    equipamento_cor: "",
     equipamento_numero_serie: "",
     equipamento_imei: "",
     equipamento_senha: "",
@@ -262,6 +263,7 @@ export default function OrdemServicoWizard({
           equipamento_tipo: ap.equipamento_tipo || "",
           equipamento_marca: ap.equipamento_marca || "",
           equipamento_modelo: ap.equipamento_modelo || "",
+          equipamento_cor: ap.equipamento_cor || "",
           equipamento_numero_serie: ap.equipamento_numero_serie || "",
           equipamento_imei: ap.equipamento_imei || "",
           equipamento_senha: ap.equipamento_senha || "",
@@ -288,6 +290,7 @@ export default function OrdemServicoWizard({
           equipamento_tipo: ordem.equipamento_tipo,
           equipamento_marca: ordem.equipamento_marca || "",
           equipamento_modelo: ordem.equipamento_modelo || "",
+          equipamento_cor: ordem.equipamento_cor || "",
           equipamento_numero_serie: ordem.equipamento_numero_serie || "",
           equipamento_imei: ordem.equipamento_numero_serie || "",
           equipamento_senha: ordem.equipamento_senha || "",
@@ -376,6 +379,10 @@ export default function OrdemServicoWizard({
             toast.error(`Informe o tipo do aparelho #${idx + 1}`);
             return false;
           }
+          if (!ap.equipamento_cor?.trim()) {
+            toast.error(`Informe a cor do aparelho #${idx + 1}`);
+            return false;
+          }
           if (!ap.defeito_reclamado.trim()) {
             toast.error(`Informe o defeito do aparelho #${idx + 1}`);
             return false;
@@ -440,6 +447,7 @@ export default function OrdemServicoWizard({
         equipamento_tipo: aparelhoPrincipal.equipamento_tipo,
         equipamento_marca: aparelhoPrincipal.equipamento_marca || undefined,
         equipamento_modelo: aparelhoPrincipal.equipamento_modelo || undefined,
+        equipamento_cor: aparelhoPrincipal.equipamento_cor || undefined,
         equipamento_numero_serie:
           aparelhoPrincipal.equipamento_numero_serie ||
           aparelhoPrincipal.equipamento_imei ||
@@ -752,6 +760,18 @@ export default function OrdemServicoWizard({
                               e.target.value,
                             )
                           }
+                        />
+                        <Input
+                          label="Cor do Aparelho"
+                          value={ap.equipamento_cor}
+                          onChange={(e) =>
+                            atualizarAparelhoCampo(
+                              index,
+                              "equipamento_cor",
+                              e.target.value,
+                            )
+                          }
+                          isRequired
                         />
                         <Input
                           label="IMEI ou Nº de Série"
@@ -1085,6 +1105,9 @@ export default function OrdemServicoWizard({
                             )}
                             {ap.equipamento_modelo && (
                               <p>Modelo: {ap.equipamento_modelo}</p>
+                            )}
+                            {ap.equipamento_cor && (
+                              <p>Cor: {ap.equipamento_cor}</p>
                             )}
                             <p className="text-default-600">
                               Problema: {ap.defeito_reclamado}
