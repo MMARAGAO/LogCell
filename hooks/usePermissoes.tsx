@@ -54,7 +54,7 @@ export function usePermissoes() {
       if (typeof acoes === "object" && acoes !== null) {
         // Iterar sobre cada ação (criar, editar, etc)
         for (const [acao, valor] of Object.entries(
-          acoes as Record<string, boolean>
+          acoes as Record<string, boolean>,
         )) {
           if (valor === true) {
             permissoes.push(`${modulo}.${acao}` as Permissao);
@@ -80,7 +80,7 @@ export function usePermissoes() {
         console.log(
           "🔄 [PERMISSÕES] Recarregando do banco (versão:",
           versaoPermissoes,
-          ")"
+          ")",
         );
 
         // Tentar buscar permissões do banco
@@ -104,28 +104,32 @@ export function usePermissoes() {
           setPermissoesCustomizadas(null);
           setLojaId(null);
           setTodasLojas(false);
-        } else if (data?.permissoes) {
-          // Permissões customizadas encontradas
-          const novaLojaId = data.loja_id || null;
-          const novasTodasLojas = data.todas_lojas || false;
+        } else if (data) {
+          // Registro de permissões encontrado (pode ter ou não permissões customizadas)
+          const novaLojaId = data.loja_id !== null ? data.loja_id : null;
+          const novasTodasLojas = data.todas_lojas === true;
 
           console.log("✅ [PERMISSÕES] Carregadas do banco:", {
             loja_id: novaLojaId,
             todas_lojas: novasTodasLojas,
             usuario_id: usuario.id,
+            has_custom_permissions: !!data.permissoes,
             timestamp: new Date().toLocaleTimeString(),
           });
 
-          // Converter objeto JSONB para array de permissões
-          const permissoesArray = converterObjetoParaArray(data.permissoes);
-          setPermissoesCustomizadas(permissoesArray);
+          // Converter objeto JSONB para array de permissões (se existir)
+          const permissoesArray = data.permissoes
+            ? converterObjetoParaArray(data.permissoes)
+            : PERMISSOES_POR_PERFIL[perfil] || [];
+
+          setPermissoesCustomizadas(data.permissoes ? permissoesArray : null);
           setLojaId(novaLojaId);
           setTodasLojas(novasTodasLojas);
         } else {
-          // Nenhuma permissão customizada, usar padrão
+          // Nenhum registro de permissões encontrado
           console.log(
-            "ℹ️ Nenhuma permissão customizada, usando padrão do perfil:",
-            perfil
+            "ℹ️ Nenhum registro de permissões no banco, usando padrão do perfil:",
+            perfil,
           );
           setPermissoesCustomizadas(null);
           setLojaId(null);
@@ -199,7 +203,7 @@ export function usePermissoes() {
     "| Perfil:",
     perfil,
     "| isAdmin:",
-    isAdmin
+    isAdmin,
   );
 
   // Verificar se é gerente ou admin
@@ -230,7 +234,7 @@ export function usePermissoes() {
 
   // Validar se um desconto está dentro do limite permitido
   const validarDesconto = async (
-    percentualDesconto: number
+    percentualDesconto: number,
   ): Promise<boolean> => {
     const descontoMaximo = await getDescontoMaximo();
     return percentualDesconto <= descontoMaximo;

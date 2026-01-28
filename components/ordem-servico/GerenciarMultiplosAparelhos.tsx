@@ -110,6 +110,16 @@ export default function GerenciarMultiplosAparelhos({
     }
   }, [isOpen]);
 
+  // Limpar campos sensíveis quando fechar o modal
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData((prev) => ({
+        ...prev,
+        equipamento_senha: "",
+      }));
+    }
+  }, [isOpen]);
+
   const carregarAparelhos = async () => {
     setLoading(true);
     try {
@@ -164,7 +174,32 @@ export default function GerenciarMultiplosAparelhos({
   const handleEditarAparelho = (aparelho: OrdemServicoAparelho) => {
     setAparelhoEmEdicao(aparelho);
     setFormData({
-      ...aparelho,
+      id_ordem_servico: aparelho.id_ordem_servico,
+      id_loja: aparelho.id_loja,
+      sequencia: aparelho.sequencia,
+      equipamento_tipo: aparelho.equipamento_tipo || "",
+      equipamento_marca: aparelho.equipamento_marca || "",
+      equipamento_modelo: aparelho.equipamento_modelo || "",
+      equipamento_numero_serie: aparelho.equipamento_numero_serie || "",
+      equipamento_imei: aparelho.equipamento_imei || "",
+      equipamento_senha: "", // Sempre vazio - o usuário digita se quiser alterar
+      defeito_reclamado: aparelho.defeito_reclamado || "",
+      estado_equipamento: aparelho.estado_equipamento || "",
+      acessorios_entregues: aparelho.acessorios_entregues || "",
+      diagnostico: aparelho.diagnostico || "",
+      valor_orcamento: aparelho.valor_orcamento || 0,
+      valor_desconto: aparelho.valor_desconto || 0,
+      valor_total: aparelho.valor_total || 0,
+      valor_pago: aparelho.valor_pago || 0,
+      servico_realizado: aparelho.servico_realizado || "",
+      laudo_diagnostico: aparelho.laudo_diagnostico || "",
+      laudo_causa: aparelho.laudo_causa || "",
+      laudo_procedimentos: aparelho.laudo_procedimentos || "",
+      laudo_recomendacoes: aparelho.laudo_recomendacoes || "",
+      laudo_garantia_dias: aparelho.laudo_garantia_dias || 90,
+      laudo_condicao_final: aparelho.laudo_condicao_final || "",
+      observacoes_tecnicas: aparelho.observacoes_tecnicas || "",
+      status: aparelho.status || "ativo",
       isEditing: true,
     });
     setMostraNovo(true);
@@ -180,11 +215,18 @@ export default function GerenciarMultiplosAparelhos({
       setLoading(true);
 
       if (aparelhoEmEdicao) {
-        // Editar existente
+        // Editar existente - não sobrescrever senha se estiver vazia
+        const dadosAtualizacao = { ...formData };
+        if (!dadosAtualizacao.equipamento_senha) {
+          // Se a senha está vazia, manter a anterior
+          dadosAtualizacao.equipamento_senha =
+            aparelhoEmEdicao.equipamento_senha || "";
+        }
+
         const { error } = await atualizarAparelho(
           aparelhoEmEdicao.id,
-          formData,
-          usuario?.id || "sistema"
+          dadosAtualizacao,
+          usuario?.id || "sistema",
         );
 
         if (error) throw error;
@@ -194,7 +236,7 @@ export default function GerenciarMultiplosAparelhos({
         const { error } = await adicionarAparelho(
           idOrdemServico,
           formData,
-          usuario?.id || "sistema"
+          usuario?.id || "sistema",
         );
 
         if (error) throw error;
@@ -221,7 +263,7 @@ export default function GerenciarMultiplosAparelhos({
       setLoading(true);
       const { error } = await removerAparelho(
         idAparelho,
-        usuario?.id || "sistema"
+        usuario?.id || "sistema",
       );
 
       if (error) throw error;
@@ -297,9 +339,9 @@ export default function GerenciarMultiplosAparelhos({
                   </CardBody>
                 </Card>
               ) : (
-                aparelhos.map((aparelho, idx) => {
+                [...aparelhos].reverse().map((aparelho, idx) => {
                   const totaisPor = totais?.porAparelho.find(
-                    (p: any) => p.sequencia === aparelho.sequencia
+                    (p: any) => p.sequencia === aparelho.sequencia,
                   );
 
                   return (
@@ -405,143 +447,186 @@ export default function GerenciarMultiplosAparelhos({
                   </h4>
                 </CardHeader>
                 <CardBody className="space-y-4">
-                  {/* Informações do Equipamento */}
-                  <div>
-                    <p className="text-sm font-semibold mb-2">Equipamento</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Input
-                        label="Tipo *"
-                        placeholder="Selecione..."
-                        value={formData.equipamento_tipo}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            equipamento_tipo: e.target.value,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Marca"
-                        value={formData.equipamento_marca || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            equipamento_marca: e.target.value,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Modelo"
-                        value={formData.equipamento_modelo || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            equipamento_modelo: e.target.value,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Série / IMEI"
-                        value={formData.equipamento_numero_serie || ""}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            equipamento_numero_serie: e.target.value,
-                          })
-                        }
-                      />
+                  <form autoComplete="off" style={{ display: "contents" }}>
+                    {/* Informações do Equipamento */}
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Equipamento</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Input
+                          key={`tipo-${aparelhoEmEdicao?.id}`}
+                          label="Tipo *"
+                          placeholder="Selecione..."
+                          value={formData.equipamento_tipo}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              equipamento_tipo: e.target.value,
+                            })
+                          }
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                        <Input
+                          key={`marca-${aparelhoEmEdicao?.id}`}
+                          label="Marca"
+                          value={formData.equipamento_marca || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              equipamento_marca: e.target.value,
+                            })
+                          }
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                        <Input
+                          key={`modelo-${aparelhoEmEdicao?.id}`}
+                          label="Modelo"
+                          value={formData.equipamento_modelo || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              equipamento_modelo: e.target.value,
+                            })
+                          }
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                        <Input
+                          key={`serie-${aparelhoEmEdicao?.id}`}
+                          label="Série / IMEI"
+                          value={formData.equipamento_numero_serie || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              equipamento_numero_serie: e.target.value,
+                            })
+                          }
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                        <Input
+                          key={`senha-${aparelhoEmEdicao?.id}-${Date.now()}`}
+                          label="Senha/PIN (opcional)"
+                          type="password"
+                          value={formData.equipamento_senha || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              equipamento_senha: e.target.value,
+                            })
+                          }
+                          autoComplete="new-password"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Problema */}
-                  <Textarea
-                    label="Problema Relatado *"
-                    placeholder="Descreva o problema"
-                    value={formData.defeito_reclamado}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        defeito_reclamado: e.target.value,
-                      })
-                    }
-                    minRows={2}
-                  />
+                    {/* Problema */}
+                    <Textarea
+                      key={`defeito-${aparelhoEmEdicao?.id}`}
+                      label="Problema Relatado *"
+                      placeholder="Descreva o problema"
+                      value={formData.defeito_reclamado}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          defeito_reclamado: e.target.value,
+                        })
+                      }
+                      minRows={2}
+                      autoComplete="off"
+                      data-lpignore="true"
+                    />
 
-                  {/* Valores */}
-                  <div>
-                    <p className="text-sm font-semibold mb-2">Valores</p>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                      <Input
-                        label="Orçamento"
-                        type="number"
-                        step="0.01"
-                        startContent={<DollarSign className="w-4 h-4" />}
-                        value={(formData.valor_orcamento || 0).toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            valor_orcamento: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Desconto"
-                        type="number"
-                        step="0.01"
-                        startContent={<DollarSign className="w-4 h-4" />}
-                        value={(formData.valor_desconto || 0).toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            valor_desconto: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Total"
-                        type="number"
-                        step="0.01"
-                        startContent={<DollarSign className="w-4 h-4" />}
-                        value={(formData.valor_total || 0).toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            valor_total: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                      <Input
-                        label="Pago"
-                        type="number"
-                        step="0.01"
-                        startContent={<DollarSign className="w-4 h-4" />}
-                        value={(formData.valor_pago || 0).toString()}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            valor_pago: parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
+                    {/* Valores */}
+                    <div>
+                      <p className="text-sm font-semibold mb-2">Valores</p>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <Input
+                          key={`orcamento-${aparelhoEmEdicao?.id}`}
+                          label="Orçamento"
+                          type="number"
+                          step="0.01"
+                          startContent={<DollarSign className="w-4 h-4" />}
+                          value={(formData.valor_orcamento || 0).toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              valor_orcamento: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          autoComplete="off"
+                        />
+                        <Input
+                          key={`desconto-${aparelhoEmEdicao?.id}`}
+                          label="Desconto"
+                          type="number"
+                          step="0.01"
+                          startContent={<DollarSign className="w-4 h-4" />}
+                          value={(formData.valor_desconto || 0).toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              valor_desconto: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          autoComplete="off"
+                        />
+                        <Input
+                          key={`total-${aparelhoEmEdicao?.id}`}
+                          label="Total"
+                          type="number"
+                          step="0.01"
+                          startContent={<DollarSign className="w-4 h-4" />}
+                          value={(formData.valor_total || 0).toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              valor_total: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          autoComplete="off"
+                        />
+                        <Input
+                          key={`pago-${aparelhoEmEdicao?.id}`}
+                          label="Pago"
+                          type="number"
+                          step="0.01"
+                          startContent={<DollarSign className="w-4 h-4" />}
+                          value={(formData.valor_pago || 0).toString()}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              valor_pago: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Botões do Formulário */}
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="light"
-                      onPress={() => setMostraNovo(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      color="primary"
-                      onPress={handleSalvarAparelho}
-                      isLoading={loading}
-                    >
-                      {aparelhoEmEdicao ? "Atualizar" : "Adicionar"}
-                    </Button>
-                  </div>
+                    {/* Botões do Formulário */}
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="light"
+                        onPress={() => setMostraNovo(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        color="primary"
+                        onPress={handleSalvarAparelho}
+                        isLoading={loading}
+                      >
+                        {aparelhoEmEdicao ? "Atualizar" : "Adicionar"}
+                      </Button>
+                    </div>
+                  </form>
                 </CardBody>
               </Card>
             )}
