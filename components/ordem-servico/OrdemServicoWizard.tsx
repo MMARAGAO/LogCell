@@ -699,7 +699,7 @@ export default function OrdemServicoWizard({
               </div>
 
               <div className="space-y-4">
-                {aparelhos.map((ap, index) => (
+                {[...aparelhos].reverse().map((ap, index) => (
                   <Card key={index} className="border border-default-200">
                     <CardBody className="space-y-4">
                       <div className="flex items-center justify-between">

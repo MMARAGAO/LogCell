@@ -280,6 +280,19 @@ export default function VendasPage() {
     }
   }, [buscaParam]);
 
+  // Auto-selecionar filtro de loja baseado nas permissões
+  useEffect(() => {
+    if (!loadingPermissoes) {
+      if (podeVerTodasLojas) {
+        // Usuário pode ver todas as lojas - deixar "todas"
+        setFiltroLoja("todas");
+      } else if (lojaId !== null) {
+        // Usuário tem acesso a uma loja específica - auto-selecionar
+        setFiltroLoja(lojaId.toString());
+      }
+    }
+  }, [loadingPermissoes, podeVerTodasLojas, lojaId]);
+
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
       style: "currency",
@@ -369,6 +382,7 @@ export default function VendasPage() {
   const carregarVendas = async () => {
     console.log("📥 Carregando vendas do banco...");
     console.log("🔍 [VENDAS] Debug filtros:", {
+      usuario_id: usuario?.id,
       lojaId,
       podeVerTodasLojas,
       "lojaId !== null": lojaId !== null,
@@ -377,11 +391,27 @@ export default function VendasPage() {
 
     // Aplicar filtro de loja se usuário não tiver acesso a todas
     const filtros: any = {};
-    if (lojaId !== null && !podeVerTodasLojas) {
+
+    // IMPORTANTE: Se o usuário não é admin e não tem permissão para ver todas as lojas,
+    // DEVE ter um lojaId definido. Se não tiver, significa que as permissões não foram configuradas
+    // corretamente e deve-se aplicar uma restrição de segurança.
+    if (!podeVerTodasLojas && lojaId !== null) {
       filtros.loja_id = lojaId;
       console.log(`🏪 Filtrando vendas da loja ${lojaId}`);
+    } else if (!podeVerTodasLojas && lojaId === null) {
+      // ⚠️ SEGURANÇA: Usuário não tem permissão para ver tudo E não tem loja definida
+      // Isso é uma situação de erro de configuração - não deve carregar nada
+      console.warn(
+        "⚠️ ERRO DE SEGURANÇA: Usuário sem loja definida e sem permissão para ver tudo!",
+      );
+      console.warn("🔒 Bloqueando acesso às vendas como medida de segurança");
+      setVendas([]);
+      calcularEstatisticas([]);
+      return;
     } else {
-      console.log("⚠️ NENHUM FILTRO DE LOJA APLICADO!");
+      console.log(
+        "✅ Sem filtro de loja (usuário tem acesso a todas as lojas)",
+      );
     }
 
     console.log("📤 Filtros que serão enviados:", filtros);
@@ -1093,6 +1123,17 @@ export default function VendasPage() {
   };
 
   const vendasFiltradas = vendas.filter((venda) => {
+    // ========== SEGURANÇA: FILTRO DE LOJA ==========
+    // IMPORTANTE: Se o usuário não tem permissão para ver todas as lojas
+    // E tem uma loja específica configurada, DEVE aplicar o filtro mesmo se
+    // o usuário tentar burlar a interface.
+    if (!podeVerTodasLojas && lojaId !== null) {
+      // Usuário tem acesso restrito a uma loja específica
+      if (venda.loja_id !== lojaId) {
+        return false;
+      }
+    }
+
     // Filtro de permissão: se não tem ver_todas_vendas, só mostra suas próprias vendas
     if (
       !temPermissao("vendas.ver_todas_vendas") &&
@@ -1390,16 +1431,26 @@ export default function VendasPage() {
                     onChange={(e) => setFiltroLoja(e.target.value)}
                     className="w-full md:w-48"
                   >
-                    {
-                      [
-                        <SelectItem key="todas">Todas as Lojas</SelectItem>,
-                        ...lojas.map((loja) => (
-                          <SelectItem key={loja.id.toString()}>
-                            {loja.nome}
-                          </SelectItem>
-                        )),
-                      ] as any
-                    }
+                    {podeVerTodasLojas
+                      ? // Usuário pode ver todas as lojas
+                        ([
+                          <SelectItem key="todas">Todas as Lojas</SelectItem>,
+                          ...lojas.map((loja) => (
+                            <SelectItem key={loja.id.toString()}>
+                              {loja.nome}
+                            </SelectItem>
+                          )),
+                        ] as any)
+                      : // Usuário tem acesso a uma loja específica - mostrar apenas essa
+                        ([
+                          lojas
+                            .filter((l) => l.id === lojaId)
+                            .map((loja) => (
+                              <SelectItem key={loja.id.toString()}>
+                                {loja.nome}
+                              </SelectItem>
+                            )),
+                        ] as any)}
                   </Select>
 
                   {/* Botões de visualização */}

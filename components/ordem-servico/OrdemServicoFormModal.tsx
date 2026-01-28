@@ -1132,7 +1132,7 @@ export default function OrdemServicoFormModal({
                     </div>
                   )}
 
-                  {aparelhos.map((ap, idx) => (
+                  {[...aparelhos].reverse().map((ap, idx) => (
                     <Card key={idx} className="border border-default-200">
                       <CardBody className="space-y-3">
                         <div className="flex items-center justify-between">
