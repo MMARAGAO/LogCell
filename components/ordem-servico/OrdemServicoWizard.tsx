@@ -699,245 +699,250 @@ export default function OrdemServicoWizard({
               </div>
 
               <div className="space-y-4">
-                {[...aparelhos].reverse().map((ap, index) => (
-                  <Card key={index} className="border border-default-200">
-                    <CardBody className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Chip color="primary" variant="flat" size="sm">
-                            Aparelho #{index + 1}
-                          </Chip>
-                          {ap.sequencia && (
-                            <Chip size="sm" variant="flat">
-                              Sequência {ap.sequencia}
+                {[...aparelhos].reverse().map((ap, reversedIndex) => {
+                  const index = aparelhos.length - 1 - reversedIndex;
+                  return (
+                    <Card key={index} className="border border-default-200">
+                      <CardBody className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Chip color="primary" variant="flat" size="sm">
+                              Aparelho #{index + 1}
                             </Chip>
-                          )}
+                            {ap.sequencia && (
+                              <Chip size="sm" variant="flat">
+                                Sequência {ap.sequencia}
+                              </Chip>
+                            )}
+                          </div>
+                          <Button
+                            isIconOnly
+                            variant="light"
+                            color="danger"
+                            size="sm"
+                            onPress={() => removerAparelho(index)}
+                            isDisabled={aparelhos.length === 1}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          color="danger"
-                          size="sm"
-                          onPress={() => removerAparelho(index)}
-                          isDisabled={aparelhos.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                          label="Tipo do Aparelho *"
-                          placeholder="Ex: Smartphone, Notebook"
-                          value={ap.equipamento_tipo}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Input
+                            label="Tipo do Aparelho *"
+                            placeholder="Ex: Smartphone, Notebook"
+                            value={ap.equipamento_tipo}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_tipo",
+                                e.target.value,
+                              )
+                            }
+                            isRequired
+                          />
+                          <Input
+                            label="Marca"
+                            value={ap.equipamento_marca}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_marca",
+                                e.target.value,
+                              )
+                            }
+                          />
+                          <Input
+                            label="Modelo"
+                            value={ap.equipamento_modelo}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_modelo",
+                                e.target.value,
+                              )
+                            }
+                          />
+                          <Input
+                            label="Cor do Aparelho"
+                            value={ap.equipamento_cor}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_cor",
+                                e.target.value,
+                              )
+                            }
+                            isRequired
+                          />
+                          <Input
+                            label="IMEI ou Nº de Série"
+                            value={
+                              ap.equipamento_imei || ap.equipamento_numero_serie
+                            }
+                            onChange={(e) => {
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_imei",
+                                e.target.value,
+                              );
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_numero_serie",
+                                e.target.value,
+                              );
+                            }}
+                          />
+                          <Input
+                            label="Senha/PIN (opcional)"
+                            type="password"
+                            value={ap.equipamento_senha}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "equipamento_senha",
+                                e.target.value,
+                              )
+                            }
+                          />
+                          <Input
+                            label="Acessórios Entregues"
+                            value={ap.acessorios_entregues}
+                            onChange={(e) =>
+                              atualizarAparelhoCampo(
+                                index,
+                                "acessorios_entregues",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <Textarea
+                          label="Defeito Reclamado *"
+                          placeholder="Descreva o problema relatado pelo cliente"
+                          value={ap.defeito_reclamado}
                           onChange={(e) =>
                             atualizarAparelhoCampo(
                               index,
-                              "equipamento_tipo",
+                              "defeito_reclamado",
                               e.target.value,
                             )
                           }
+                          minRows={3}
                           isRequired
                         />
-                        <Input
-                          label="Marca"
-                          value={ap.equipamento_marca}
+
+                        <Textarea
+                          label="Estado do Equipamento"
+                          placeholder="Ex: Tela trincada, riscos na lateral, etc"
+                          value={ap.estado_equipamento}
                           onChange={(e) =>
                             atualizarAparelhoCampo(
                               index,
-                              "equipamento_marca",
+                              "estado_equipamento",
                               e.target.value,
                             )
                           }
+                          minRows={2}
                         />
-                        <Input
-                          label="Modelo"
-                          value={ap.equipamento_modelo}
-                          onChange={(e) =>
-                            atualizarAparelhoCampo(
-                              index,
-                              "equipamento_modelo",
-                              e.target.value,
-                            )
-                          }
-                        />
-                        <Input
-                          label="Cor do Aparelho"
-                          value={ap.equipamento_cor}
-                          onChange={(e) =>
-                            atualizarAparelhoCampo(
-                              index,
-                              "equipamento_cor",
-                              e.target.value,
-                            )
-                          }
-                          isRequired
-                        />
-                        <Input
-                          label="IMEI ou Nº de Série"
-                          value={
-                            ap.equipamento_imei || ap.equipamento_numero_serie
-                          }
-                          onChange={(e) => {
-                            atualizarAparelhoCampo(
-                              index,
-                              "equipamento_imei",
-                              e.target.value,
-                            );
-                            atualizarAparelhoCampo(
-                              index,
-                              "equipamento_numero_serie",
-                              e.target.value,
-                            );
-                          }}
-                        />
-                        <Input
-                          label="Senha/PIN (opcional)"
-                          type="password"
-                          value={ap.equipamento_senha}
-                          onChange={(e) =>
-                            atualizarAparelhoCampo(
-                              index,
-                              "equipamento_senha",
-                              e.target.value,
-                            )
-                          }
-                        />
-                        <Input
-                          label="Acessórios Entregues"
-                          value={ap.acessorios_entregues}
-                          onChange={(e) =>
-                            atualizarAparelhoCampo(
-                              index,
-                              "acessorios_entregues",
-                              e.target.value,
-                            )
-                          }
-                        />
-                      </div>
 
-                      <Textarea
-                        label="Defeito Reclamado *"
-                        placeholder="Descreva o problema relatado pelo cliente"
-                        value={ap.defeito_reclamado}
-                        onChange={(e) =>
-                          atualizarAparelhoCampo(
-                            index,
-                            "defeito_reclamado",
-                            e.target.value,
-                          )
-                        }
-                        minRows={3}
-                        isRequired
-                      />
+                        <Divider />
 
-                      <Textarea
-                        label="Estado do Equipamento"
-                        placeholder="Ex: Tela trincada, riscos na lateral, etc"
-                        value={ap.estado_equipamento}
-                        onChange={(e) =>
-                          atualizarAparelhoCampo(
-                            index,
-                            "estado_equipamento",
-                            e.target.value,
-                          )
-                        }
-                        minRows={2}
-                      />
-
-                      <Divider />
-
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-semibold flex items-center gap-2">
-                          <Wrench className="w-4 h-4" />
-                          Serviços do aparelho
-                        </h4>
-                        <Button
-                          size="sm"
-                          variant="flat"
-                          color="primary"
-                          startContent={<Plus className="w-4 h-4" />}
-                          onPress={() => adicionarServicoAparelho(index)}
-                        >
-                          Adicionar serviço
-                        </Button>
-                      </div>
-
-                      {ap.servicos && ap.servicos.length > 0 ? (
-                        <div className="space-y-3">
-                          {ap.servicos.map((svc, svcIdx) => (
-                            <div
-                              key={svcIdx}
-                              className="grid grid-cols-1 md:grid-cols-8 gap-2 md:items-center"
-                            >
-                              <div className="md:col-span-5">
-                                <Input
-                                  label={`Serviço ${svcIdx + 1}`}
-                                  value={svc.descricao}
-                                  onChange={(e) =>
-                                    atualizarServicoAparelho(
-                                      index,
-                                      svcIdx,
-                                      "descricao",
-                                      e.target.value,
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div className="md:col-span-2">
-                                <Input
-                                  label="Valor"
-                                  type="number"
-                                  startContent={
-                                    <span className="text-default-400">R$</span>
-                                  }
-                                  value={
-                                    svc.valor !== undefined
-                                      ? svc.valor.toString()
-                                      : ""
-                                  }
-                                  onChange={(e) =>
-                                    atualizarServicoAparelho(
-                                      index,
-                                      svcIdx,
-                                      "valor",
-                                      e.target.value,
-                                    )
-                                  }
-                                />
-                              </div>
-                              <div className="flex justify-end">
-                                <Button
-                                  isIconOnly
-                                  variant="light"
-                                  color="danger"
-                                  onPress={() =>
-                                    removerServicoAparelho(index, svcIdx)
-                                  }
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold flex items-center gap-2">
+                            <Wrench className="w-4 h-4" />
+                            Serviços do aparelho
+                          </h4>
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            color="primary"
+                            startContent={<Plus className="w-4 h-4" />}
+                            onPress={() => adicionarServicoAparelho(index)}
+                          >
+                            Adicionar serviço
+                          </Button>
                         </div>
-                      ) : (
-                        <p className="text-sm text-default-500">
-                          Nenhum serviço adicionado para este aparelho.
-                        </p>
-                      )}
 
-                      <div className="flex justify-between items-center bg-default-50 p-3 rounded-lg">
-                        <span className="text-sm font-semibold">
-                          Total do aparelho
-                        </span>
-                        <span className="text-lg font-bold text-primary">
-                          R$ {calcularTotalAparelho(ap).toFixed(2)}
-                        </span>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ))}
+                        {ap.servicos && ap.servicos.length > 0 ? (
+                          <div className="space-y-3">
+                            {ap.servicos.map((svc, svcIdx) => (
+                              <div
+                                key={svcIdx}
+                                className="grid grid-cols-1 md:grid-cols-8 gap-2 md:items-center"
+                              >
+                                <div className="md:col-span-5">
+                                  <Input
+                                    label={`Serviço ${svcIdx + 1}`}
+                                    value={svc.descricao}
+                                    onChange={(e) =>
+                                      atualizarServicoAparelho(
+                                        index,
+                                        svcIdx,
+                                        "descricao",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="md:col-span-2">
+                                  <Input
+                                    label="Valor"
+                                    type="number"
+                                    startContent={
+                                      <span className="text-default-400">
+                                        R$
+                                      </span>
+                                    }
+                                    value={
+                                      svc.valor !== undefined
+                                        ? svc.valor.toString()
+                                        : ""
+                                    }
+                                    onChange={(e) =>
+                                      atualizarServicoAparelho(
+                                        index,
+                                        svcIdx,
+                                        "valor",
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                </div>
+                                <div className="flex justify-end">
+                                  <Button
+                                    isIconOnly
+                                    variant="light"
+                                    color="danger"
+                                    onPress={() =>
+                                      removerServicoAparelho(index, svcIdx)
+                                    }
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-default-500">
+                            Nenhum serviço adicionado para este aparelho.
+                          </p>
+                        )}
+
+                        <div className="flex justify-between items-center bg-default-50 p-3 rounded-lg">
+                          <span className="text-sm font-semibold">
+                            Total do aparelho
+                          </span>
+                          <span className="text-lg font-bold text-primary">
+                            R$ {calcularTotalAparelho(ap).toFixed(2)}
+                          </span>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           )}

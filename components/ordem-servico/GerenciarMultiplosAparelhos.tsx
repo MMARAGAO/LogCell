@@ -453,7 +453,6 @@ export default function GerenciarMultiplosAparelhos({
                       <p className="text-sm font-semibold mb-2">Equipamento</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Input
-                          key={`tipo-${aparelhoEmEdicao?.id}`}
                           label="Tipo *"
                           placeholder="Selecione..."
                           value={formData.equipamento_tipo}
@@ -468,7 +467,6 @@ export default function GerenciarMultiplosAparelhos({
                           data-form-type="other"
                         />
                         <Input
-                          key={`marca-${aparelhoEmEdicao?.id}`}
                           label="Marca"
                           value={formData.equipamento_marca || ""}
                           onChange={(e) =>
@@ -482,7 +480,6 @@ export default function GerenciarMultiplosAparelhos({
                           data-form-type="other"
                         />
                         <Input
-                          key={`modelo-${aparelhoEmEdicao?.id}`}
                           label="Modelo"
                           value={formData.equipamento_modelo || ""}
                           onChange={(e) =>
@@ -496,7 +493,6 @@ export default function GerenciarMultiplosAparelhos({
                           data-form-type="other"
                         />
                         <Input
-                          key={`serie-${aparelhoEmEdicao?.id}`}
                           label="Série / IMEI"
                           value={formData.equipamento_numero_serie || ""}
                           onChange={(e) =>
@@ -510,7 +506,6 @@ export default function GerenciarMultiplosAparelhos({
                           data-form-type="other"
                         />
                         <Input
-                          key={`senha-${aparelhoEmEdicao?.id}-${Date.now()}`}
                           label="Senha/PIN (opcional)"
                           type="password"
                           value={formData.equipamento_senha || ""}
@@ -529,7 +524,6 @@ export default function GerenciarMultiplosAparelhos({
 
                     {/* Problema */}
                     <Textarea
-                      key={`defeito-${aparelhoEmEdicao?.id}`}
                       label="Problema Relatado *"
                       placeholder="Descreva o problema"
                       value={formData.defeito_reclamado}
@@ -549,7 +543,6 @@ export default function GerenciarMultiplosAparelhos({
                       <p className="text-sm font-semibold mb-2">Valores</p>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <Input
-                          key={`orcamento-${aparelhoEmEdicao?.id}`}
                           label="Orçamento"
                           type="number"
                           step="0.01"
@@ -564,7 +557,6 @@ export default function GerenciarMultiplosAparelhos({
                           autoComplete="off"
                         />
                         <Input
-                          key={`desconto-${aparelhoEmEdicao?.id}`}
                           label="Desconto"
                           type="number"
                           step="0.01"
@@ -579,7 +571,6 @@ export default function GerenciarMultiplosAparelhos({
                           autoComplete="off"
                         />
                         <Input
-                          key={`total-${aparelhoEmEdicao?.id}`}
                           label="Total"
                           type="number"
                           step="0.01"
@@ -594,7 +585,6 @@ export default function GerenciarMultiplosAparelhos({
                           autoComplete="off"
                         />
                         <Input
-                          key={`pago-${aparelhoEmEdicao?.id}`}
                           label="Pago"
                           type="number"
                           step="0.01"
