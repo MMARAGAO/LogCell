@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Select, SelectItem } from "@heroui/select";
@@ -60,8 +60,12 @@ interface ItemTransferencia {
 
 export default function NovaTransferenciaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const { verificarSessao, usuario } = useAuth();
+
+  const transferenciaId = searchParams.get("id");
+  const editando = Boolean(transferenciaId);
 
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaOrigemId, setLojaOrigemId] = useState<string>("");
@@ -82,6 +86,12 @@ export default function NovaTransferenciaPage() {
   useEffect(() => {
     carregarLojas();
   }, []);
+
+  useEffect(() => {
+    if (transferenciaId) {
+      carregarTransferenciaParaEdicao(transferenciaId);
+    }
+  }, [transferenciaId]);
 
   // Buscar produtos quando mudar loja origem ou busca
   useEffect(() => {
@@ -139,7 +149,7 @@ export default function NovaTransferenciaPage() {
             quantidade,
             lojas:id_loja(nome)
           )
-        `
+        `,
         )
         .eq("ativo", true);
 
@@ -169,7 +179,7 @@ export default function NovaTransferenciaPage() {
         }))
         .filter((p) => {
           const estoqueOrigem = p.estoques_lojas.find(
-            (e: EstoqueLoja) => e.id_loja === parseInt(lojaOrigemId)
+            (e: EstoqueLoja) => e.id_loja === parseInt(lojaOrigemId),
           );
           return estoqueOrigem && estoqueOrigem.quantidade > 0;
         });
@@ -214,7 +224,7 @@ export default function NovaTransferenciaPage() {
 
       // Contar produtos únicos
       const produtosUnicos = new Set(
-        allProdutos.map((item) => item.id_produto)
+        allProdutos.map((item) => item.id_produto),
       );
       setTotalProdutosLoja(produtosUnicos.size);
     } catch (error) {
@@ -225,7 +235,7 @@ export default function NovaTransferenciaPage() {
 
   const adicionarProduto = (produto: Produto) => {
     const estoqueOrigem = produto.estoques_lojas.find(
-      (e) => e.id_loja === parseInt(lojaOrigemId)
+      (e) => e.id_loja === parseInt(lojaOrigemId),
     );
 
     if (!estoqueOrigem || estoqueOrigem.quantidade <= 0) {
@@ -239,13 +249,14 @@ export default function NovaTransferenciaPage() {
       return;
     }
 
+    const destinoPadraoId = lojaDestinoPadrao ? parseInt(lojaDestinoPadrao) : 0;
     const novoItem: ItemTransferencia = {
       produto_id: produto.id,
       produto_descricao: produto.descricao,
       produto_marca: produto.marca,
       produto_codigo: produto.codigo_fabricante,
       quantidade_transferir: undefined,
-      loja_destino_id: lojaDestinoPadrao ? parseInt(lojaDestinoPadrao) : 0,
+      loja_destino_id: destinoPadraoId,
       estoque_origem: estoqueOrigem.quantidade,
       estoques_todas_lojas: produto.estoques_lojas,
     };
@@ -256,7 +267,7 @@ export default function NovaTransferenciaPage() {
 
   const removerItem = (produtoId: string) => {
     setItensTransferencia(
-      itensTransferencia.filter((i) => i.produto_id !== produtoId)
+      itensTransferencia.filter((i) => i.produto_id !== produtoId),
     );
     toast.info("Produto removido");
   };
@@ -266,8 +277,8 @@ export default function NovaTransferenciaPage() {
       itensTransferencia.map((item) =>
         item.produto_id === produtoId
           ? { ...item, quantidade_transferir: quantidade }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -276,9 +287,91 @@ export default function NovaTransferenciaPage() {
       itensTransferencia.map((item) =>
         item.produto_id === produtoId
           ? { ...item, loja_destino_id: lojaDestinoId }
-          : item
-      )
+          : item,
+      ),
     );
+  };
+
+  const carregarTransferenciaParaEdicao = async (id: string) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("transferencias")
+        .select(
+          `
+          id,
+          loja_origem_id,
+          loja_destino_id,
+          status,
+          observacao,
+          itens:transferencias_itens(
+            id,
+            produto_id,
+            quantidade,
+            produto:produtos(
+              descricao,
+              codigo_fabricante,
+              marca,
+              estoque_lojas(
+                id_loja,
+                quantidade,
+                lojas:id_loja(nome)
+              )
+            )
+          )
+        `,
+        )
+        .eq("id", id)
+        .single();
+
+      if (error || !data) {
+        throw new Error("Transferência não encontrada");
+      }
+
+      if (data.status !== "pendente") {
+        toast.error("Só é possível editar transferências pendentes.");
+        router.push("/sistema/transferencias");
+        return;
+      }
+
+      setLojaOrigemId(String(data.loja_origem_id));
+      setLojaDestinoPadrao(String(data.loja_destino_id));
+      setObservacao(data.observacao || "");
+
+      const itensFormatados: ItemTransferencia[] = (data.itens || []).map(
+        (item: any) => {
+          const estoques_todas_lojas: EstoqueLoja[] =
+            item.produto?.estoque_lojas?.map((e: any) => ({
+              id_loja: e.id_loja,
+              loja_nome: e.lojas?.nome || "",
+              quantidade: e.quantidade || 0,
+            })) || [];
+
+          const estoqueOrigem =
+            estoques_todas_lojas.find((e) => e.id_loja === data.loja_origem_id)
+              ?.quantidade || 0;
+
+          return {
+            produto_id: item.produto_id,
+            produto_descricao: item.produto?.descricao || "Produto",
+            produto_marca: item.produto?.marca,
+            produto_codigo: item.produto?.codigo_fabricante,
+            quantidade_transferir: item.quantidade,
+            loja_destino_id: data.loja_destino_id,
+            estoque_origem: estoqueOrigem,
+            estoques_todas_lojas,
+          };
+        },
+      );
+
+      setItensTransferencia(itensFormatados);
+    } catch (error: any) {
+      console.error("Erro ao carregar transferência:", error);
+      toast.error(error.message || "Erro ao carregar transferência");
+      router.push("/sistema/transferencias");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Validação para habilitar/desabilitar botão de criar transferência
@@ -294,11 +387,11 @@ export default function NovaTransferenciaPage() {
     }
 
     const itensSemDestino = itensTransferencia.filter(
-      (i) => !i.loja_destino_id || i.loja_destino_id === 0
+      (i) => !i.loja_destino_id || i.loja_destino_id === 0,
     );
     if (itensSemDestino.length > 0) {
       erros.push(
-        `${itensSemDestino.length} produto(s) sem loja de destino definida`
+        `${itensSemDestino.length} produto(s) sem loja de destino definida`,
       );
     }
 
@@ -306,21 +399,32 @@ export default function NovaTransferenciaPage() {
       (i) =>
         !i.quantidade_transferir ||
         i.quantidade_transferir <= 0 ||
-        i.quantidade_transferir > i.estoque_origem
+        i.quantidade_transferir > i.estoque_origem,
     );
     if (itensComQuantidadeInvalida.length > 0) {
       erros.push("Verifique as quantidades dos produtos");
     }
 
     const itensOrigemDestinoIgual = itensTransferencia.filter(
-      (i) => i.loja_destino_id === parseInt(lojaOrigemId || "0")
+      (i) => i.loja_destino_id === parseInt(lojaOrigemId || "0"),
     );
     if (itensOrigemDestinoIgual.length > 0) {
       erros.push("Loja de origem e destino não podem ser iguais");
     }
 
+    if (editando) {
+      const destinosUnicos = new Set(
+        itensTransferencia
+          .map((i) => i.loja_destino_id)
+          .filter((id) => id && id > 0),
+      );
+      if (destinosUnicos.size > 1) {
+        erros.push("Todos os itens devem ter a mesma loja de destino");
+      }
+    }
+
     return erros;
-  }, [lojaOrigemId, itensTransferencia]);
+  }, [lojaOrigemId, itensTransferencia, editando]);
 
   const handleCriarTransferencia = async () => {
     const sessaoValida = await verificarSessao();
@@ -381,12 +485,84 @@ export default function NovaTransferenciaPage() {
       }
 
       toast.success(
-        `${totalTransferenciasCriadas} transferência(s) criada(s) com sucesso!`
+        `${totalTransferenciasCriadas} transferência(s) criada(s) com sucesso!`,
       );
       router.push("/sistema/transferencias");
     } catch (error: any) {
       console.error("Erro ao criar transferência:", error);
       toast.error(error.message || "Erro ao criar transferência");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAtualizarTransferencia = async () => {
+    if (!transferenciaId) return;
+
+    const sessaoValida = await verificarSessao();
+    if (!sessaoValida || !usuario?.id) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const destinosUnicos = Array.from(
+        new Set(
+          itensTransferencia
+            .map((i) => i.loja_destino_id)
+            .filter((id) => id && id > 0),
+        ),
+      );
+
+      const destinoId = destinosUnicos[0];
+      if (!destinoId) {
+        throw new Error("Selecione a loja de destino");
+      }
+
+      const { data: transferenciaAtualizada, error: errorTransferencia } =
+        await supabase
+          .from("transferencias")
+          .update({
+            loja_destino_id: destinoId,
+            observacao: observacao || null,
+          })
+          .eq("id", transferenciaId)
+          .eq("status", "pendente")
+          .select("id")
+          .single();
+
+      if (errorTransferencia || !transferenciaAtualizada) {
+        throw new Error("Erro ao atualizar transferência");
+      }
+
+      const { error: errorDelete } = await supabase
+        .from("transferencias_itens")
+        .delete()
+        .eq("transferencia_id", transferenciaId);
+
+      if (errorDelete) {
+        throw new Error("Erro ao atualizar itens da transferência");
+      }
+
+      const itensParaInserir = itensTransferencia.map((item) => ({
+        transferencia_id: transferenciaId,
+        produto_id: item.produto_id,
+        quantidade: item.quantidade_transferir,
+      }));
+
+      const { error: errorItens } = await supabase
+        .from("transferencias_itens")
+        .insert(itensParaInserir);
+
+      if (errorItens) {
+        throw new Error("Erro ao atualizar itens da transferência");
+      }
+
+      toast.success("Transferência atualizada com sucesso!");
+      router.push("/sistema/transferencias");
+    } catch (error: any) {
+      console.error("Erro ao atualizar transferência:", error);
+      toast.error(error.message || "Erro ao atualizar transferência");
     } finally {
       setLoading(false);
     }
@@ -413,10 +589,14 @@ export default function NovaTransferenciaPage() {
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <ArrowRightIcon className="h-6 w-6 text-primary" />
-                Nova Transferência de Produtos
+                {editando
+                  ? "Editar Transferência de Produtos"
+                  : "Nova Transferência de Produtos"}
               </h1>
               <p className="text-default-500 text-sm mt-1">
-                Selecione a loja de origem e adicione produtos para transferir
+                {editando
+                  ? "Ajuste os itens antes da confirmação"
+                  : "Selecione a loja de origem e adicione produtos para transferir"}
               </p>
             </div>
           </div>
@@ -445,7 +625,7 @@ export default function NovaTransferenciaPage() {
                 }
               }}
               isRequired
-              isDisabled={loading}
+              isDisabled={loading || editando}
               size="lg"
             >
               {lojas.map((loja) => (
@@ -462,6 +642,14 @@ export default function NovaTransferenciaPage() {
                 onSelectionChange={(keys) => {
                   const selected = Array.from(keys)[0] as string;
                   setLojaDestinoPadrao(selected);
+                  if (editando) {
+                    setItensTransferencia((itens) =>
+                      itens.map((item) => ({
+                        ...item,
+                        loja_destino_id: selected ? parseInt(selected) : 0,
+                      })),
+                    );
+                  }
                 }}
                 isDisabled={loading}
                 size="lg"
@@ -517,13 +705,13 @@ export default function NovaTransferenciaPage() {
               {produtos.length > 0 &&
                 (() => {
                   const totalPaginas = Math.ceil(
-                    produtos.length / produtosPorPagina
+                    produtos.length / produtosPorPagina,
                   );
                   const indiceInicio = (paginaProdutos - 1) * produtosPorPagina;
                   const indiceFim = indiceInicio + produtosPorPagina;
                   const produtosPaginados = produtos.slice(
                     indiceInicio,
-                    indiceFim
+                    indiceFim,
                   );
 
                   return (
@@ -540,13 +728,13 @@ export default function NovaTransferenciaPage() {
                         <TableBody>
                           {produtosPaginados.map((produto) => {
                             const estoqueOrigem = produto.estoques_lojas.find(
-                              (e) => e.id_loja === parseInt(lojaOrigemId)
+                              (e) => e.id_loja === parseInt(lojaOrigemId),
                             );
                             const outrasLojas = produto.estoques_lojas.filter(
-                              (e) => e.id_loja !== parseInt(lojaOrigemId)
+                              (e) => e.id_loja !== parseInt(lojaOrigemId),
                             );
                             const jaAdicionado = itensTransferencia.some(
-                              (i) => i.produto_id === produto.id
+                              (i) => i.produto_id === produto.id,
                             );
                             return (
                               <TableRow key={produto.id}>
@@ -689,7 +877,7 @@ export default function NovaTransferenciaPage() {
                     <TableBody>
                       {[...itensTransferencia].reverse().map((item) => {
                         const estoqueDestino = item.estoques_todas_lojas.find(
-                          (e) => e.id_loja === item.loja_destino_id
+                          (e) => e.id_loja === item.loja_destino_id,
                         );
                         const estoqueDestinoAtual =
                           estoqueDestino?.quantidade || 0;
@@ -729,13 +917,13 @@ export default function NovaTransferenciaPage() {
                                   // Remove caracteres não numéricos
                                   const numericValue = value.replace(
                                     /[^0-9]/g,
-                                    ""
+                                    "",
                                   );
 
                                   if (numericValue === "") {
                                     atualizarQuantidade(
                                       item.produto_id,
-                                      undefined
+                                      undefined,
                                     );
                                     return;
                                   }
@@ -746,12 +934,12 @@ export default function NovaTransferenciaPage() {
                                   if (quantidade > item.estoque_origem) {
                                     atualizarQuantidade(
                                       item.produto_id,
-                                      item.estoque_origem
+                                      item.estoque_origem,
                                     );
                                   } else {
                                     atualizarQuantidade(
                                       item.produto_id,
-                                      quantidade
+                                      quantidade,
                                     );
                                   }
                                 }}
@@ -771,20 +959,20 @@ export default function NovaTransferenciaPage() {
                                 }
                                 onSelectionChange={(keys) => {
                                   const selected = Array.from(
-                                    keys
+                                    keys,
                                   )[0] as string;
                                   atualizarLojaDestino(
                                     item.produto_id,
-                                    parseInt(selected)
+                                    parseInt(selected),
                                   );
                                 }}
                                 size="sm"
                                 className="min-w-[180px]"
-                                isDisabled={loading}
+                                isDisabled={loading || editando}
                               >
                                 {lojas
                                   .filter(
-                                    (l) => l.id !== parseInt(lojaOrigemId)
+                                    (l) => l.id !== parseInt(lojaOrigemId),
                                   )
                                   .map((loja) => (
                                     <SelectItem key={loja.id.toString()}>
@@ -884,14 +1072,18 @@ export default function NovaTransferenciaPage() {
                   <Button
                     color="primary"
                     size="lg"
-                    onPress={handleCriarTransferencia}
+                    onPress={
+                      editando
+                        ? handleAtualizarTransferencia
+                        : handleCriarTransferencia
+                    }
                     isLoading={loading}
                     isDisabled={loading || errosValidacao.length > 0}
                     startContent={
                       !loading && <CheckCircleIcon className="h-5 w-5" />
                     }
                   >
-                    Criar Transferência
+                    {editando ? "Salvar Alterações" : "Criar Transferência"}
                   </Button>
                 </div>
               </Tooltip>

@@ -32,6 +32,7 @@ import {
   FunnelIcon,
   PlusIcon,
   DocumentArrowDownIcon,
+  PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import {
   buscarTransferencias,
@@ -241,6 +242,20 @@ export default function TransferenciasPage() {
     setCancelarModal({ isOpen: true, transferencia });
   };
 
+  const handleEditar = (transferencia: TransferenciaCompleta) => {
+    if (transferencia.status !== "pendente") {
+      toast.error("Só é possível editar transferências pendentes.");
+      return;
+    }
+
+    if (!temPermissao("transferencias.editar")) {
+      toast.error("Você não tem permissão para editar transferências.");
+      return;
+    }
+
+    router.push(`/sistema/transferencias/nova?id=${transferencia.id}`);
+  };
+
   const cancelarTransferenciaModal = async (motivo: string) => {
     if (!usuario || !cancelarModal.transferencia) return;
 
@@ -318,7 +333,7 @@ export default function TransferenciasPage() {
         <div>
           <h1 className="text-3xl font-bold">Gestão de Transferências</h1>
           <p className="text-default-500 mt-1">
-            Confirme ou cancele transferências entre lojas
+            Confirme, cancele ou edite transferências entre lojas
           </p>
         </div>
 
@@ -481,8 +496,12 @@ export default function TransferenciasPage() {
                                 key={transferencia.id}
                                 transferencia={transferencia}
                                 processando={processando === transferencia.id}
+                                podeEditar={temPermissao(
+                                  "transferencias.editar",
+                                )}
                                 onConfirmar={handleConfirmar}
                                 onCancelar={handleCancelar}
+                                onEditar={handleEditar}
                                 onVisualizar={setTransferenciaSelecionada}
                               />
                             ))}
@@ -504,8 +523,10 @@ export default function TransferenciasPage() {
                 key={transferencia.id}
                 transferencia={transferencia}
                 processando={processando === transferencia.id}
+                podeEditar={temPermissao("transferencias.editar")}
                 onConfirmar={handleConfirmar}
                 onCancelar={handleCancelar}
+                onEditar={handleEditar}
                 onVisualizar={setTransferenciaSelecionada}
               />
             ))}
@@ -520,6 +541,8 @@ export default function TransferenciasPage() {
           onClose={() => setTransferenciaSelecionada(null)}
           onConfirmar={handleConfirmar}
           onCancelar={handleCancelar}
+          onEditar={handleEditar}
+          podeEditar={temPermissao("transferencias.editar")}
           processando={processando === transferenciaSelecionada.id}
         />
       )}
@@ -562,14 +585,18 @@ export default function TransferenciasPage() {
 function TransferenciaCard({
   transferencia,
   processando,
+  podeEditar,
   onConfirmar,
   onCancelar,
+  onEditar,
   onVisualizar,
 }: {
   transferencia: TransferenciaCompleta;
   processando: boolean;
+  podeEditar: boolean;
   onConfirmar: (t: TransferenciaCompleta) => void;
   onCancelar: (t: TransferenciaCompleta) => void;
+  onEditar: (t: TransferenciaCompleta) => void;
   onVisualizar: (t: TransferenciaCompleta) => void;
 }) {
   const statusConfig = {
@@ -707,6 +734,19 @@ function TransferenciaCard({
               Detalhes
             </Button>
 
+            {transferencia.status === "pendente" && podeEditar && (
+              <Button
+                size="sm"
+                variant="flat"
+                color="primary"
+                startContent={<PencilSquareIcon className="h-4 w-4" />}
+                onPress={() => onEditar(transferencia)}
+                isDisabled={processando}
+              >
+                Editar
+              </Button>
+            )}
+
             <Dropdown>
               <DropdownTrigger>
                 <Button
@@ -787,12 +827,16 @@ function DetalhesTransferenciaModal({
   onClose,
   onConfirmar,
   onCancelar,
+  onEditar,
+  podeEditar,
   processando,
 }: {
   transferencia: TransferenciaCompleta;
   onClose: () => void;
   onConfirmar: (t: TransferenciaCompleta) => void;
   onCancelar: (t: TransferenciaCompleta) => void;
+  onEditar: (t: TransferenciaCompleta) => void;
+  podeEditar: boolean;
   processando: boolean;
 }) {
   return (
@@ -1129,6 +1173,20 @@ function DetalhesTransferenciaModal({
             </Dropdown>
             {transferencia.status === "pendente" && (
               <>
+                {podeEditar && (
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    onPress={() => {
+                      onEditar(transferencia);
+                      onClose();
+                    }}
+                    isLoading={processando}
+                    startContent={<PencilSquareIcon className="h-5 w-5" />}
+                  >
+                    Editar Transferência
+                  </Button>
+                )}
                 <Button
                   color="danger"
                   variant="flat"
