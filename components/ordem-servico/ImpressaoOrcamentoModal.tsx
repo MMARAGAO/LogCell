@@ -35,6 +35,8 @@ import {
   gerarOrcamentoOS,
   gerarGarantiaOS,
   gerarPDFOrdemServico,
+  gerarCupomTermicoOrcamento,
+  imprimirCupomTermico,
 } from "@/lib/impressaoOS";
 import { TipoServicoGarantia, TIPOS_SERVICO_GARANTIA } from "@/types/garantia";
 
@@ -74,6 +76,7 @@ export default function ImpressaoOrcamentoModal({
     (os?.dias_garantia || 90).toString(),
   );
   const [loading, setLoading] = useState(false);
+  const [loadingCupom, setLoadingCupom] = useState(false);
   const [tipoImpressao, setTipoImpressao] = useState<
     "orcamento" | "garantia" | "completo"
   >("orcamento");
@@ -199,6 +202,27 @@ export default function ImpressaoOrcamentoModal({
       toast.error("Erro ao gerar OS completa");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGerarCupomTermico = async () => {
+    if (!os) return;
+
+    setLoadingCupom(true);
+    try {
+      const cupom = await gerarCupomTermicoOrcamento(
+        os,
+        pecasFiltradas,
+        dadosLoja,
+      );
+      imprimirCupomTermico(cupom);
+      toast.success("Cupom térmico gerado com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao gerar cupom térmico:", error);
+      toast.error("Erro ao gerar cupom térmico");
+    } finally {
+      setLoadingCupom(false);
     }
   };
 
@@ -405,14 +429,24 @@ export default function ImpressaoOrcamentoModal({
           </Button>
 
           {tipoImpressao === "orcamento" && (
-            <Button
-              color="primary"
-              startContent={<Download className="w-4 h-4" />}
-              onPress={handleGerarOrcamento}
-              isLoading={loading}
-            >
-              Gerar Orçamento
-            </Button>
+            <>
+              <Button
+                color="primary"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleGerarOrcamento}
+                isLoading={loading}
+              >
+                Gerar Orçamento
+              </Button>
+              <Button
+                color="warning"
+                startContent={<Printer className="w-4 h-4" />}
+                onPress={handleGerarCupomTermico}
+                isLoading={loadingCupom}
+              >
+                Cupom Térmico
+              </Button>
+            </>
           )}
 
           {tipoImpressao === "garantia" && (

@@ -1433,3 +1433,172 @@ export const imprimirCupomTermico = (cupom: string) => {
 
   janelaImpressao.document.close();
 };
+
+export const gerarCupomTermicoOrcamento = async (
+  os: OrdemServico,
+  pecas: PecaOS[],
+  dadosLoja: DadosLoja
+): Promise<string> => {
+  const largura = 80; // 80mm
+  const linhaDiv = "=".repeat(48);
+  const linhaTracejada = "-".repeat(48);
+
+  let cupom = "";
+
+  // Função auxiliar para centralizar texto
+  const centralizar = (texto: string): string => {
+    const espacos = Math.max(0, Math.floor((48 - texto.length) / 2));
+    return " ".repeat(espacos) + texto;
+  };
+
+  // Cabeçalho
+  cupom += centralizar(dadosLoja.nome.toUpperCase()) + "\n";
+  if (dadosLoja.endereco) {
+    cupom += centralizar(dadosLoja.endereco) + "\n";
+  }
+  if (dadosLoja.telefone) {
+    cupom += centralizar(`Tel: ${dadosLoja.telefone}`) + "\n";
+  }
+  if (dadosLoja.cnpj) {
+    cupom += centralizar(`CNPJ: ${dadosLoja.cnpj}`) + "\n";
+  }
+
+  cupom += linhaDiv + "\n";
+  cupom += centralizar("ORCAMENTO") + "\n";
+  cupom += linhaDiv + "\n\n";
+
+  // Número e Data
+  cupom += `OS: ${os.numero_os || os.id}\n`;
+  cupom += `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")} ${new Date(os.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n`;
+  cupom += "\n";
+
+  // Cliente
+  cupom += linhaTracejada + "\n";
+  cupom += "CLIENTE\n";
+  cupom += linhaTracejada + "\n";
+  cupom += `Nome: ${os.cliente_nome}\n`;
+  if (os.cliente_telefone) {
+    cupom += `Tel: ${os.cliente_telefone}\n`;
+  }
+  if (os.cliente_email) {
+    cupom += `Email: ${os.cliente_email}\n`;
+  }
+  cupom += "\n";
+
+  // Equipamento
+  cupom += linhaTracejada + "\n";
+  cupom += "EQUIPAMENTO\n";
+  cupom += linhaTracejada + "\n";
+  
+  const temMultiplosAparelhos = (os.aparelhos?.length || 0) > 0;
+  
+  if (temMultiplosAparelhos && os.aparelhos) {
+    // Múltiplos aparelhos
+    os.aparelhos.forEach((aparelho, index) => {
+      cupom += `Aparelho ${aparelho.sequencia}:\n`;
+      cupom += `  Equip.: ${aparelho.equipamento_tipo}\n`;
+      if (aparelho.equipamento_marca) {
+        cupom += `  Marca: ${aparelho.equipamento_marca}\n`;
+      }
+      if (aparelho.equipamento_modelo) {
+        cupom += `  Modelo: ${aparelho.equipamento_modelo}\n`;
+      }
+      if (aparelho.equipamento_numero_serie) {
+        cupom += `  Serie: ${aparelho.equipamento_numero_serie}\n`;
+      }
+      cupom += "\n";
+    });
+  } else {
+    // Equipamento único
+    cupom += `Equip.: ${os.equipamento_tipo}\n`;
+    if (os.equipamento_marca) {
+      cupom += `Marca: ${os.equipamento_marca}\n`;
+    }
+    if (os.equipamento_modelo) {
+      cupom += `Modelo: ${os.equipamento_modelo}\n`;
+    }
+    if (os.equipamento_numero_serie) {
+      cupom += `Serie: ${os.equipamento_numero_serie}\n`;
+    }
+    cupom += "\n";
+  }
+
+  // Defeito
+  cupom += linhaTracejada + "\n";
+  cupom += "DEFEITO RECLAMADO\n";
+  cupom += linhaTracejada + "\n";
+  
+  if (temMultiplosAparelhos && os.aparelhos) {
+    os.aparelhos.forEach((aparelho) => {
+      cupom += `Aparelho ${aparelho.sequencia}: ${aparelho.defeito_reclamado}\n`;
+    });
+  } else {
+    cupom += os.defeito_reclamado + "\n";
+  }
+  cupom += "\n";
+
+  // Serviço
+  cupom += linhaTracejada + "\n";
+  cupom += "SERVICO A REALIZAR\n";
+  cupom += linhaTracejada + "\n";
+  
+  if (temMultiplosAparelhos && os.aparelhos) {
+    os.aparelhos.forEach((aparelho) => {
+      cupom += `Aparelho ${aparelho.sequencia}: ${aparelho.laudo_diagnostico || "A definir"}\n`;
+    });
+  } else {
+    cupom += os.laudo_diagnostico || "A definir após diagnóstico\n";
+  }
+  cupom += "\n";
+
+  // Valores
+  cupom += linhaTracejada + "\n";
+  cupom += "VALORES DO ORCAMENTO\n";
+  cupom += linhaTracejada + "\n";
+  
+  if (temMultiplosAparelhos && os.aparelhos) {
+    let totalOrcamento = 0;
+    let totalDesconto = 0;
+    
+    os.aparelhos.forEach((aparelho) => {
+      cupom += `Aparelho ${aparelho.sequencia}:\n`;
+      cupom += `  Orcamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}\n`;
+      if ((aparelho.valor_desconto || 0) > 0) {
+        cupom += `  Desconto: R$ ${(aparelho.valor_desconto || 0).toFixed(2)}\n`;
+      }
+      cupom += `  Total: R$ ${(aparelho.valor_total || 0).toFixed(2)}\n`;
+      cupom += "\n";
+      
+      totalOrcamento += aparelho.valor_orcamento || 0;
+      totalDesconto += aparelho.valor_desconto || 0;
+    });
+    
+    const totalFinal = os.valor_total || 0;
+    
+    cupom += linhaTracejada + "\n";
+    cupom += `TOTAL GERAL: R$ ${totalFinal.toFixed(2)}\n`;
+  } else {
+    cupom += `Orcamento: R$ ${(os.valor_orcamento || 0).toFixed(2)}\n`;
+    if ((os.valor_desconto || 0) > 0) {
+      cupom += `Desconto: R$ ${(os.valor_desconto || 0).toFixed(2)}\n`;
+    }
+    cupom += `Total: R$ ${(os.valor_total || 0).toFixed(2)}\n`;
+  }
+  cupom += "\n";
+
+  // Observações
+  if (os.observacoes_tecnicas) {
+    cupom += linhaTracejada + "\n";
+    cupom += "OBSERVACOES:\n";
+    cupom += os.observacoes_tecnicas + "\n\n";
+  }
+
+  // Rodapé
+  cupom += "\n";
+  cupom += linhaDiv + "\n";
+  cupom += centralizar("Obrigado pela preferencia!") + "\n";
+  cupom += "\n\n";
+
+  return cupom;
+};
+
