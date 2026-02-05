@@ -10,7 +10,7 @@ Criar opção de devolução da OS quando o serviço é desfeito.
 * ORÇAMENTO (tirar peças que utilizou no serviço) - Sistema agora filtra e mostra apenas peças não baixadas do estoque
 * GARANTIA (tempo de garantia ajustável sem tempo fixo) - Permite editar dias antes de imprimir, inclui dados da loja, serviço realizado e observações adicionais 
 
-3. Impressão de ORÇAMENTO ✅ CONCLUÍDOsadasdasd
+3. Impressão de ORÇAMENTO ✅ CONCLUÍDO
 No modelo de impressão do orçamento, incluir obrigatoriamente:
 
 * Dados da loja: ✅ Nome, endereço, telefone e CNPJ no cabeçalho
