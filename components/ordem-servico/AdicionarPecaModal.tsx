@@ -155,8 +155,14 @@ export default function AdicionarPecaModal({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
+      // Se houver busca, buscar mais produtos para filtrar no cliente
+      // Caso contrário, usar paginação normal
+      const limiteBusca = termoBusca.trim() ? 1000 : itensPorPagina;
+      const inicioBusca = termoBusca.trim() ? 0 : (pagina - 1) * itensPorPagina;
+      const fimBusca = termoBusca.trim() ? limiteBusca - 1 : inicioBusca + itensPorPagina - 1;
+
       // Construir query principal do estoque
-      let query = supabase
+      const { data, error, count } = await supabase
         .from("estoque_lojas")
         .select(
           `
@@ -178,40 +184,13 @@ export default function AdicionarPecaModal({
           { count: "exact" }
         )
         .eq("id_loja", lojaId)
-        .gt("quantidade", 0);
-
-      // Se houver busca, aplicar filtros de texto direto na query
-      if (termoBusca.trim()) {
-        const termos = termoBusca
-          .toLowerCase()
-          .split(" ")
-          .filter((t) => t.length > 0);
-
-        // Construir filtro OR com todos os termos para cada campo
-        // Exemplo: (desc like termo1 OR marca like termo1 OR cat like termo1) 
-        //          OR (desc like termo2 OR marca like termo2 OR cat like termo2)
-        const filtros = termos
-          .map(
-            (termo) =>
-              `produtos.descricao.ilike.%${termo}%,produtos.marca.ilike.%${termo}%,produtos.categoria.ilike.%${termo}%`
-          )
-          .join(",");
-
-        query = query.or(filtros);
-      }
-
-      // Aplicar paginação
-      const inicio = (pagina - 1) * itensPorPagina;
-      const fim = inicio + itensPorPagina - 1;
-      query = query.range(inicio, fim);
-
-      const { data, error, count } = await query;
+        .gt("quantidade", 0)
+        .range(inicioBusca, fimBusca);
 
       if (error) throw error;
 
-      setTotalProdutos(count || 0);
-
-      const produtosFormatados: ProdutoEstoque[] = (data || []).map(
+      // Formatar produtos
+      let produtosFormatados: ProdutoEstoque[] = (data || []).map(
         (item: any) => {
           const produto = Array.isArray(item.produtos)
             ? item.produtos[0]
@@ -232,7 +211,29 @@ export default function AdicionarPecaModal({
         }
       );
 
-      setProdutosEstoque(produtosFormatados);
+      // Se houver busca, filtrar no cliente
+      if (termoBusca.trim()) {
+        const termo = termoBusca.toLowerCase();
+        const produtosFiltrados = produtosFormatados.filter((p) => {
+          const descricao = (p.descricao || "").toLowerCase();
+          const marca = (p.marca || "").toLowerCase();
+          const categoria = (p.categoria || "").toLowerCase();
+          
+          return descricao.includes(termo) || 
+                 marca.includes(termo) || 
+                 categoria.includes(termo);
+        });
+
+        // Aplicar paginação local
+        const inicio = (pagina - 1) * itensPorPagina;
+        const fim = inicio + itensPorPagina;
+        
+        setTotalProdutos(produtosFiltrados.length);
+        setProdutosEstoque(produtosFiltrados.slice(inicio, fim));
+      } else {
+        setTotalProdutos(count || 0);
+        setProdutosEstoque(produtosFormatados);
+      }
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
       toast.showToast("Erro ao carregar produtos do estoque", "error");
