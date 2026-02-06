@@ -213,15 +213,18 @@ export default function AdicionarPecaModal({
 
       // Se houver busca, filtrar no cliente
       if (termoBusca.trim()) {
-        const termo = termoBusca.toLowerCase();
+        // Separar termos de busca e converter para lowercase
+        const termos = termoBusca
+          .toLowerCase()
+          .split(/\s+/)
+          .filter((t) => t.length > 0);
+
+        // Filtrar produtos onde TODOS os termos apareçam em algum lugar
         const produtosFiltrados = produtosFormatados.filter((p) => {
-          const descricao = (p.descricao || "").toLowerCase();
-          const marca = (p.marca || "").toLowerCase();
-          const categoria = (p.categoria || "").toLowerCase();
+          const textoCompleto = `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""}`.toLowerCase();
           
-          return descricao.includes(termo) || 
-                 marca.includes(termo) || 
-                 categoria.includes(termo);
+          // Verificar se todos os termos estão presentes no texto completo
+          return termos.every((termo) => textoCompleto.includes(termo));
         });
 
         // Aplicar paginação local
