@@ -1,41 +1,110 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# ============================================================================
+# DEPENDENCIES - NUNCA FAZER COMMIT (reinstaladas com npm install)
+# ============================================================================
 /node_modules
 /.pnp
 .pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
 pnpm-lock.yaml
 yarn.lock
 package-lock.json
-bun.lockb.env
+bun.lockb
+
+# ============================================================================
+# BUILD & ENVIRONMENT
+# ============================================================================
+/.next/
+/out/
+/build
+.next
+dist
+.turbo
+
+# ============================================================================
+# AMBIENTE - NUNCA FAZER COMMIT (contém credenciais)
+# ============================================================================
+.env
 .env.local
+.env.*.local
+.env.production.local
+
+# ============================================================================
+# CERTIFICADOS & CHAVES PRIVADAS - SUPER CRÍTICO
+# ============================================================================
+*.pem
+*.key
+*.cert
+*.crt
+private/
+secrets/
+.ssh/
+
+# ============================================================================
+# IDE & EDITOR
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.env.example.local
+.eslintcache
+
+# ============================================================================
+# LOGS & DEBUG
+# ============================================================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+logs/
+debug/
+
+# ============================================================================
+# TYPESCRIPT
+# ============================================================================
+*.tsbuildinfo
+next-env.d.ts
+
+# ============================================================================
+# TESTING
+# ============================================================================
+/coverage
+.nyc_output
+
+# ============================================================================
+# ARQUIVOS GRANDES - GERAR LOCALMENTE (>10MB)
+# ============================================================================
+ConfigBdSupabase.json
+MeuBanco.sql
+EXECUTAR_COR_SUPABASE.sql
+resultado_funcao.sql
+checkmelhorias.txt
+melhorias.txt
+
+# ============================================================================
+# MIGRATIONS - MIGRADAS PARA /home/matheus/supabase/LogCell/migrations/
+# ============================================================================
+/migrations/
+
+# ============================================================================
+# SERVIDOR & OPERACIONAL (NÃO É CÓDIGO)
+# ============================================================================
+# Backups agora em /home/matheus/supabase/LogCell/backups/
+/backups/
+/logs/
+/tmp/
+/temp/
+deploy.sh
+TEST_DEPLOY.md
+DEVOLUCAO_OS_ATUALIZACOES.md
+IMPLEMENTACAO_DEVOLUCAO_OS.md
+
+# ============================================================================
+# DOCUMENTAÇÃO DE DESENVOLVIMENTO (MANTER LOCALMENTE)
+# ============================================================================
+VALIDACAO_COMPLETA.md
+RUNBOOK_OPERACIONAL.md
+RELATORIO_SEGURANCA.md
+RELATORIO_FINAL_SEGURANCA.md

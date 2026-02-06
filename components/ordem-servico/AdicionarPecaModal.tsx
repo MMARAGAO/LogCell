@@ -155,29 +155,6 @@ export default function AdicionarPecaModal({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Primeiro, buscar IDs dos produtos que correspondem à busca
-      let produtoIds: string[] = [];
-
-      if (termoBusca.trim()) {
-        const termos = termoBusca
-          .toLowerCase()
-          .split(" ")
-          .filter((t) => t.length > 0);
-
-        // Buscar produtos que contenham TODOS os termos
-        let queryProdutos = supabase.from("produtos").select("id");
-
-        // Aplicar filtro para cada termo (AND entre termos)
-        termos.forEach((termo) => {
-          queryProdutos = queryProdutos.or(
-            `descricao.ilike.%${termo}%,marca.ilike.%${termo}%,categoria.ilike.%${termo}%`
-          );
-        });
-
-        const { data: produtosEncontrados } = await queryProdutos;
-        produtoIds = (produtosEncontrados || []).map((p: any) => p.id);
-      }
-
       // Construir query principal do estoque
       let query = supabase
         .from("estoque_lojas")
@@ -203,15 +180,24 @@ export default function AdicionarPecaModal({
         .eq("id_loja", lojaId)
         .gt("quantidade", 0);
 
-      // Se houver busca, filtrar pelos IDs encontrados
-      if (termoBusca.trim() && produtoIds.length > 0) {
-        query = query.in("id_produto", produtoIds);
-      } else if (termoBusca.trim() && produtoIds.length === 0) {
-        // Se buscou mas não encontrou nada, retornar vazio
-        setProdutosEstoque([]);
-        setTotalProdutos(0);
-        setLoadingProdutos(false);
-        return;
+      // Se houver busca, aplicar filtros de texto direto na query
+      if (termoBusca.trim()) {
+        const termos = termoBusca
+          .toLowerCase()
+          .split(" ")
+          .filter((t) => t.length > 0);
+
+        // Construir filtro OR com todos os termos para cada campo
+        // Exemplo: (desc like termo1 OR marca like termo1 OR cat like termo1) 
+        //          OR (desc like termo2 OR marca like termo2 OR cat like termo2)
+        const filtros = termos
+          .map(
+            (termo) =>
+              `produtos.descricao.ilike.%${termo}%,produtos.marca.ilike.%${termo}%,produtos.categoria.ilike.%${termo}%`
+          )
+          .join(",");
+
+        query = query.or(filtros);
       }
 
       // Aplicar paginação
