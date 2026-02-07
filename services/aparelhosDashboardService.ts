@@ -59,11 +59,19 @@ export class AparelhosDashboardService {
 
       let relacionados = 0;
       if (vendaIds.length > 0) {
-        const { data: aparelhos } = await supabase
-          .from("aparelhos")
-          .select("venda_id")
-          .in("venda_id", vendaIds);
-        const setVendasAparelhos = new Set((aparelhos || []).map((a: any) => a.venda_id));
+        const setVendasAparelhos = new Set<string>();
+        const batchSize = 50;
+        
+        // Processar em batches para evitar URL muito longa
+        for (let i = 0; i < vendaIds.length; i += batchSize) {
+          const batch = vendaIds.slice(i, i + batchSize);
+          const { data: aparelhos } = await supabase
+            .from("aparelhos")
+            .select("venda_id")
+            .in("venda_id", batch);
+          (aparelhos || []).forEach((a: any) => setVendasAparelhos.add(a.venda_id));
+        }
+        
         (data || []).forEach((p: any) => {
           if (setVendasAparelhos.has(p.venda_id)) relacionados += Number(p.valor || 0);
         });
@@ -83,11 +91,19 @@ export class AparelhosDashboardService {
       const { data: vendas } = await queryVendas;
       const vendaIds = (vendas || []).map((v) => v.id);
       if (vendaIds.length > 0) {
-        const { data: aparelhos } = await supabase
-          .from("aparelhos")
-          .select("venda_id")
-          .in("venda_id", vendaIds);
-        const setVendasAparelhos = new Set((aparelhos || []).map((a: any) => a.venda_id));
+        const setVendasAparelhos = new Set<string>();
+        const batchSize = 50;
+        
+        // Processar em batches para evitar URL muito longa
+        for (let i = 0; i < vendaIds.length; i += batchSize) {
+          const batch = vendaIds.slice(i, i + batchSize);
+          const { data: aparelhos } = await supabase
+            .from("aparelhos")
+            .select("venda_id")
+            .in("venda_id", batch);
+          (aparelhos || []).forEach((a: any) => setVendasAparelhos.add(a.venda_id));
+        }
+        
         aReceber = (vendas || []).reduce((sum, v: any) => {
           if (setVendasAparelhos.has(v.id)) return sum + Number(v.saldo_devedor || 0);
           return sum;
@@ -196,12 +212,19 @@ export class AparelhosDashboardService {
 
     if (vendaIds.length === 0) return [];
 
-    const { data: aparelhos } = await supabase
-      .from("aparelhos")
-      .select("venda_id")
-      .in("venda_id", vendaIds);
+    const setVendasAparelhos = new Set<string>();
+    const batchSize = 50;
 
-    const setVendasAparelhos = new Set((aparelhos || []).map((a: any) => a.venda_id));
+    // Processar em batches para evitar URL muito longa
+    for (let i = 0; i < vendaIds.length; i += batchSize) {
+      const batch = vendaIds.slice(i, i + batchSize);
+      const { data: aparelhos } = await supabase
+        .from("aparelhos")
+        .select("venda_id")
+        .in("venda_id", batch);
+
+      (aparelhos || []).forEach((a: any) => setVendasAparelhos.add(a.venda_id));
+    }
 
     const pendentes = (vendas || [])
       .filter((v: any) => setVendasAparelhos.has(v.id))

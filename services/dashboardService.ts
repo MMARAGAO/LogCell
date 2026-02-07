@@ -58,12 +58,13 @@ export class DashboardService {
 				throw metricasAdicionais.error;
 			}
 
-			const vendas = metricasVendas.data || {};
-			const os = metricasOS.data || {};
-			const porTipo = osPorTipo.data || {};
-			const adicionais = metricasAdicionais.data || {};
+			// RPC retorna array com um objeto, pega o primeiro elemento
+			const vendas = (Array.isArray(metricasVendas.data) ? metricasVendas.data[0] : metricasVendas.data) || {};
+			const os = (Array.isArray(metricasOS.data) ? metricasOS.data[0] : metricasOS.data) || {};
+			const porTipo = (Array.isArray(osPorTipo.data) ? osPorTipo.data : osPorTipo.data) || [];
+			const adicionais = (Array.isArray(metricasAdicionais.data) ? metricasAdicionais.data[0] : metricasAdicionais.data) || {};
 
-			console.log("✅ [DASHBOARD] Dados carregados com sucesso!");
+			console.log("✅ [DASHBOARD] Dados carregados:", { vendas, os, porTipo, adicionais });
 
 			return {
 				metricas_adicionais: {
@@ -87,15 +88,15 @@ export class DashboardService {
 					total_quebras: Number(adicionais.total_quebras || 0),
 					quantidade_quebras: Number(adicionais.quantidade_quebras || 0),
 					total_creditos_cliente: Number(adicionais.total_creditos_cliente || 0),
-					os_lojista_pagas: Number(porTipo.lojista?.quantidade || 0),
-					os_lojista_faturamento: Number(porTipo.lojista?.faturamento || 0),
-					os_lojista_lucro: Number(porTipo.lojista?.lucro || 0),
-					os_consumidor_final_pagas: Number(porTipo.consumidor_final?.quantidade || 0),
-					os_consumidor_final_faturamento: Number(porTipo.consumidor_final?.faturamento || 0),
-					os_consumidor_final_lucro: Number(porTipo.consumidor_final?.lucro || 0),
-					os_sem_tipo_pagas: Number(porTipo.sem_tipo?.quantidade || 0),
-					os_sem_tipo_faturamento: Number(porTipo.sem_tipo?.faturamento || 0),
-					os_sem_tipo_lucro: Number(porTipo.sem_tipo?.lucro || 0),
+					os_lojista_pagas: Number(porTipo.find((p: any) => p.tipo_cliente === 'lojista')?.quantidade || 0),
+					os_lojista_faturamento: Number(porTipo.find((p: any) => p.tipo_cliente === 'lojista')?.faturamento || 0),
+					os_lojista_lucro: Number(porTipo.find((p: any) => p.tipo_cliente === 'lojista')?.lucro || 0),
+					os_consumidor_final_pagas: Number(porTipo.find((p: any) => p.tipo_cliente === 'consumidor_final')?.quantidade || 0),
+					os_consumidor_final_faturamento: Number(porTipo.find((p: any) => p.tipo_cliente === 'consumidor_final')?.faturamento || 0),
+					os_consumidor_final_lucro: Number(porTipo.find((p: any) => p.tipo_cliente === 'consumidor_final')?.lucro || 0),
+					os_sem_tipo_pagas: Number(porTipo.find((p: any) => p.tipo_cliente === 'sem_tipo')?.quantidade || 0),
+					os_sem_tipo_faturamento: Number(porTipo.find((p: any) => p.tipo_cliente === 'sem_tipo')?.faturamento || 0),
+					os_sem_tipo_lucro: Number(porTipo.find((p: any) => p.tipo_cliente === 'sem_tipo')?.lucro || 0),
 					devolucoes_com_credito_quantidade: Number(adicionais.devolucoes_com_credito_quantidade || 0),
 					devolucoes_com_credito_total: Number(adicionais.devolucoes_com_credito_total || 0),
 					devolucoes_sem_credito_quantidade: Number(adicionais.devolucoes_sem_credito_quantidade || 0),
@@ -224,17 +225,22 @@ export class DashboardService {
 
 			// Buscar itens dessas vendas para calcular custo
 			if (vendasIds.length > 0) {
-				const { data: itensData, error: erroItens } = await supabase
-					.from("itens_venda")
-					.select("quantidade, produto:produtos!itens_venda_produto_id_fkey(preco_compra)")
-					.in("venda_id", vendasIds);
+				const batchSize = 50;
+				// Processar em batches para evitar URL muito longa
+				for (let i = 0; i < vendasIds.length; i += batchSize) {
+					const batch = vendasIds.slice(i, i + batchSize);
+					const { data: itensData, error: erroItens } = await supabase
+						.from("itens_venda")
+						.select("quantidade, produto:produtos!itens_venda_produto_id_fkey(preco_compra)")
+						.in("venda_id", batch);
 
-				if (!erroItens && itensData) {
-					itensData.forEach((item: any) => {
-						const precoCompra = Number(item.produto?.preco_compra || 0);
-						const quantidade = Number(item.quantidade || 0);
-						custoTotalVendas += precoCompra * quantidade;
-					});
+					if (!erroItens && itensData) {
+						itensData.forEach((item: any) => {
+							const precoCompra = Number(item.produto?.preco_compra || 0);
+							const quantidade = Number(item.quantidade || 0);
+							custoTotalVendas += precoCompra * quantidade;
+						});
+					}
 				}
 			}
 
@@ -403,18 +409,23 @@ export class DashboardService {
 		// Buscar peças dessas OS para calcular custo usando preco_compra
 		if (batchOS.length > 0) {
 			const osIds = batchOS.map((os: any) => os.id);
+			const batchSize = 50;
+			
+			// Processar em batches para evitar URL muito longa
+			for (let i = 0; i < osIds.length; i += batchSize) {
+				const batch = osIds.slice(i, i + batchSize);
+				const { data: pecasData, error: erroPecas } = await supabase
+					.from("ordem_servico_pecas")
+					.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
+					.in("id_ordem_servico", batch);
 
-			const { data: pecasData, error: erroPecas } = await supabase
-				.from("ordem_servico_pecas")
-				.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
-				.in("id_ordem_servico", osIds);
-
-			if (!erroPecas && pecasData) {
-				pecasData.forEach((peca: any) => {
-					const precoCompra = Number(peca.produto?.preco_compra || 0);
-					const quantidade = Number(peca.quantidade || 0);
-					custoOS += precoCompra * quantidade;
-				});
+				if (!erroPecas && pecasData) {
+					pecasData.forEach((peca: any) => {
+						const precoCompra = Number(peca.produto?.preco_compra || 0);
+						const quantidade = Number(peca.quantidade || 0);
+						custoOS += precoCompra * quantidade;
+					});
+				}
 			}
 		}
 
@@ -508,17 +519,23 @@ export class DashboardService {
 	// Buscar peças dessas OS para calcular custo
 		let custOSProcessadas = 0;
 	if (osProcessadasIds.length > 0) {
-		const { data: pecasProcessadasData, error: erroPecasProcessadas } = await supabase
-			.from("ordem_servico_pecas")
-			.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
-			.in("id_ordem_servico", osProcessadasIds);
+		const batchSize = 50;
+		
+		// Processar em batches para evitar URL muito longa
+		for (let i = 0; i < osProcessadasIds.length; i += batchSize) {
+			const batch = osProcessadasIds.slice(i, i + batchSize);
+			const { data: pecasProcessadasData, error: erroPecasProcessadas } = await supabase
+				.from("ordem_servico_pecas")
+				.select("quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)")
+				.in("id_ordem_servico", batch);
 
-		if (!erroPecasProcessadas && pecasProcessadasData) {
-			pecasProcessadasData.forEach((peca: any) => {
-				const precoCompra = Number(peca.produto?.preco_compra || 0);
-				const quantidade = Number(peca.quantidade || 0);
-				custOSProcessadas += precoCompra * quantidade;
-			});
+			if (!erroPecasProcessadas && pecasProcessadasData) {
+				pecasProcessadasData.forEach((peca: any) => {
+					const precoCompra = Number(peca.produto?.preco_compra || 0);
+					const quantidade = Number(peca.quantidade || 0);
+					custOSProcessadas += precoCompra * quantidade;
+				});
+			}
 		}
 	}
 
@@ -801,28 +818,34 @@ export class DashboardService {
 	const allOSIds = [...osLojistaIds, ...osConsumidorFinalIds, ...osSemTipoIds];
 
 	if (allOSIds.length > 0) {
-		const { data: pecasPorTipoData, error: erroPecasPorTipo } = await supabase
-			.from("ordem_servico_pecas")
-			.select(
-				"quantidade, id_ordem_servico, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra), os:ordem_servico!ordem_servico_pecas_id_ordem_servico_fkey(tipo_cliente)"
-			)
-			.in("id_ordem_servico", allOSIds);
+		const batchSize = 50;
+		
+		// Processar em batches para evitar URL muito longa
+		for (let i = 0; i < allOSIds.length; i += batchSize) {
+			const batch = allOSIds.slice(i, i + batchSize);
+			const { data: pecasPorTipoData, error: erroPecasPorTipo } = await supabase
+				.from("ordem_servico_pecas")
+				.select(
+					"quantidade, id_ordem_servico, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra), os:ordem_servico!ordem_servico_pecas_id_ordem_servico_fkey(tipo_cliente)"
+				)
+				.in("id_ordem_servico", batch);
 
-		if (!erroPecasPorTipo && pecasPorTipoData) {
-			pecasPorTipoData.forEach((peca: any) => {
-				const precoCompra = Number(peca.produto?.preco_compra || 0);
-				const quantidade = Number(peca.quantidade || 0);
-				const custo = precoCompra * quantidade;
-				const tipo = peca.os?.tipo_cliente || "sem_tipo";
+			if (!erroPecasPorTipo && pecasPorTipoData) {
+				pecasPorTipoData.forEach((peca: any) => {
+					const precoCompra = Number(peca.produto?.preco_compra || 0);
+					const quantidade = Number(peca.quantidade || 0);
+					const custo = precoCompra * quantidade;
+					const tipo = peca.os?.tipo_cliente || "sem_tipo";
 
-				if (tipo === "lojista") {
-					osLojistaLucro += custo;
-				} else if (tipo === "consumidor_final") {
-					osConsumidorFinalLucro += custo;
-				} else {
-					osSemTipoLucro += custo;
-				}
-			});
+					if (tipo === "lojista") {
+						osLojistaLucro += custo;
+					} else if (tipo === "consumidor_final") {
+						osConsumidorFinalLucro += custo;
+					} else {
+						osSemTipoLucro += custo;
+					}
+				});
+			}
 		}
 	}
 

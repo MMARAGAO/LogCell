@@ -256,12 +256,14 @@ export default function VendasPage() {
   const [filtroFormaPagamento, setFiltroFormaPagamento] =
     useState<string>("todas");
   const [filtroCliente, setFiltroCliente] = useState<string>("todos");
-  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(
-    new Date().toISOString().split("T")[0], // Data de hoje como padrão
-  );
-  const [filtroDataFim, setFiltroDataFim] = useState<string>(
-    new Date().toISOString().split("T")[0], // Data de hoje como padrão
-  );
+  const getLocalDateString = () => {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
+  };
+  const hoje = getLocalDateString();
+  const [filtroDataInicio, setFiltroDataInicio] = useState<string>(hoje);
+  const [filtroDataFim, setFiltroDataFim] = useState<string>(hoje);
   const [filtroVencidas, setFiltroVencidas] = useState<boolean>(false);
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
   const [busca, setBusca] = useState("");

@@ -79,13 +79,20 @@ const CORES_GRAFICOS = [
 export default function DashboardPage() {
   const { theme } = useTheme();
   const hojeISO = useMemo(() => new Date().toISOString().split("T")[0], []);
+  
+  // Calcular primeiro dia do mês atual
+  const primeiroDiaDoMes = useMemo(() => {
+    const hoje = new Date();
+    return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split("T")[0];
+  }, []);
+  
   const [dados, setDados] = useState<DadosDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { temPermissao, loading: permissoesLoading } = usePermissoes();
 
-  // filtros
-  const [dataInicio, setDataInicio] = useState<string>("2000-01-01");
+  // filtros - começar do primeiro dia do mês
+  const [dataInicio, setDataInicio] = useState<string>(primeiroDiaDoMes);
   const [dataFim, setDataFim] = useState<string>(hojeISO);
   const [lojaId, setLojaId] = useState<string>("");
   const [lojas, setLojas] = useState<Array<{ id: number; nome: string }>>([]);

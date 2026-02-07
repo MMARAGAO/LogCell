@@ -118,7 +118,12 @@ export default function OrdemServicoPage() {
     "grid",
   );
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
-  const hoje = new Date().toISOString().split("T")[0];
+  const getLocalDateString = () => {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
+  };
+  const hoje = getLocalDateString();
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>(hoje);
   const [filtroDataFim, setFiltroDataFim] = useState<string>(hoje);
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
