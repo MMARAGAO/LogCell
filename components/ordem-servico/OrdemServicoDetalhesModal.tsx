@@ -172,7 +172,10 @@ export default function OrdemServicoDetalhesModal({
     setLoadingOrcamento(true);
     try {
       const doc = await gerarOrcamentoOS(osAtual, pecas, dadosLoja);
-      abrirPreviewPDF(doc, `Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`);
+      abrirPreviewPDF(
+        doc,
+        `Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`,
+      );
       toast.success("Orçamento gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar orçamento:", error);

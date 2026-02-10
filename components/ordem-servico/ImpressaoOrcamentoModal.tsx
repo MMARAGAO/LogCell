@@ -35,6 +35,8 @@ import {
   gerarGarantiaOS,
   gerarPDFOrdemServico,
   gerarCupomTermicoPDFOrcamento,
+  gerarCupomTermicoPDFGarantia,
+  gerarCupomTermicoPDFOS,
 } from "@/lib/impressaoOS";
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import { TipoServicoGarantia, TIPOS_SERVICO_GARANTIA } from "@/types/garantia";
@@ -76,6 +78,8 @@ export default function ImpressaoOrcamentoModal({
   );
   const [loading, setLoading] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
+  const [loadingCupomGarantia, setLoadingCupomGarantia] = useState(false);
+  const [loadingCupomCompleto, setLoadingCupomCompleto] = useState(false);
   const [tipoImpressao, setTipoImpressao] = useState<
     "orcamento" | "garantia" | "completo"
   >("orcamento");
@@ -157,8 +161,15 @@ export default function ImpressaoOrcamentoModal({
         await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
       }
 
+      // Criar objeto OS atualizado com tipo e dias de garantia
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
       const pdf = await gerarGarantiaOS(
-        os,
+        osAtualizada,
         dadosLoja,
         tipoGarantia,
         parseInt(diasGarantia) || 90,
@@ -185,8 +196,15 @@ export default function ImpressaoOrcamentoModal({
         await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
       }
 
+      // Criar objeto OS atualizado com tipo e dias de garantia
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
       const pdf = await gerarPDFOrdemServico(
-        os,
+        osAtualizada,
         pecasFiltradas,
         dadosLoja,
         tipoGarantia,
@@ -222,6 +240,78 @@ export default function ImpressaoOrcamentoModal({
       toast.error("Erro ao gerar cupom térmico");
     } finally {
       setLoadingCupom(false);
+    }
+  };
+
+  const handleGerarCupomTermicoGarantia = async () => {
+    if (!os) return;
+
+    setLoadingCupomGarantia(true);
+    try {
+      // Salvar garantia se houver função de callback
+      if (onSalvarGarantia) {
+        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+      }
+
+      // Criar objeto OS atualizado com tipo e dias de garantia
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
+      const pdf = await gerarCupomTermicoPDFGarantia(
+        osAtualizada,
+        dadosLoja,
+        tipoGarantia,
+        parseInt(diasGarantia) || 90,
+      );
+      abrirPreviewPDF(
+        pdf,
+        `CupomTermico_Garantia_OS_${os.numero_os || os.id}.pdf`,
+      );
+      toast.success("Cupom térmico de garantia gerado com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao gerar cupom térmico de garantia:", error);
+      toast.error("Erro ao gerar cupom térmico de garantia");
+    } finally {
+      setLoadingCupomGarantia(false);
+    }
+  };
+
+  const handleGerarCupomTermicoCompleto = async () => {
+    if (!os) return;
+
+    setLoadingCupomCompleto(true);
+    try {
+      // Salvar garantia se houver função de callback
+      if (onSalvarGarantia) {
+        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+      }
+
+      // Criar objeto OS atualizado com tipo e dias de garantia
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
+      const pdf = await gerarCupomTermicoPDFOS(
+        osAtualizada,
+        pecasFiltradas,
+        dadosLoja,
+        tipoGarantia,
+        parseInt(diasGarantia) || 90,
+      );
+      abrirPreviewPDF(pdf, `CupomTermico_OS_${os.numero_os || os.id}.pdf`);
+      toast.success("Cupom térmico da OS gerado com sucesso!");
+      onClose();
+    } catch (error) {
+      console.error("Erro ao gerar cupom térmico da OS:", error);
+      toast.error("Erro ao gerar cupom térmico da OS");
+    } finally {
+      setLoadingCupomCompleto(false);
     }
   };
 
@@ -449,25 +539,45 @@ export default function ImpressaoOrcamentoModal({
           )}
 
           {tipoImpressao === "garantia" && (
-            <Button
-              color="primary"
-              startContent={<Download className="w-4 h-4" />}
-              onPress={handleGerarGarantia}
-              isLoading={loading}
-            >
-              Gerar Garantia
-            </Button>
+            <>
+              <Button
+                color="primary"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleGerarGarantia}
+                isLoading={loading}
+              >
+                Gerar Garantia
+              </Button>
+              <Button
+                color="success"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleGerarCupomTermicoGarantia}
+                isLoading={loadingCupomGarantia}
+              >
+                Cupom Térmico
+              </Button>
+            </>
           )}
 
           {tipoImpressao === "completo" && (
-            <Button
-              color="success"
-              startContent={<Download className="w-4 h-4" />}
-              onPress={handleGerarCompleto}
-              isLoading={loading}
-            >
-              Gerar Tudo
-            </Button>
+            <>
+              <Button
+                color="primary"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleGerarCompleto}
+                isLoading={loading}
+              >
+                Gerar PDF
+              </Button>
+              <Button
+                color="success"
+                startContent={<Download className="w-4 h-4" />}
+                onPress={handleGerarCupomTermicoCompleto}
+                isLoading={loadingCupomCompleto}
+              >
+                Cupom Térmico
+              </Button>
+            </>
           )}
         </ModalFooter>
       </ModalContent>

@@ -50,6 +50,7 @@ import { useToast } from "@/components/Toast";
 import {
   gerarGarantiaOS,
   gerarCupomTermicoGarantia,
+  gerarCupomTermicoPDFGarantia,
   imprimirCupomTermico,
 } from "@/lib/impressaoOS";
 
@@ -85,6 +86,7 @@ export default function GarantiaModal({
   const [loadingTexto, setLoadingTexto] = useState(false);
   const [loadingGerar, setLoadingGerar] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
+  const [loadingCupomPDF, setLoadingCupomPDF] = useState(false);
   const toast = useToast();
 
   // Atualizar tipo de garantia quando a OS mudar
@@ -191,6 +193,36 @@ export default function GarantiaModal({
       toast.error("Erro ao gerar cupom de garantia");
     } finally {
       setLoadingCupom(false);
+    }
+  };
+
+  const handleGerarCupomTermicoPDF = async () => {
+    if (!os) return;
+
+    setLoadingCupomPDF(true);
+    try {
+      const osAtualizada = {
+        ...os,
+        tipo_garantia: tipoGarantia,
+        dias_garantia: parseInt(diasGarantia) || 90,
+      };
+
+      const pdf = await gerarCupomTermicoPDFGarantia(
+        osAtualizada,
+        dadosLoja,
+        tipoGarantia,
+        parseInt(diasGarantia) || 90,
+      );
+      abrirPreviewPDF(
+        pdf,
+        `CupomTermico_Garantia_OS_${os.numero_os || os.id}.pdf`,
+      );
+      toast.success("Cupom térmico PDF de garantia gerado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao gerar cupom térmico PDF:", error);
+      toast.error("Erro ao gerar cupom térmico PDF");
+    } finally {
+      setLoadingCupomPDF(false);
     }
   };
 
@@ -319,6 +351,15 @@ export default function GarantiaModal({
         <ModalFooter>
           <Button color="default" variant="light" onPress={onClose}>
             Cancelar
+          </Button>
+          <Button
+            color="secondary"
+            variant="flat"
+            onPress={handleGerarCupomTermicoPDF}
+            isLoading={loadingCupomPDF}
+            startContent={!loadingCupomPDF && <FileText className="w-4 h-4" />}
+          >
+            Cupom térmico PDF
           </Button>
           <Button
             color="primary"
