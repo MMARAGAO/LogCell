@@ -40,7 +40,6 @@ import {
   AlertTriangle,
   CheckCircle,
   FileCheck,
-  Printer,
 } from "lucide-react";
 import {
   OrdemServico,
@@ -61,9 +60,8 @@ import {
   gerarPDFOrdemServico,
   gerarOrcamentoOS,
   gerarGarantiaOS,
-  gerarCupomTermicoOS,
-  imprimirCupomTermico,
 } from "@/lib/impressaoOS";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import {
   cancelarOrdemServico,
   devolverOrdemServico,
@@ -137,7 +135,6 @@ export default function OrdemServicoDetalhesModal({
   const [modalConfirmGarantia, setModalConfirmGarantia] = useState(false);
   const [modalMultiplosAparelhos, setModalMultiplosAparelhos] = useState(false);
   const [loadingOrcamento, setLoadingOrcamento] = useState(false);
-  const [loadingCupom, setLoadingCupom] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -175,7 +172,7 @@ export default function OrdemServicoDetalhesModal({
     setLoadingOrcamento(true);
     try {
       const doc = await gerarOrcamentoOS(osAtual, pecas, dadosLoja);
-      doc.save(`Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`);
+      abrirPreviewPDF(doc, `Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`);
       toast.success("Orçamento gerado com sucesso!");
     } catch (error) {
       console.error("Erro ao gerar orçamento:", error);
@@ -190,34 +187,6 @@ export default function OrdemServicoDetalhesModal({
 
     // Abrir modal de garantia para seleção
     setModalGarantiaOpen(true);
-  };
-
-  const handleImprimirCupom = async () => {
-    if (!osAtual) return;
-
-    // Verificar se tem tipo de garantia definido
-    if (!osAtual.tipo_garantia) {
-      const confirmar = window.confirm(
-        "Esta OS não possui garantia definida. Deseja adicionar uma garantia antes de imprimir o cupom?",
-      );
-
-      if (confirmar) {
-        setModalGarantiaOpen(true);
-        return;
-      }
-    }
-
-    setLoadingCupom(true);
-    try {
-      const cupom = await gerarCupomTermicoOS(osAtual, pecas, dadosLoja);
-      imprimirCupomTermico(cupom);
-      toast.success("Cupom térmico gerado com sucesso!");
-    } catch (error) {
-      console.error("Erro ao imprimir cupom:", error);
-      toast.error("Erro ao imprimir cupom");
-    } finally {
-      setLoadingCupom(false);
-    }
   };
 
   const carregarPecas = async () => {
@@ -1444,17 +1413,7 @@ export default function OrdemServicoDetalhesModal({
           >
             Imprimir Documentos
           </Button>
-          <Button
-            color="secondary"
-            variant="flat"
-            size="sm"
-            className="w-full sm:w-auto"
-            startContent={<Printer className="w-4 h-4" />}
-            onPress={handleImprimirCupom}
-            isLoading={loadingCupom}
-          >
-            Cupom Térmico
-          </Button>
+
           <Button
             color="default"
             variant="flat"

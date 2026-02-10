@@ -20,7 +20,6 @@ import {
   SelectItem,
 } from "@heroui/react";
 import {
-  Printer,
   Download,
   Trash2,
   Package,
@@ -35,9 +34,9 @@ import {
   gerarOrcamentoOS,
   gerarGarantiaOS,
   gerarPDFOrdemServico,
-  gerarCupomTermicoOrcamento,
-  imprimirCupomTermico,
+  gerarCupomTermicoPDFOrcamento,
 } from "@/lib/impressaoOS";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import { TipoServicoGarantia, TIPOS_SERVICO_GARANTIA } from "@/types/garantia";
 
 interface PecaOS {
@@ -137,7 +136,7 @@ export default function ImpressaoOrcamentoModal({
         parseInt(diasGarantia) || 90,
       );
 
-      pdf.save(`Orcamento_OS_${os.numero_os || os.id}.pdf`);
+      abrirPreviewPDF(pdf, `Orcamento_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Orçamento gerado com sucesso!");
       onClose();
     } catch (error) {
@@ -165,7 +164,7 @@ export default function ImpressaoOrcamentoModal({
         parseInt(diasGarantia) || 90,
       );
 
-      pdf.save(`Garantia_OS_${os.numero_os || os.id}.pdf`);
+      abrirPreviewPDF(pdf, `Garantia_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Termo de garantia gerado com sucesso!");
       onClose();
     } catch (error) {
@@ -194,7 +193,7 @@ export default function ImpressaoOrcamentoModal({
         parseInt(diasGarantia) || 90,
       );
 
-      pdf.save(`OS_${os.numero_os || os.id}_Completa.pdf`);
+      abrirPreviewPDF(pdf, `OS_${os.numero_os || os.id}_Completa.pdf`);
       toast.success("OS completa gerada com sucesso!");
       onClose();
     } catch (error) {
@@ -210,12 +209,12 @@ export default function ImpressaoOrcamentoModal({
 
     setLoadingCupom(true);
     try {
-      const cupom = await gerarCupomTermicoOrcamento(
+      const pdf = await gerarCupomTermicoPDFOrcamento(
         os,
         pecasFiltradas,
         dadosLoja,
       );
-      imprimirCupomTermico(cupom);
+      abrirPreviewPDF(pdf, `CupomTermico_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Cupom térmico gerado com sucesso!");
       onClose();
     } catch (error) {
@@ -439,8 +438,8 @@ export default function ImpressaoOrcamentoModal({
                 Gerar Orçamento
               </Button>
               <Button
-                color="warning"
-                startContent={<Printer className="w-4 h-4" />}
+                color="success"
+                startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarCupomTermico}
                 isLoading={loadingCupom}
               >

@@ -46,8 +46,6 @@ const nextConfig = {
     // Otimizar carregamento de pacotes
     optimizePackageImports: ["@heroui/react"],
   },
-  // Definir raiz do workspace para evitar warning
-  outputFileTracingRoot: "/home/matheus/apps/LogCell",
 };
 
 export default nextConfig;

@@ -38,6 +38,7 @@ import {
   FileCheck,
   Printer,
 } from "lucide-react";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import { supabase } from "@/lib/supabaseClient";
 import {
   TipoServicoGarantia,
@@ -154,7 +155,7 @@ export default function GarantiaModal({
         tipoGarantia,
         parseInt(diasGarantia) || 90,
       );
-      doc.save(`Garantia_OS_${os.numero_os || os.id}.pdf`);
+      abrirPreviewPDF(doc, `Garantia_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Termo de garantia gerado com sucesso!");
       onClose();
     } catch (error) {

@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 interface TransferenciaItem {
   produto_descricao?: string;
@@ -327,7 +328,7 @@ export function gerarRelatorioTransferenciaPDF(
   // Salvar
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_${transferencia.id.substring(0, 8)}_${timestamp}`;
-  doc.save(`${nomeArquivo}.pdf`);
+  abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
 // ============== RELATÓRIO DETALHADO DE TRANSFERÊNCIA ==============
@@ -494,7 +495,7 @@ export function gerarRelatorioTransferenciaDetalhado(
 
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_detalhado_${transferencia.id.substring(0, 8)}_${timestamp}`;
-  doc.save(`${nomeArquivo}.pdf`);
+  abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
 // ============== RELATÓRIO RESUMIDO DE TRANSFERÊNCIA ==============
@@ -632,7 +633,7 @@ export function gerarRelatorioTransferenciaResumido(
 
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_resumido_${transferencia.id.substring(0, 8)}_${timestamp}`;
-  doc.save(`${nomeArquivo}.pdf`);
+  abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
 // ============== FUNÇÕES AUXILIARES ==============

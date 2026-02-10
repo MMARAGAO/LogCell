@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 interface ProdutoEstoque {
   id: string;
@@ -311,5 +312,5 @@ export function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
   // Salvar o PDF
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `produto_${produto.descricao.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}_${timestamp}`;
-  doc.save(`${nomeArquivo}.pdf`);
+  abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }

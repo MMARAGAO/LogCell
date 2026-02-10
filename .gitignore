@@ -89,6 +89,14 @@ melhorias.txt
 /migrations/
 
 # ============================================================================
+# CONFIGURAÇÕES LOCAIS (NÃO FAZER COMMIT)
+# ============================================================================
+next.config.js
+next.config.mjs
+next.config.ts
+next.config.cjs
+
+# ============================================================================
 # SERVIDOR & OPERACIONAL (NÃO É CÓDIGO)
 # ============================================================================
 # Backups agora em /home/matheus/supabase/LogCell/backups/

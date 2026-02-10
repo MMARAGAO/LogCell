@@ -30,7 +30,7 @@ export const gerarPDFOrdemServico = async (
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // Cabeçalho da Empresa
@@ -240,9 +240,14 @@ export const gerarPDFOrdemServico = async (
   // Buscar texto de garantia do banco de dados
   let textoGarantia = null;
   let tituloGarantia = "TERMOS DE GARANTIA";
+  
+  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
+  const dataInicioGarantia = new Date(os.criado_em).toLocaleDateString("pt-BR");
+  const dataFimGarantia = new Date(new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
+  
   let termos = [
     "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
-    "(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data da entrega do aparelho ao cliente.",
+    `(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data de ${dataInicioGarantia} até ${dataFimGarantia}.`,
     "(3) - Esta garantia cobre defeitos de peças e mão de obra decorrentes dos serviços realizados e/ou peças substituídas pela AUTORIZADA CELL. Não cobrimos garantia de terceiros.",
     "(4) - Defeitos causados por mau uso, quedas, contato com líquidos, umidade, oxidação, surtos de energia, ou instalação de software não autorizado serão excluídos da garantia.",
     "(5) - Expirado o prazo da garantia, e apresentando esta ordem/garantia, poderá ser aplicado um desconto em caso de reparo no equipamento;",
@@ -322,8 +327,71 @@ export const gerarOrcamentoOS = async (
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229/230 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
+
+  // Logo (mesmo padrão do cupom térmico)
+  try {
+    const logoResponse = await fetch("/logo_imprimir.png");
+    const logoBlob = await logoResponse.blob();
+    const logoDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(logoBlob);
+    });
+
+    const bwLogoDataUrl = await new Promise<string>((resolve) => {
+      if (typeof document === "undefined") {
+        resolve(logoDataUrl);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const gray = r * 0.299 + g * 0.587 + b * 0.114;
+
+            data[i] = gray;
+            data[i + 1] = gray;
+            data[i + 2] = gray;
+          }
+
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } else {
+          resolve(logoDataUrl);
+        }
+      };
+      img.onerror = () => {
+        console.error("Erro ao carregar imagem da logo");
+        resolve(logoDataUrl);
+      };
+      img.src = logoDataUrl;
+    });
+
+    const logoWidth = 50;
+    const logoHeight = 30;
+    const logoX = (pageWidth - logoWidth) / 2;
+    doc.addImage(bwLogoDataUrl, "PNG", logoX, y, logoWidth, logoHeight);
+    y += logoHeight + 5;
+  } catch (error) {
+    console.error("Erro ao carregar logo:", error);
+    y += 5;
+  }
 
   // Cabeçalho da Empresa
   doc.setFontSize(18);
@@ -743,7 +811,7 @@ export const gerarGarantiaOS = async (
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Sia Trecho 7 Lote Único Conjunto D Loja 229 Zona Industrial - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // Cabeçalho da Empresa
@@ -806,7 +874,17 @@ export const gerarGarantiaOS = async (
   
   doc.text(`Tipo de Garantia: ${tipoGarantiaFinal.toUpperCase()}`, 15, y);
   y += 7;
-  doc.text(`Prazo de Garantia: ${diasGarantiaFinal} dias`, 15, y);
+  
+  // Calcular data final da garantia
+  const dataInicio = new Date(os.criado_em);
+  const dataFim = new Date(dataInicio);
+  dataFim.setDate(dataFim.getDate() + diasGarantiaFinal);
+  
+  doc.text(
+    `Prazo de Garantia: ${diasGarantiaFinal} dias (até ${dataFim.toLocaleDateString("pt-BR")})`,
+    15,
+    y
+  );
   y += 10;
 
   // Dados do Cliente
@@ -953,9 +1031,13 @@ export const gerarGarantiaOS = async (
   // Buscar texto de garantia do banco de dados
   let textoGarantia = null;
   let tituloGarantia = "TERMOS E CONDIÇÕES DA GARANTIA";
+  
+  const dataInicioGarantia = new Date(os.criado_em).toLocaleDateString("pt-BR");
+  const dataFimGarantia = new Date(new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
+  
   let termos = [
     "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
-    "(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data da entrega do aparelho ao cliente.",
+    `(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data de ${dataInicioGarantia} até ${dataFimGarantia}.`,
     "(3) - Esta garantia cobre defeitos de peças e mão de obra decorrentes dos serviços realizados e/ou peças substituídas pela AUTORIZADA CELL. Não cobrimos garantia de terceiros.",
     "(4) - Defeitos causados por mau uso, quedas, contato com líquidos, umidade, oxidação, surtos de energia, ou instalação de software não autorizado serão excluídos da garantia.",
     "(5) - Expirado o prazo da garantia, e apresentando esta ordem/garantia, poderá ser aplicado um desconto em caso de reparo no equipamento;",
@@ -1600,5 +1682,390 @@ export const gerarCupomTermicoOrcamento = async (
   cupom += "\n\n";
 
   return cupom;
+};
+
+export const gerarCupomTermicoPDFOrcamento = async (
+  os: OrdemServico,
+  pecas: PecaOS[],
+  dadosLoja: DadosLoja
+) => {
+  // Documento com tamanho de cupom térmico (80mm x 250mm)
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [80, 250],
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 5;
+
+  // Dados padrão
+  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
+
+  // ========== LOGO DA LOJA ==========
+  try {
+    const logoResponse = await fetch("/logo_imprimir.png");
+    const logoBlob = await logoResponse.blob();
+    const logoDataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(logoBlob);
+    });
+
+    // Converter a imagem para preto e branco
+    const bwLogoDataUrl = await new Promise<string>((resolve) => {
+      if (typeof document === "undefined") {
+        // Se em servidor, retorna a imagem original colorida
+        resolve(logoDataUrl);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        
+        if (ctx) {
+          // Desenhar imagem
+          ctx.drawImage(img, 0, 0);
+          
+          // Obter dados da imagem
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          
+          // Converter para escala de cinza (preto e branco)
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            // Fórmula de luminosidade
+            const gray = r * 0.299 + g * 0.587 + b * 0.114;
+            
+            data[i] = gray;     // R
+            data[i + 1] = gray; // G
+            data[i + 2] = gray; // B
+            // data[i + 3] permanece como alpha
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } else {
+          resolve(logoDataUrl);
+        }
+      };
+      img.onerror = () => {
+        console.error("Erro ao carregar imagem da logo");
+        resolve(logoDataUrl);
+      };
+      img.src = logoDataUrl;
+    });
+    
+    doc.addImage(bwLogoDataUrl, "PNG", 15, y, 50, 30);
+    y += 30;
+  } catch (error) {
+    console.error("Erro ao carregar logo:", error);
+    // Se falhar, apenas avança o y
+    y += 8;
+  }
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  
+  // Dividir endereço em múltiplas linhas se necessário
+  const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 10);
+  enderecoLines.forEach((line: string) => {
+    doc.text(line, pageWidth / 2, y, { align: "center" });
+    y += 3.5;
+  });
+  
+  doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, { align: "center" });
+  y += 6;
+
+  // Linha de separação
+  doc.setLineWidth(0.5);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  // ========== TÍTULO ==========
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("ORÇAMENTO", pageWidth / 2, y, { align: "center" });
+  y += 6;
+
+  doc.setLineWidth(0.5);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  // ========== NÚMERO E DATA ==========
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Nº OS: ${os.numero_os || os.id}`, 5, y);
+  y += 4;
+  doc.text(`Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`, 5, y);
+  y += 6;
+
+  // ========== DADOS DO CLIENTE ==========
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text("DADOS DO CLIENTE", 5, y);
+  y += 4;
+  doc.setLineWidth(0.3);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 3;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(`Nome: ${os.cliente_nome}`, 5, y);
+  y += 4;
+  if (os.cliente_telefone) {
+    doc.text(`Telefone: ${os.cliente_telefone}`, 5, y);
+    y += 4;
+  }
+  y += 3;
+
+  // ========== APARELHO/EQUIPAMENTO ==========
+  const temMultiplosAparelhos = (os.aparelhos?.length || 0) > 0;
+
+  if (temMultiplosAparelhos && os.aparelhos) {
+    os.aparelhos.forEach((aparelho) => {
+      if (y > 220) {
+        doc.addPage();
+        y = 10;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`APARELHO ${aparelho.sequencia} - EQUIPAMENTO`, 5, y);
+      y += 4;
+      doc.setLineWidth(0.3);
+      doc.line(5, y, pageWidth - 5, y);
+      y += 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(`Equipamento: ${aparelho.equipamento_tipo}`, 5, y);
+      y += 3.5;
+      if (aparelho.equipamento_marca) {
+        doc.text(`Marca: ${aparelho.equipamento_marca}`, 5, y);
+        y += 3.5;
+      }
+      if (aparelho.equipamento_modelo) {
+        doc.text(`Modelo: ${aparelho.equipamento_modelo}`, 5, y);
+        y += 3.5;
+      }
+      if (aparelho.equipamento_numero_serie) {
+        doc.text(`Nº Série: ${aparelho.equipamento_numero_serie}`, 5, y);
+        y += 3.5;
+      }
+      if (aparelho.equipamento_imei) {
+        doc.text(`IMEI: ${aparelho.equipamento_imei}`, 5, y);
+        y += 3.5;
+      }
+      doc.text(`Estado: ${aparelho.estado_equipamento || "[Informar estado]"}`, 5, y);
+      y += 5;
+
+      // ========== PROBLEMA ==========
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`PROBLEMA - APARELHO ${aparelho.sequencia}`, 5, y);
+      y += 4;
+      doc.setLineWidth(0.3);
+      doc.line(5, y, pageWidth - 5, y);
+      y += 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(aparelho.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
+      y += doc.getTextDimensions(aparelho.defeito_reclamado).h + 4;
+
+      // ========== SERVIÇO ==========
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`SERVIÇO - APARELHO ${aparelho.sequencia}`, 5, y);
+      y += 4;
+      doc.setLineWidth(0.3);
+      doc.line(5, y, pageWidth - 5, y);
+      y += 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      const servico = aparelho.laudo_diagnostico || "A definir após diagnóstico";
+      doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
+      y += doc.getTextDimensions(servico).h + 4;
+
+      // ========== VALORES ==========
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(`VALORES - APARELHO ${aparelho.sequencia}`, 5, y);
+      y += 4;
+      doc.setLineWidth(0.3);
+      doc.line(5, y, pageWidth - 5, y);
+      y += 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(`Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 5, y);
+      y += 3.5;
+      if ((aparelho.valor_desconto || 0) > 0) {
+        doc.text(`Desconto: R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`, 5, y);
+        y += 3.5;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total: R$ ${(aparelho.valor_total || 0).toFixed(2)}`, 5, y);
+      y += 5;
+    });
+  } else {
+    // ========== EQUIPAMENTO ==========
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("EQUIPAMENTO", 5, y);
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(`Equipamento: ${os.equipamento_tipo}`, 5, y);
+    y += 3.5;
+    if (os.equipamento_marca) {
+      doc.text(`Marca: ${os.equipamento_marca}`, 5, y);
+      y += 3.5;
+    }
+    if (os.equipamento_modelo) {
+      doc.text(`Modelo: ${os.equipamento_modelo}`, 5, y);
+      y += 3.5;
+    }
+    if (os.equipamento_numero_serie) {
+      doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 5, y);
+      y += 3.5;
+    }
+    y += 3;
+
+    // ========== PROBLEMA ==========
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("PROBLEMA", 5, y);
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(os.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
+    y += doc.getTextDimensions(os.defeito_reclamado).h + 4;
+
+    // ========== SERVIÇO ==========
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("SERVIÇO", 5, y);
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    const servico = os.laudo_diagnostico || "A definir após diagnóstico";
+    doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
+    y += doc.getTextDimensions(servico).h + 4;
+
+    // ========== VALORES ==========
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("VALORES", 5, y);
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text(`Orçamento: R$ ${(os.valor_orcamento || 0).toFixed(2)}`, 5, y);
+    y += 3.5;
+    if ((os.valor_desconto || 0) > 0) {
+      doc.text(`Desconto: R$ ${(os.valor_desconto || 0).toFixed(2)}`, 5, y);
+      y += 3.5;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: R$ ${(os.valor_total || 0).toFixed(2)}`, 5, y);
+    y += 5;
+  }
+
+  // ========== RESUMO DE VALORES (se houver múltiplos aparelhos) ==========
+  if (temMultiplosAparelhos && os.aparelhos) {
+    if (y > 220) {
+      doc.addPage();
+      y = 10;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.text("RESUMO DE VALORES", 5, y);
+    y += 4;
+    doc.setLineWidth(0.3);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+
+    os.aparelhos.forEach((aparelho) => {
+      const nomeEquipamento = aparelho.equipamento_tipo || "Equipamento";
+      doc.text(`Aparelho ${aparelho.sequencia} (${nomeEquipamento}):`, 5, y);
+      y += 3;
+      doc.text(`  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 5, y);
+      y += 3;
+      doc.text(`  Subtotal: R$ ${(aparelho.valor_total || 0).toFixed(2)}`, 5, y);
+      y += 4;
+    });
+
+    doc.setLineWidth(0.5);
+    doc.line(5, y, pageWidth - 5, y);
+    y += 3;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(`TOTAL GERAL: R$ ${(os.valor_total || 0).toFixed(2)}`, pageWidth / 2, y, {
+      align: "center",
+    });
+    y += 6;
+  }
+
+  // ========== RODAPÉ ==========
+  y += 3;
+  doc.setLineWidth(0.5);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 5;
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(100, 100, 100);
+  doc.text(
+    "Autorizo a execução dos serviços descritos acima",
+    pageWidth / 2,
+    y,
+    { align: "center", maxWidth: pageWidth - 10 }
+  );
+  y += 3;
+  doc.text(
+    "e estou ciente dos valores apresentados.",
+    pageWidth / 2,
+    y,
+    { align: "center", maxWidth: pageWidth - 10 }
+  );
+  y += 5;
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "normal");
+  doc.text("Assinatura do Cliente: ________________", 5, y);
+
+  return doc;
 };
 

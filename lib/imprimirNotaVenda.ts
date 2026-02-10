@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import type { VendaCompleta } from "@/types/vendas";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 // Função principal que gera o PDF
 function gerarPDFNota(venda: VendaCompleta): jsPDF {
@@ -207,7 +208,7 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 // Função para salvar PDF
 export function salvarPDFNota(venda: VendaCompleta) {
   const doc = gerarPDFNota(venda);
-  doc.save(`venda_${venda.numero_venda}.pdf`);
+  abrirPreviewPDF(doc, `venda_${venda.numero_venda}.pdf`);
 }
 
 // Função para imprimir PDF
