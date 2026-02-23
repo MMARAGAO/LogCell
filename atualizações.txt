@@ -31,7 +31,7 @@ Separar gastos por:
 – Tipo (estoque, marketing, estrutura, pessoal)
 Isso te mostra onde o dinheiro está indo de verdade.
 
-📈 Relatórios Gerenciais
+📈 Relatórios Gerenciai
 
 – Lucro líquido real (já descontando tudo)
 – Comparativo mês a mês
