@@ -1,4 +1,5 @@
 import React from "react";
+
 import { TextoGarantia } from "@/types/garantia";
 
 interface TextoGarantiaViewProps {

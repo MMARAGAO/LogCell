@@ -25,7 +25,6 @@ import {
   History,
   Camera,
   TrendingUp,
-  AlertCircle,
   CheckCircle,
   XCircle,
   Clock,
@@ -35,6 +34,7 @@ import {
   Trash2,
   PackagePlus,
 } from "lucide-react";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { rmaService } from "@/services/rmaService";
 import {
@@ -127,6 +127,7 @@ export default function DetalhesRMA({
     if (novoStatus === "concluido") {
       setStatusPendente(novoStatus);
       setMostrarModalDevolucao(true);
+
       return;
     }
 
@@ -136,7 +137,7 @@ export default function DetalhesRMA({
 
   const atualizarStatusComDevolucao = async (
     status: StatusRMA,
-    devolver: boolean
+    devolver: boolean,
   ) => {
     setAtualizandoStatus(true);
     try {
@@ -165,7 +166,7 @@ export default function DetalhesRMA({
 
     if (
       !confirm(
-        "Tem certeza que deseja cancelar este RMA? O produto será devolvido ao estoque."
+        "Tem certeza que deseja cancelar este RMA? O produto será devolvido ao estoque.",
       )
     ) {
       return;
@@ -189,7 +190,7 @@ export default function DetalhesRMA({
 
     if (
       !confirm(
-        "Tem certeza que deseja deletar este RMA? Esta ação não pode ser desfeita."
+        "Tem certeza que deseja deletar este RMA? Esta ação não pode ser desfeita.",
       )
     ) {
       return;
@@ -213,7 +214,7 @@ export default function DetalhesRMA({
 
     const motivo = prompt(
       "Informe o motivo da devolução ao estoque (opcional):",
-      "Produto reparado/analisado"
+      "Produto reparado/analisado",
     );
 
     if (motivo === null) return; // Usuário cancelou
@@ -244,7 +245,7 @@ export default function DetalhesRMA({
 
   if (loading) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} size="4xl">
+      <Modal isOpen={isOpen} size="4xl" onClose={onClose}>
         <ModalContent>
           <ModalBody className="py-8">
             <div className="text-center">Carregando...</div>
@@ -256,7 +257,7 @@ export default function DetalhesRMA({
 
   if (!rma) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} size="4xl">
+      <Modal isOpen={isOpen} size="4xl" onClose={onClose}>
         <ModalContent>
           <ModalBody className="py-8">
             <div className="text-center text-danger">RMA não encontrado</div>
@@ -272,9 +273,9 @@ export default function DetalhesRMA({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
-        size="4xl"
         scrollBehavior="inside"
+        size="4xl"
+        onClose={onClose}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
@@ -282,8 +283,8 @@ export default function DetalhesRMA({
               <h2 className="text-2xl font-bold">RMA #{rma.numero_rma}</h2>
               <Chip
                 color={CORES_STATUS_RMA[rma.status]}
-                variant="flat"
                 startContent={<IconeStatus className="w-4 h-4" />}
+                variant="flat"
               >
                 {LABELS_STATUS_RMA[rma.status]}
               </Chip>
@@ -409,25 +410,25 @@ export default function DetalhesRMA({
 
                   <div className="flex gap-3">
                     <Select
+                      className="flex-1"
                       label="Novo Status"
                       selectedKeys={novoStatus ? [novoStatus] : []}
                       onChange={(e) =>
                         setNovoStatus(e.target.value as StatusRMA)
                       }
-                      className="flex-1"
                     >
                       {Object.entries(LABELS_STATUS_RMA).map(
                         ([valor, label]) => (
                           <SelectItem key={valor}>{label}</SelectItem>
-                        )
+                        ),
                       )}
                     </Select>
 
                     <Button
                       color="primary"
-                      onPress={handleAtualizarStatus}
-                      isLoading={atualizandoStatus}
                       isDisabled={novoStatus === rma.status || !novoStatus}
+                      isLoading={atualizandoStatus}
+                      onPress={handleAtualizarStatus}
                     >
                       Atualizar
                     </Button>
@@ -448,9 +449,9 @@ export default function DetalhesRMA({
                       {fotos.map((foto) => (
                         <div key={foto.id} className="relative aspect-square">
                           <Image
-                            src={foto.url}
                             alt={foto.nome_arquivo}
                             className="rounded-lg object-cover w-full h-full"
+                            src={foto.url}
                           />
                         </div>
                       ))}
@@ -503,9 +504,9 @@ export default function DetalhesRMA({
                                 {typeof item.dados_anteriores === "string" && (
                                   <>
                                     <Chip
+                                      color="default"
                                       size="sm"
                                       variant="flat"
-                                      color="default"
                                     >
                                       {LABELS_STATUS_RMA[
                                         item.dados_anteriores as StatusRMA
@@ -516,13 +517,13 @@ export default function DetalhesRMA({
                                 )}
                                 {typeof item.dados_novos === "string" && (
                                   <Chip
-                                    size="sm"
-                                    variant="flat"
                                     color={
                                       CORES_STATUS_RMA[
                                         item.dados_novos as StatusRMA
                                       ] || "default"
                                     }
+                                    size="sm"
+                                    variant="flat"
                                   >
                                     {LABELS_STATUS_RMA[
                                       item.dados_novos as StatusRMA
@@ -535,7 +536,7 @@ export default function DetalhesRMA({
                             {/* Para criação, mostrar apenas descrição sem dados */}
                             {item.tipo_acao === "criacao" && (
                               <div className="mt-1">
-                                <Chip size="sm" variant="flat" color="success">
+                                <Chip color="success" size="sm" variant="flat">
                                   RMA Criado
                                 </Chip>
                               </div>
@@ -543,7 +544,7 @@ export default function DetalhesRMA({
 
                             {/* Para outros tipos de ação, mostrar dados relevantes */}
                             {!["criacao", "mudanca_status"].includes(
-                              item.tipo_acao
+                              item.tipo_acao,
                             ) &&
                               item.dados_novos && (
                                 <div className="mt-2 space-y-1">
@@ -568,6 +569,7 @@ export default function DetalhesRMA({
 
                                           // Formatar valores
                                           let displayValue = value;
+
                                           if (
                                             value === null ||
                                             value === undefined
@@ -627,21 +629,21 @@ export default function DetalhesRMA({
                   <>
                     <Button
                       color="success"
-                      variant="flat"
-                      startContent={<PackagePlus size={18} />}
-                      onPress={handleDevolverAoEstoque}
-                      isLoading={devolvendo}
                       isDisabled={cancelando || deletando || devolvendo}
+                      isLoading={devolvendo}
+                      startContent={<PackagePlus size={18} />}
+                      variant="flat"
+                      onPress={handleDevolverAoEstoque}
                     >
                       Devolver ao Estoque
                     </Button>
                     <Button
                       color="danger"
-                      variant="flat"
-                      startContent={<Ban size={18} />}
-                      onPress={handleCancelarRMA}
-                      isLoading={cancelando}
                       isDisabled={cancelando || deletando || devolvendo}
+                      isLoading={cancelando}
+                      startContent={<Ban size={18} />}
+                      variant="flat"
+                      onPress={handleCancelarRMA}
                     >
                       Cancelar RMA
                     </Button>
@@ -650,11 +652,11 @@ export default function DetalhesRMA({
                 {rma.status === "cancelado" && (
                   <Button
                     color="danger"
-                    variant="solid"
-                    startContent={<Trash2 size={18} />}
-                    onPress={handleDeletarRMA}
-                    isLoading={deletando}
                     isDisabled={cancelando || deletando || devolvendo}
+                    isLoading={deletando}
+                    startContent={<Trash2 size={18} />}
+                    variant="solid"
+                    onPress={handleDeletarRMA}
                   >
                     Deletar RMA
                   </Button>
@@ -672,12 +674,12 @@ export default function DetalhesRMA({
       {mostrarModalDevolucao && (
         <Modal
           isOpen={mostrarModalDevolucao}
+          size="md"
           onClose={() => {
             setMostrarModalDevolucao(false);
             setStatusPendente(null);
             setNovoStatus("");
           }}
-          size="md"
         >
           <ModalContent>
             <ModalHeader className="flex flex-col gap-1">
@@ -715,29 +717,29 @@ export default function DetalhesRMA({
             </ModalBody>
             <ModalFooter>
               <Button
+                isDisabled={atualizandoStatus}
                 variant="flat"
                 onPress={() => {
                   setMostrarModalDevolucao(false);
                   setStatusPendente(null);
                   setNovoStatus("");
                 }}
-                isDisabled={atualizandoStatus}
               >
                 Cancelar
               </Button>
               <Button
                 color="default"
+                isLoading={atualizandoStatus}
                 variant="flat"
                 onPress={() => handleConfirmarDevolucao(false)}
-                isLoading={atualizandoStatus}
               >
                 Não Devolver
               </Button>
               <Button
                 color="success"
-                onPress={() => handleConfirmarDevolucao(true)}
                 isLoading={atualizandoStatus}
                 startContent={!atualizandoStatus && <PackagePlus size={18} />}
+                onPress={() => handleConfirmarDevolucao(true)}
               >
                 Sim, Devolver ao Estoque
               </Button>

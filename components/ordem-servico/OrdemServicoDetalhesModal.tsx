@@ -28,7 +28,6 @@ import {
   Tag,
   Wrench,
   FileText,
-  DollarSign,
   Calendar,
   Package,
   MapPin,
@@ -39,8 +38,16 @@ import {
   Camera,
   AlertTriangle,
   CheckCircle,
-  FileCheck,
 } from "lucide-react";
+
+import StatusProgressBar from "./StatusProgressBar";
+import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
+import GarantiaModal from "./GarantiaModal";
+import ImpressaoOrcamentoModal from "./ImpressaoOrcamentoModal";
+import DevolverOSModal from "./DevolverOSModal";
+import GerenciarMultiplosAparelhos from "./GerenciarMultiplosAparelhos";
+
+import { useToast } from "@/components/Toast";
 import {
   OrdemServico,
   StatusOS,
@@ -49,18 +56,7 @@ import {
   PRIORIDADE_OS_LABELS,
   PRIORIDADE_OS_COLORS,
 } from "@/types/ordemServico";
-import { useToast } from "@/components/Toast";
-import StatusProgressBar from "./StatusProgressBar";
-import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
-import GarantiaModal from "./GarantiaModal";
-import ImpressaoOrcamentoModal from "./ImpressaoOrcamentoModal";
-import DevolverOSModal from "./DevolverOSModal";
-import GerenciarMultiplosAparelhos from "./GerenciarMultiplosAparelhos";
-import {
-  gerarPDFOrdemServico,
-  gerarOrcamentoOS,
-  gerarGarantiaOS,
-} from "@/lib/impressaoOS";
+import { gerarOrcamentoOS } from "@/lib/impressaoOS";
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import {
   cancelarOrdemServico,
@@ -172,6 +168,7 @@ export default function OrdemServicoDetalhesModal({
     setLoadingOrcamento(true);
     try {
       const doc = await gerarOrcamentoOS(osAtual, pecas, dadosLoja);
+
       abrirPreviewPDF(
         doc,
         `Orcamento_OS_${osAtual.numero_os || osAtual.id}.pdf`,
@@ -221,6 +218,7 @@ export default function OrdemServicoDetalhesModal({
       if (error) {
         console.error("Erro ao carregar peças:", error);
         setPecas([]);
+
         return;
       }
 
@@ -280,6 +278,7 @@ export default function OrdemServicoDetalhesModal({
         console.error("Erro ao carregar quebras:", error);
         toast.error("Erro ao carregar quebras: " + error.message);
         setQuebras([]);
+
         return;
       }
 
@@ -292,6 +291,7 @@ export default function OrdemServicoDetalhesModal({
               .select("id, nome")
               .eq("id", quebra.criado_por)
               .maybeSingle();
+
             return userData;
           }),
         );
@@ -339,6 +339,7 @@ export default function OrdemServicoDetalhesModal({
 
       if (!user) {
         toast.error("Usuário não autenticado");
+
         return;
       }
 
@@ -377,6 +378,7 @@ export default function OrdemServicoDetalhesModal({
 
       if (!user) {
         toast.showToast("Usuário não autenticado", "error");
+
         return;
       }
 
@@ -418,6 +420,7 @@ export default function OrdemServicoDetalhesModal({
 
       if (!user) {
         toast.showToast("Usuário não autenticado", "error");
+
         return;
       }
 
@@ -465,6 +468,7 @@ export default function OrdemServicoDetalhesModal({
 
       if (!user) {
         toast.showToast("Usuário não autenticado", "error");
+
         return;
       }
 
@@ -541,11 +545,13 @@ export default function OrdemServicoDetalhesModal({
 
   const formatarData = (data?: string) => {
     if (!data) return "-";
+
     return new Date(data).toLocaleDateString("pt-BR");
   };
 
   const formatarDataHora = (data?: string) => {
     if (!data) return "-";
+
     return new Date(data).toLocaleString("pt-BR");
   };
 
@@ -570,7 +576,7 @@ export default function OrdemServicoDetalhesModal({
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
@@ -597,8 +603,8 @@ export default function OrdemServicoDetalhesModal({
                   <Chip
                     color="danger"
                     size="sm"
-                    variant="flat"
                     startContent={<XCircle className="w-4 h-4" />}
+                    variant="flat"
                   >
                     Caixa cancelado
                   </Chip>
@@ -617,9 +623,9 @@ export default function OrdemServicoDetalhesModal({
                 </h3>
                 <StatusProgressBar
                   currentStatus={osAtual.status}
-                  onStatusChange={handleStatusChange}
-                  isUpdating={loadingStatus}
                   disabled={osAtual.status === "cancelado"}
+                  isUpdating={loadingStatus}
+                  onStatusChange={handleStatusChange}
                 />
               </CardBody>
             </Card>
@@ -665,8 +671,8 @@ export default function OrdemServicoDetalhesModal({
                           ? "primary"
                           : "secondary"
                       }
-                      variant="flat"
                       size="sm"
+                      variant="flat"
                     >
                       {osAtual.tipo_cliente === "lojista"
                         ? "Lojista"
@@ -687,9 +693,9 @@ export default function OrdemServicoDetalhesModal({
                       Aparelhos
                     </h3>
                     <Button
+                      color="primary"
                       size="sm"
                       variant="flat"
-                      color="primary"
                       onPress={() => setModalMultiplosAparelhos(true)}
                     >
                       🔧 Gerenciar Aparelhos
@@ -829,9 +835,9 @@ export default function OrdemServicoDetalhesModal({
                       Equipamento
                     </h3>
                     <Button
+                      color="primary"
                       size="sm"
                       variant="flat"
-                      color="primary"
                       onPress={() => setModalMultiplosAparelhos(true)}
                     >
                       🔧 Gerenciar Aparelhos
@@ -977,8 +983,8 @@ export default function OrdemServicoDetalhesModal({
                 ) : (
                   <div className="space-y-3">
                     <Table
-                      aria-label="Peças utilizadas"
                       removeWrapper
+                      aria-label="Peças utilizadas"
                       classNames={{
                         th: "bg-default-100",
                         td: "py-3",
@@ -1014,13 +1020,12 @@ export default function OrdemServicoDetalhesModal({
                             </TableCell>
                             <TableCell>
                               <Chip
-                                size="sm"
                                 color={
                                   peca.tipo_produto === "estoque"
                                     ? "success"
                                     : "warning"
                                 }
-                                variant="flat"
+                                size="sm"
                                 startContent={
                                   peca.tipo_produto === "estoque" ? (
                                     <Package className="w-3 h-3" />
@@ -1028,6 +1033,7 @@ export default function OrdemServicoDetalhesModal({
                                     <ShoppingBag className="w-3 h-3" />
                                   )
                                 }
+                                variant="flat"
                               >
                                 {peca.tipo_produto === "estoque"
                                   ? "Estoque"
@@ -1132,8 +1138,8 @@ export default function OrdemServicoDetalhesModal({
                                             "Produto não identificado"}
                                         </span>
                                         <Chip
-                                          size="sm"
                                           color="warning"
+                                          size="sm"
                                           variant="flat"
                                         >
                                           Pendente
@@ -1223,16 +1229,16 @@ export default function OrdemServicoDetalhesModal({
                                       </div>
                                       <Button
                                         color="success"
+                                        isLoading={
+                                          loadingAprovarQuebra === quebra.id
+                                        }
                                         size="sm"
                                         startContent={
                                           loadingAprovarQuebra === quebra.id ? (
-                                            <Spinner size="sm" color="white" />
+                                            <Spinner color="white" size="sm" />
                                           ) : (
                                             <CheckCircle className="w-4 h-4" />
                                           )
-                                        }
-                                        isLoading={
-                                          loadingAprovarQuebra === quebra.id
                                         }
                                         onPress={() => aprovarQuebra(quebra.id)}
                                       >
@@ -1274,8 +1280,8 @@ export default function OrdemServicoDetalhesModal({
                                             "Produto não identificado"}
                                         </span>
                                         <Chip
-                                          size="sm"
                                           color="success"
+                                          size="sm"
                                           variant="flat"
                                         >
                                           Aprovada
@@ -1372,13 +1378,13 @@ export default function OrdemServicoDetalhesModal({
           {osAtual?.status !== "cancelado" &&
             osAtual?.status !== "devolvida" && (
               <Button
-                color="danger"
-                variant="flat"
-                size="sm"
                 className="w-full sm:w-auto"
-                startContent={<XCircle className="w-4 h-4" />}
-                onPress={() => setModalConfirmCancelar(true)}
+                color="danger"
                 isDisabled={loadingCancelar}
+                size="sm"
+                startContent={<XCircle className="w-4 h-4" />}
+                variant="flat"
+                onPress={() => setModalConfirmCancelar(true)}
               >
                 Cancelar OS
               </Button>
@@ -1386,42 +1392,42 @@ export default function OrdemServicoDetalhesModal({
           {osAtual?.status !== "cancelado" &&
             osAtual?.status !== "devolvida" && (
               <Button
-                color="warning"
-                variant="flat"
-                size="sm"
                 className="w-full sm:w-auto"
+                color="warning"
+                size="sm"
                 startContent={<AlertTriangle className="w-4 h-4" />}
+                variant="flat"
                 onPress={() => setModalDevolverOpen(true)}
               >
                 Devolver OS
               </Button>
             )}
           <Button
-            color="primary"
-            variant="flat"
-            size="sm"
             className="w-full sm:w-auto"
+            color="primary"
+            size="sm"
             startContent={<Camera className="w-4 h-4" />}
+            variant="flat"
             onPress={() => setModalFotos(true)}
           >
             Gerenciar Fotos
           </Button>
           <Button
-            color="primary"
-            variant="flat"
-            size="sm"
             className="w-full sm:w-auto"
+            color="primary"
+            size="sm"
             startContent={<FileText className="w-4 h-4" />}
+            variant="flat"
             onPress={() => setModalImpressaoOpen(true)}
           >
             Imprimir Documentos
           </Button>
 
           <Button
-            color="default"
-            variant="flat"
-            size="sm"
             className="w-full sm:w-auto"
+            color="default"
+            size="sm"
+            variant="flat"
             onPress={onClose}
           >
             Fechar
@@ -1432,8 +1438,8 @@ export default function OrdemServicoDetalhesModal({
       {/* Modal de Confirmação de Cancelamento */}
       <Modal
         isOpen={modalConfirmCancelar}
-        onClose={() => setModalConfirmCancelar(false)}
         placement="center"
+        onClose={() => setModalConfirmCancelar(false)}
       >
         <ModalContent>
           <ModalHeader>Cancelar Ordem de Serviço</ModalHeader>
@@ -1462,8 +1468,8 @@ export default function OrdemServicoDetalhesModal({
             </Button>
             <Button
               color="danger"
-              onPress={handleCancelarOS}
               isLoading={loadingCancelar}
+              onPress={handleCancelarOS}
             >
               Sim, Cancelar
             </Button>
@@ -1474,8 +1480,8 @@ export default function OrdemServicoDetalhesModal({
       {/* Modal de Devolução */}
       <DevolverOSModal
         isOpen={modalDevolverOpen}
-        onClose={() => setModalDevolverOpen(false)}
         os={osAtual}
+        onClose={() => setModalDevolverOpen(false)}
         onConfirm={handleDevolverOS}
       />
 
@@ -1483,34 +1489,35 @@ export default function OrdemServicoDetalhesModal({
       {osAtual && (
         <GerenciarFotosOSModal
           isOpen={modalFotos}
-          onClose={() => setModalFotos(false)}
-          ordemServicoId={osAtual.id}
           numeroOS={osAtual.numero_os}
+          ordemServicoId={osAtual.id}
+          onClose={() => setModalFotos(false)}
         />
       )}
 
       {/* Modal de Configuração de Garantia */}
       {osAtual && (
         <GarantiaModal
+          dadosLoja={dadosLoja}
           isOpen={modalGarantiaOpen}
-          onClose={() => setModalGarantiaOpen(false)}
           os={osAtual}
           pecas={pecas}
-          dadosLoja={dadosLoja}
+          onClose={() => setModalGarantiaOpen(false)}
         />
       )}
 
       {/* Modal de Impressão e Orçamento */}
       {osAtual && (
         <ImpressaoOrcamentoModal
+          dadosLoja={dadosLoja}
           isOpen={modalImpressaoOpen}
-          onClose={() => setModalImpressaoOpen(false)}
           os={osAtual}
           pecas={pecas}
-          dadosLoja={dadosLoja}
+          onClose={() => setModalImpressaoOpen(false)}
           onSalvarGarantia={async (tipo, dias) => {
             try {
               const { supabase } = await import("@/lib/supabaseClient");
+
               await supabase
                 .from("ordem_servico")
                 .update({
@@ -1536,15 +1543,15 @@ export default function OrdemServicoDetalhesModal({
       {/* Modal de Gerenciamento de Múltiplos Aparelhos */}
       {osAtual && (
         <GerenciarMultiplosAparelhos
-          isOpen={modalMultiplosAparelhos}
-          onClose={() => setModalMultiplosAparelhos(false)}
-          idOrdemServico={osAtual.id}
           idLoja={osAtual.id_loja}
+          idOrdemServico={osAtual.id}
+          isOpen={modalMultiplosAparelhos}
           onAparelhosAtualizados={() => {
             if (onOSAtualizada) {
               onOSAtualizada();
             }
           }}
+          onClose={() => setModalMultiplosAparelhos(false)}
         />
       )}
 

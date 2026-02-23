@@ -24,6 +24,9 @@ import {
   TableCell,
 } from "@heroui/table";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
+
+import { CadastroClienteModal } from "./CadastroClienteModal";
+
 import { useToast } from "@/components/Toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { formatarMoeda } from "@/lib/formatters";
@@ -31,7 +34,6 @@ import { Aparelho } from "@/types/aparelhos";
 import { Cliente } from "@/types/clientesTecnicos";
 import { buscarClientes } from "@/services/clienteService";
 import { criarPagamentoAparelho } from "@/services/pagamentoAparelhosService";
-import { CadastroClienteModal } from "./CadastroClienteModal";
 
 interface Pagamento {
   tipo: string;
@@ -88,6 +90,7 @@ export function RecebimentoAparelhoModal({
 
       while (true) {
         const { data, error, count } = await buscarClientes({ page, pageSize });
+
         if (error) throw new Error(error);
 
         if (data && data.length > 0) {
@@ -95,6 +98,7 @@ export function RecebimentoAparelhoModal({
         }
 
         const total = count || 0;
+
         if (!data || data.length < pageSize || acumulado.length >= total) {
           break;
         }
@@ -114,21 +118,26 @@ export function RecebimentoAparelhoModal({
   function adicionarPagamento() {
     if (!tipoPagamento || !valorPagamento) {
       showToast("Selecione tipo e valor do pagamento", "warning");
+
       return;
     }
 
     const valor = parseFloat(valorPagamento);
+
     if (valor <= 0) {
       showToast("Valor deve ser maior que zero", "warning");
+
       return;
     }
 
     const totalAtual = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+
     if (totalAtual + valor > (aparelho.valor_venda || 0)) {
       showToast(
         `Total não pode ultrapassar ${formatarMoeda(aparelho.valor_venda || 0)}`,
-        "warning"
+        "warning",
       );
+
       return;
     }
 
@@ -144,17 +153,21 @@ export function RecebimentoAparelhoModal({
   async function handleSubmit() {
     if (!clienteSelecionado) {
       showToast("Selecione um cliente", "warning");
+
       return;
     }
 
     if (pagamentos.length === 0) {
       showToast("Adicione pelo menos um pagamento", "warning");
+
       return;
     }
 
     const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+
     if (totalPago <= 0) {
       showToast("Valor total deve ser maior que zero", "warning");
+
       return;
     }
 
@@ -186,7 +199,7 @@ export function RecebimentoAparelhoModal({
 
   return (
     <>
-      <Modal isOpen={isOpen} onClose={() => onClose()} size="2xl">
+      <Modal isOpen={isOpen} size="2xl" onClose={() => onClose()}>
         <ModalContent>
           <ModalHeader>
             Receber Pagamento - {aparelho.marca} {aparelho.modelo}
@@ -209,26 +222,26 @@ export function RecebimentoAparelhoModal({
             {/* Seleção de Cliente */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-sm font-semibold">Cliente</label>
+                <p className="text-sm font-semibold">Cliente</p>
                 <Button
                   size="sm"
-                  variant="light"
                   startContent={<PlusIcon className="w-4 h-4" />}
+                  variant="light"
                   onPress={() => setCadastroClienteAberto(true)}
                 >
                   Novo Cliente
                 </Button>
               </div>
               <Autocomplete
-                placeholder="Digite para buscar"
+                isClearable
                 defaultItems={clientes}
                 inputValue={clienteBusca}
-                onInputChange={setClienteBusca}
+                placeholder="Digite para buscar"
                 selectedKey={clienteSelecionado}
+                onInputChange={setClienteBusca}
                 onSelectionChange={(key) =>
                   setClienteSelecionado((key as string) || "")
                 }
-                isClearable
               >
                 {(item) => (
                   <AutocompleteItem key={item.id} textValue={item.nome}>
@@ -247,31 +260,29 @@ export function RecebimentoAparelhoModal({
 
             {/* Adicionar Pagamentos */}
             <div className="space-y-3">
-              <label className="text-sm font-semibold">
-                Formas de Pagamento
-              </label>
+              <p className="text-sm font-semibold">Formas de Pagamento</p>
               <div className="flex gap-2">
                 <Select
+                  className="flex-1"
                   placeholder="Tipo"
                   selectedKeys={[tipoPagamento]}
                   onSelectionChange={(keys) =>
                     setTipoPagamento(Array.from(keys)[0] as string)
                   }
-                  className="flex-1"
                 >
                   {TIPOS_PAGAMENTO.map((tipo) => (
                     <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
                   ))}
                 </Select>
                 <Input
-                  type="number"
-                  placeholder="Valor"
-                  value={valorPagamento}
-                  onValueChange={setValorPagamento}
                   className="flex-1"
+                  placeholder="Valor"
                   startContent={
                     <span className="text-xs text-default-400">R$</span>
                   }
+                  type="number"
+                  value={valorPagamento}
+                  onValueChange={setValorPagamento}
                 />
                 <Button isIconOnly color="primary" onPress={adicionarPagamento}>
                   <PlusIcon className="w-5 h-5" />
@@ -311,9 +322,9 @@ export function RecebimentoAparelhoModal({
                           <TableCell>
                             <Button
                               isIconOnly
+                              color="danger"
                               size="sm"
                               variant="light"
-                              color="danger"
                               onPress={() => removerPagamento(idx)}
                             >
                               <TrashIcon className="w-4 h-4" />
@@ -354,9 +365,9 @@ export function RecebimentoAparelhoModal({
             </Button>
             <Button
               color="primary"
-              onPress={handleSubmit}
-              isLoading={loading}
               isDisabled={pagamentos.length === 0 || !clienteSelecionado}
+              isLoading={loading}
+              onPress={handleSubmit}
             >
               Registrar Pagamento
             </Button>

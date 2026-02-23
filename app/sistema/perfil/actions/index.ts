@@ -1,8 +1,9 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { createClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+
+import { createServerSupabaseClient } from "@/lib/supabase/action";
 
 /**
  * Atualiza os dados do perfil do usuário
@@ -13,7 +14,7 @@ export async function atualizarMeuPerfil(
     nome?: string;
     telefone?: string;
     cpf?: string;
-  }
+  },
 ) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -29,6 +30,7 @@ export async function atualizarMeuPerfil(
 
     if (error) {
       console.error("Erro ao atualizar perfil:", error);
+
       return {
         success: false,
         error: "Erro ao atualizar perfil",
@@ -36,12 +38,14 @@ export async function atualizarMeuPerfil(
     }
 
     revalidatePath("/sistema/perfil");
+
     return {
       success: true,
       usuario: data,
     };
   } catch (error) {
     console.error("Erro inesperado:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao atualizar perfil",
@@ -65,7 +69,7 @@ export async function alterarSenha(novaSenha: string, accessToken: string) {
             Authorization: `Bearer ${accessToken}`,
           },
         },
-      }
+      },
     );
 
     const { error } = await supabase.auth.updateUser({
@@ -74,6 +78,7 @@ export async function alterarSenha(novaSenha: string, accessToken: string) {
 
     if (error) {
       console.error("Erro ao alterar senha:", error);
+
       return {
         success: false,
         error: error.message || "Erro ao alterar senha",
@@ -85,6 +90,7 @@ export async function alterarSenha(novaSenha: string, accessToken: string) {
     };
   } catch (error) {
     console.error("Erro inesperado:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao alterar senha",

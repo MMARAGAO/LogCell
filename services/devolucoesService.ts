@@ -1,9 +1,6 @@
+import type { DevolucaoVenda, CreditoCliente } from "@/types/vendas";
+
 import { supabase } from "@/lib/supabaseClient";
-import type {
-  DevolucaoVenda,
-  ItemDevolucao,
-  CreditoCliente,
-} from "@/types/vendas";
 
 export class DevolucoesService {
   /**
@@ -31,7 +28,7 @@ export class DevolucoesService {
         .select("id, preco_unitario, quantidade, devolvido")
         .in(
           "id",
-          dados.itens.map((i) => i.item_venda_id)
+          dados.itens.map((i) => i.item_venda_id),
         );
 
       if (!itensVenda || itensVenda.length === 0) {
@@ -43,10 +40,12 @@ export class DevolucoesService {
 
       for (const item of dados.itens) {
         const itemVenda = itensMap.get(item.item_venda_id);
+
         if (!itemVenda) continue;
 
         // Verifica quantidade disponível
         const disponivelDevolver = itemVenda.quantidade - itemVenda.devolvido;
+
         if (item.quantidade > disponivelDevolver) {
           throw new Error(`Quantidade para devolução excede disponível`);
         }
@@ -86,6 +85,7 @@ export class DevolucoesService {
       // Atualiza quantidade devolvida nos itens da venda
       for (const item of dados.itens) {
         const itemVenda = itensMap.get(item.item_venda_id);
+
         if (!itemVenda) continue;
 
         await supabase
@@ -127,6 +127,7 @@ export class DevolucoesService {
       return { success: true, devolucao };
     } catch (error: any) {
       console.error("Erro ao registrar devolução:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -162,7 +163,7 @@ export class DevolucoesService {
    * Busca créditos disponíveis do cliente
    */
   static async buscarCreditosCliente(
-    clienteId: string
+    clienteId: string,
   ): Promise<CreditoCliente[]> {
     try {
       const { data, error } = await supabase
@@ -177,6 +178,7 @@ export class DevolucoesService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar créditos:", error);
+
       return [];
     }
   }
@@ -187,7 +189,7 @@ export class DevolucoesService {
   static async utilizarCredito(
     creditoId: string,
     valor: number,
-    vendaId: string
+    vendaId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Busca crédito
@@ -216,6 +218,7 @@ export class DevolucoesService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao utilizar crédito:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -237,7 +240,7 @@ export class DevolucoesService {
             )
           ),
           realizado:usuarios(nome)
-        `
+        `,
         )
         .eq("venda_id", vendaId)
         .order("criado_em", { ascending: false });
@@ -247,6 +250,7 @@ export class DevolucoesService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar devoluções:", error);
+
       return [];
     }
   }
@@ -271,7 +275,7 @@ export class DevolucoesService {
    * Calcula total de créditos disponíveis do cliente
    */
   static async calcularTotalCreditosDisponiveis(
-    clienteId: string
+    clienteId: string,
   ): Promise<number> {
     try {
       const { data, error } = await supabase
@@ -285,6 +289,7 @@ export class DevolucoesService {
       return data?.reduce((sum, c) => sum + c.saldo, 0) || 0;
     } catch (error) {
       console.error("Erro ao calcular créditos:", error);
+
       return 0;
     }
   }
@@ -293,7 +298,7 @@ export class DevolucoesService {
    * Busca histórico de uso de créditos do cliente
    */
   static async buscarHistoricoCreditos(
-    clienteId: string
+    clienteId: string,
   ): Promise<CreditoCliente[]> {
     try {
       const { data, error } = await supabase
@@ -304,7 +309,7 @@ export class DevolucoesService {
           venda:vendas(numero_venda),
           devolucao:devolucoes_venda(motivo),
           gerado:usuarios(nome)
-        `
+        `,
         )
         .eq("cliente_id", clienteId)
         .order("criado_em", { ascending: false });
@@ -314,6 +319,7 @@ export class DevolucoesService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar histórico de créditos:", error);
+
       return [];
     }
   }

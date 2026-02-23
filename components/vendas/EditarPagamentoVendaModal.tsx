@@ -27,6 +27,7 @@ import {
   X,
   Calendar,
 } from "lucide-react";
+
 import { useToast } from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -135,6 +136,7 @@ export function EditarPagamentoVendaModal({
   const handleSalvar = async (pagamentoId: string) => {
     if (!novoPagamento.tipo_pagamento || !novoPagamento.valor) {
       toast.error("Preencha todos os campos");
+
       return;
     }
 
@@ -157,7 +159,7 @@ export function EditarPagamentoVendaModal({
         venda_id: venda.id,
         tipo_acao: "edicao_pagamento",
         descricao: `Pagamento editado: ${novoPagamento.tipo_pagamento} - R$ ${parseFloat(
-          novoPagamento.valor
+          novoPagamento.valor,
         ).toFixed(2)}`,
       });
 
@@ -193,7 +195,7 @@ export function EditarPagamentoVendaModal({
         venda_id: venda.id,
         tipo_acao: "exclusao",
         descricao: `Pagamento excluído: ${pagamento?.tipo_pagamento} - R$ ${pagamento?.valor.toFixed(
-          2
+          2,
         )}`,
       });
 
@@ -222,6 +224,7 @@ export function EditarPagamentoVendaModal({
   const getTipoPagamentoIcon = (tipo: string) => {
     const tipoPag = tiposPagamento.find((t) => t.key === tipo);
     const Icon = tipoPag?.icon || Wallet;
+
     return <Icon className="w-5 h-5" />;
   };
 
@@ -230,7 +233,7 @@ export function EditarPagamentoVendaModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -275,6 +278,9 @@ export function EditarPagamentoVendaModal({
                           </div>
 
                           <Select
+                            classNames={{
+                              label: "font-medium",
+                            }}
                             label="Forma de Pagamento"
                             placeholder="Selecione a forma de pagamento"
                             selectedKeys={[novoPagamento.tipo_pagamento]}
@@ -284,12 +290,10 @@ export function EditarPagamentoVendaModal({
                                 tipo_pagamento: e.target.value,
                               })
                             }
-                            classNames={{
-                              label: "font-medium",
-                            }}
                           >
                             {tiposPagamento.map((tipo) => {
                               const Icon = tipo.icon;
+
                               return (
                                 <SelectItem
                                   key={tipo.key}
@@ -302,16 +306,11 @@ export function EditarPagamentoVendaModal({
                           </Select>
 
                           <Input
-                            type="number"
+                            classNames={{
+                              label: "font-medium",
+                            }}
                             label="Valor do Pagamento"
                             placeholder="0,00"
-                            value={novoPagamento.valor}
-                            onChange={(e) =>
-                              setNovoPagamento({
-                                ...novoPagamento,
-                                valor: e.target.value,
-                              })
-                            }
                             startContent={
                               <div className="pointer-events-none flex items-center">
                                 <span className="text-default-400 text-small font-medium">
@@ -319,28 +318,33 @@ export function EditarPagamentoVendaModal({
                                 </span>
                               </div>
                             }
-                            classNames={{
-                              label: "font-medium",
-                            }}
+                            type="number"
+                            value={novoPagamento.valor}
+                            onChange={(e) =>
+                              setNovoPagamento({
+                                ...novoPagamento,
+                                valor: e.target.value,
+                              })
+                            }
                           />
 
                           <div className="flex gap-2 justify-end">
                             <Button
                               color="default"
-                              variant="flat"
-                              onPress={handleCancelar}
                               isDisabled={loading}
                               startContent={<X className="w-4 h-4" />}
+                              variant="flat"
+                              onPress={handleCancelar}
                             >
                               Cancelar
                             </Button>
                             <Button
                               color="primary"
-                              onPress={() => handleSalvar(pagamento.id)}
                               isLoading={loading}
                               startContent={
                                 !loading && <Check className="w-4 h-4" />
                               }
+                              onPress={() => handleSalvar(pagamento.id)}
                             >
                               Salvar Alterações
                             </Button>
@@ -358,15 +362,15 @@ export function EditarPagamentoVendaModal({
                               <div className="flex items-center gap-2">
                                 <p className="font-semibold text-base">
                                   {getTipoPagamentoLabel(
-                                    pagamento.tipo_pagamento
+                                    pagamento.tipo_pagamento,
                                   )}
                                 </p>
                                 <Chip
+                                  color={getTipoPagamentoColor(
+                                    pagamento.tipo_pagamento,
+                                  )}
                                   size="sm"
                                   variant="flat"
-                                  color={getTipoPagamentoColor(
-                                    pagamento.tipo_pagamento
-                                  )}
                                 >
                                   #{index + 1}
                                 </Chip>
@@ -378,7 +382,7 @@ export function EditarPagamentoVendaModal({
                                 <div className="flex items-center gap-1 text-xs text-default-400">
                                   <Calendar className="w-3 h-3" />
                                   {new Date(
-                                    pagamento.data_pagamento
+                                    pagamento.data_pagamento,
                                   ).toLocaleDateString("pt-BR", {
                                     day: "2-digit",
                                     month: "short",
@@ -390,19 +394,19 @@ export function EditarPagamentoVendaModal({
                           </div>
                           <div className="flex gap-2">
                             <Button
+                              isIconOnly
+                              color="warning"
                               size="sm"
                               variant="flat"
-                              color="warning"
-                              isIconOnly
                               onPress={() => handleEditar(pagamento)}
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
                             <Button
+                              isIconOnly
+                              color="danger"
                               size="sm"
                               variant="flat"
-                              color="danger"
-                              isIconOnly
                               onPress={() => handleExcluir(pagamento.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -428,7 +432,7 @@ export function EditarPagamentoVendaModal({
                     </div>
                     <p className="text-3xl font-bold text-success">
                       {formatarMoeda(
-                        pagamentos.reduce((sum, p) => sum + p.valor, 0)
+                        pagamentos.reduce((sum, p) => sum + p.valor, 0),
                       )}
                     </p>
                   </div>
@@ -445,9 +449,9 @@ export function EditarPagamentoVendaModal({
         </ModalBody>
         <ModalFooter>
           <Button
+            startContent={<X className="w-4 h-4" />}
             variant="light"
             onPress={onClose}
-            startContent={<X className="w-4 h-4" />}
           >
             Fechar
           </Button>

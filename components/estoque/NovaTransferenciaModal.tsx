@@ -21,21 +21,17 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { useToast } from "@/components/Toast";
-import { useAuth } from "@/hooks/useAuth";
 import {
   MagnifyingGlassIcon,
   ArrowRightIcon,
   TrashIcon,
   XMarkIcon,
   CheckCircleIcon,
-  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
+
+import { useToast } from "@/components/Toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  gerarRelatorioTransferenciaDetalhado,
-  gerarRelatorioTransferenciaResumido,
-} from "@/lib/exportarTransferencias";
 
 interface Loja {
   id: number;
@@ -143,7 +139,7 @@ export default function NovaTransferenciaModal({
             quantidade,
             lojas:id_loja(nome)
           )
-        `
+        `,
         )
         .ilike("descricao", `%${buscaProduto}%`)
         .eq("ativo", true)
@@ -166,8 +162,9 @@ export default function NovaTransferenciaModal({
         }))
         .filter((p) => {
           const estoqueOrigem = p.estoques_lojas.find(
-            (e: EstoqueLoja) => e.id_loja === parseInt(lojaOrigemId)
+            (e: EstoqueLoja) => e.id_loja === parseInt(lojaOrigemId),
           );
+
           return estoqueOrigem && estoqueOrigem.quantidade > 0;
         });
 
@@ -182,17 +179,19 @@ export default function NovaTransferenciaModal({
 
   const adicionarProduto = (produto: Produto) => {
     const estoqueOrigem = produto.estoques_lojas.find(
-      (e) => e.id_loja === parseInt(lojaOrigemId)
+      (e) => e.id_loja === parseInt(lojaOrigemId),
     );
 
     if (!estoqueOrigem || estoqueOrigem.quantidade <= 0) {
       toast.error("Produto sem estoque na loja de origem");
+
       return;
     }
 
     // Verificar se produto já foi adicionado
     if (itensTransferencia.some((i) => i.produto_id === produto.id)) {
       toast.error("Produto já adicionado");
+
       return;
     }
 
@@ -215,7 +214,7 @@ export default function NovaTransferenciaModal({
 
   const removerItem = (produtoId: string) => {
     setItensTransferencia(
-      itensTransferencia.filter((i) => i.produto_id !== produtoId)
+      itensTransferencia.filter((i) => i.produto_id !== produtoId),
     );
     toast.info("Produto removido");
   };
@@ -225,8 +224,8 @@ export default function NovaTransferenciaModal({
       itensTransferencia.map((item) =>
         item.produto_id === produtoId
           ? { ...item, quantidade_transferir: quantidade }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -235,8 +234,8 @@ export default function NovaTransferenciaModal({
       itensTransferencia.map((item) =>
         item.produto_id === produtoId
           ? { ...item, loja_destino_id: lojaDestinoId }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -252,46 +251,55 @@ export default function NovaTransferenciaModal({
     // Validações
     if (!lojaOrigemId) {
       toast.error("Selecione a loja de origem");
+
       return;
     }
 
     if (itensTransferencia.length === 0) {
       toast.error("Adicione pelo menos um produto");
+
       return;
     }
 
     // Validar se todos têm quantidade e destino
     const itensSemDestino = itensTransferencia.filter(
-      (i) => !i.loja_destino_id
+      (i) => !i.loja_destino_id,
     );
+
     if (itensSemDestino.length > 0) {
       toast.error(
-        `${itensSemDestino.length} produto(s) sem loja de destino definida`
+        `${itensSemDestino.length} produto(s) sem loja de destino definida`,
       );
+
       return;
     }
 
     const itensComQuantidadeInvalida = itensTransferencia.filter(
       (i) =>
         i.quantidade_transferir <= 0 ||
-        i.quantidade_transferir > i.estoque_origem
+        i.quantidade_transferir > i.estoque_origem,
     );
+
     if (itensComQuantidadeInvalida.length > 0) {
       toast.error("Verifique as quantidades dos produtos");
+
       return;
     }
 
     // Validar se origem = destino
     const itensOrigemDestinoIgual = itensTransferencia.filter(
-      (i) => i.loja_destino_id === parseInt(lojaOrigemId)
+      (i) => i.loja_destino_id === parseInt(lojaOrigemId),
     );
+
     if (itensOrigemDestinoIgual.length > 0) {
       toast.error("Loja de origem e destino não podem ser iguais");
+
       return;
     }
 
     // Verificar sessão
     const sessaoValida = await verificarSessao();
+
     if (!sessaoValida || !usuario?.id) {
       return;
     }
@@ -300,6 +308,7 @@ export default function NovaTransferenciaModal({
     try {
       // Agrupar itens por loja destino
       const itensPorDestino: Record<number, ItemTransferencia[]> = {};
+
       itensTransferencia.forEach((item) => {
         if (!itensPorDestino[item.loja_destino_id]) {
           itensPorDestino[item.loja_destino_id] = [];
@@ -352,7 +361,7 @@ export default function NovaTransferenciaModal({
       }
 
       toast.success(
-        `${totalTransferenciasCriadas} transferência(s) criada(s) com sucesso!`
+        `${totalTransferenciasCriadas} transferência(s) criada(s) com sucesso!`,
       );
       onSuccess();
       onClose();
@@ -373,7 +382,7 @@ export default function NovaTransferenciaModal({
   }, [lojas, lojaOrigemId]);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="5xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="5xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -390,16 +399,17 @@ export default function NovaTransferenciaModal({
           <Card className="mb-4">
             <CardBody>
               <Select
+                isRequired
+                isDisabled={loading}
                 label="Loja de Origem"
                 placeholder="Selecione a loja de origem"
                 selectedKeys={lojaOrigemId ? [lojaOrigemId] : []}
                 onSelectionChange={(keys) => {
                   const selected = Array.from(keys)[0] as string;
+
                   setLojaOrigemId(selected);
                   setItensTransferencia([]); // Limpar itens ao trocar loja
                 }}
-                isRequired
-                isDisabled={loading}
               >
                 {lojas.map((loja) => (
                   <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
@@ -414,16 +424,16 @@ export default function NovaTransferenciaModal({
               <CardBody>
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Pesquisar produtos (mínimo 2 caracteres)..."
-                    value={buscaProduto}
-                    onValueChange={setBuscaProduto}
-                    startContent={<MagnifyingGlassIcon className="h-4 w-4" />}
-                    isDisabled={loading}
                     isClearable
+                    isDisabled={loading}
+                    placeholder="Pesquisar produtos (mínimo 2 caracteres)..."
+                    startContent={<MagnifyingGlassIcon className="h-4 w-4" />}
+                    value={buscaProduto}
                     onClear={() => {
                       setBuscaProduto("");
                       setProdutos([]);
                     }}
+                    onValueChange={setBuscaProduto}
                   />
                 </div>
 
@@ -438,13 +448,14 @@ export default function NovaTransferenciaModal({
                   <div className="mt-2 max-h-60 overflow-y-auto space-y-1">
                     {produtos.map((produto) => {
                       const estoqueOrigem = produto.estoques_lojas.find(
-                        (e) => e.id_loja === parseInt(lojaOrigemId)
+                        (e) => e.id_loja === parseInt(lojaOrigemId),
                       );
+
                       return (
                         <Card
                           key={produto.id}
-                          className="cursor-pointer hover:bg-default-100"
                           isPressable
+                          className="cursor-pointer hover:bg-default-100"
                           onPress={() => adicionarProduto(produto)}
                         >
                           <CardBody className="py-2">
@@ -459,7 +470,7 @@ export default function NovaTransferenciaModal({
                                     `Cód: ${produto.codigo_fabricante}`}
                                 </p>
                               </div>
-                              <Chip color="primary" variant="flat" size="sm">
+                              <Chip color="primary" size="sm" variant="flat">
                                 Estoque: {estoqueOrigem?.quantidade || 0}
                               </Chip>
                             </div>
@@ -504,7 +515,7 @@ export default function NovaTransferenciaModal({
                   <TableBody>
                     {itensTransferencia.map((item) => {
                       const estoqueDestino = item.estoques_todas_lojas.find(
-                        (e) => e.id_loja === item.loja_destino_id
+                        (e) => e.id_loja === item.loja_destino_id,
                       );
                       const estoqueDestinoAtual =
                         estoqueDestino?.quantidade || 0;
@@ -526,45 +537,46 @@ export default function NovaTransferenciaModal({
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Chip color="default" variant="flat" size="sm">
+                            <Chip color="default" size="sm" variant="flat">
                               {item.estoque_origem}
                             </Chip>
                           </TableCell>
                           <TableCell>
                             <Input
-                              type="number"
-                              min={1}
+                              className="w-20"
+                              isDisabled={loading}
                               max={item.estoque_origem}
+                              min={1}
+                              size="sm"
+                              type="number"
                               value={item.quantidade_transferir.toString()}
                               onValueChange={(value) =>
                                 atualizarQuantidade(
                                   item.produto_id,
-                                  parseInt(value) || 1
+                                  parseInt(value) || 1,
                                 )
                               }
-                              size="sm"
-                              className="w-20"
-                              isDisabled={loading}
                             />
                           </TableCell>
                           <TableCell>
                             <Select
+                              className="w-40"
+                              isDisabled={loading}
                               placeholder="Destino"
                               selectedKeys={
                                 item.loja_destino_id
                                   ? [item.loja_destino_id.toString()]
                                   : []
                               }
+                              size="sm"
                               onSelectionChange={(keys) => {
                                 const selected = Array.from(keys)[0] as string;
+
                                 atualizarLojaDestino(
                                   item.produto_id,
-                                  parseInt(selected)
+                                  parseInt(selected),
                                 );
                               }}
-                              size="sm"
-                              className="w-40"
-                              isDisabled={loading}
                             >
                               {lojas
                                 .filter((l) => l.id !== parseInt(lojaOrigemId))
@@ -580,25 +592,25 @@ export default function NovaTransferenciaModal({
                               color={
                                 estoqueDestinoAtual > 0 ? "default" : "warning"
                               }
-                              variant="flat"
                               size="sm"
+                              variant="flat"
                             >
                               {estoqueDestinoAtual}
                             </Chip>
                           </TableCell>
                           <TableCell>
-                            <Chip color="success" variant="flat" size="sm">
+                            <Chip color="success" size="sm" variant="flat">
                               {estoqueDestinoApos}
                             </Chip>
                           </TableCell>
                           <TableCell>
                             <Button
                               isIconOnly
-                              size="sm"
                               color="danger"
+                              isDisabled={loading}
+                              size="sm"
                               variant="light"
                               onPress={() => removerItem(item.produto_id)}
-                              isDisabled={loading}
                             >
                               <TrashIcon className="h-4 w-4" />
                             </Button>
@@ -615,12 +627,12 @@ export default function NovaTransferenciaModal({
           {/* Observação */}
           {itensTransferencia.length > 0 && (
             <Textarea
+              isDisabled={loading}
               label="Observação (opcional)"
+              maxLength={500}
               placeholder="Adicione uma observação sobre esta transferência..."
               value={observacao}
               onValueChange={setObservacao}
-              maxLength={500}
-              isDisabled={loading}
             />
           )}
         </ModalBody>
@@ -628,19 +640,19 @@ export default function NovaTransferenciaModal({
         <ModalFooter>
           <Button
             color="danger"
-            variant="light"
-            onPress={onClose}
             isDisabled={loading}
             startContent={<XMarkIcon className="h-4 w-4" />}
+            variant="light"
+            onPress={onClose}
           >
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleCriarTransferencia}
-            isLoading={loading}
             isDisabled={itensTransferencia.length === 0}
+            isLoading={loading}
             startContent={!loading && <CheckCircleIcon className="h-4 w-4" />}
+            onPress={handleCriarTransferencia}
           >
             Criar Transferência
           </Button>

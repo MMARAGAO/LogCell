@@ -17,7 +17,7 @@ export interface HistoricoProduto {
  */
 export async function getHistoricoProduto(
   produtoId: string,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<HistoricoProduto[]> {
   try {
     const { data, error } = await supabase
@@ -32,10 +32,11 @@ export async function getHistoricoProduto(
     // Buscar nomes dos usuários separadamente
     const historico = data || [];
     const usuarioIds = Array.from(
-      new Set(historico.map((h) => h.usuario_id).filter(Boolean))
+      new Set(historico.map((h) => h.usuario_id).filter(Boolean)),
     );
 
     let usuarios: Record<string, string> = {};
+
     if (usuarioIds.length > 0) {
       const { data: usuariosData } = await supabase
         .from("usuarios")
@@ -63,7 +64,7 @@ export async function getHistoricoProduto(
  * Buscar últimas alterações em produtos
  */
 export async function getUltimasAlteracoes(
-  limit: number = 20
+  limit: number = 20,
 ): Promise<HistoricoProduto[]> {
   try {
     const { data, error } = await supabase

@@ -1,5 +1,7 @@
 "use client";
 
+import type { OrdemServico } from "@/types/ordemServico";
+
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -16,7 +18,7 @@ import {
   Chip,
 } from "@heroui/react";
 import { AlertCircle, DollarSign, CreditCard, RefreshCw } from "lucide-react";
-import type { OrdemServico } from "@/types/ordemServico";
+
 import { formatarMoeda } from "@/lib/formatters";
 
 interface DevolverOSModalProps {
@@ -33,7 +35,7 @@ export default function DevolverOSModal({
   onConfirm,
 }: DevolverOSModalProps) {
   const [tipoDevolucao, setTipoDevolucao] = useState<"reembolso" | "credito">(
-    "reembolso"
+    "reembolso",
   );
   const [loading, setLoading] = useState(false);
   const [valorTotal, setValorTotal] = useState(0);
@@ -59,8 +61,9 @@ export default function DevolverOSModal({
 
       const total = (pagamentos || []).reduce(
         (sum, pag) => sum + Number(pag.valor || 0),
-        0
+        0,
       );
+
       setValorTotal(total);
 
       // Carregar peças
@@ -74,7 +77,7 @@ export default function DevolverOSModal({
           tipo_produto,
           estoque_baixado,
           produto:produtos(nome)
-        `
+        `,
         )
         .eq("id_ordem_servico", os.id);
 
@@ -97,17 +100,17 @@ export default function DevolverOSModal({
   };
 
   const pecasEstoque = pecas.filter(
-    (p) => p.tipo_produto === "estoque" && p.estoque_baixado
+    (p) => p.tipo_produto === "estoque" && p.estoque_baixado,
   );
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="2xl"
       backdrop="blur"
-      isDismissable={!loading}
       hideCloseButton={loading}
+      isDismissable={!loading}
+      isOpen={isOpen}
+      size="2xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -157,7 +160,7 @@ export default function DevolverOSModal({
                         <span className="text-default-600">
                           {peca.produto?.nome || peca.descricao_peca}
                         </span>
-                        <Chip size="sm" variant="flat" color="success">
+                        <Chip color="success" size="sm" variant="flat">
                           {peca.quantidade} un.
                         </Chip>
                       </div>
@@ -189,23 +192,23 @@ export default function DevolverOSModal({
             <h4 className="font-semibold text-sm">Como processar o valor?</h4>
 
             <RadioGroup
+              isDisabled={loading}
               value={tipoDevolucao}
               onValueChange={(value: string) =>
                 setTipoDevolucao(value as "reembolso" | "credito")
               }
-              isDisabled={loading}
             >
               <Card
+                isPressable
                 className={`cursor-pointer transition-all ${
                   tipoDevolucao === "reembolso"
                     ? "border-primary border-2"
                     : "border-default-200 border"
                 }`}
-                isPressable
                 onPress={() => setTipoDevolucao("reembolso")}
               >
                 <CardBody className="p-4">
-                  <Radio value="reembolso" className="w-full">
+                  <Radio className="w-full" value="reembolso">
                     <div className="flex items-start gap-3 w-full">
                       <DollarSign className="w-5 h-5 text-success mt-0.5" />
                       <div className="flex-1">
@@ -222,16 +225,16 @@ export default function DevolverOSModal({
               </Card>
 
               <Card
+                isPressable
                 className={`cursor-pointer transition-all ${
                   tipoDevolucao === "credito"
                     ? "border-primary border-2"
                     : "border-default-200 border"
                 }`}
-                isPressable
                 onPress={() => setTipoDevolucao("credito")}
               >
                 <CardBody className="p-4">
-                  <Radio value="credito" className="w-full">
+                  <Radio className="w-full" value="credito">
                     <div className="flex items-start gap-3 w-full">
                       <CreditCard className="w-5 h-5 text-warning mt-0.5" />
                       <div className="flex-1">
@@ -262,7 +265,7 @@ export default function DevolverOSModal({
                     estoque
                   </li>
                 )}
-                <li>Status da OS mudará para "Devolvida"</li>
+                <li>Status da OS mudará para &quot;Devolvida&quot;</li>
                 <li>Pagamentos serão removidos do registro da OS</li>
                 {tipoDevolucao === "reembolso" && (
                   <li className="text-warning-700 font-medium">
@@ -281,14 +284,14 @@ export default function DevolverOSModal({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="light" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="light" onPress={onClose}>
             Cancelar
           </Button>
           <Button
             color="warning"
-            onPress={handleConfirm}
             isLoading={loading}
             startContent={!loading && <RefreshCw className="w-4 h-4" />}
+            onPress={handleConfirm}
           >
             Confirmar Devolução
           </Button>

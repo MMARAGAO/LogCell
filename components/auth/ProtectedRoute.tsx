@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthContext } from "@/contexts/AuthContext";
 import { Spinner } from "@heroui/spinner";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!isAuthenticated && !redirectedRef.current) {
       redirectedRef.current = true;
       router.push("/auth");
+
       return;
     }
 
@@ -36,7 +38,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (loading && !shouldRender) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Spinner size="lg" label="Carregando..." />
+        <Spinner label="Carregando..." size="lg" />
       </div>
     );
   }

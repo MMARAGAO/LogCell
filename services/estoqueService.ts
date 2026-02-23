@@ -7,7 +7,7 @@ import { EstoqueLoja, EstoqueLojaCompleto } from "@/types";
 
 // Buscar estoque de um produto em todas as lojas
 export async function getEstoqueProduto(
-  produtoId: string
+  produtoId: string,
 ): Promise<EstoqueLojaCompleto[]> {
   try {
     const { data, error } = await supabase
@@ -17,7 +17,7 @@ export async function getEstoqueProduto(
         *,
         produto:produtos(descricao, marca),
         loja:lojas(nome)
-      `
+      `,
       )
       .eq("id_produto", produtoId)
       .order("quantidade", { ascending: false });
@@ -38,7 +38,7 @@ export async function getEstoqueProduto(
 
 // Buscar estoque de uma loja
 export async function getEstoqueLoja(
-  lojaId: number
+  lojaId: number,
 ): Promise<EstoqueLojaCompleto[]> {
   try {
     const { data, error } = await supabase
@@ -48,7 +48,7 @@ export async function getEstoqueLoja(
         *,
         produto:produtos(descricao, marca, modelos),
         loja:lojas(nome)
-      `
+      `,
       )
       .eq("id_loja", lojaId)
       .order("quantidade", { ascending: false });
@@ -70,7 +70,7 @@ export async function getEstoqueLoja(
 // Buscar estoque de um produto em uma loja específica
 export async function getEstoqueProdutoLoja(
   produtoId: string,
-  lojaId: number
+  lojaId: number,
 ): Promise<EstoqueLoja | null> {
   try {
     const { data, error } = await supabase
@@ -95,7 +95,7 @@ export async function getEstoqueProdutoLoja(
 // Criar ou atualizar estoque de um produto em uma loja
 export async function upsertEstoqueLoja(
   estoque: Omit<EstoqueLoja, "id" | "atualizado_em">,
-  usuarioId: string
+  usuarioId: string,
 ): Promise<EstoqueLoja> {
   try {
     const { data, error } = await supabase
@@ -108,7 +108,7 @@ export async function upsertEstoqueLoja(
         },
         {
           onConflict: "id_produto,id_loja",
-        }
+        },
       )
       .select()
       .single();
@@ -128,7 +128,7 @@ export async function atualizarQuantidadeEstoque(
   lojaId: number,
   quantidade: number,
   usuarioId: string,
-  observacao?: string
+  observacao?: string,
 ): Promise<EstoqueLoja> {
   try {
     // Verifica se o produto já existe nesta loja
@@ -156,6 +156,7 @@ export async function atualizarQuantidadeEstoque(
         .single();
 
       if (error) throw error;
+
       return data;
     } else {
       // INSERT se não existe
@@ -170,6 +171,7 @@ export async function atualizarQuantidadeEstoque(
         .single();
 
       if (error) throw error;
+
       return data;
     }
   } catch (error) {
@@ -179,7 +181,7 @@ export async function atualizarQuantidadeEstoque(
 } // Deletar estoque de uma loja
 export async function deletarEstoqueLoja(
   produtoId: string,
-  lojaId: number
+  lojaId: number,
 ): Promise<void> {
   try {
     const { error } = await supabase
@@ -202,7 +204,7 @@ export async function getTodoEstoque(
     id_loja?: number;
   },
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<{ data: EstoqueLojaCompleto[]; total: number }> {
   try {
     let query = supabase.from("estoque_lojas").select(
@@ -211,7 +213,7 @@ export async function getTodoEstoque(
         produto:produtos(descricao, marca, modelos),
         loja:lojas(nome)
       `,
-      { count: "exact" }
+      { count: "exact" },
     );
 
     // Filtrar por loja
@@ -222,7 +224,7 @@ export async function getTodoEstoque(
     // Busca por descrição, marca ou modelos
     if (filtros?.busca) {
       query = query.or(
-        `produto.descricao.ilike.%${filtros.busca}%,produto.marca.ilike.%${filtros.busca}%,produto.modelos.ilike.%${filtros.busca}%`
+        `produto.descricao.ilike.%${filtros.busca}%,produto.marca.ilike.%${filtros.busca}%,produto.modelos.ilike.%${filtros.busca}%`,
       );
     }
 
@@ -285,6 +287,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
 
     // 2. Buscar todos os estoques com PAGINAÇÃO
     const allEstoques: any[] = [];
+
     offset = 0;
     hasMore = true;
 
@@ -297,7 +300,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
           id_loja,
           quantidade,
           loja:lojas(id, nome)
-        `
+        `,
         )
         .range(offset, offset + pageSize - 1);
 
@@ -317,6 +320,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
 
     // 3. Criar mapa de estoques por produto
     const estoquesMap = new Map<string, any[]>();
+
     allEstoques.forEach((estoque: any) => {
       if (!estoquesMap.has(estoque.id_produto)) {
         estoquesMap.set(estoque.id_produto, []);
@@ -333,7 +337,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
       const estoquesLoja = estoquesMap.get(produto.id) || [];
       const total_estoque = estoquesLoja.reduce(
         (sum, e) => sum + e.quantidade,
-        0
+        0,
       );
 
       return {

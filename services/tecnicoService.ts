@@ -20,7 +20,7 @@ export async function buscarTecnicos(filtros?: {
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .order("nome", { ascending: true });
 
@@ -34,16 +34,18 @@ export async function buscarTecnicos(filtros?: {
 
     if (filtros?.busca) {
       query = query.or(
-        `nome.ilike.%${filtros.busca}%,telefone.ilike.%${filtros.busca}%,email.ilike.%${filtros.busca}%`
+        `nome.ilike.%${filtros.busca}%,telefone.ilike.%${filtros.busca}%,email.ilike.%${filtros.busca}%`,
       );
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data: data as Tecnico[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar técnicos:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -59,15 +61,17 @@ export async function buscarTecnicoPorId(id: string) {
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .eq("id", id)
       .single();
 
     if (error) throw error;
+
     return { data: data as Tecnico, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar técnico:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -88,14 +92,16 @@ export async function criarTecnico(dados: TecnicoFormData, userId: string) {
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
     if (error) throw error;
+
     return { data: data as Tecnico, error: null };
   } catch (error: any) {
     console.error("Erro ao criar técnico:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -106,7 +112,7 @@ export async function criarTecnico(dados: TecnicoFormData, userId: string) {
 export async function atualizarTecnico(
   id: string,
   dados: Partial<TecnicoFormData>,
-  userId: string
+  userId: string,
 ) {
   try {
     const { data, error } = await supabase
@@ -120,14 +126,16 @@ export async function atualizarTecnico(
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
     if (error) throw error;
+
     return { data: data as Tecnico, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar técnico:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -140,9 +148,11 @@ export async function deletarTecnico(id: string) {
     const { error } = await supabase.from("tecnicos").delete().eq("id", id);
 
     if (error) throw error;
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao deletar técnico:", error);
+
     return { error: error.message };
   }
 }
@@ -153,7 +163,7 @@ export async function deletarTecnico(id: string) {
 export async function toggleTecnicoAtivo(
   id: string,
   ativo: boolean,
-  userId: string
+  userId: string,
 ) {
   try {
     const { data, error } = await supabase
@@ -167,9 +177,11 @@ export async function toggleTecnicoAtivo(
       .single();
 
     if (error) throw error;
+
     return { data: data as Tecnico, error: null };
   } catch (error: any) {
     console.error("Erro ao alterar status do técnico:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -186,9 +198,11 @@ export async function buscarOSTecnico(tecnicoId: string) {
       .order("data_entrada", { ascending: false });
 
     if (error) throw error;
+
     return { data, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar OS do técnico:", error);
+
     return { data: null, error: error.message };
   }
 }

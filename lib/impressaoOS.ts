@@ -1,8 +1,8 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 import { OrdemServico } from "@/types/ordemServico";
 import { supabase } from "@/lib/supabaseClient";
-import { TipoServicoGarantia } from "@/types/garantia";
 
 interface DadosLoja {
   nome: string;
@@ -31,6 +31,7 @@ const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, i + chunkSize);
     const chunkArray = Array.from(chunk);
+
     binary += String.fromCharCode.apply(null, chunkArray);
   }
 
@@ -49,6 +50,7 @@ const addRobotoToDoc = (doc: jsPDF) => {
 const ensurePdfFonts = async (doc: jsPDF) => {
   if (cachedRobotoRegular && cachedRobotoBold) {
     addRobotoToDoc(doc);
+
     return;
   }
 
@@ -72,7 +74,10 @@ const ensurePdfFonts = async (doc: jsPDF) => {
         cachedRobotoRegular = arrayBufferToBase64(regularBuffer);
         cachedRobotoBold = arrayBufferToBase64(boldBuffer);
       } catch (error) {
-        console.warn("Aviso: nao foi possivel carregar fontes para acentos.", error);
+        console.warn(
+          "Aviso: nao foi possivel carregar fontes para acentos.",
+          error,
+        );
       }
     })();
   }
@@ -86,16 +91,19 @@ export const gerarPDFOrdemServico = async (
   pecas: PecaOS[],
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ) => {
   const doc = new jsPDF();
+
   await ensurePdfFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // Logo (mesmo padrão do orçamento)
@@ -104,6 +112,7 @@ export const gerarPDFOrdemServico = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -112,12 +121,15 @@ export const gerarPDFOrdemServico = async (
     const bwLogoDataUrl = await new Promise<string>((resolve) => {
       if (typeof document === "undefined") {
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
@@ -154,6 +166,7 @@ export const gerarPDFOrdemServico = async (
     const logoWidth = 50;
     const logoHeight = 30;
     const logoX = (pageWidth - logoWidth) / 2;
+
     doc.addImage(bwLogoDataUrl, "PNG", logoX, y, logoWidth, logoHeight);
     y += logoHeight + 5;
   } catch (error) {
@@ -164,21 +177,22 @@ export const gerarPDFOrdemServico = async (
   // Cabeçalho da Empresa
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  
+
   // OBRIGATÓRIO: Endereço da loja
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 4;
   });
   y += 1;
-  
+
   // OBRIGATÓRIO: Telefone
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
     align: "center",
   });
   y += 5;
-  
+
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -203,7 +217,7 @@ export const gerarPDFOrdemServico = async (
     `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`,
     pageWidth - 15,
     y,
-    { align: "right" }
+    { align: "right" },
   );
   y += 10;
 
@@ -277,7 +291,11 @@ export const gerarPDFOrdemServico = async (
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
+  const defeitoLines = doc.splitTextToSize(
+    os.defeito_reclamado,
+    pageWidth - 40,
+  );
+
   doc.text(defeitoLines, 17, y);
   y += defeitoLines.length * 6 + 4;
 
@@ -292,7 +310,11 @@ export const gerarPDFOrdemServico = async (
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    const laudoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+    const laudoLines = doc.splitTextToSize(
+      os.laudo_diagnostico,
+      pageWidth - 40,
+    );
+
     doc.text(laudoLines, 17, y);
     y += laudoLines.length * 6 + 4;
   }
@@ -348,8 +370,9 @@ export const gerarPDFOrdemServico = async (
     doc.setFont("helvetica", "normal");
     const obsLines = doc.splitTextToSize(
       os.observacoes_tecnicas,
-      pageWidth - 40
+      pageWidth - 40,
     );
+
     doc.text(obsLines, 17, y);
     y += obsLines.length * 5 + 10;
   }
@@ -363,11 +386,13 @@ export const gerarPDFOrdemServico = async (
   // Buscar texto de garantia do banco de dados
   let textoGarantia = null;
   let tituloGarantia = "TERMOS DE GARANTIA";
-  
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
+
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
   const dataInicioGarantia = new Date(os.criado_em).toLocaleDateString("pt-BR");
-  const dataFimGarantia = new Date(new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
-  
+  const dataFimGarantia = new Date(
+    new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000,
+  ).toLocaleDateString("pt-BR");
+
   let termos = [
     "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
     `(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data de ${dataInicioGarantia} até ${dataFimGarantia}.`,
@@ -392,12 +417,19 @@ export const gerarPDFOrdemServico = async (
         textoGarantia = data;
         tituloGarantia = data.titulo
           .toUpperCase()
-          .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`);
+          .replace(
+            /garantia.*\d+\s*dias?/gi,
+            `Garantia: ${diasGarantiaFinal} dias`,
+          );
         termos = data.clausulas.map((c: any) => {
           const texto = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
+
           return `(${c.numero}) - ${texto}`;
         });
       }
@@ -419,6 +451,7 @@ export const gerarPDFOrdemServico = async (
 
   termos.forEach((termo) => {
     const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+
     doc.text(termoLines, 17, y);
     y += termoLines.length * 4 + 2;
   });
@@ -450,16 +483,19 @@ export const gerarOrcamentoOS = async (
   pecas: PecaOS[],
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ) => {
   const doc = new jsPDF();
+
   await ensurePdfFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229/230 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229/230 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // Logo (mesmo padrão do cupom térmico)
@@ -468,6 +504,7 @@ export const gerarOrcamentoOS = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -476,12 +513,15 @@ export const gerarOrcamentoOS = async (
     const bwLogoDataUrl = await new Promise<string>((resolve) => {
       if (typeof document === "undefined") {
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
@@ -518,6 +558,7 @@ export const gerarOrcamentoOS = async (
     const logoWidth = 50;
     const logoHeight = 30;
     const logoX = (pageWidth - logoWidth) / 2;
+
     doc.addImage(bwLogoDataUrl, "PNG", logoX, y, logoWidth, logoHeight);
     y += logoHeight + 5;
   } catch (error) {
@@ -533,21 +574,22 @@ export const gerarOrcamentoOS = async (
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  
+
   // OBRIGATÓRIO: Endereço da loja
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 4;
   });
   y += 1;
-  
+
   // OBRIGATÓRIO: Telefone
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
     align: "center",
   });
   y += 5;
-  
+
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -572,7 +614,7 @@ export const gerarOrcamentoOS = async (
     `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`,
     pageWidth - 15,
     y,
-    { align: "right" }
+    { align: "right" },
   );
   y += 10;
 
@@ -601,7 +643,7 @@ export const gerarOrcamentoOS = async (
   // Dados do Equipamento / Aparelhos
   // Se houver múltiplos aparelhos, mostra cada um
   const temMultiplosAparelhos = (os.aparelhos?.length || 0) > 0;
-  
+
   if (temMultiplosAparelhos && os.aparelhos) {
     // Múltiplos aparelhos
     os.aparelhos.forEach((aparelho, index) => {
@@ -637,7 +679,7 @@ export const gerarOrcamentoOS = async (
         doc.text(`IMEI: ${aparelho.equipamento_imei}`, 17, y);
         y += 6;
       }
-      
+
       // Estado do Equipamento
       doc.setFont("helvetica", "bold");
       doc.text(`Estado: `, 17, y);
@@ -667,7 +709,11 @@ export const gerarOrcamentoOS = async (
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      const defeitoLines = doc.splitTextToSize(aparelho.defeito_reclamado || "[Informar]", pageWidth - 40);
+      const defeitoLines = doc.splitTextToSize(
+        aparelho.defeito_reclamado || "[Informar]",
+        pageWidth - 40,
+      );
+
       doc.text(defeitoLines, 17, y);
       y += defeitoLines.length * 6 + 4;
 
@@ -687,7 +733,11 @@ export const gerarOrcamentoOS = async (
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       if (aparelho.laudo_diagnostico) {
-        const servicoLines = doc.splitTextToSize(aparelho.laudo_diagnostico, pageWidth - 40);
+        const servicoLines = doc.splitTextToSize(
+          aparelho.laudo_diagnostico,
+          pageWidth - 40,
+        );
+
         doc.text(servicoLines, 17, y);
         y += servicoLines.length * 6 + 4;
       } else {
@@ -714,18 +764,33 @@ export const gerarOrcamentoOS = async (
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
       doc.text(`Orçamento:`, 17, y);
-      doc.text(`R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      doc.text(
+        `R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`,
+        pageWidth - 15,
+        y,
+        { align: "right" },
+      );
       y += 5;
-      
+
       if ((aparelho.valor_desconto || 0) > 0) {
         doc.text(`Desconto:`, 17, y);
-        doc.text(`-R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+        doc.text(
+          `-R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`,
+          pageWidth - 15,
+          y,
+          { align: "right" },
+        );
         y += 5;
       }
-      
+
       doc.setFont("helvetica", "bold");
       doc.text(`Total:`, 17, y);
-      doc.text(`R$ ${(aparelho.valor_total || 0).toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+      doc.text(
+        `R$ ${(aparelho.valor_total || 0).toFixed(2)}`,
+        pageWidth - 15,
+        y,
+        { align: "right" },
+      );
       y += 8;
     });
   } else {
@@ -753,7 +818,7 @@ export const gerarOrcamentoOS = async (
       doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 17, y);
       y += 6;
     }
-    
+
     // Estado do Equipamento (OBRIGATÓRIO no orçamento)
     doc.setFont("helvetica", "bold");
     doc.text(`Estado: `, 17, y);
@@ -784,7 +849,11 @@ export const gerarOrcamentoOS = async (
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    const defeitoLines = doc.splitTextToSize(os.defeito_reclamado || "[Informar o problema]", pageWidth - 40);
+    const defeitoLines = doc.splitTextToSize(
+      os.defeito_reclamado || "[Informar o problema]",
+      pageWidth - 40,
+    );
+
     doc.text(defeitoLines, 17, y);
     y += defeitoLines.length * 6 + 4;
 
@@ -803,14 +872,22 @@ export const gerarOrcamentoOS = async (
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    
+
     // Se houver diagnóstico ou serviço realizado
     if (os.laudo_diagnostico) {
-      const servicoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 40);
+      const servicoLines = doc.splitTextToSize(
+        os.laudo_diagnostico,
+        pageWidth - 40,
+      );
+
       doc.text(servicoLines, 17, y);
       y += servicoLines.length * 6 + 4;
     } else if (os.servico_realizado) {
-      const servicoLines = doc.splitTextToSize(os.servico_realizado, pageWidth - 40);
+      const servicoLines = doc.splitTextToSize(
+        os.servico_realizado,
+        pageWidth - 40,
+      );
+
       doc.text(servicoLines, 17, y);
       y += servicoLines.length * 6 + 4;
     } else {
@@ -824,7 +901,7 @@ export const gerarOrcamentoOS = async (
 
   // *** PEÇAS NÃO APARECEM NO ORÇAMENTO (CONFORME SOLICITADO) ***
   // Peças são gerenciadas internamente mas não exibidas no PDF de orçamento
-  
+
   // Valores do Serviço
   if (y > 240) {
     doc.addPage();
@@ -842,7 +919,7 @@ export const gerarOrcamentoOS = async (
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    
+
     let totalGeralOrcamento = 0;
     let totalGeralDesconto = 0;
     let totalGeralServiço = 0;
@@ -851,13 +928,22 @@ export const gerarOrcamentoOS = async (
     os.aparelhos.forEach((aparelho) => {
       const desconto = aparelho.valor_desconto || 0;
       const total = aparelho.valor_total || 0;
+
       totalGeralOrcamento += aparelho.valor_orcamento || 0;
       totalGeralDesconto += desconto;
       totalGeralServiço += total;
 
-      doc.text(`Aparelho ${aparelho.sequencia} (${aparelho.equipamento_tipo}):`, 17, y);
+      doc.text(
+        `Aparelho ${aparelho.sequencia} (${aparelho.equipamento_tipo}):`,
+        17,
+        y,
+      );
       y += 4;
-      doc.text(`  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 20, y);
+      doc.text(
+        `  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`,
+        20,
+        y,
+      );
       y += 4;
       if (desconto > 0) {
         doc.text(`  Desconto: -R$ ${desconto.toFixed(2)}`, 20, y);
@@ -877,10 +963,12 @@ export const gerarOrcamentoOS = async (
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.text(`TOTAL GERAL:`, 17, y);
-    doc.text(`R$ ${totalGeralServiço.toFixed(2)}`, pageWidth - 15, y, { align: "right" });
+    doc.text(`R$ ${totalGeralServiço.toFixed(2)}`, pageWidth - 15, y, {
+      align: "right",
+    });
     y += 10;
   }
-  
+
   // *** SEÇÃO DE VALORES REMOVIDA (mão de obra e peças) ***
   // O orçamento não mostra breakdown de valores
 
@@ -902,8 +990,9 @@ export const gerarOrcamentoOS = async (
     doc.setFont("helvetica", "normal");
     const obsLines = doc.splitTextToSize(
       os.observacoes_tecnicas,
-      pageWidth - 40
+      pageWidth - 40,
     );
+
     doc.text(obsLines, 17, y);
     y += obsLines.length * 5 + 10;
   }
@@ -917,8 +1006,10 @@ export const gerarOrcamentoOS = async (
   y += 10;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  const termo = "Autorizo a execução dos serviços descritos acima e estou ciente dos valores apresentados.";
+  const termo =
+    "Autorizo a execução dos serviços descritos acima e estou ciente dos valores apresentados.";
   const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+
   doc.text(termoLines, 17, y);
   y += termoLines.length * 5 + 15;
 
@@ -935,16 +1026,19 @@ export const gerarGarantiaOS = async (
   os: OrdemServico,
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ) => {
   const doc = new jsPDF();
+
   await ensurePdfFonts(doc);
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 20;
 
   // Garantir dados da loja com fallback para dados padrão
   const nomeFinal = dadosLoja.nome || "Autorizada Cell";
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // Logo (mesmo padrão do orçamento)
@@ -953,6 +1047,7 @@ export const gerarGarantiaOS = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -961,12 +1056,15 @@ export const gerarGarantiaOS = async (
     const bwLogoDataUrl = await new Promise<string>((resolve) => {
       if (typeof document === "undefined") {
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
@@ -1003,6 +1101,7 @@ export const gerarGarantiaOS = async (
     const logoWidth = 50;
     const logoHeight = 30;
     const logoX = (pageWidth - logoWidth) / 2;
+
     doc.addImage(bwLogoDataUrl, "PNG", logoX, y, logoWidth, logoHeight);
     y += logoHeight + 5;
   } catch (error) {
@@ -1013,21 +1112,22 @@ export const gerarGarantiaOS = async (
   // Cabeçalho da Empresa
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  
+
   // OBRIGATÓRIO: Endereço da loja
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 30);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 4;
   });
   y += 1;
-  
+
   // OBRIGATÓRIO: Telefone
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, {
     align: "center",
   });
   y += 5;
-  
+
   if (dadosLoja.cnpj) {
     doc.text(`CNPJ: ${dadosLoja.cnpj}`, pageWidth / 2, y, { align: "center" });
     y += 5;
@@ -1052,29 +1152,30 @@ export const gerarGarantiaOS = async (
     `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`,
     pageWidth - 15,
     y,
-    { align: "right" }
+    { align: "right" },
   );
   y += 10;
 
   // Tipo de Garantia e Dias
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  
+
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "servico";
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
-  
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
+
   doc.text(`Tipo de Garantia: ${tipoGarantiaFinal.toUpperCase()}`, 15, y);
   y += 7;
-  
+
   // Calcular data final da garantia
   const dataInicio = new Date(os.criado_em);
   const dataFim = new Date(dataInicio);
+
   dataFim.setDate(dataFim.getDate() + diasGarantiaFinal);
-  
+
   doc.text(
     `Prazo de Garantia: ${diasGarantiaFinal} dias (até ${dataFim.toLocaleDateString("pt-BR")})`,
     15,
-    y
+    y,
   );
   y += 10;
 
@@ -1098,7 +1199,7 @@ export const gerarGarantiaOS = async (
 
   // Dados do Equipamento / Aparelhos
   const temMultiplosAparelhosGarantia = (os.aparelhos?.length || 0) > 0;
-  
+
   if (temMultiplosAparelhosGarantia && os.aparelhos) {
     // Múltiplos aparelhos - mostra cada um
     os.aparelhos.forEach((aparelho, index) => {
@@ -1154,18 +1255,34 @@ export const gerarGarantiaOS = async (
       if (aparelho.servico_realizado) {
         // Normalizar menções de garantia para usar o prazo configurado
         const servicoNormalizado = aparelho.servico_realizado
-          .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+          .replace(
+            /garantia.*\d+\s*dias?/gi,
+            `Garantia: ${diasGarantiaFinal} dias`,
+          )
           .trim();
-        const servicoTextoFinal = servicoNormalizado || aparelho.servico_realizado;
-        const servicoLines = doc.splitTextToSize(servicoTextoFinal, pageWidth - 40);
+        const servicoTextoFinal =
+          servicoNormalizado || aparelho.servico_realizado;
+        const servicoLines = doc.splitTextToSize(
+          servicoTextoFinal,
+          pageWidth - 40,
+        );
+
         doc.text(servicoLines, 17, y);
         y += servicoLines.length * 6 + 4;
       } else if (aparelho.laudo_diagnostico) {
-        const laudoLines = doc.splitTextToSize(aparelho.laudo_diagnostico, pageWidth - 40);
+        const laudoLines = doc.splitTextToSize(
+          aparelho.laudo_diagnostico,
+          pageWidth - 40,
+        );
+
         doc.text(laudoLines, 17, y);
         y += laudoLines.length * 6 + 4;
       } else {
-        const defeitoLines = doc.splitTextToSize(aparelho.defeito_reclamado || "[Serviço a descrever]", pageWidth - 40);
+        const defeitoLines = doc.splitTextToSize(
+          aparelho.defeito_reclamado || "[Serviço a descrever]",
+          pageWidth - 40,
+        );
+
         doc.text(defeitoLines, 17, y);
         y += defeitoLines.length * 6 + 4;
       }
@@ -1210,14 +1327,22 @@ export const gerarGarantiaOS = async (
     if (os.laudo_diagnostico) {
       // Normalizar menções de garantia para usar o prazo configurado
       const laudoNormalizado = os.laudo_diagnostico
-        .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+        .replace(
+          /garantia.*\d+\s*dias?/gi,
+          `Garantia: ${diasGarantiaFinal} dias`,
+        )
         .trim();
       const laudoTextoFinal = laudoNormalizado || os.laudo_diagnostico;
       const laudoLines = doc.splitTextToSize(laudoTextoFinal, pageWidth - 40);
+
       doc.text(laudoLines, 17, y);
       y += laudoLines.length * 6 + 4;
     } else {
-      const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 40);
+      const defeitoLines = doc.splitTextToSize(
+        os.defeito_reclamado,
+        pageWidth - 40,
+      );
+
       doc.text(defeitoLines, 17, y);
       y += defeitoLines.length * 6 + 4;
     }
@@ -1232,10 +1357,12 @@ export const gerarGarantiaOS = async (
   // Buscar texto de garantia do banco de dados
   let textoGarantia = null;
   let tituloGarantia = "TERMOS E CONDIÇÕES DA GARANTIA";
-  
+
   const dataInicioGarantia = new Date(os.criado_em).toLocaleDateString("pt-BR");
-  const dataFimGarantia = new Date(new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
-  
+  const dataFimGarantia = new Date(
+    new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000,
+  ).toLocaleDateString("pt-BR");
+
   let termos = [
     "(1) - A garantia só é válida mediante a apresentação dessa ordem de serviço/garantia.",
     `(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabeçalho a partir da data de ${dataInicioGarantia} até ${dataFimGarantia}.`,
@@ -1260,12 +1387,19 @@ export const gerarGarantiaOS = async (
         textoGarantia = data;
         tituloGarantia = data.titulo
           .toUpperCase()
-          .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`);
+          .replace(
+            /garantia.*\d+\s*dias?/gi,
+            `Garantia: ${diasGarantiaFinal} dias`,
+          );
         termos = data.clausulas.map((c: any) => {
           const texto = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
+
           return `(${c.numero}) - ${texto}`;
         });
       }
@@ -1287,6 +1421,7 @@ export const gerarGarantiaOS = async (
 
   termos.forEach((termo) => {
     const termoLines = doc.splitTextToSize(termo, pageWidth - 40);
+
     doc.text(termoLines, 17, y);
     y += termoLines.length * 4 + 2;
   });
@@ -1311,8 +1446,9 @@ export const gerarGarantiaOS = async (
     doc.setFont("helvetica", "normal");
     const obsLines = doc.splitTextToSize(
       os.observacoes_tecnicas,
-      pageWidth - 40
+      pageWidth - 40,
     );
+
     doc.text(obsLines, 17, y);
     y += obsLines.length * 5 + 10;
   }
@@ -1342,7 +1478,7 @@ export const gerarCupomTermicoOS = async (
   pecas: PecaOS[],
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ): Promise<string> => {
   const largura = 80; // 80mm
   const linhaDiv = "=".repeat(48);
@@ -1353,6 +1489,7 @@ export const gerarCupomTermicoOS = async (
   // Função auxiliar para centralizar texto
   const centralizar = (texto: string): string => {
     const espacos = Math.max(0, Math.floor((48 - texto.length) / 2));
+
     return " ".repeat(espacos) + texto;
   };
 
@@ -1445,10 +1582,10 @@ export const gerarCupomTermicoOS = async (
 
   // Termos de Garantia
   cupom += linhaDiv + "\n";
-  
+
   // Buscar texto de garantia do banco de dados
   let tituloGarantia = "TERMOS DE GARANTIA";
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
   let termosTexto = [
     "(1) A garantia so e valida mediante\napresentacao desta OS/garantia.",
     "(2) Garantia conforme combinado no\ncabecalho a partir da entrega.",
@@ -1457,7 +1594,7 @@ export const gerarCupomTermicoOS = async (
     "(5) Apos garantia, com esta OS,\npode ter desconto em reparos.",
     "(6) Aparelho nao procurado em 90\ndias: nao nos responsabilizamos.",
     "(7) Brindes sem garantia, conferir\nno ato da entrega.",
-    "(8) Cliente declara ciencia do\ndescrito acima."
+    "(8) Cliente declara ciencia do\ndescrito acima.",
   ];
 
   if (os.tipo_garantia) {
@@ -1474,28 +1611,31 @@ export const gerarCupomTermicoOS = async (
         // Formatar as cláusulas para cupom térmico (quebrar linhas longas)
         termosTexto = data.clausulas.map((c: any) => {
           const textoBase = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
           const texto = `(${c.numero}) ${textoBase}`;
           // Quebrar linhas a cada 46 caracteres aproximadamente
-          const palavras = texto.split(' ');
-          let linhaAtual = '';
+          const palavras = texto.split(" ");
+          let linhaAtual = "";
           const linhas = [];
-          
-          palavras.forEach(palavra => {
+
+          palavras.forEach((palavra) => {
             if ((linhaAtual + palavra).length > 46) {
               linhas.push(linhaAtual.trim());
-              linhaAtual = palavra + ' ';
+              linhaAtual = palavra + " ";
             } else {
-              linhaAtual += palavra + ' ';
+              linhaAtual += palavra + " ";
             }
           });
           if (linhaAtual.trim()) {
             linhas.push(linhaAtual.trim());
           }
-          
-          return linhas.join('\n');
+
+          return linhas.join("\n");
         });
       }
     } catch (error) {
@@ -1506,8 +1646,8 @@ export const gerarCupomTermicoOS = async (
 
   cupom += centralizar(tituloGarantia) + "\n";
   cupom += linhaDiv + "\n\n";
-  
-  termosTexto.forEach(termo => {
+
+  termosTexto.forEach((termo) => {
     cupom += termo + "\n\n";
   });
 
@@ -1525,13 +1665,14 @@ export const gerarCupomTermicoGarantia = async (
   os: OrdemServico,
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ): Promise<string> => {
   const linhaDiv = "=".repeat(48);
   const linhaTracejada = "-".repeat(48);
 
   const centralizar = (texto: string): string => {
     const espacos = Math.max(0, Math.floor((48 - texto.length) / 2));
+
     return " ".repeat(espacos) + texto;
   };
 
@@ -1550,6 +1691,7 @@ export const gerarCupomTermicoGarantia = async (
     });
 
     if (atual.trim()) linhas.push(atual.trim());
+
     return linhas;
   };
 
@@ -1571,7 +1713,8 @@ export const gerarCupomTermicoGarantia = async (
   cupom += `Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")} ${new Date(os.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}\n`;
 
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : os.dias_garantia || 90;
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
+
   cupom += `Garantia: ${tipoGarantiaFinal.toString().toUpperCase()} - ${diasGarantiaFinal} dias\n\n`;
 
   // Cliente
@@ -1590,6 +1733,7 @@ export const gerarCupomTermicoGarantia = async (
   if (os.aparelhos && os.aparelhos.length > 0) {
     os.aparelhos.forEach((aparelho, idx) => {
       const titulo = `Aparelho ${aparelho.sequencia || idx + 1}`;
+
       cupom += `${titulo}: ${aparelho.equipamento_tipo || "Aparelho"}\n`;
       if (aparelho.equipamento_marca)
         cupom += `  Marca: ${aparelho.equipamento_marca}\n`;
@@ -1615,9 +1759,11 @@ export const gerarCupomTermicoGarantia = async (
     os.aparelhos && os.aparelhos[0]?.servico_realizado
       ? os.aparelhos[0].servico_realizado
       : os.laudo_diagnostico || os.defeito_reclamado || "[Servico a descrever]";
-  servicoTexto = servicoTexto
-    .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
-    .trim() || servicoTexto;
+
+  servicoTexto =
+    servicoTexto
+      .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+      .trim() || servicoTexto;
   quebraLinhas(servicoTexto).forEach((linha) => (cupom += linha + "\n"));
   cupom += "\n";
 
@@ -1647,12 +1793,19 @@ export const gerarCupomTermicoGarantia = async (
       if (data) {
         tituloGarantia = (data.titulo || tituloGarantia)
           .toUpperCase()
-          .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`);
+          .replace(
+            /garantia.*\d+\s*dias?/gi,
+            `Garantia: ${diasGarantiaFinal} dias`,
+          );
         termosTexto = data.clausulas.map((c: any) => {
           const texto = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
+
           return quebraLinhas(`(${c.numero}) ${texto}`).join("\n");
         });
       }
@@ -1684,6 +1837,7 @@ export const imprimirCupomTermico = (cupom: string) => {
 
   if (!janelaImpressao) {
     alert("Bloqueador de pop-up ativado. Permita pop-ups para imprimir.");
+
     return;
   }
 
@@ -1744,7 +1898,7 @@ export const imprimirCupomTermico = (cupom: string) => {
 export const gerarCupomTermicoOrcamento = async (
   os: OrdemServico,
   pecas: PecaOS[],
-  dadosLoja: DadosLoja
+  dadosLoja: DadosLoja,
 ): Promise<string> => {
   const largura = 80; // 80mm
   const linhaDiv = "=".repeat(48);
@@ -1755,6 +1909,7 @@ export const gerarCupomTermicoOrcamento = async (
   // Função auxiliar para centralizar texto
   const centralizar = (texto: string): string => {
     const espacos = Math.max(0, Math.floor((48 - texto.length) / 2));
+
     return " ".repeat(espacos) + texto;
   };
 
@@ -1796,9 +1951,9 @@ export const gerarCupomTermicoOrcamento = async (
   cupom += linhaTracejada + "\n";
   cupom += "EQUIPAMENTO\n";
   cupom += linhaTracejada + "\n";
-  
+
   const temMultiplosAparelhos = (os.aparelhos?.length || 0) > 0;
-  
+
   if (temMultiplosAparelhos && os.aparelhos) {
     // Múltiplos aparelhos
     os.aparelhos.forEach((aparelho, index) => {
@@ -1834,7 +1989,7 @@ export const gerarCupomTermicoOrcamento = async (
   cupom += linhaTracejada + "\n";
   cupom += "DEFEITO RECLAMADO\n";
   cupom += linhaTracejada + "\n";
-  
+
   if (temMultiplosAparelhos && os.aparelhos) {
     os.aparelhos.forEach((aparelho) => {
       cupom += `Aparelho ${aparelho.sequencia}: ${aparelho.defeito_reclamado}\n`;
@@ -1848,7 +2003,7 @@ export const gerarCupomTermicoOrcamento = async (
   cupom += linhaTracejada + "\n";
   cupom += "SERVICO A REALIZAR\n";
   cupom += linhaTracejada + "\n";
-  
+
   if (temMultiplosAparelhos && os.aparelhos) {
     os.aparelhos.forEach((aparelho) => {
       cupom += `Aparelho ${aparelho.sequencia}: ${aparelho.laudo_diagnostico || "A definir"}\n`;
@@ -1862,11 +2017,11 @@ export const gerarCupomTermicoOrcamento = async (
   cupom += linhaTracejada + "\n";
   cupom += "VALORES DO ORCAMENTO\n";
   cupom += linhaTracejada + "\n";
-  
+
   if (temMultiplosAparelhos && os.aparelhos) {
     let totalOrcamento = 0;
     let totalDesconto = 0;
-    
+
     os.aparelhos.forEach((aparelho) => {
       cupom += `Aparelho ${aparelho.sequencia}:\n`;
       cupom += `  Orcamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}\n`;
@@ -1875,13 +2030,13 @@ export const gerarCupomTermicoOrcamento = async (
       }
       cupom += `  Total: R$ ${(aparelho.valor_total || 0).toFixed(2)}\n`;
       cupom += "\n";
-      
+
       totalOrcamento += aparelho.valor_orcamento || 0;
       totalDesconto += aparelho.valor_desconto || 0;
     });
-    
+
     const totalFinal = os.valor_total || 0;
-    
+
     cupom += linhaTracejada + "\n";
     cupom += `TOTAL GERAL: R$ ${totalFinal.toFixed(2)}\n`;
   } else {
@@ -1912,7 +2067,7 @@ export const gerarCupomTermicoOrcamento = async (
 export const gerarCupomTermicoPDFOrcamento = async (
   os: OrdemServico,
   pecas: PecaOS[],
-  dadosLoja: DadosLoja
+  dadosLoja: DadosLoja,
 ) => {
   // Documento com tamanho de cupom térmico (80mm x 250mm)
   const doc = new jsPDF({
@@ -1920,13 +2075,16 @@ export const gerarCupomTermicoPDFOrcamento = async (
     unit: "mm",
     format: [80, 250],
   });
+
   await ensurePdfFonts(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 5;
 
   // Dados padrão
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // ========== LOGO DA LOJA ==========
@@ -1935,6 +2093,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -1945,39 +2104,42 @@ export const gerarCupomTermicoPDFOrcamento = async (
       if (typeof document === "undefined") {
         // Se em servidor, retorna a imagem original colorida
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
-        
+
         if (ctx) {
           // Desenhar imagem
           ctx.drawImage(img, 0, 0);
-          
+
           // Obter dados da imagem
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
-          
+
           // Converter para escala de cinza (preto e branco)
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-            
+
             // Fórmula de luminosidade
             const gray = r * 0.299 + g * 0.587 + b * 0.114;
-            
-            data[i] = gray;     // R
+
+            data[i] = gray; // R
             data[i + 1] = gray; // G
             data[i + 2] = gray; // B
             // data[i + 3] permanece como alpha
           }
-          
+
           ctx.putImageData(imageData, 0, 0);
           resolve(canvas.toDataURL("image/png"));
         } else {
@@ -1990,7 +2152,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
       };
       img.src = logoDataUrl;
     });
-    
+
     doc.addImage(bwLogoDataUrl, "PNG", 15, y, 50, 30);
     y += 30;
   } catch (error) {
@@ -2001,14 +2163,15 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  
+
   // Dividir endereço em múltiplas linhas se necessário
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 10);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 3.5;
   });
-  
+
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, { align: "center" });
   y += 6;
 
@@ -2092,7 +2255,11 @@ export const gerarCupomTermicoPDFOrcamento = async (
         doc.text(`IMEI: ${aparelho.equipamento_imei}`, 5, y);
         y += 3.5;
       }
-      doc.text(`Estado: ${aparelho.estado_equipamento || "[Informar estado]"}`, 5, y);
+      doc.text(
+        `Estado: ${aparelho.estado_equipamento || "[Informar estado]"}`,
+        5,
+        y,
+      );
       y += 5;
 
       // ========== PROBLEMA ==========
@@ -2120,7 +2287,9 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      const servico = aparelho.laudo_diagnostico || "A definir após diagnóstico";
+      const servico =
+        aparelho.laudo_diagnostico || "A definir após diagnóstico";
+
       doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
       y += doc.getTextDimensions(servico).h + 4;
 
@@ -2135,10 +2304,18 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      doc.text(`Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 5, y);
+      doc.text(
+        `Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`,
+        5,
+        y,
+      );
       y += 3.5;
       if ((aparelho.valor_desconto || 0) > 0) {
-        doc.text(`Desconto: R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`, 5, y);
+        doc.text(
+          `Desconto: R$ ${(aparelho.valor_desconto || 0).toFixed(2)}`,
+          5,
+          y,
+        );
         y += 3.5;
       }
       doc.setFont("helvetica", "bold");
@@ -2199,6 +2376,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     const servico = os.laudo_diagnostico || "A definir após diagnóstico";
+
     doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
     y += doc.getTextDimensions(servico).h + 4;
 
@@ -2244,11 +2422,20 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
     os.aparelhos.forEach((aparelho) => {
       const nomeEquipamento = aparelho.equipamento_tipo || "Equipamento";
+
       doc.text(`Aparelho ${aparelho.sequencia} (${nomeEquipamento}):`, 5, y);
       y += 3;
-      doc.text(`  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`, 5, y);
+      doc.text(
+        `  Orçamento: R$ ${(aparelho.valor_orcamento || 0).toFixed(2)}`,
+        5,
+        y,
+      );
       y += 3;
-      doc.text(`  Subtotal: R$ ${(aparelho.valor_total || 0).toFixed(2)}`, 5, y);
+      doc.text(
+        `  Subtotal: R$ ${(aparelho.valor_total || 0).toFixed(2)}`,
+        5,
+        y,
+      );
       y += 4;
     });
 
@@ -2258,9 +2445,14 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
-    doc.text(`TOTAL GERAL: R$ ${(os.valor_total || 0).toFixed(2)}`, pageWidth / 2, y, {
-      align: "center",
-    });
+    doc.text(
+      `TOTAL GERAL: R$ ${(os.valor_total || 0).toFixed(2)}`,
+      pageWidth / 2,
+      y,
+      {
+        align: "center",
+      },
+    );
     y += 6;
   }
 
@@ -2277,15 +2469,13 @@ export const gerarCupomTermicoPDFOrcamento = async (
     "Autorizo a execução dos serviços descritos acima",
     pageWidth / 2,
     y,
-    { align: "center", maxWidth: pageWidth - 10 }
+    { align: "center", maxWidth: pageWidth - 10 },
   );
   y += 3;
-  doc.text(
-    "e estou ciente dos valores apresentados.",
-    pageWidth / 2,
-    y,
-    { align: "center", maxWidth: pageWidth - 10 }
-  );
+  doc.text("e estou ciente dos valores apresentados.", pageWidth / 2, y, {
+    align: "center",
+    maxWidth: pageWidth - 10,
+  });
   y += 5;
 
   doc.setTextColor(0, 0, 0);
@@ -2299,7 +2489,7 @@ export const gerarCupomTermicoPDFGarantia = async (
   os: OrdemServico,
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ) => {
   // Documento com tamanho de cupom térmico (80mm x 250mm)
   const doc = new jsPDF({
@@ -2307,13 +2497,16 @@ export const gerarCupomTermicoPDFGarantia = async (
     unit: "mm",
     format: [80, 250],
   });
+
   await ensurePdfFonts(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 5;
 
   // Dados padrão
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // ========== LOGO DA LOJA ==========
@@ -2322,6 +2515,7 @@ export const gerarCupomTermicoPDFGarantia = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -2332,39 +2526,42 @@ export const gerarCupomTermicoPDFGarantia = async (
       if (typeof document === "undefined") {
         // Se em servidor, retorna a imagem original colorida
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
-        
+
         if (ctx) {
           // Desenhar imagem
           ctx.drawImage(img, 0, 0);
-          
+
           // Obter dados da imagem
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
-          
+
           // Converter para escala de cinza (preto e branco)
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
-            
+
             // Fórmula de luminosidade
             const gray = r * 0.299 + g * 0.587 + b * 0.114;
-            
-            data[i] = gray;     // R
+
+            data[i] = gray; // R
             data[i + 1] = gray; // G
             data[i + 2] = gray; // B
             // data[i + 3] permanece como alpha
           }
-          
+
           ctx.putImageData(imageData, 0, 0);
           resolve(canvas.toDataURL("image/png"));
         } else {
@@ -2377,7 +2574,7 @@ export const gerarCupomTermicoPDFGarantia = async (
       };
       img.src = logoDataUrl;
     });
-    
+
     doc.addImage(bwLogoDataUrl, "PNG", 15, y, 50, 30);
     y += 30;
   } catch (error) {
@@ -2388,14 +2585,15 @@ export const gerarCupomTermicoPDFGarantia = async (
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  
+
   // Dividir endereço em múltiplas linhas se necessário
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 10);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 3.5;
   });
-  
+
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, { align: "center" });
   y += 3.5;
 
@@ -2431,19 +2629,24 @@ export const gerarCupomTermicoPDFGarantia = async (
 
   // ========== TIPO E PRAZO DE GARANTIA ==========
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : os.dias_garantia || 90;
-  
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
   doc.text(`Tipo: ${tipoGarantiaFinal.toString().toUpperCase()}`, 5, y);
   y += 4;
-  
+
   // Calcular data final da garantia
   const dataInicio = new Date(os.criado_em);
   const dataFim = new Date(dataInicio);
+
   dataFim.setDate(dataFim.getDate() + diasGarantiaFinal);
-  
-  doc.text(`Prazo: ${diasGarantiaFinal} dias (até ${dataFim.toLocaleDateString("pt-BR")})`, 5, y);
+
+  doc.text(
+    `Prazo: ${diasGarantiaFinal} dias (até ${dataFim.toLocaleDateString("pt-BR")})`,
+    5,
+    y,
+  );
   y += 6;
 
   // ========== DADOS DO CLIENTE ==========
@@ -2553,13 +2756,14 @@ export const gerarCupomTermicoPDFGarantia = async (
     os.aparelhos && os.aparelhos[0]?.servico_realizado
       ? os.aparelhos[0].servico_realizado
       : os.laudo_diagnostico || os.defeito_reclamado || "[Serviço a descrever]";
-  
+
   // Normalizar menções de garantia para usar o prazo configurado
   servicoTexto = servicoTexto
     .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
     .trim();
-  
+
   const servicoLines = doc.splitTextToSize(servicoTexto, pageWidth - 10);
+
   servicoLines.forEach((line: string) => {
     doc.text(line, 5, y);
     y += 3;
@@ -2607,9 +2811,13 @@ export const gerarCupomTermicoPDFGarantia = async (
       if (data && data.clausulas && data.clausulas.length > 0) {
         termosTexto = data.clausulas.map((c: any) => {
           const texto = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
+
           return `(${c.numero}) ${texto}`;
         });
       }
@@ -2620,6 +2828,7 @@ export const gerarCupomTermicoPDFGarantia = async (
 
   termosTexto.forEach((termo) => {
     const termoLines = doc.splitTextToSize(termo, pageWidth - 10);
+
     termoLines.forEach((line: string) => {
       if (y > 240) {
         doc.addPage();
@@ -2644,15 +2853,13 @@ export const gerarCupomTermicoPDFGarantia = async (
     "A garantia é válida mediante apresentação deste documento.",
     pageWidth / 2,
     y,
-    { align: "center", maxWidth: pageWidth - 10 }
+    { align: "center", maxWidth: pageWidth - 10 },
   );
   y += 3;
-  doc.text(
-    "Guarde-o em local seguro.",
-    pageWidth / 2,
-    y,
-    {align: "center", maxWidth: pageWidth - 10 }
-  );
+  doc.text("Guarde-o em local seguro.", pageWidth / 2, y, {
+    align: "center",
+    maxWidth: pageWidth - 10,
+  });
   y += 5;
 
   doc.setTextColor(0, 0, 0);
@@ -2667,7 +2874,7 @@ export const gerarCupomTermicoPDFOS = async (
   pecas: PecaOS[],
   dadosLoja: DadosLoja,
   tipoGarantia?: string,
-  diasGarantia?: number
+  diasGarantia?: number,
 ) => {
   // Documento com tamanho de cupom térmico (80mm x 297mm para ordem completa)
   const doc = new jsPDF({
@@ -2675,13 +2882,16 @@ export const gerarCupomTermicoPDFOS = async (
     unit: "mm",
     format: [80, 297],
   });
+
   await ensurePdfFonts(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   let y = 5;
 
   // Dados padrão
-  const enderecoFinal = dadosLoja.endereco || "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
+  const enderecoFinal =
+    dadosLoja.endereco ||
+    "Feira dos Importados Bloco D Loja 229 - SIA, Brasília - DF, 71208-900";
   const telefoneFinal = dadosLoja.telefone || "(61) 98286-3441";
 
   // ========== LOGO DA LOJA ==========
@@ -2690,6 +2900,7 @@ export const gerarCupomTermicoPDFOS = async (
     const logoBlob = await logoResponse.blob();
     const logoDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
+
       reader.onloadend = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(logoBlob);
@@ -2698,21 +2909,24 @@ export const gerarCupomTermicoPDFOS = async (
     const bwLogoDataUrl = await new Promise<string>((resolve) => {
       if (typeof document === "undefined") {
         resolve(logoDataUrl);
+
         return;
       }
 
       const img = new Image();
+
       img.onload = () => {
         const canvas = document.createElement("canvas");
+
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext("2d");
-        
+
         if (ctx) {
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
-          
+
           for (let i = 0; i < data.length; i += 4) {
             const r = data[i];
             const g = data[i + 1];
@@ -2723,7 +2937,7 @@ export const gerarCupomTermicoPDFOS = async (
             data[i + 1] = gray;
             data[i + 2] = gray;
           }
-          
+
           ctx.putImageData(imageData, 0, 0);
           resolve(canvas.toDataURL("image/png"));
         } else {
@@ -2736,7 +2950,7 @@ export const gerarCupomTermicoPDFOS = async (
       };
       img.src = logoDataUrl;
     });
-    
+
     doc.addImage(bwLogoDataUrl, "PNG", 15, y, 50, 30);
     y += 30;
   } catch (error) {
@@ -2746,13 +2960,14 @@ export const gerarCupomTermicoPDFOS = async (
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
-  
+
   const enderecoLines = doc.splitTextToSize(enderecoFinal, pageWidth - 10);
+
   enderecoLines.forEach((line: string) => {
     doc.text(line, pageWidth / 2, y, { align: "center" });
     y += 3.5;
   });
-  
+
   doc.text(`Tel: ${telefoneFinal}`, pageWidth / 2, y, { align: "center" });
   y += 3.5;
 
@@ -2791,12 +3006,12 @@ export const gerarCupomTermicoPDFOS = async (
   doc.setFont("helvetica", "normal");
   doc.text(os.status.toUpperCase(), 23, y);
   y += 4;
-  
+
   // ========== PRIORIDADE ==========
   doc.setFont("helvetica", "bold");
   doc.text(`Prioridade: `, 5, y);
   doc.setFont("helvetica", "normal");
-  doc.text((os.prioridade?.toUpperCase() || "MÉDIA"), 23, y);
+  doc.text(os.prioridade?.toUpperCase() || "MÉDIA", 23, y);
   y += 6;
 
   // ========== DADOS DO CLIENTE ==========
@@ -2860,7 +3075,11 @@ export const gerarCupomTermicoPDFOS = async (
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  const defeitoLines = doc.splitTextToSize(os.defeito_reclamado, pageWidth - 10);
+  const defeitoLines = doc.splitTextToSize(
+    os.defeito_reclamado,
+    pageWidth - 10,
+  );
+
   defeitoLines.forEach((line: string) => {
     doc.text(line, 5, y);
     y += 3;
@@ -2884,7 +3103,11 @@ export const gerarCupomTermicoPDFOS = async (
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    const laudoLines = doc.splitTextToSize(os.laudo_diagnostico, pageWidth - 10);
+    const laudoLines = doc.splitTextToSize(
+      os.laudo_diagnostico,
+      pageWidth - 10,
+    );
+
     laudoLines.forEach((line: string) => {
       doc.text(line, 5, y);
       y += 3;
@@ -2933,7 +3156,11 @@ export const gerarCupomTermicoPDFOS = async (
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    const obsLines = doc.splitTextToSize(os.observacoes_tecnicas, pageWidth - 10);
+    const obsLines = doc.splitTextToSize(
+      os.observacoes_tecnicas,
+      pageWidth - 10,
+    );
+
     obsLines.forEach((line: string) => {
       doc.text(line, 5, y);
       y += 3;
@@ -2947,14 +3174,16 @@ export const gerarCupomTermicoPDFOS = async (
     y = 10;
   }
 
-  const diasGarantiaFinal = diasGarantia !== undefined ? diasGarantia : (os.dias_garantia || 90);
+  const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
 
   // Buscar texto de garantia do banco de dados
   let tituloGarantia = "TERMOS DE GARANTIA";
   const dataInicioGarantia = new Date(os.criado_em).toLocaleDateString("pt-BR");
-  const dataFimGarantia = new Date(new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000).toLocaleDateString("pt-BR");
-  
+  const dataFimGarantia = new Date(
+    new Date(os.criado_em).getTime() + diasGarantiaFinal * 24 * 60 * 60 * 1000,
+  ).toLocaleDateString("pt-BR");
+
   let termos = [
     `(1) - A garantia so e valida mediante a apresentacao dessa ordem de servico/garantia.`,
     `(2) - A AUTORIZADA CELL oferece uma garantia conforme combinado a cima no cabecalho a partir da data da entrega do aparelho ao cliente.`,
@@ -2978,12 +3207,19 @@ export const gerarCupomTermicoPDFOS = async (
       if (data) {
         tituloGarantia = data.titulo
           .toUpperCase()
-          .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`);
+          .replace(
+            /garantia.*\d+\s*dias?/gi,
+            `Garantia: ${diasGarantiaFinal} dias`,
+          );
         termos = data.clausulas.map((c: any) => {
           const texto = `${c.texto}`
-            .replace(/garantia.*\d+\s*dias?/gi, `Garantia: ${diasGarantiaFinal} dias`)
+            .replace(
+              /garantia.*\d+\s*dias?/gi,
+              `Garantia: ${diasGarantiaFinal} dias`,
+            )
             .replace(/90\s*\(NOVENTA\)\s*dias?/gi, `${diasGarantiaFinal} dias`)
             .replace(/90\s*dias?/gi, `${diasGarantiaFinal} dias`);
+
           return `(${c.numero}) - ${texto}`;
         });
       }
@@ -3006,6 +3242,7 @@ export const gerarCupomTermicoPDFOS = async (
       y = 10;
     }
     const termoLines = doc.splitTextToSize(termo, pageWidth - 10);
+
     termoLines.forEach((line: string) => {
       doc.text(line, 5, y);
       y += 2.5;
@@ -3034,4 +3271,3 @@ export const gerarCupomTermicoPDFOS = async (
 
   return doc;
 };
-

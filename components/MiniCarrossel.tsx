@@ -51,10 +51,10 @@ export default function MiniCarrossel({
             viewBox="0 0 24 24"
           >
             <path
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
           <p className="text-sm text-default-400">Sem fotos</p>
@@ -76,7 +76,6 @@ export default function MiniCarrossel({
         style={autoHeight ? {} : aspectRatioStyle}
       >
         <Image
-          src={images[currentIndex]}
           alt={`${alt} ${currentIndex + 1}`}
           className="w-full h-full object-cover"
           classNames={{
@@ -84,6 +83,7 @@ export default function MiniCarrossel({
             img: "w-full h-full object-cover",
           }}
           removeWrapper={false}
+          src={images[currentIndex]}
         />
 
         {/* Overlay com número da foto */}
@@ -100,9 +100,9 @@ export default function MiniCarrossel({
           {/* Botão Anterior */}
           <Button
             isIconOnly
+            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-default-900 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg z-10 backdrop-blur-sm"
             size="sm"
             variant="solid"
-            className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-default-900 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg z-10 backdrop-blur-sm"
             onPress={handlePrevious}
           >
             <ChevronLeftIcon className="w-5 h-5" />
@@ -111,9 +111,9 @@ export default function MiniCarrossel({
           {/* Botão Próximo */}
           <Button
             isIconOnly
+            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-default-900 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg z-10 backdrop-blur-sm"
             size="sm"
             variant="solid"
-            className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-default-900 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg z-10 backdrop-blur-sm"
             onPress={handleNext}
           >
             <ChevronRightIcon className="w-5 h-5" />
@@ -127,16 +127,16 @@ export default function MiniCarrossel({
           {images.map((_, index) => (
             <button
               key={index}
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentIndex(index);
-              }}
+              aria-label={`Ir para foto ${index + 1}`}
               className={`rounded-full transition-all duration-200 ${
                 index === currentIndex
                   ? "bg-white w-6 h-2"
                   : "bg-white/60 hover:bg-white/80 w-2 h-2"
               }`}
-              aria-label={`Ir para foto ${index + 1}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentIndex(index);
+              }}
             />
           ))}
         </div>

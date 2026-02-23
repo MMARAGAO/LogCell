@@ -1,5 +1,6 @@
-import { supabase } from "@/lib/supabaseClient";
 import type { NotificacaoCompleta } from "@/types";
+
+import { supabase } from "@/lib/supabaseClient";
 
 export class NotificacoesService {
   static async deletarTodasNotificacoes(usuarioId: string): Promise<void> {
@@ -21,7 +22,7 @@ export class NotificacoesService {
   static async obterNotificacoesUsuario(
     usuarioId: string,
     apenasNaoLidas: boolean = false,
-    limite: number = 50
+    limite: number = 50,
   ): Promise<NotificacaoCompleta[]> {
     try {
       const { data, error } = await supabase.rpc("obter_notificacoes_usuario", {
@@ -31,9 +32,11 @@ export class NotificacoesService {
       });
 
       if (error) throw error;
+
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar notificações:", error);
+
       return [];
     }
   }
@@ -47,13 +50,15 @@ export class NotificacoesService {
         "contar_notificacoes_nao_lidas",
         {
           p_usuario_id: usuarioId,
-        }
+        },
       );
 
       if (error) throw error;
+
       return data || 0;
     } catch (error) {
       console.error("Erro ao contar notificações não lidas:", error);
+
       return 0;
     }
   }
@@ -63,7 +68,7 @@ export class NotificacoesService {
    */
   static async marcarComoLida(
     notificacaoId: number,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<void> {
     try {
       const { error } = await supabase.rpc("marcar_notificacao_lida", {
@@ -155,7 +160,7 @@ export class NotificacoesService {
    */
   static subscribeToNotifications(
     usuarioId: string,
-    callback: (payload: any) => void
+    callback: (payload: any) => void,
   ) {
     const channel = supabase
       .channel(`notificacoes_${usuarioId}`, {
@@ -175,7 +180,7 @@ export class NotificacoesService {
         (payload) => {
           // Chama o callback diretamente - a notificação já foi filtrada pelo Supabase
           callback(payload);
-        }
+        },
       )
       .subscribe();
 

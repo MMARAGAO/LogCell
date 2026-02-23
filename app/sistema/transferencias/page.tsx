@@ -1,5 +1,7 @@
 "use client";
 
+import type { TransferenciaCompleta } from "@/types";
+
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -8,21 +10,12 @@ import { Chip } from "@heroui/chip";
 import { Select, SelectItem } from "@heroui/select";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
-import { useDisclosure } from "@heroui/modal";
 import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
-import { useToast } from "@/components/Toast";
-import { useAuth } from "@/hooks/useAuth";
-import { usePermissoes } from "@/hooks/usePermissoes";
-import { useLojaFilter } from "@/hooks/useLojaFilter";
-import { ConfirmModal } from "@/components/ConfirmModal";
-import { InputModal } from "@/components/InputModal";
-import { supabase } from "@/lib/supabaseClient";
-import type { TransferenciaCompleta } from "@/types";
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -34,6 +27,14 @@ import {
   DocumentArrowDownIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+
+import { useToast } from "@/components/Toast";
+import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { InputModal } from "@/components/InputModal";
+import { supabase } from "@/lib/supabaseClient";
 import {
   buscarTransferencias,
   confirmarTransferencia,
@@ -131,6 +132,7 @@ export default function TransferenciasPage() {
 
       if (filtroLoja !== "todas") {
         const lojaIdFiltro = parseInt(filtroLoja);
+
         filtros.loja_id = lojaIdFiltro;
       } else if (lojaId !== null && !podeVerTodasLojas) {
         // Aplicar filtro de loja do usuário se não tiver acesso a todas
@@ -141,12 +143,14 @@ export default function TransferenciasPage() {
       }
 
       const resultado = await buscarTransferencias(filtros);
+
       setTransferencias(resultado);
     } catch (error: any) {
       console.error("Erro ao buscar transferências:", error);
 
       // Verificar se é erro de tabela não encontrada
       const mensagemErro = error?.message || JSON.stringify(error);
+
       if (
         mensagemErro.includes("relation") &&
         mensagemErro.includes("does not exist")
@@ -179,6 +183,7 @@ export default function TransferenciasPage() {
 
     // Verificar estoque antes de confirmar
     const itensComProblema = [];
+
     for (const item of transferencia.itens) {
       const { data: estoque } = await supabase
         .from("estoque_lojas")
@@ -210,6 +215,7 @@ export default function TransferenciasPage() {
       );
       setConfirmarModal({ isOpen: false, transferencia: null });
       setProcessando(null);
+
       return;
     }
 
@@ -245,11 +251,13 @@ export default function TransferenciasPage() {
   const handleEditar = (transferencia: TransferenciaCompleta) => {
     if (transferencia.status !== "pendente") {
       toast.error("Só é possível editar transferências pendentes.");
+
       return;
     }
 
     if (!temPermissao("transferencias.editar")) {
       toast.error("Você não tem permissão para editar transferências.");
+
       return;
     }
 
@@ -260,6 +268,7 @@ export default function TransferenciasPage() {
     if (!usuario || !cancelarModal.transferencia) return;
 
     const transferencia = cancelarModal.transferencia;
+
     setCancelarModal({ isOpen: false, transferencia: null });
     setProcessando(transferencia.id);
 
@@ -341,12 +350,12 @@ export default function TransferenciasPage() {
           {/* Botão Exportar Excel */}
           <Button
             color="success"
-            variant="flat"
+            isDisabled={transferencias.length === 0}
             startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+            variant="flat"
             onPress={() =>
               exportarTransferenciasParaExcel(transferencias, "transferencias")
             }
-            isDisabled={transferencias.length === 0}
           >
             Exportar Excel
           </Button>
@@ -422,12 +431,12 @@ export default function TransferenciasPage() {
             </Select>
 
             <Select
+              items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
               label="Loja"
               selectedKeys={[filtroLoja]}
               onSelectionChange={(keys) =>
                 setFiltroLoja(Array.from(keys)[0] as string)
               }
-              items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
             >
               {(loja) => (
                 <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
@@ -494,13 +503,13 @@ export default function TransferenciasPage() {
                             {grupo.map((transferencia) => (
                               <TransferenciaCard
                                 key={transferencia.id}
-                                transferencia={transferencia}
-                                processando={processando === transferencia.id}
                                 podeEditar={temPermissao(
                                   "transferencias.editar",
                                 )}
-                                onConfirmar={handleConfirmar}
+                                processando={processando === transferencia.id}
+                                transferencia={transferencia}
                                 onCancelar={handleCancelar}
+                                onConfirmar={handleConfirmar}
                                 onEditar={handleEditar}
                                 onVisualizar={setTransferenciaSelecionada}
                               />
@@ -521,11 +530,11 @@ export default function TransferenciasPage() {
             {transferencias.map((transferencia) => (
               <TransferenciaCard
                 key={transferencia.id}
-                transferencia={transferencia}
-                processando={processando === transferencia.id}
                 podeEditar={temPermissao("transferencias.editar")}
-                onConfirmar={handleConfirmar}
+                processando={processando === transferencia.id}
+                transferencia={transferencia}
                 onCancelar={handleCancelar}
+                onConfirmar={handleConfirmar}
                 onEditar={handleEditar}
                 onVisualizar={setTransferenciaSelecionada}
               />
@@ -537,43 +546,43 @@ export default function TransferenciasPage() {
       {/* Modal de Detalhes */}
       {transferenciaSelecionada && (
         <DetalhesTransferenciaModal
-          transferencia={transferenciaSelecionada}
-          onClose={() => setTransferenciaSelecionada(null)}
-          onConfirmar={handleConfirmar}
-          onCancelar={handleCancelar}
-          onEditar={handleEditar}
           podeEditar={temPermissao("transferencias.editar")}
           processando={processando === transferenciaSelecionada.id}
+          transferencia={transferenciaSelecionada}
+          onCancelar={handleCancelar}
+          onClose={() => setTransferenciaSelecionada(null)}
+          onConfirmar={handleConfirmar}
+          onEditar={handleEditar}
         />
       )}
 
       {/* Modal de Confirmação */}
       <ConfirmModal
+        confirmColor="primary"
+        confirmText="Confirmar Transferência"
         isOpen={confirmarModal.isOpen}
-        onClose={() =>
-          setConfirmarModal({ isOpen: false, transferencia: null })
-        }
-        title="Confirmar Transferência"
         message={
           confirmarModal.transferencia
             ? `Confirmar transferência de ${confirmarModal.transferencia.itens.length} produto(s) da ${confirmarModal.transferencia.loja_origem} para ${confirmarModal.transferencia.loja_destino}?\n\nEsta ação irá movimentar o estoque e não poderá ser desfeita.`
             : ""
         }
-        confirmText="Confirmar Transferência"
-        confirmColor="primary"
+        title="Confirmar Transferência"
+        onClose={() =>
+          setConfirmarModal({ isOpen: false, transferencia: null })
+        }
         onConfirm={confirmarTransferenciaModal}
       />
 
       {/* Modal de Cancelamento */}
       <InputModal
+        isRequired
+        confirmText="Cancelar Transferência"
         isOpen={cancelarModal.isOpen}
-        onClose={() => setCancelarModal({ isOpen: false, transferencia: null })}
-        title="Cancelar Transferência"
         message="Digite o motivo do cancelamento:"
         placeholder="Ex: Produto indisponível, erro na solicitação..."
-        confirmText="Cancelar Transferência"
+        title="Cancelar Transferência"
+        onClose={() => setCancelarModal({ isOpen: false, transferencia: null })}
         onConfirm={cancelarTransferenciaModal}
-        isRequired
       />
 
       {toast.ToastComponent}
@@ -625,8 +634,8 @@ function TransferenciaCard({
             <div className="flex items-center gap-3 flex-wrap">
               <Chip
                 color={config.color}
-                variant="flat"
                 startContent={<StatusIcon className="h-4 w-4" />}
+                variant="flat"
               >
                 {config.label}
               </Chip>
@@ -708,14 +717,14 @@ function TransferenciaCard({
             {/* Produtos */}
             <div className="flex flex-wrap gap-2">
               {transferencia.itens.slice(0, 3).map((item) => (
-                <Chip key={item.id} size="sm" variant="flat" color="primary">
+                <Chip key={item.id} color="primary" size="sm" variant="flat">
                   {item.produto_descricao}{" "}
                   {item.produto_marca && `(${item.produto_marca})`} -{" "}
                   {item.quantidade}un
                 </Chip>
               ))}
               {transferencia.itens.length > 3 && (
-                <Chip size="sm" variant="flat" color="default">
+                <Chip color="default" size="sm" variant="flat">
                   +{transferencia.itens.length - 3} mais
                 </Chip>
               )}
@@ -725,10 +734,10 @@ function TransferenciaCard({
           {/* Ações */}
           <div className="flex flex-col gap-2">
             <Button
-              size="sm"
-              variant="flat"
               color="default"
+              size="sm"
               startContent={<EyeIcon className="h-4 w-4" />}
+              variant="flat"
               onPress={() => onVisualizar(transferencia)}
             >
               Detalhes
@@ -736,12 +745,12 @@ function TransferenciaCard({
 
             {transferencia.status === "pendente" && podeEditar && (
               <Button
-                size="sm"
-                variant="flat"
                 color="primary"
-                startContent={<PencilSquareIcon className="h-4 w-4" />}
-                onPress={() => onEditar(transferencia)}
                 isDisabled={processando}
+                size="sm"
+                startContent={<PencilSquareIcon className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => onEditar(transferencia)}
               >
                 Editar
               </Button>
@@ -750,10 +759,10 @@ function TransferenciaCard({
             <Dropdown>
               <DropdownTrigger>
                 <Button
-                  size="sm"
-                  variant="flat"
                   color="success"
+                  size="sm"
                   startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
+                  variant="flat"
                 >
                   Relatório
                 </Button>
@@ -792,23 +801,13 @@ function TransferenciaCard({
             {transferencia.status === "pendente" && (
               <>
                 <Button
-                  size="sm"
-                  color="success"
-                  startContent={<CheckCircleIcon className="h-4 w-4" />}
-                  onPress={() => onConfirmar(transferencia)}
-                  isLoading={processando}
-                  isDisabled={processando}
-                >
-                  Confirmar
-                </Button>
-                <Button
-                  size="sm"
                   color="danger"
-                  variant="flat"
-                  startContent={<XCircleIcon className="h-4 w-4" />}
-                  onPress={() => onCancelar(transferencia)}
-                  isLoading={processando}
                   isDisabled={processando}
+                  isLoading={processando}
+                  size="sm"
+                  startContent={<XCircleIcon className="h-4 w-4" />}
+                  variant="flat"
+                  onPress={() => onCancelar(transferencia)}
                 >
                   Cancelar
                 </Button>
@@ -842,7 +841,15 @@ function DetalhesTransferenciaModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      role="button"
+      tabIndex={0}
       onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClose();
+        }
+      }}
     >
       <Card
         className="max-w-3xl w-full m-4"
@@ -862,7 +869,6 @@ function DetalhesTransferenciaModal({
               <div>
                 <span className="text-default-500">Status:</span>{" "}
                 <Chip
-                  size="sm"
                   color={
                     transferencia.status === "pendente"
                       ? "warning"
@@ -870,6 +876,7 @@ function DetalhesTransferenciaModal({
                         ? "success"
                         : "danger"
                   }
+                  size="sm"
                 >
                   {transferencia.status === "pendente"
                     ? "Pendente"
@@ -909,7 +916,7 @@ function DetalhesTransferenciaModal({
                   <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
                     <ArrowRightIcon className="w-4 h-4" />
                   </div>
-                  <div className="w-1 h-12 bg-gray-300 mt-2"></div>
+                  <div className="w-1 h-12 bg-gray-300 mt-2" />
                 </div>
                 <div className="flex-1 pb-4">
                   <div className="font-semibold text-sm text-blue-600">
@@ -970,9 +977,9 @@ function DetalhesTransferenciaModal({
                     )}
                   </div>
                   {transferencia.status === "cancelada" ? (
-                    <div className="w-1 h-0 mt-2"></div>
+                    <div className="w-1 h-0 mt-2" />
                   ) : (
-                    <div className="w-1 h-0 mt-2"></div>
+                    <div className="w-1 h-0 mt-2" />
                   )}
                 </div>
                 <div className="flex-1 pb-4">
@@ -1019,7 +1026,7 @@ function DetalhesTransferenciaModal({
                       </div>
                     </>
                   ) : transferencia.status === "cancelada" ? (
-                    <div></div>
+                    <div />
                   ) : (
                     <div className="text-xs text-yellow-700 mt-2 bg-yellow-50 p-3 rounded-lg">
                       ⏳ <span className="font-medium">Pendente</span> -
@@ -1134,8 +1141,8 @@ function DetalhesTransferenciaModal({
               <DropdownTrigger>
                 <Button
                   color="success"
-                  variant="flat"
                   startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+                  variant="flat"
                 >
                   Baixar Relatório
                 </Button>
@@ -1176,39 +1183,28 @@ function DetalhesTransferenciaModal({
                 {podeEditar && (
                   <Button
                     color="primary"
+                    isLoading={processando}
+                    startContent={<PencilSquareIcon className="h-5 w-5" />}
                     variant="flat"
                     onPress={() => {
                       onEditar(transferencia);
                       onClose();
                     }}
-                    isLoading={processando}
-                    startContent={<PencilSquareIcon className="h-5 w-5" />}
                   >
                     Editar Transferência
                   </Button>
                 )}
                 <Button
                   color="danger"
+                  isLoading={processando}
+                  startContent={<XCircleIcon className="h-5 w-5" />}
                   variant="flat"
                   onPress={() => {
                     onCancelar(transferencia);
                     onClose();
                   }}
-                  isLoading={processando}
-                  startContent={<XCircleIcon className="h-5 w-5" />}
                 >
                   Cancelar Transferência
-                </Button>
-                <Button
-                  color="success"
-                  onPress={() => {
-                    onConfirmar(transferencia);
-                    onClose();
-                  }}
-                  isLoading={processando}
-                  startContent={<CheckCircleIcon className="h-5 w-5" />}
-                >
-                  Confirmar Transferência
                 </Button>
               </>
             )}

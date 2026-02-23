@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 interface ProdutoEstoque {
@@ -49,7 +50,7 @@ export function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
   doc.text(
     `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
     margemEsquerda,
-    25
+    25,
   );
 
   yPos = 45;
@@ -297,6 +298,7 @@ export function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
 
   // Rodapé
   const totalPaginas = (doc as any).internal.getNumberOfPages();
+
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
@@ -305,12 +307,13 @@ export function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
       `Página ${i} de ${totalPaginas}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
-      { align: "center" }
+      { align: "center" },
     );
   }
 
   // Salvar o PDF
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `produto_${produto.descricao.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}_${timestamp}`;
+
   abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }

@@ -83,11 +83,12 @@ export function ProdutoSearchGrid({
   const produtosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * PRODUTOS_POR_PAGINA;
     const fim = inicio + PRODUTOS_POR_PAGINA;
+
     return produtosFiltrados.slice(inicio, fim);
   }, [produtosFiltrados, paginaAtual]);
 
   const totalPaginas = Math.ceil(
-    produtosFiltrados.length / PRODUTOS_POR_PAGINA
+    produtosFiltrados.length / PRODUTOS_POR_PAGINA,
   );
 
   // Resetar página ao filtrar
@@ -97,6 +98,7 @@ export function ProdutoSearchGrid({
 
   const categorias = useMemo(() => {
     const cats = new Set(produtos.map((p) => p.categoria).filter(Boolean));
+
     return Array.from(cats) as string[];
   }, [produtos]);
 
@@ -105,11 +107,11 @@ export function ProdutoSearchGrid({
       {/* Barra de busca */}
       <div className="flex gap-4">
         <Input
+          className="flex-1"
           placeholder="Buscar produto... (ex: bat i 11)"
+          startContent={<Search className="w-4 h-4 text-gray-400" />}
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          startContent={<Search className="w-4 h-4 text-gray-400" />}
-          className="flex-1"
         />
       </div>
 
@@ -117,18 +119,18 @@ export function ProdutoSearchGrid({
       {categorias.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           <Chip
+            className="cursor-pointer"
             variant={categoriaSelecionada === null ? "solid" : "bordered"}
             onClick={() => setCategoriaSelecionada(null)}
-            className="cursor-pointer"
           >
             Todas
           </Chip>
           {categorias.map((cat) => (
             <Chip
               key={cat}
+              className="cursor-pointer"
               variant={categoriaSelecionada === cat ? "solid" : "bordered"}
               onClick={() => setCategoriaSelecionada(cat)}
-              className="cursor-pointer"
             >
               {cat}
             </Chip>
@@ -153,7 +155,7 @@ export function ProdutoSearchGrid({
             Mostrando {(paginaAtual - 1) * PRODUTOS_POR_PAGINA + 1} a{" "}
             {Math.min(
               paginaAtual * PRODUTOS_POR_PAGINA,
-              produtosFiltrados.length
+              produtosFiltrados.length,
             )}{" "}
             de {produtosFiltrados.length} produtos
           </div>
@@ -169,9 +171,9 @@ export function ProdutoSearchGrid({
                   {produto.imagem_url ? (
                     <div className="aspect-square mb-3 rounded-lg overflow-hidden bg-default-100">
                       <img
-                        src={produto.imagem_url}
                         alt={produto.nome}
                         className="w-full h-full object-cover"
+                        src={produto.imagem_url}
                       />
                     </div>
                   ) : (
@@ -199,10 +201,10 @@ export function ProdutoSearchGrid({
 
                     <div className="flex items-center justify-between">
                       <Chip
-                        size="sm"
                         color={
                           produto.estoque_disponivel > 0 ? "success" : "danger"
                         }
+                        size="sm"
                         variant="flat"
                       >
                         Estoque: {produto.estoque_disponivel}
@@ -218,11 +220,11 @@ export function ProdutoSearchGrid({
 
                 <CardFooter className="p-4 pt-0">
                   <Button
-                    color="primary"
                     className="w-full"
+                    color="primary"
+                    isDisabled={produto.estoque_disponivel <= 0}
                     startContent={<Plus className="w-4 h-4" />}
                     onClick={() => onAdicionarProduto(produto)}
-                    isDisabled={produto.estoque_disponivel <= 0}
                   >
                     Adicionar
                   </Button>
@@ -235,11 +237,11 @@ export function ProdutoSearchGrid({
           {totalPaginas > 1 && (
             <div className="flex justify-center mt-6">
               <Pagination
-                total={totalPaginas}
-                page={paginaAtual}
-                onChange={setPaginaAtual}
                 showControls
                 color="primary"
+                page={paginaAtual}
+                total={totalPaginas}
+                onChange={setPaginaAtual}
               />
             </div>
           )}

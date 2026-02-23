@@ -16,12 +16,12 @@ export function useRenderDebug(componentName: string) {
     const timeSinceLastRender = now - lastRenderTime.current;
 
     console.log(
-      `🔄 [${componentName}] Render #${renderCount.current} (${timeSinceLastRender}ms desde último render)`
+      `🔄 [${componentName}] Render #${renderCount.current} (${timeSinceLastRender}ms desde último render)`,
     );
 
     if (timeSinceLastRender < 100 && renderCount.current > 5) {
       console.error(
-        `🚨 [${componentName}] POSSÍVEL LOOP DETECTADO! ${renderCount.current} renders em poucos milissegundos`
+        `🚨 [${componentName}] POSSÍVEL LOOP DETECTADO! ${renderCount.current} renders em poucos milissegundos`,
       );
     }
 

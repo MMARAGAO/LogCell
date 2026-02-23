@@ -1,12 +1,14 @@
 "use client";
 
+import type { Permissao, PerfilUsuario } from "@/types/permissoes";
+
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+
 import { AuthService } from "@/services/authService";
 import { Usuario, LoginData } from "@/types";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
 import { getPrimeiraRotaDisponivel } from "@/lib/routeHelper";
-import type { Permissao, PerfilUsuario } from "@/types/permissoes";
 import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
 
 /**
@@ -34,6 +36,7 @@ export function useAuth() {
 
         if (user) {
           const usuarioAtual = await AuthService.getUsuarioAtual();
+
           if (!cancelled) {
             setUsuario(usuarioAtual);
           }
@@ -43,9 +46,14 @@ export function useAuth() {
         if (!cancelled) {
           setUsuario(null);
           // Se houver erro de autenticação, fazer logout
-          if (err && typeof err === 'object' && 'message' in err) {
+          if (err && typeof err === "object" && "message" in err) {
             const errorMessage = (err as any).message;
-            if (errorMessage?.includes('JWT') || errorMessage?.includes('session') || errorMessage?.includes('auth')) {
+
+            if (
+              errorMessage?.includes("JWT") ||
+              errorMessage?.includes("session") ||
+              errorMessage?.includes("auth")
+            ) {
               console.warn("⚠️ Sessão inválida detectada, fazendo logout...");
               await supabase.auth.signOut();
             }
@@ -89,6 +97,7 @@ export function useAuth() {
         try {
           // Verificar se é admin
           const emailsAdmin = ["admin@logcell.com", "matheusmoxil@gmail.com"];
+
           isAdmin =
             !!usuario.email &&
             emailsAdmin.includes(usuario.email.toLowerCase());
@@ -104,13 +113,14 @@ export function useAuth() {
             if (permissoesData?.permissoes) {
               // Converter objeto JSONB para array
               const permissoesObj = permissoesData.permissoes;
+
               if (Array.isArray(permissoesObj)) {
                 permissoes = permissoesObj;
               } else {
                 for (const [modulo, acoes] of Object.entries(permissoesObj)) {
                   if (typeof acoes === "object" && acoes !== null) {
                     for (const [acao, valor] of Object.entries(
-                      acoes as Record<string, boolean>
+                      acoes as Record<string, boolean>,
                     )) {
                       if (valor === true) {
                         permissoes.push(`${modulo}.${acao}` as Permissao);
@@ -123,19 +133,22 @@ export function useAuth() {
               // Usar permissões padrão do perfil
               const perfil: PerfilUsuario =
                 usuario.tipo_usuario === "tecnico" ? "tecnico" : "vendedor";
+
               permissoes = PERMISSOES_POR_PERFIL[perfil] || [];
             }
           }
         } catch (err) {
           console.warn(
             "Erro ao buscar permissões, usando dashboard como padrão:",
-            err
+            err,
           );
         }
 
         // Redirecionar para primeira rota disponível
         const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin);
+
         router.push(primeiraRota);
+
         return { success: true };
       } catch (err: any) {
         let mensagemErro = "Erro ao fazer login";
@@ -150,12 +163,13 @@ export function useAuth() {
         }
 
         setError(mensagemErro);
+
         return { success: false, error: mensagemErro };
       } finally {
         setLoading(false);
       }
     },
-    [router]
+    [router],
   );
 
   /**
@@ -167,9 +181,11 @@ export function useAuth() {
       await AuthService.logout();
       setUsuario(null);
       router.push("/auth"); // Redireciona para login
+
       return { success: true };
     } catch (err: any) {
       setError("Erro ao fazer logout");
+
       return { success: false, error: "Erro ao fazer logout" };
     } finally {
       setLoading(false);
@@ -187,18 +203,21 @@ export function useAuth() {
         setLoading(true);
         const usuarioAtualizado = await AuthService.atualizarUsuario(
           usuario.id,
-          dados
+          dados,
         );
+
         setUsuario(usuarioAtualizado);
+
         return { success: true, usuario: usuarioAtualizado };
       } catch (err: any) {
         setError("Erro ao atualizar dados");
+
         return { success: false, error: "Erro ao atualizar dados" };
       } finally {
         setLoading(false);
       }
     },
-    [usuario]
+    [usuario],
   );
 
   /**
@@ -212,6 +231,7 @@ export function useAuth() {
 
       if (user) {
         const usuarioAtual = await AuthService.getUsuarioAtual();
+
         setUsuario(usuarioAtual);
       }
     } catch (err) {
@@ -234,6 +254,7 @@ export function useAuth() {
         console.error("❌ Sessão expirada ou inválida");
         await supabase.auth.signOut();
         router.push("/auth");
+
         return false;
       }
 
@@ -242,6 +263,7 @@ export function useAuth() {
       console.error("Erro ao verificar sessão:", err);
       await supabase.auth.signOut();
       router.push("/auth");
+
       return false;
     }
   }, [router]);

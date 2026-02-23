@@ -1,5 +1,7 @@
 "use client";
 
+import type { CreditoCliente } from "@/types/vendas";
+
 import {
   Modal,
   ModalContent,
@@ -17,7 +19,6 @@ import {
 } from "@heroui/react";
 import { useState, useEffect } from "react";
 import { History, TrendingUp, TrendingDown, Wallet, Clock } from "lucide-react";
-import type { CreditoCliente } from "@/types/vendas";
 
 interface HistoricoCreditosModalProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export function HistoricoCreditosModal({
           `
           *,
           usuario:usuarios!creditos_cliente_gerado_por_fkey(nome)
-        `
+        `,
         )
         .eq("cliente_id", clienteId)
         .order("criado_em", { ascending: false });
@@ -107,7 +108,7 @@ export function HistoricoCreditosModal({
   const temMais = creditos.length > 5;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <History className="w-5 h-5 text-primary" />
@@ -169,7 +170,7 @@ export function HistoricoCreditosModal({
                   </CardBody>
                 </Card>
               ) : (
-                <Accordion variant="splitted" selectionMode="multiple">
+                <Accordion selectionMode="multiple" variant="splitted">
                   {creditosExibidos.map((credito) => {
                     const ehRetirada = credito.tipo === "retirada";
                     const valorAbsoluto = Math.abs(credito.valor_total);
@@ -207,12 +208,12 @@ export function HistoricoCreditosModal({
                                   </p>
                                   {!ehRetirada && (
                                     <Chip
-                                      size="sm"
                                       color={
                                         credito.saldo > 0
                                           ? "success"
                                           : "default"
                                       }
+                                      size="sm"
                                       variant="flat"
                                     >
                                       {credito.saldo > 0
@@ -319,9 +320,9 @@ export function HistoricoCreditosModal({
               {temMais && (
                 <div className="flex justify-center pt-4">
                   <Button
-                    variant="flat"
                     color="primary"
                     size="sm"
+                    variant="flat"
                     onPress={() => setMostrarTodos(!mostrarTodos)}
                   >
                     {mostrarTodos

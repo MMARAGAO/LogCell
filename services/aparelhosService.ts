@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabaseClient";
-import { Aparelho, AparelhoFormData, FiltrosAparelhos } from "@/types/aparelhos";
+import {
+  Aparelho,
+  AparelhoFormData,
+  FiltrosAparelhos,
+} from "@/types/aparelhos";
 
 /**
  * Serviço para gerenciamento de aparelhos
@@ -7,18 +11,20 @@ import { Aparelho, AparelhoFormData, FiltrosAparelhos } from "@/types/aparelhos"
 
 // Buscar todos os aparelhos com filtros
 export async function getAparelhos(
-  filtros?: FiltrosAparelhos
+  filtros?: FiltrosAparelhos,
 ): Promise<Aparelho[]> {
   try {
     let query = supabase
       .from("aparelhos")
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .order("criado_em", { ascending: false });
 
     // Filtrar por loja
@@ -46,10 +52,30 @@ export async function getAparelhos(
       query = query.eq("status", filtros.status);
     }
 
+    // Filtrar por exibir_catalogo
+    if (filtros?.exibir_catalogo !== undefined) {
+      query = query.eq("exibir_catalogo", filtros.exibir_catalogo);
+    }
+
+    // Filtrar por destaque
+    if (filtros?.destaque !== undefined) {
+      query = query.eq("destaque", filtros.destaque);
+    }
+
+    // Filtrar por promoção
+    if (filtros?.promocao !== undefined) {
+      query = query.eq("promocao", filtros.promocao);
+    }
+
+    // Filtrar por novidade
+    if (filtros?.novidade !== undefined) {
+      query = query.eq("novidade", filtros.novidade);
+    }
+
     // Busca por marca, modelo, IMEI, número de série
     if (filtros?.busca) {
       query = query.or(
-        `marca.ilike.%${filtros.busca}%,modelo.ilike.%${filtros.busca}%,imei.ilike.%${filtros.busca}%,numero_serie.ilike.%${filtros.busca}%`
+        `marca.ilike.%${filtros.busca}%,modelo.ilike.%${filtros.busca}%,imei.ilike.%${filtros.busca}%,numero_serie.ilike.%${filtros.busca}%`,
       );
     }
 
@@ -69,13 +95,15 @@ export async function getAparelhoById(id: string): Promise<Aparelho | null> {
   try {
     const { data, error } = await supabase
       .from("aparelhos")
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .eq("id", id)
       .single();
 
@@ -89,17 +117,21 @@ export async function getAparelhoById(id: string): Promise<Aparelho | null> {
 }
 
 // Buscar aparelho por IMEI
-export async function getAparelhoPorIMEI(imei: string): Promise<Aparelho | null> {
+export async function getAparelhoPorIMEI(
+  imei: string,
+): Promise<Aparelho | null> {
   try {
     const { data, error } = await supabase
       .from("aparelhos")
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .eq("imei", imei)
       .single();
 
@@ -117,21 +149,24 @@ export async function getAparelhoPorIMEI(imei: string): Promise<Aparelho | null>
 
 // Buscar aparelho pelo prefixo do IMEI (8 primeiros dígitos)
 export async function getAparelhoPorPrefixoIMEI(
-  prefixo: string
+  prefixo: string,
 ): Promise<Aparelho | null> {
   try {
     const prefixoLimpo = prefixo.trim();
+
     if (!prefixoLimpo) return null;
 
     const { data, error } = await supabase
       .from("aparelhos")
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .ilike("imei", `${prefixoLimpo}%`)
       .order("criado_em", { ascending: false })
       .limit(1);
@@ -148,12 +183,13 @@ export async function getAparelhoPorPrefixoIMEI(
 // Criar novo aparelho
 export async function criarAparelho(
   aparelho: AparelhoFormData,
-  usuarioId: string
+  usuarioId: string,
 ): Promise<Aparelho> {
   try {
     // Verificar se IMEI já existe
     if (aparelho.imei) {
       const existente = await getAparelhoPorIMEI(aparelho.imei);
+
       if (existente) {
         throw new Error("Já existe um aparelho cadastrado com este IMEI");
       }
@@ -166,13 +202,15 @@ export async function criarAparelho(
         status: aparelho.status || "disponivel",
         criado_por: usuarioId,
       })
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -188,7 +226,7 @@ export async function criarAparelho(
 export async function atualizarAparelho(
   id: string,
   aparelho: Partial<AparelhoFormData>,
-  usuarioId: string
+  usuarioId: string,
 ): Promise<Aparelho> {
   try {
     // Verificar se IMEI já existe em outro aparelho
@@ -212,13 +250,15 @@ export async function atualizarAparelho(
         atualizado_em: new Date().toISOString(),
       })
       .eq("id", id)
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -235,6 +275,7 @@ export async function deletarAparelho(id: string): Promise<void> {
   try {
     // Verificar se aparelho já foi vendido
     const aparelho = await getAparelhoById(id);
+
     if (aparelho?.status === "vendido") {
       throw new Error("Não é possível deletar um aparelho que já foi vendido");
     }
@@ -252,7 +293,7 @@ export async function deletarAparelho(id: string): Promise<void> {
 export async function marcarAparelhoVendido(
   id: string,
   vendaId: string,
-  usuarioId: string
+  usuarioId: string,
 ): Promise<Aparelho> {
   try {
     const { data, error } = await supabase
@@ -265,13 +306,15 @@ export async function marcarAparelhoVendido(
         atualizado_em: new Date().toISOString(),
       })
       .eq("id", id)
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -287,7 +330,7 @@ export async function marcarAparelhoVendido(
 export async function atualizarStatusAparelho(
   id: string,
   status: "disponivel" | "vendido" | "reservado" | "defeito" | "transferido",
-  usuarioId: string
+  usuarioId: string,
 ): Promise<Aparelho> {
   try {
     const { data, error } = await supabase
@@ -298,13 +341,15 @@ export async function atualizarStatusAparelho(
         atualizado_em: new Date().toISOString(),
       })
       .eq("id", id)
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .single();
 
     if (error) throw error;
@@ -320,18 +365,20 @@ export async function atualizarStatusAparelho(
 export async function getAparelhosDisponiveis(
   lojaId?: number,
   marca?: string,
-  modelo?: string
+  modelo?: string,
 ): Promise<Aparelho[]> {
   try {
     let query = supabase
       .from("aparelhos")
-      .select(`
+      .select(
+        `
         *,
         loja:lojas (
           id,
           nome
         )
-      `)
+      `,
+      )
       .eq("status", "disponivel")
       .order("criado_em", { ascending: false });
 

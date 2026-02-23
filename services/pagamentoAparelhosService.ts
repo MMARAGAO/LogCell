@@ -11,19 +11,18 @@ interface CriarPagamentoAparelhoParams {
   usuarioId: string;
 }
 
-export async function criarPagamentoAparelho(params: CriarPagamentoAparelhoParams) {
-  const {
-    aparelhoId,
-    clienteId,
-    valorVenda,
-    pagamentos,
-    usuarioId,
-  } = params;
+export async function criarPagamentoAparelho(
+  params: CriarPagamentoAparelhoParams,
+) {
+  const { aparelhoId, clienteId, valorVenda, pagamentos, usuarioId } = params;
 
   // Validar que não ultrapassa o valor
   const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+
   if (totalPago > valorVenda) {
-    throw new Error("Total de pagamentos não pode ultrapassar o valor da venda");
+    throw new Error(
+      "Total de pagamentos não pode ultrapassar o valor da venda",
+    );
   }
 
   // Criar venda

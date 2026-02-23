@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Chip, Tooltip } from "@heroui/react";
+import { Tooltip } from "@heroui/react";
 import {
   Check,
   Clock,
@@ -10,6 +9,7 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
+
 import { StatusOS } from "@/types/ordemServico";
 
 interface StatusProgressBarProps {
@@ -46,19 +46,6 @@ export default function StatusProgressBar({
 }: StatusProgressBarProps) {
   const currentIndex = STATUS_FLOW.findIndex((s) => s.key === currentStatus);
   const isCanceled = currentStatus === "cancelado";
-
-  const getStatusColor = (status: string, index: number) => {
-    if (isCanceled) return "text-default-300";
-    if (index < currentIndex) return "text-success";
-    if (index === currentIndex) return "text-primary";
-    return "text-default-300";
-  };
-
-  const getLineColor = (index: number) => {
-    if (isCanceled) return "bg-default-200";
-    if (index < currentIndex) return "bg-success";
-    return "bg-default-200";
-  };
 
   const handleStatusClick = (statusKey: string) => {
     if (disabled || isUpdating || isCanceled) return;
@@ -106,11 +93,13 @@ export default function StatusProgressBar({
                     : "Bloqueado"
               }
             >
-              <div
-                className={`flex flex-col items-center cursor-pointer transition-all ${
+              <button
+                className={`flex flex-col items-center transition-all ${
                   isClickable ? "hover:scale-110" : "cursor-not-allowed"
                 }`}
-                onClick={() => isClickable && handleStatusClick(status.key)}
+                disabled={!isClickable}
+                type="button"
+                onClick={() => handleStatusClick(status.key)}
               >
                 {/* Círculo do status */}
                 <div
@@ -151,7 +140,7 @@ export default function StatusProgressBar({
                 >
                   {status.label}
                 </span>
-              </div>
+              </button>
             </Tooltip>
           );
         })}

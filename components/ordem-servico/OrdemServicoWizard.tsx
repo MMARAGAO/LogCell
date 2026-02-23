@@ -1,5 +1,13 @@
 "use client";
 
+import type {
+  OrdemServicoFormData,
+  StatusOS,
+  PrioridadeOS,
+  OrdemServico,
+} from "@/types/ordemServico";
+import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -24,7 +32,6 @@ import {
   User,
   Smartphone,
   Wrench,
-  FileText,
   DollarSign,
   CheckCircle,
   ChevronLeft,
@@ -32,13 +39,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import type {
-  OrdemServicoFormData,
-  StatusOS,
-  PrioridadeOS,
-  OrdemServico,
-} from "@/types/ordemServico";
-import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
+
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";
 import { useToast } from "@/components/Toast";
@@ -146,6 +147,7 @@ export default function OrdemServicoWizard({
   const adicionarAparelho = () => {
     const sequencia = aparelhos.length + 1;
     const idLojaAparelho = lojaId || lojas[0]?.id;
+
     setAparelhos([
       ...aparelhos,
       { ...criarAparelhoVazio(), sequencia, id_loja: idLojaAparelho },
@@ -158,6 +160,7 @@ export default function OrdemServicoWizard({
       ...ap,
       sequencia: idx + 1,
     }));
+
     setAparelhos(reordenados.length > 0 ? reordenados : [criarAparelhoVazio()]);
   };
 
@@ -201,6 +204,7 @@ export default function OrdemServicoWizard({
               }
             : svc,
         );
+
         return { ...ap, servicos };
       }),
     );
@@ -216,6 +220,7 @@ export default function OrdemServicoWizard({
         const servicos = (ap.servicos || []).filter(
           (_, sIdx) => sIdx !== indexServico,
         );
+
         return { ...ap, servicos };
       }),
     );
@@ -323,6 +328,7 @@ export default function OrdemServicoWizard({
   const carregarClientes = async () => {
     try {
       const clientes = await buscarTodosClientesAtivos();
+
       setClientes(clientes);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
@@ -332,14 +338,17 @@ export default function OrdemServicoWizard({
 
   const carregarTecnicos = async () => {
     const { data } = await buscarTecnicosAtivos();
+
     if (data) setTecnicos(data);
   };
 
   const handleClienteSelecionado = (key: any) => {
     const id = key as string | null;
+
     setClienteId(id);
     if (id) {
       const cliente = clientes.find((c) => c.id === id);
+
       if (cliente) {
         setClienteSelecionado(cliente);
         setClienteNome(cliente.nome);
@@ -365,35 +374,45 @@ export default function OrdemServicoWizard({
       case 1:
         if (!clienteNome.trim() || !clienteTelefone.trim()) {
           toast.error("Preencha nome e telefone do cliente");
+
           return false;
         }
+
         return true;
       case 2:
         if (aparelhos.length === 0) {
           toast.error("Adicione pelo menos um aparelho");
+
           return false;
         }
         for (let idx = 0; idx < aparelhos.length; idx++) {
           const ap = aparelhos[idx];
+
           if (!ap.equipamento_tipo.trim()) {
             toast.error(`Informe o tipo do aparelho #${idx + 1}`);
+
             return false;
           }
           if (!ap.equipamento_cor?.trim()) {
             toast.error(`Informe a cor do aparelho #${idx + 1}`);
+
             return false;
           }
           if (!ap.defeito_reclamado.trim()) {
             toast.error(`Informe o defeito do aparelho #${idx + 1}`);
+
             return false;
           }
         }
+
         return true;
       case 3:
         if (!lojaId) {
           toast.error("Selecione a loja");
+
           return false;
         }
+
         return true;
       case 4:
         return true;
@@ -479,6 +498,7 @@ export default function OrdemServicoWizard({
 
         aparelhos: aparelhos.map((ap, idx) => {
           const subtotal = calcularTotalAparelho(ap);
+
           return {
             ...ap,
             id_loja: ap.id_loja || idLojaDestino,
@@ -536,11 +556,11 @@ export default function OrdemServicoWizard({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      size="3xl"
-      scrollBehavior="inside"
       isDismissable={false}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="3xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-2">
@@ -559,10 +579,10 @@ export default function OrdemServicoWizard({
           {/* Indicador de Progresso */}
           <div className="mt-4">
             <Progress
-              value={progresso}
-              color="primary"
               className="mb-4"
+              color="primary"
               size="sm"
+              value={progresso}
             />
             <div className="flex justify-between">
               {PASSOS.map((passo) => {
@@ -612,13 +632,13 @@ export default function OrdemServicoWizard({
               </h3>
 
               <Autocomplete
+                className="mb-4"
+                defaultItems={clientes}
+                description={`${clientes.length} clientes disponíveis para seleção`}
                 label="Buscar Cliente Cadastrado (opcional)"
                 placeholder="Digite o nome do cliente"
                 selectedKey={clienteId}
                 onSelectionChange={handleClienteSelecionado}
-                defaultItems={clientes}
-                className="mb-4"
-                description={`${clientes.length} clientes disponíveis para seleção`}
               >
                 {(cliente) => (
                   <AutocompleteItem key={cliente.id} textValue={cliente.nome}>
@@ -628,17 +648,17 @@ export default function OrdemServicoWizard({
               </Autocomplete>
 
               <Input
+                isRequired
                 label="Nome do Cliente *"
                 value={clienteNome}
                 onChange={(e) => setClienteNome(e.target.value)}
-                isRequired
               />
 
               <Input
+                isRequired
                 label="Telefone *"
                 value={clienteTelefone}
                 onChange={(e) => setClienteTelefone(e.target.value)}
-                isRequired
               />
 
               <Input
@@ -656,12 +676,14 @@ export default function OrdemServicoWizard({
 
               <Textarea
                 label="Endereço"
+                minRows={2}
                 value={clienteEndereco}
                 onChange={(e) => setClienteEndereco(e.target.value)}
-                minRows={2}
               />
 
               <Select
+                isRequired
+                description="Informe se o cliente é lojista ou consumidor final"
                 label="Tipo de Cliente *"
                 placeholder="Selecione o tipo"
                 selectedKeys={[tipoCliente]}
@@ -670,8 +692,6 @@ export default function OrdemServicoWizard({
                     Array.from(keys)[0] as "lojista" | "consumidor_final",
                   )
                 }
-                isRequired
-                description="Informe se o cliente é lojista ou consumidor final"
               >
                 <SelectItem key="consumidor_final">Consumidor Final</SelectItem>
                 <SelectItem key="lojista">Lojista</SelectItem>
@@ -688,10 +708,10 @@ export default function OrdemServicoWizard({
                   Aparelhos e Serviços
                 </h3>
                 <Button
-                  size="sm"
                   color="primary"
-                  variant="flat"
+                  size="sm"
                   startContent={<Plus className="w-4 h-4" />}
+                  variant="flat"
                   onPress={adicionarAparelho}
                 >
                   Adicionar aparelho
@@ -701,12 +721,13 @@ export default function OrdemServicoWizard({
               <div className="space-y-4">
                 {[...aparelhos].reverse().map((ap, reversedIndex) => {
                   const index = aparelhos.length - 1 - reversedIndex;
+
                   return (
                     <Card key={index} className="border border-default-200">
                       <CardBody className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Chip color="primary" variant="flat" size="sm">
+                            <Chip color="primary" size="sm" variant="flat">
                               Aparelho #{index + 1}
                             </Chip>
                             {ap.sequencia && (
@@ -717,11 +738,11 @@ export default function OrdemServicoWizard({
                           </div>
                           <Button
                             isIconOnly
-                            variant="light"
                             color="danger"
-                            size="sm"
-                            onPress={() => removerAparelho(index)}
                             isDisabled={aparelhos.length === 1}
+                            size="sm"
+                            variant="light"
+                            onPress={() => removerAparelho(index)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -729,6 +750,7 @@ export default function OrdemServicoWizard({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <Input
+                            isRequired
                             label="Tipo do Aparelho *"
                             placeholder="Ex: Smartphone, Notebook"
                             value={ap.equipamento_tipo}
@@ -739,7 +761,6 @@ export default function OrdemServicoWizard({
                                 e.target.value,
                               )
                             }
-                            isRequired
                           />
                           <Input
                             label="Marca"
@@ -764,6 +785,7 @@ export default function OrdemServicoWizard({
                             }
                           />
                           <Input
+                            isRequired
                             label="Cor do Aparelho"
                             value={ap.equipamento_cor}
                             onChange={(e) =>
@@ -773,7 +795,6 @@ export default function OrdemServicoWizard({
                                 e.target.value,
                               )
                             }
-                            isRequired
                           />
                           <Input
                             label="IMEI ou Nº de Série"
@@ -819,7 +840,9 @@ export default function OrdemServicoWizard({
                         </div>
 
                         <Textarea
+                          isRequired
                           label="Defeito Reclamado *"
+                          minRows={3}
                           placeholder="Descreva o problema relatado pelo cliente"
                           value={ap.defeito_reclamado}
                           onChange={(e) =>
@@ -829,12 +852,11 @@ export default function OrdemServicoWizard({
                               e.target.value,
                             )
                           }
-                          minRows={3}
-                          isRequired
                         />
 
                         <Textarea
                           label="Estado do Equipamento"
+                          minRows={2}
                           placeholder="Ex: Tela trincada, riscos na lateral, etc"
                           value={ap.estado_equipamento}
                           onChange={(e) =>
@@ -844,7 +866,6 @@ export default function OrdemServicoWizard({
                               e.target.value,
                             )
                           }
-                          minRows={2}
                         />
 
                         <Divider />
@@ -855,10 +876,10 @@ export default function OrdemServicoWizard({
                             Serviços do aparelho
                           </h4>
                           <Button
-                            size="sm"
-                            variant="flat"
                             color="primary"
+                            size="sm"
                             startContent={<Plus className="w-4 h-4" />}
+                            variant="flat"
                             onPress={() => adicionarServicoAparelho(index)}
                           >
                             Adicionar serviço
@@ -889,12 +910,12 @@ export default function OrdemServicoWizard({
                                 <div className="md:col-span-2">
                                   <Input
                                     label="Valor"
-                                    type="number"
                                     startContent={
                                       <span className="text-default-400">
                                         R$
                                       </span>
                                     }
+                                    type="number"
                                     value={
                                       svc.valor !== undefined
                                         ? svc.valor.toString()
@@ -913,8 +934,8 @@ export default function OrdemServicoWizard({
                                 <div className="flex justify-end">
                                   <Button
                                     isIconOnly
-                                    variant="light"
                                     color="danger"
+                                    variant="light"
                                     onPress={() =>
                                       removerServicoAparelho(index, svcIdx)
                                     }
@@ -956,14 +977,15 @@ export default function OrdemServicoWizard({
               </h3>
 
               <Select
+                isRequired
                 label="Loja *"
                 placeholder="Selecione a loja"
                 selectedKeys={lojaId ? [lojaId.toString()] : []}
                 onSelectionChange={(keys) => {
                   const key = Array.from(keys)[0];
+
                   setLojaId(key ? parseInt(key.toString()) : 0);
                 }}
-                isRequired
               >
                 {lojas.map((loja) => (
                   <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
@@ -976,6 +998,7 @@ export default function OrdemServicoWizard({
                 selectedKeys={tecnicoId ? [tecnicoId] : []}
                 onSelectionChange={(keys) => {
                   const key = Array.from(keys)[0];
+
                   setTecnicoId(key?.toString() || "");
                 }}
               >
@@ -991,6 +1014,7 @@ export default function OrdemServicoWizard({
                 selectedKeys={[prioridade]}
                 onSelectionChange={(keys) => {
                   const key = Array.from(keys)[0];
+
                   setPrioridade(key as PrioridadeOS);
                 }}
               >
@@ -1033,14 +1057,14 @@ export default function OrdemServicoWizard({
                   <CardBody className="space-y-2">
                     <Input
                       label="Desconto"
-                      type="number"
-                      step="0.01"
                       placeholder="0.00"
-                      value={valorDesconto}
-                      onChange={(e) => setValorDesconto(e.target.value)}
                       startContent={
                         <span className="text-default-400">R$</span>
                       }
+                      step="0.01"
+                      type="number"
+                      value={valorDesconto}
+                      onChange={(e) => setValorDesconto(e.target.value)}
                     />
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-default-500">
@@ -1056,10 +1080,10 @@ export default function OrdemServicoWizard({
 
               <Textarea
                 label="Observações Iniciais"
+                minRows={3}
                 placeholder="Observações técnicas ou administrativas"
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                minRows={3}
               />
             </div>
           )}
@@ -1172,10 +1196,10 @@ export default function OrdemServicoWizard({
         <ModalFooter>
           <div className="flex justify-between w-full">
             <Button
-              variant="flat"
-              onPress={passoAnterior}
               isDisabled={passoAtual === 1}
               startContent={<ChevronLeft className="w-4 h-4" />}
+              variant="flat"
+              onPress={passoAnterior}
             >
               Anterior
             </Button>
@@ -1188,17 +1212,17 @@ export default function OrdemServicoWizard({
               {passoAtual < PASSOS.length ? (
                 <Button
                   color="primary"
-                  onPress={proximoPasso}
                   endContent={<ChevronRight className="w-4 h-4" />}
+                  onPress={proximoPasso}
                 >
                   Próximo
                 </Button>
               ) : (
                 <Button
                   color="success"
-                  onPress={handleSubmit}
                   isLoading={loading}
                   startContent={<CheckCircle className="w-4 h-4" />}
+                  onPress={handleSubmit}
                 >
                   {ordem ? "Salvar Alterações" : "Criar Ordem de Serviço"}
                 </Button>

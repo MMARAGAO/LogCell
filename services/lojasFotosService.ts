@@ -1,5 +1,6 @@
-import { supabase } from "@/lib/supabaseClient";
 import type { LojaFoto } from "@/types";
+
+import { supabase } from "@/lib/supabaseClient";
 
 export class LojasFotosService {
   private static readonly BUCKET_NAME = "lojas_fotos";
@@ -24,6 +25,7 @@ export class LojasFotosService {
             .order("criado_em", { ascending: true });
 
           if (fotosError) throw fotosError;
+
           return fotosData || [];
         }
         throw error;
@@ -32,6 +34,7 @@ export class LojasFotosService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar fotos da loja:", error);
+
       return [];
     }
   }
@@ -56,6 +59,7 @@ export class LojasFotosService {
       return data;
     } catch (error) {
       console.error("Erro ao buscar foto principal:", error);
+
       return null;
     }
   }
@@ -65,7 +69,7 @@ export class LojasFotosService {
    */
   static async uploadFoto(
     lojaId: number,
-    file: File
+    file: File,
   ): Promise<{ url: string; error?: string }> {
     try {
       // Validar tipo de arquivo
@@ -75,6 +79,7 @@ export class LojasFotosService {
         "image/webp",
         "image/gif",
       ];
+
       if (!allowedTypes.includes(file.type)) {
         return {
           url: "",
@@ -84,6 +89,7 @@ export class LojasFotosService {
 
       // Validar tamanho (5MB)
       const maxSize = 5 * 1024 * 1024; // 5MB
+
       if (file.size > maxSize) {
         return { url: "", error: "Arquivo muito grande. Tamanho máximo: 5MB." };
       }
@@ -105,6 +111,7 @@ export class LojasFotosService {
 
       if (uploadError) {
         console.error("Erro no upload:", uploadError);
+
         return { url: "", error: "Erro ao fazer upload da imagem." };
       }
 
@@ -116,6 +123,7 @@ export class LojasFotosService {
       return { url: urlData.publicUrl };
     } catch (error) {
       console.error("Erro ao fazer upload:", error);
+
       return { url: "", error: "Erro inesperado ao fazer upload." };
     }
   }
@@ -127,6 +135,7 @@ export class LojasFotosService {
     try {
       // Extrair o caminho do arquivo da URL
       const urlParts = url.split(`/${this.BUCKET_NAME}/`);
+
       if (urlParts.length < 2) return false;
 
       const filePath = urlParts[1];
@@ -137,12 +146,14 @@ export class LojasFotosService {
 
       if (error) {
         console.error("Erro ao deletar arquivo:", error);
+
         return false;
       }
 
       return true;
     } catch (error) {
       console.error("Erro ao deletar foto do storage:", error);
+
       return false;
     }
   }

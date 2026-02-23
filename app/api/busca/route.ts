@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { createClient } from "@/lib/supabase/server";
 
 interface SearchResult {
@@ -13,20 +14,24 @@ interface SearchResult {
 const formatTelefone = (telefone: string) => {
   if (!telefone) return "";
   const numbers = telefone.replace(/\D/g, "");
+
   if (numbers.length === 11) {
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
   } else if (numbers.length === 10) {
     return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
   }
+
   return telefone;
 };
 
 const formatCPF = (cpf: string) => {
   if (!cpf) return "";
   const numbers = cpf.replace(/\D/g, "");
+
   if (numbers.length === 11) {
     return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`;
   }
+
   return cpf;
 };
 
@@ -42,14 +47,17 @@ export async function GET(request: NextRequest) {
     console.log("API /api/busca chamada");
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("q");
+
     console.log("Query recebida:", query);
 
     if (!query || query.trim().length === 0) {
       console.log("Query vazia, retornando array vazio");
+
       return NextResponse.json({ results: [] });
     }
 
     const supabase = await createClient();
+
     console.log("Cliente Supabase criado");
 
     // Verificar se o usuário está autenticado
@@ -62,6 +70,7 @@ export async function GET(request: NextRequest) {
 
     if (authError || !user) {
       console.error("Usuário não autenticado");
+
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
@@ -81,10 +90,10 @@ export async function GET(request: NextRequest) {
             modelos,
             preco_venda,
             estoque_lojas!inner(quantidade, id_loja, lojas(nome))
-          `
+          `,
           )
           .or(
-            `descricao.ilike.${searchTerm},marca.ilike.${searchTerm},modelos.ilike.${searchTerm}`
+            `descricao.ilike.${searchTerm},marca.ilike.${searchTerm},modelos.ilike.${searchTerm}`,
           )
           .eq("ativo", true)
           .limit(5),
@@ -94,7 +103,7 @@ export async function GET(request: NextRequest) {
           .from("clientes")
           .select("id, nome, email, telefone, cpf")
           .or(
-            `nome.ilike.${searchTerm},email.ilike.${searchTerm},telefone.ilike.${searchTerm},cpf.ilike.${searchTerm}`
+            `nome.ilike.${searchTerm},email.ilike.${searchTerm},telefone.ilike.${searchTerm},cpf.ilike.${searchTerm}`,
           )
           .eq("ativo", true)
           .limit(5),
@@ -113,10 +122,10 @@ export async function GET(request: NextRequest) {
             equipamento_modelo,
             criado_em,
             lojas(nome)
-          `
+          `,
           )
           .or(
-            `numero_os.eq.${parseInt(query) || 0},cliente_nome.ilike.${searchTerm},equipamento_marca.ilike.${searchTerm},equipamento_modelo.ilike.${searchTerm}`
+            `numero_os.eq.${parseInt(query) || 0},cliente_nome.ilike.${searchTerm},equipamento_marca.ilike.${searchTerm},equipamento_modelo.ilike.${searchTerm}`,
           )
           .order("criado_em", { ascending: false })
           .limit(5),
@@ -133,7 +142,7 @@ export async function GET(request: NextRequest) {
             criado_em,
             clientes(nome),
             lojas(nome)
-          `
+          `,
           )
           .or(`numero_venda.ilike.${searchTerm}`)
           .order("criado_em", { ascending: false })
@@ -156,7 +165,7 @@ export async function GET(request: NextRequest) {
       produtos.data.forEach((produto: any) => {
         const estoqueTotal = produto.estoque_lojas?.reduce(
           (acc: number, est: any) => acc + (est.quantidade || 0),
-          0
+          0,
         );
         const lojas = produto.estoque_lojas
           ?.map((est: any) => est.lojas?.nome)
@@ -177,6 +186,7 @@ export async function GET(request: NextRequest) {
     if (clientes.data) {
       clientes.data.forEach((cliente: any) => {
         const parts = [];
+
         if (cliente.email) parts.push(cliente.email);
         if (cliente.telefone) parts.push(formatTelefone(cliente.telefone));
         if (cliente.cpf) parts.push(`CPF: ${formatCPF(cliente.cpf)}`);
@@ -235,6 +245,7 @@ export async function GET(request: NextRequest) {
     if (tecnicos.data) {
       tecnicos.data.forEach((tecnico: any) => {
         const parts = [tecnico.especialidade || "Técnico"];
+
         if (tecnico.telefone) parts.push(formatTelefone(tecnico.telefone));
         if (tecnico.lojas?.nome) parts.push(tecnico.lojas.nome);
 
@@ -249,12 +260,14 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(`Total de resultados encontrados: ${results.length}`);
+
     return NextResponse.json({ results });
   } catch (error) {
     console.error("Erro na busca:", error);
+
     return NextResponse.json(
       { error: "Erro ao realizar a busca", results: [] },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

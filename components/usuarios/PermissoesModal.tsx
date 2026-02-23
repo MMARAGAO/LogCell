@@ -14,6 +14,7 @@ import { Divider } from "@heroui/divider";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
+
 import { PermissoesModulos, Loja } from "@/types";
 import { PermissoesService } from "@/services/permissoesService";
 import { MetasService } from "@/services/metasService";
@@ -41,7 +42,7 @@ export function PermissoesModal({
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [permissoes, setPermissoes] = useState<PermissoesModulos>(
-    PermissoesService.getPermissoesPadrao()
+    PermissoesService.getPermissoesPadrao(),
   );
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaSelecionada, setLojaSelecionada] = useState<number | null>(null);
@@ -64,7 +65,7 @@ export function PermissoesModal({
       const { createBrowserClient } = await import("@supabase/ssr");
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       );
 
       const { data, error } = await supabase
@@ -94,7 +95,7 @@ export function PermissoesModal({
         if (result.data) {
           console.log(
             "✅ Aplicando permissões carregadas:",
-            result.data.permissoes
+            result.data.permissoes,
           );
 
           // Merge das permissões do banco com o padrão para garantir estrutura completa
@@ -124,9 +125,10 @@ export function PermissoesModal({
           if (usuarioId) {
             try {
               const metas = await MetasService.buscarMetaUsuario(usuarioId);
+
               if (metas) {
                 setMetaMensalVendas(
-                  metas.meta_mensal_vendas?.toString() || "10000"
+                  metas.meta_mensal_vendas?.toString() || "10000",
                 );
                 setMetaMensalOS(metas.meta_mensal_os?.toString() || "0");
                 setDiasUteis(metas.dias_uteis_mes?.toString() || "26");
@@ -155,7 +157,7 @@ export function PermissoesModal({
 
   const handleTogglePermissao = (
     modulo: keyof PermissoesModulos,
-    acao: string
+    acao: string,
   ) => {
     setPermissoes((prev) => ({
       ...prev,
@@ -168,7 +170,7 @@ export function PermissoesModal({
 
   const handleToggleTodos = (
     modulo: keyof PermissoesModulos,
-    valor: boolean
+    valor: boolean,
   ) => {
     setPermissoes((prev) => {
       const moduloAtual = prev[modulo];
@@ -189,9 +191,10 @@ export function PermissoesModal({
             } else {
               acc[key as keyof typeof moduloPadrao] = valor;
             }
+
             return acc;
           },
-          {} as any
+          {} as any,
         );
 
         return {
@@ -209,9 +212,10 @@ export function PermissoesModal({
           } else {
             acc[key as keyof typeof moduloAtual] = valor;
           }
+
           return acc;
         },
-        {} as any
+        {} as any,
       );
 
       return {
@@ -254,7 +258,7 @@ export function PermissoesModal({
 
       console.log(
         "📤 Enviando para action:",
-        JSON.stringify(dadosSalvar, null, 2)
+        JSON.stringify(dadosSalvar, null, 2),
       );
 
       const result = await salvarPermissoes(usuarioId, dadosSalvar);
@@ -297,18 +301,20 @@ export function PermissoesModal({
 
   const todosMarcados = (modulo: keyof PermissoesModulos) => {
     const moduloPermissoes = permissoes[modulo];
+
     if (!moduloPermissoes) return false;
 
     // Filtrar apenas as propriedades booleanas
     return Object.entries(moduloPermissoes).every(([key, value]) => {
       // Ignorar campos que não são boolean (como desconto_maximo)
       if (typeof value !== "boolean") return true;
+
       return value === true;
     });
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div>Gerenciar Permissões</div>
@@ -327,16 +333,16 @@ export function PermissoesModal({
               {/* Ações Rápidas */}
               <div className="flex gap-2 mb-4">
                 <Button
-                  size="sm"
                   color="success"
+                  size="sm"
                   variant="flat"
                   onPress={handleAplicarAdmin}
                 >
                   Aplicar Permissões Admin
                 </Button>
                 <Button
-                  size="sm"
                   color="warning"
+                  size="sm"
                   variant="flat"
                   onPress={handleLimparTodos}
                 >
@@ -363,17 +369,17 @@ export function PermissoesModal({
                     onValueChange={(checked) => {
                       console.log(
                         "🔄 Checkbox 'Todas as Lojas' alterado:",
-                        checked
+                        checked,
                       );
                       setTodasLojas(checked);
                       if (checked) {
                         console.log(
-                          "✅ Marcado 'Todas as Lojas' - limpando loja específica"
+                          "✅ Marcado 'Todas as Lojas' - limpando loja específica",
                         );
                         setLojaSelecionada(null);
                       } else {
                         console.log(
-                          "❌ Desmarcado 'Todas as Lojas' - selecione uma loja específica"
+                          "❌ Desmarcado 'Todas as Lojas' - selecione uma loja específica",
                         );
                       }
                     }}
@@ -388,22 +394,23 @@ export function PermissoesModal({
 
                   {!todasLojas && (
                     <Autocomplete
+                      className="max-w-full"
+                      isDisabled={todasLojas}
                       label="Loja"
                       placeholder="Selecione uma loja"
                       selectedKey={lojaSelecionada?.toString()}
                       onSelectionChange={(key) => {
                         const lojaId = key ? Number(key) : null;
                         const lojaNome = lojas.find(
-                          (l) => l.id === lojaId
+                          (l) => l.id === lojaId,
                         )?.nome;
+
                         console.log("🏪 Loja selecionada:", {
                           id: lojaId,
                           nome: lojaNome,
                         });
                         setLojaSelecionada(lojaId);
                       }}
-                      isDisabled={todasLojas}
-                      className="max-w-full"
                     >
                       {lojas.map((loja) => (
                         <AutocompleteItem key={loja.id.toString()}>
@@ -416,7 +423,7 @@ export function PermissoesModal({
                   {!todasLojas && !lojaSelecionada && (
                     <p className="text-xs text-warning font-semibold">
                       ⚠️ ATENÇÃO: Nenhuma loja selecionada! Você precisa
-                      selecionar uma loja ou marcar "Todas as Lojas".
+                      selecionar uma loja ou marcar &quot;Todas as Lojas&quot;.
                     </p>
                   )}
 
@@ -442,13 +449,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Usuários</h3>
-                    <Chip size="sm" variant="flat" color="primary">
+                    <Chip color="primary" size="sm" variant="flat">
                       Gerenciamento
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("usuarios")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("usuarios", checked)
                     }
@@ -508,13 +515,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Estoque</h3>
-                    <Chip size="sm" variant="flat" color="secondary">
+                    <Chip color="secondary" size="sm" variant="flat">
                       Inventário
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("estoque")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("estoque", checked)
                     }
@@ -590,13 +597,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Lojas</h3>
-                    <Chip size="sm" variant="flat" color="success">
+                    <Chip color="success" size="sm" variant="flat">
                       Filiais
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("lojas")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("lojas", checked)
                     }
@@ -648,13 +655,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Clientes</h3>
-                    <Chip size="sm" variant="flat" color="primary">
+                    <Chip color="primary" size="sm" variant="flat">
                       CRM
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("clientes")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("clientes", checked)
                     }
@@ -714,13 +721,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Fornecedores</h3>
-                    <Chip size="sm" variant="flat" color="warning">
+                    <Chip color="warning" size="sm" variant="flat">
                       Suprimentos
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("fornecedores")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("fornecedores", checked)
                     }
@@ -772,13 +779,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Vendas</h3>
-                    <Chip size="sm" variant="flat" color="success">
+                    <Chip color="success" size="sm" variant="flat">
                       Comercial
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("vendas")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("vendas", checked)
                     }
@@ -857,7 +864,7 @@ export function PermissoesModal({
                     onValueChange={() =>
                       handleTogglePermissao(
                         "vendas",
-                        "ver_estatisticas_faturamento"
+                        "ver_estatisticas_faturamento",
                       )
                     }
                   >
@@ -884,14 +891,19 @@ export function PermissoesModal({
                 {/* Campo de desconto máximo */}
                 <div className="mt-4 pl-4">
                   <Input
-                    type="number"
+                    className="max-w-xs"
+                    description="Percentual máximo de desconto permitido (0-100%)"
                     label="Desconto Máximo (%)"
+                    max="100"
+                    min="0"
                     placeholder="0"
+                    type="number"
                     value={
                       permissoes.vendas?.desconto_maximo?.toString() || "0"
                     }
                     onChange={(e) => {
                       const valor = parseInt(e.target.value) || 0;
+
                       setPermissoes((prev) => ({
                         ...prev,
                         vendas: {
@@ -900,10 +912,6 @@ export function PermissoesModal({
                         } as any,
                       }));
                     }}
-                    min="0"
-                    max="100"
-                    className="max-w-xs"
-                    description="Percentual máximo de desconto permitido (0-100%)"
                   />
                 </div>
               </div>
@@ -915,13 +923,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Ordem de Serviço</h3>
-                    <Chip size="sm" variant="flat" color="secondary">
+                    <Chip color="secondary" size="sm" variant="flat">
                       Assistência
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("os")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("os", checked)
                     }
@@ -1021,13 +1029,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Técnicos</h3>
-                    <Chip size="sm" variant="flat" color="primary">
+                    <Chip color="primary" size="sm" variant="flat">
                       Equipe
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("tecnicos")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("tecnicos", checked)
                     }
@@ -1079,13 +1087,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Devoluções</h3>
-                    <Chip size="sm" variant="flat" color="danger">
+                    <Chip color="danger" size="sm" variant="flat">
                       Reversão
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("devolucoes")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("devolucoes", checked)
                     }
@@ -1129,13 +1137,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Aparelhos</h3>
-                    <Chip size="sm" variant="flat" color="primary">
+                    <Chip color="primary" size="sm" variant="flat">
                       Inventário
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("aparelhos")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("aparelhos", checked)
                     }
@@ -1195,13 +1203,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">RMAs</h3>
-                    <Chip size="sm" variant="flat" color="warning">
+                    <Chip color="warning" size="sm" variant="flat">
                       Garantia
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("rma")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("rma", checked)
                     }
@@ -1235,13 +1243,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Transferências</h3>
-                    <Chip size="sm" variant="flat" color="secondary">
+                    <Chip color="secondary" size="sm" variant="flat">
                       Logística
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("transferencias")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("transferencias", checked)
                     }
@@ -1309,13 +1317,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Caixa</h3>
-                    <Chip size="sm" variant="flat" color="success">
+                    <Chip color="success" size="sm" variant="flat">
                       Financeiro
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("caixa")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("caixa", checked)
                     }
@@ -1367,13 +1375,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Configurações</h3>
-                    <Chip size="sm" variant="flat" color="danger">
+                    <Chip color="danger" size="sm" variant="flat">
                       Sistema
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("configuracoes")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("configuracoes", checked)
                     }
@@ -1401,13 +1409,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Dashboard</h3>
-                    <Chip size="sm" variant="flat" color="primary">
+                    <Chip color="primary" size="sm" variant="flat">
                       Relatórios
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("dashboard")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("dashboard", checked)
                     }
@@ -1435,13 +1443,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Dashboard Pessoal</h3>
-                    <Chip size="sm" variant="flat" color="success">
+                    <Chip color="success" size="sm" variant="flat">
                       Metas
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("dashboard_pessoal")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("dashboard_pessoal", checked)
                     }
@@ -1464,7 +1472,7 @@ export function PermissoesModal({
                     onValueChange={() =>
                       handleTogglePermissao(
                         "dashboard_pessoal",
-                        "definir_metas"
+                        "definir_metas",
                       )
                     }
                   >
@@ -1477,7 +1485,7 @@ export function PermissoesModal({
                     onValueChange={() =>
                       handleTogglePermissao(
                         "dashboard_pessoal",
-                        "visualizar_metas_outros"
+                        "visualizar_metas_outros",
                       )
                     }
                   >
@@ -1492,13 +1500,10 @@ export function PermissoesModal({
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Input
+                      description="Valor em reais que o usuário deve atingir por mês"
                       label="Meta Mensal de Vendas (R$)"
-                      placeholder="10000"
-                      value={metaMensalVendas}
-                      onValueChange={setMetaMensalVendas}
-                      type="number"
                       min="0"
-                      step="100"
+                      placeholder="10000"
                       size="sm"
                       startContent={
                         <div className="pointer-events-none flex items-center">
@@ -1507,31 +1512,34 @@ export function PermissoesModal({
                           </span>
                         </div>
                       }
-                      description="Valor em reais que o usuário deve atingir por mês"
+                      step="100"
+                      type="number"
+                      value={metaMensalVendas}
+                      onValueChange={setMetaMensalVendas}
                     />
 
                     <Input
+                      description="Quantidade de OS a concluir (para técnicos)"
                       label="Meta Mensal de OS"
+                      min="0"
                       placeholder="0"
+                      size="sm"
+                      step="1"
+                      type="number"
                       value={metaMensalOS}
                       onValueChange={setMetaMensalOS}
-                      type="number"
-                      min="0"
-                      step="1"
-                      size="sm"
-                      description="Quantidade de OS a concluir (para técnicos)"
                     />
 
                     <Input
+                      description="Para cálculo da meta diária"
                       label="Dias Úteis do Mês"
+                      max="31"
+                      min="1"
                       placeholder="26"
+                      size="sm"
+                      type="number"
                       value={diasUteis}
                       onValueChange={setDiasUteis}
-                      type="number"
-                      min="1"
-                      max="31"
-                      size="sm"
-                      description="Para cálculo da meta diária"
                     />
                   </div>
 
@@ -1554,13 +1562,13 @@ export function PermissoesModal({
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold">Notificações</h3>
-                    <Chip size="sm" variant="flat" color="secondary">
+                    <Chip color="secondary" size="sm" variant="flat">
                       Sistema
                     </Chip>
                   </div>
                   <Checkbox
-                    size="sm"
                     isSelected={todosMarcados("notificacoes")}
+                    size="sm"
                     onValueChange={(checked) =>
                       handleToggleTodos("notificacoes", checked)
                     }
@@ -1591,14 +1599,14 @@ export function PermissoesModal({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="light" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="light" onPress={onClose}>
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleSalvar}
-            isLoading={loading}
             isDisabled={loadingData}
+            isLoading={loading}
+            onPress={handleSalvar}
           >
             Salvar Permissões
           </Button>

@@ -20,6 +20,7 @@ import {
   Calendar,
   User,
 } from "lucide-react";
+
 import { supabase } from "@/lib/supabaseClient";
 
 interface Troca {
@@ -63,7 +64,7 @@ export function HistoricoTrocas({ vendaId, lojaId }: HistoricoTrocasProps) {
           *,
           usuario:usuario_id (nome),
           vendas:venda_id (numero_venda)
-        `
+        `,
         )
         .order("criado_em", { ascending: false });
 
@@ -125,7 +126,7 @@ export function HistoricoTrocas({ vendaId, lojaId }: HistoricoTrocasProps) {
   return (
     <Card>
       <CardBody className="p-0">
-        <Table aria-label="Histórico de trocas" removeWrapper>
+        <Table removeWrapper aria-label="Histórico de trocas">
           <TableHeader>
             <TableColumn>DATA/HORA</TableColumn>
             {vendaId ? <></> : <TableColumn>VENDA</TableColumn>}
@@ -180,24 +181,24 @@ export function HistoricoTrocas({ vendaId, lojaId }: HistoricoTrocasProps) {
                 </TableCell>
                 <TableCell>
                   {troca.diferenca_valor === 0 ? (
-                    <Chip size="sm" color="default" variant="flat">
+                    <Chip color="default" size="sm" variant="flat">
                       Sem diferença
                     </Chip>
                   ) : troca.diferenca_valor > 0 ? (
                     <Chip
-                      size="sm"
                       color="warning"
-                      variant="flat"
+                      size="sm"
                       startContent={<TrendingUp className="w-3 h-3" />}
+                      variant="flat"
                     >
                       +{formatarMoeda(troca.diferenca_valor)}
                     </Chip>
                   ) : (
                     <Chip
-                      size="sm"
                       color="success"
-                      variant="flat"
+                      size="sm"
                       startContent={<TrendingDown className="w-3 h-3" />}
+                      variant="flat"
                     >
                       {formatarMoeda(troca.diferenca_valor)}
                     </Chip>

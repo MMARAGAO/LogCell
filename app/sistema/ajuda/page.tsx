@@ -18,6 +18,7 @@ import {
   ExclamationCircleIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+
 import { useToast } from "@/components/Toast";
 
 export default function AjudaPage() {
@@ -174,15 +175,15 @@ export default function AjudaPage() {
                   <AccordionItem
                     key={item.key}
                     aria-label={item.title}
+                    className="mb-2"
                     title={
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{item.title}</span>
-                        <Chip size="sm" variant="flat" color="primary">
+                        <Chip color="primary" size="sm" variant="flat">
                           {item.categoria}
                         </Chip>
                       </div>
                     }
-                    className="mb-2"
                   >
                     <div className="text-default-600 pb-3">{item.content}</div>
                   </AccordionItem>
@@ -208,50 +209,50 @@ export default function AjudaPage() {
             <CardBody className="gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
+                  isRequired
                   label="Nome completo"
                   placeholder="Digite seu nome"
                   value={nome}
-                  onValueChange={setNome}
                   variant="bordered"
-                  isRequired
+                  onValueChange={setNome}
                 />
                 <Input
+                  isRequired
                   label="Email"
                   placeholder="seu@email.com"
                   type="email"
                   value={email}
-                  onValueChange={setEmail}
                   variant="bordered"
-                  isRequired
+                  onValueChange={setEmail}
                 />
               </div>
 
               <Input
+                isRequired
                 label="Assunto"
                 placeholder="Sobre o que você precisa de ajuda?"
                 value={assunto}
-                onValueChange={setAssunto}
                 variant="bordered"
-                isRequired
+                onValueChange={setAssunto}
               />
 
               <Textarea
+                isRequired
                 label="Mensagem"
+                minRows={5}
                 placeholder="Descreva sua dúvida ou problema em detalhes..."
                 value={mensagem}
-                onValueChange={setMensagem}
                 variant="bordered"
-                minRows={5}
-                isRequired
+                onValueChange={setMensagem}
               />
 
               <Button
+                className="w-full md:w-auto"
                 color="primary"
+                isDisabled={!nome || !email || !assunto || !mensagem}
+                isLoading={enviando}
                 size="lg"
                 onPress={handleEnviarSuporte}
-                isLoading={enviando}
-                isDisabled={!nome || !email || !assunto || !mensagem}
-                className="w-full md:w-auto"
               >
                 Enviar Mensagem
               </Button>
@@ -270,11 +271,13 @@ export default function AjudaPage() {
             <CardBody className="gap-3">
               {recursos.map((recurso, index) => {
                 const Icon = recurso.icon;
+
                 return (
                   <Button
                     key={index}
-                    variant="flat"
+                    as="a"
                     className="h-auto py-4 justify-start"
+                    href={recurso.link}
                     startContent={
                       <div
                         className={`p-2 bg-${recurso.cor}/10 rounded-lg shrink-0`}
@@ -282,8 +285,7 @@ export default function AjudaPage() {
                         <Icon className={`w-5 h-5 text-${recurso.cor}`} />
                       </div>
                     }
-                    as="a"
-                    href={recurso.link}
+                    variant="flat"
                   >
                     <div className="flex flex-col items-start flex-1">
                       <span className="font-semibold">{recurso.titulo}</span>
@@ -307,19 +309,19 @@ export default function AjudaPage() {
             <CardBody className="gap-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm">Segunda a Sexta</span>
-                <Chip size="sm" color="success" variant="flat">
+                <Chip color="success" size="sm" variant="flat">
                   8h - 18h
                 </Chip>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Sábado</span>
-                <Chip size="sm" color="warning" variant="flat">
+                <Chip color="warning" size="sm" variant="flat">
                   9h - 13h
                 </Chip>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Domingo e Feriados</span>
-                <Chip size="sm" color="danger" variant="flat">
+                <Chip color="danger" size="sm" variant="flat">
                   Fechado
                 </Chip>
               </div>

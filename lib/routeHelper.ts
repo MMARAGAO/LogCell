@@ -71,7 +71,7 @@ const routes: RouteConfig[] = [
  */
 export function getPrimeiraRotaDisponivel(
   permissoes: Permissao[],
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
 ): string {
   // Admin sempre vai para dashboard
   if (isAdmin) return "/sistema/dashboard";

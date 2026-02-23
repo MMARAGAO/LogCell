@@ -1,5 +1,7 @@
 "use client";
 
+import type { PagamentoCarrinho, ItemCarrinho } from "@/types/vendas";
+
 import React, { useState } from "react";
 import {
   Card,
@@ -26,7 +28,7 @@ import {
   Percent,
   Tag,
 } from "lucide-react";
-import type { PagamentoCarrinho, ItemCarrinho } from "@/types/vendas";
+
 import { usePermissoes } from "@/hooks/usePermissoes";
 
 interface PagamentosPanelProps {
@@ -104,8 +106,10 @@ export function PagamentosPanel({
   React.useEffect(() => {
     const carregarDescontoMaximo = async () => {
       const maxDesconto = await getDescontoMaximo();
+
       setDescontoMaximo(maxDesconto);
     };
+
     carregarDescontoMaximo();
   }, []);
 
@@ -118,6 +122,7 @@ export function PagamentosPanel({
 
   const handleAdicionarPagamento = () => {
     const valorNumerico = parseFloat(valor);
+
     if (!valorNumerico || valorNumerico <= 0) {
       return;
     }
@@ -128,6 +133,7 @@ export function PagamentosPanel({
       valorNumerico > creditosDisponiveis
     ) {
       alert("Valor maior que créditos disponíveis");
+
       return;
     }
 
@@ -152,6 +158,7 @@ export function PagamentosPanel({
 
   const handleEditarClick = (index: number) => {
     const pagamento = pagamentos[index];
+
     setTipoPagamento(pagamento.tipo_pagamento);
     setValor(pagamento.valor.toString());
     setDataPagamento(pagamento.data_pagamento);
@@ -176,12 +183,14 @@ export function PagamentosPanel({
       // Se for percentual, limitar ao desconto máximo
       if (numerico > descontoMaximo) {
         setValorDesconto(descontoMaximo.toString());
+
         return;
       }
 
       // Limitar a 100% se for percentual
       if (numerico > 100) {
         setValorDesconto("100");
+
         return;
       }
     } else {
@@ -194,6 +203,7 @@ export function PagamentosPanel({
 
       if (numerico > limiteReal) {
         setValorDesconto(limiteReal.toFixed(2));
+
         return;
       }
     }
@@ -203,13 +213,16 @@ export function PagamentosPanel({
 
   const handleAplicarDescontoRapido = () => {
     const valor = parseFloat(valorDesconto);
+
     if (!valor || valor <= 0) {
       alert("Informe um valor válido para o desconto");
+
       return;
     }
 
     if (!motivoDesconto.trim()) {
       alert("Informe o motivo do desconto");
+
       return;
     }
 
@@ -225,10 +238,12 @@ export function PagamentosPanel({
   const pagamentosAgrupados = pagamentos.reduce(
     (acc, pagamento) => {
       const tipo = pagamento.tipo_pagamento;
+
       if (!acc[tipo]) {
         acc[tipo] = [];
       }
       acc[tipo].push(pagamento);
+
       return acc;
     },
     {} as Record<string, PagamentoCarrinho[]>,
@@ -262,23 +277,20 @@ export function PagamentosPanel({
               <div className="space-y-2 mt-3">
                 <div className="flex gap-2">
                   <Select
+                    className="max-w-[120px]"
                     label="Tipo"
-                    size="sm"
                     selectedKeys={[tipoDesconto]}
+                    size="sm"
                     onChange={(e) =>
                       setTipoDesconto(e.target.value as "valor" | "percentual")
                     }
-                    className="max-w-[120px]"
                   >
                     <SelectItem key="percentual">%</SelectItem>
                     <SelectItem key="valor">R$</SelectItem>
                   </Select>
                   <Input
-                    type="number"
+                    className="flex-1"
                     label="Valor"
-                    size="sm"
-                    value={valorDesconto}
-                    onChange={(e) => handleValorDescontoChange(e.target.value)}
                     max={
                       tipoDesconto === "percentual"
                         ? descontoMaximo
@@ -299,6 +311,7 @@ export function PagamentosPanel({
                               100,
                           ).toFixed(2)}`
                     }
+                    size="sm"
                     startContent={
                       tipoDesconto === "valor" ? (
                         <span className="text-default-400 text-sm">R$</span>
@@ -306,22 +319,24 @@ export function PagamentosPanel({
                         <span className="text-default-400 text-sm">%</span>
                       )
                     }
-                    className="flex-1"
+                    type="number"
+                    value={valorDesconto}
+                    onChange={(e) => handleValorDescontoChange(e.target.value)}
                   />
                 </div>
                 <Input
                   label="Motivo"
+                  placeholder="Ex: Promoção, Cliente especial..."
                   size="sm"
                   value={motivoDesconto}
                   onChange={(e) => setMotivoDesconto(e.target.value)}
-                  placeholder="Ex: Promoção, Cliente especial..."
                 />
                 <Button
+                  className="w-full"
                   color="primary"
                   size="sm"
-                  onClick={handleAplicarDescontoRapido}
                   startContent={<Percent className="w-4 h-4" />}
-                  className="w-full"
+                  onClick={handleAplicarDescontoRapido}
                 >
                   Aplicar Desconto
                 </Button>
@@ -348,22 +363,22 @@ export function PagamentosPanel({
       <div className="flex gap-2">
         {onAplicarDescontoGeral && (
           <Button
-            color="secondary"
-            variant="flat"
-            startContent={<Percent className="w-4 h-4" />}
-            onClick={onAplicarDescontoGeral}
             className="flex-1"
+            color="secondary"
+            startContent={<Percent className="w-4 h-4" />}
+            variant="flat"
+            onClick={onAplicarDescontoGeral}
           >
             Desconto Avançado
           </Button>
         )}
         {onAplicarDescontoItem && itens.length > 0 && (
           <Button
-            color="secondary"
-            variant="flat"
-            startContent={<Tag className="w-4 h-4" />}
-            onClick={() => setModalSeletorProdutoOpen(true)}
             className="flex-1"
+            color="secondary"
+            startContent={<Tag className="w-4 h-4" />}
+            variant="flat"
+            onClick={() => setModalSeletorProdutoOpen(true)}
           >
             Desconto por Item
           </Button>
@@ -414,8 +429,8 @@ export function PagamentosPanel({
         </CardHeader>
       </Card>
 
-      {/* Lista de Pagamentos Adicionados */}
-      {pagamentos.length > 0 && (
+      {/* Simulador de Taxa de Cartão */}
+      {itens.length > 0 && (
         <Card>
           <CardHeader>
             <h3 className="text-lg font-semibold">Pagamentos Adicionados</h3>
@@ -445,6 +460,7 @@ export function PagamentosPanel({
                         p.valor === pagamento.valor &&
                         p.data_pagamento === pagamento.data_pagamento,
                     );
+
                     return (
                       <div
                         key={idx}
@@ -465,18 +481,18 @@ export function PagamentosPanel({
                           <div className="flex gap-1">
                             <Button
                               isIconOnly
+                              color="primary"
                               size="sm"
                               variant="light"
-                              color="primary"
                               onClick={() => handleEditarClick(indexGlobal)}
                             >
                               <Edit2 className="w-4 h-4" />
                             </Button>
                             <Button
                               isIconOnly
+                              color="danger"
                               size="sm"
                               variant="light"
-                              color="danger"
                               onClick={() => onRemoverPagamento(indexGlobal)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -541,27 +557,27 @@ export function PagamentosPanel({
           </Select>
 
           <Input
-            type="number"
             label="Valor"
             placeholder="0,00"
+            startContent={<DollarSign className="w-4 h-4 text-default-400" />}
+            type="number"
             value={valor}
             onChange={(e) => setValor(e.target.value)}
-            startContent={<DollarSign className="w-4 h-4 text-default-400" />}
           />
 
           <Input
-            type="date"
             label="Data do Pagamento"
+            startContent={<Calendar className="w-4 h-4 text-default-400" />}
+            type="date"
             value={dataPagamento}
             onChange={(e) => setDataPagamento(e.target.value)}
-            startContent={<Calendar className="w-4 h-4 text-default-400" />}
           />
 
           <Button
+            className="w-full"
             color="success"
             startContent={<Plus className="w-4 h-4" />}
             onClick={handleAdicionarPagamento}
-            className="w-full"
           >
             {editandoIndex !== null
               ? "Salvar Alterações"
@@ -570,6 +586,7 @@ export function PagamentosPanel({
 
           {editandoIndex !== null && (
             <Button
+              className="w-full"
               variant="light"
               onClick={() => {
                 setEditandoIndex(null);
@@ -577,7 +594,6 @@ export function PagamentosPanel({
                 setTipoPagamento("dinheiro");
                 setDataPagamento(new Date().toISOString().split("T")[0]);
               }}
-              className="w-full"
             >
               Cancelar Edição
             </Button>
@@ -588,8 +604,8 @@ export function PagamentosPanel({
       {/* Modal Seletor de Produto */}
       <Modal
         isOpen={modalSeletorProdutoOpen}
-        onClose={() => setModalSeletorProdutoOpen(false)}
         size="md"
+        onClose={() => setModalSeletorProdutoOpen(false)}
       >
         <ModalContent>
           <ModalHeader>Selecionar Produto para Desconto</ModalHeader>
@@ -598,8 +614,8 @@ export function PagamentosPanel({
               {itens.map((item) => (
                 <Button
                   key={item.produto_id}
-                  variant="flat"
                   className="w-full justify-start h-auto py-3"
+                  variant="flat"
                   onClick={() =>
                     handleSelecionarProdutoDesconto(item.produto_id)
                   }
@@ -608,7 +624,7 @@ export function PagamentosPanel({
                     <div className="flex justify-between w-full">
                       <span className="font-semibold">{item.produto_nome}</span>
                       {item.desconto && (
-                        <Chip size="sm" color="warning" variant="flat">
+                        <Chip color="warning" size="sm" variant="flat">
                           Com desconto
                         </Chip>
                       )}

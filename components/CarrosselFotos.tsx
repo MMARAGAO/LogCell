@@ -2,11 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@heroui/button";
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
 export interface CarrosselFoto {
@@ -70,6 +66,7 @@ export function CarrosselFotos({
     };
 
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
@@ -87,10 +84,10 @@ export function CarrosselFotos({
             viewBox="0 0 24 24"
           >
             <path
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={1.5}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
           <p className="text-sm">Nenhuma foto disponível</p>
@@ -109,11 +106,11 @@ export function CarrosselFotos({
         style={{ height }}
       >
         <Image
-          src={fotoAtual.url}
-          alt={fotoAtual.legenda || `Foto ${indiceAtual + 1}`}
           fill
-          className="object-contain"
           priority
+          alt={fotoAtual.legenda || `Foto ${indiceAtual + 1}`}
+          className="object-contain"
+          src={fotoAtual.url}
         />
 
         {/* Contador de fotos */}
@@ -129,16 +126,16 @@ export function CarrosselFotos({
             <Button
               isIconOnly
               className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white"
-              onPress={fotoAnterior}
               size="lg"
+              onPress={fotoAnterior}
             >
               <ChevronLeftIcon className="w-6 h-6" />
             </Button>
             <Button
               isIconOnly
               className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white"
-              onPress={proximaFoto}
               size="lg"
+              onPress={proximaFoto}
             >
               <ChevronRightIcon className="w-6 h-6" />
             </Button>
@@ -159,18 +156,18 @@ export function CarrosselFotos({
           {fotos.map((foto, index) => (
             <button
               key={foto.id}
-              onClick={() => irParaFoto(index)}
               className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
                 index === indiceAtual
                   ? "border-primary scale-105"
                   : "border-transparent opacity-60 hover:opacity-100"
               }`}
+              onClick={() => irParaFoto(index)}
             >
               <Image
-                src={foto.url}
-                alt={foto.legenda || `Thumbnail ${index + 1}`}
                 fill
+                alt={foto.legenda || `Thumbnail ${index + 1}`}
                 className="object-cover"
+                src={foto.url}
               />
             </button>
           ))}
@@ -183,12 +180,12 @@ export function CarrosselFotos({
           {fotos.map((_, index) => (
             <button
               key={index}
-              onClick={() => irParaFoto(index)}
               className={`w-2 h-2 rounded-full transition-all ${
                 index === indiceAtual
                   ? "bg-primary w-8"
                   : "bg-gray-300 hover:bg-gray-400"
               }`}
+              onClick={() => irParaFoto(index)}
             />
           ))}
         </div>

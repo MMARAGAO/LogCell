@@ -7,9 +7,10 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { toast } from "sonner";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner";
 
 interface PermissoesRealtimeContextType {
   versaoPermissoes: number;
@@ -34,7 +35,7 @@ export function PermissoesRealtimeProvider({
 
     console.log(
       "🔄 [PERMISSÕES REALTIME] Configurando para usuário:",
-      usuario.id
+      usuario.id,
     );
 
     // Canal Realtime para mudanças nas permissões
@@ -51,19 +52,22 @@ export function PermissoesRealtimeProvider({
         (payload) => {
           console.log(
             "🔔 [PERMISSÕES REALTIME] Evento recebido:",
-            payload.eventType
+            payload.eventType,
           );
 
           // Incrementar versão para forçar re-render
           setVersaoPermissoes((v) => {
             const novaVersao = v + 1;
+
             console.log("✅ [PERMISSÕES REALTIME] Nova versão:", novaVersao);
+
             return novaVersao;
           });
 
           // Notificar usuário
           if (payload.eventType === "UPDATE") {
             const newData = payload.new as any;
+
             toast.success("Permissões atualizadas!", {
               description: newData.todas_lojas
                 ? "Agora você tem acesso a todas as lojas"
@@ -79,7 +83,7 @@ export function PermissoesRealtimeProvider({
               description: "Usando permissões padrão do perfil",
             });
           }
-        }
+        },
       )
       .subscribe((status, err) => {
         console.log("📡 [PERMISSÕES REALTIME] Status:", status);

@@ -1,18 +1,23 @@
 "use client";
 
-import { usePermissoes } from "./usePermissoes";
 import { useMemo } from "react";
+
+import { usePermissoes } from "./usePermissoes";
 
 /**
  * Hook para filtrar dados baseado na loja do usuário
- * 
+ *
  * Retorna informações sobre qual loja o usuário tem acesso e
  * funções auxiliares para filtrar queries do Supabase
  */
 export function useLojaFilter() {
   const { lojaId, todasLojas, isAdmin } = usePermissoes();
 
-  console.log("🏪 [useLojaFilter] Valores recebidos:", { lojaId, todasLojas, isAdmin });
+  console.log("🏪 [useLojaFilter] Valores recebidos:", {
+    lojaId,
+    todasLojas,
+    isAdmin,
+  });
 
   /**
    * Verifica se o usuário tem acesso a uma loja específica
@@ -21,13 +26,13 @@ export function useLojaFilter() {
     return (lojaIdVerificar: number | null | undefined): boolean => {
       // Admin sempre tem acesso
       if (isAdmin) return true;
-      
+
       // Se não informou loja, não tem acesso
       if (!lojaIdVerificar) return false;
-      
+
       // Se tem acesso a todas as lojas
       if (todasLojas) return true;
-      
+
       // Verificar se é a loja específica do usuário
       return lojaId === lojaIdVerificar;
     };
@@ -35,12 +40,12 @@ export function useLojaFilter() {
 
   /**
    * Retorna o filtro de loja para queries do Supabase
-   * 
+   *
    * Uso:
    * ```ts
    * const { getLojaFilter } = useLojaFilter();
    * const filter = getLojaFilter();
-   * 
+   *
    * let query = supabase.from('vendas').select('*');
    * if (filter) {
    *   query = query.eq('loja_id', filter);
@@ -51,7 +56,7 @@ export function useLojaFilter() {
     return (): number | null => {
       // Admin ou todas as lojas = sem filtro
       if (isAdmin || todasLojas) return null;
-      
+
       // Retorna a loja específica do usuário
       return lojaId;
     };
@@ -59,7 +64,7 @@ export function useLojaFilter() {
 
   /**
    * Aplica filtro de loja em uma query do Supabase
-   * 
+   *
    * Uso:
    * ```ts
    * const { aplicarFiltroLoja } = useLojaFilter();
@@ -69,21 +74,21 @@ export function useLojaFilter() {
    */
   const aplicarFiltroLoja = <T extends any>(
     query: T,
-    campo: string = 'loja_id'
+    campo: string = "loja_id",
   ): T => {
     const filtro = getLojaFilter();
-    
+
     if (filtro !== null) {
       // @ts-ignore - Supabase query builder
       return query.eq(campo, filtro);
     }
-    
+
     return query;
   };
 
   /**
    * Filtra um array de objetos baseado na loja
-   * 
+   *
    * Uso:
    * ```ts
    * const { filtrarPorLoja } = useLojaFilter();
@@ -92,17 +97,17 @@ export function useLojaFilter() {
    */
   const filtrarPorLoja = <T extends Record<string, any>>(
     items: T[],
-    campo: string = 'loja_id'
+    campo: string = "loja_id",
   ): T[] => {
     const filtro = getLojaFilter();
-    
+
     if (filtro === null) {
       // Sem filtro, retorna tudo
       return items;
     }
-    
+
     // Filtrar apenas items da loja específica
-    return items.filter(item => item[campo] === filtro);
+    return items.filter((item) => item[campo] === filtro);
   };
 
   /**
@@ -112,15 +117,15 @@ export function useLojaFilter() {
     if (isAdmin) {
       return "Você tem acesso a todas as lojas (Admin)";
     }
-    
+
     if (todasLojas) {
       return "Você tem acesso a todas as lojas";
     }
-    
+
     if (lojaId) {
       return `Você tem acesso apenas à loja ID: ${lojaId}`;
     }
-    
+
     return "Nenhuma loja configurada. Entre em contato com o administrador.";
   }, [isAdmin, todasLojas, lojaId]);
 
@@ -129,7 +134,12 @@ export function useLojaFilter() {
    */
   const podeVerTodasLojas = useMemo(() => {
     const resultado = isAdmin || todasLojas;
-    console.log("🔍 [podeVerTodasLojas] Recalculado:", resultado, { isAdmin, todasLojas });
+
+    console.log("🔍 [podeVerTodasLojas] Recalculado:", resultado, {
+      isAdmin,
+      todasLojas,
+    });
+
     return resultado;
   }, [isAdmin, todasLojas]);
 
@@ -147,7 +157,7 @@ export function useLojaFilter() {
     podeVerTodasLojas,
     precisaFiltro,
     mensagemAcesso,
-    
+
     // Funções
     temAcessoLoja,
     getLojaFilter,

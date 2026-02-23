@@ -20,7 +20,7 @@ export class TecnicosService {
           `
           *,
           lojas:id_loja(nome)
-        `
+        `,
         )
         .order("nome");
 
@@ -61,19 +61,21 @@ export class TecnicosService {
           `
           *,
           lojas:id_loja(nome)
-        `
+        `,
         )
         .eq("id", id)
         .single();
 
       if (error) {
         console.error("Erro ao buscar técnico:", error);
+
         return null;
       }
 
       return data as Tecnico;
     } catch (error) {
       console.error("Erro em getTecnicoById:", error);
+
       return null;
     }
   }
@@ -104,7 +106,7 @@ export class TecnicosService {
       cor_agenda?: string;
       id_loja?: number;
     },
-    criadoPor: string
+    criadoPor: string,
   ): Promise<{ tecnico?: Tecnico; error?: string }> {
     try {
       // Chamar API Route que tem acesso ao Service Role Key
@@ -132,6 +134,7 @@ export class TecnicosService {
       };
     } catch (error: any) {
       console.error("Erro em criarTecnicoComAuth:", error);
+
       return {
         error: error.message || "Erro ao criar técnico",
       };
@@ -144,7 +147,7 @@ export class TecnicosService {
   static async atualizarTecnico(
     id: string,
     dados: Partial<Tecnico>,
-    atualizadoPor: string
+    atualizadoPor: string,
   ): Promise<Tecnico> {
     try {
       const { data, error } = await supabase
@@ -176,7 +179,7 @@ export class TecnicosService {
   static async toggleAtivoTecnico(
     id: string,
     ativo: boolean,
-    atualizadoPor: string
+    atualizadoPor: string,
   ): Promise<Tecnico> {
     return this.atualizarTecnico(id, { ativo }, atualizadoPor);
   }
@@ -197,7 +200,7 @@ export class TecnicosService {
    * Busca técnicos por especialidade
    */
   static async getTecnicosPorEspecialidade(
-    especialidade: string
+    especialidade: string,
   ): Promise<Tecnico[]> {
     try {
       const { data, error } = await supabase

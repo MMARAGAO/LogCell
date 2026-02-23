@@ -1,5 +1,7 @@
 "use client";
 
+import type { ItemVenda } from "@/types/vendas";
+
 import { useState } from "react";
 import {
   Modal,
@@ -16,7 +18,6 @@ import {
   Divider,
 } from "@heroui/react";
 import { RotateCcw } from "lucide-react";
-import type { ItemVenda } from "@/types/vendas";
 
 interface DevolucaoModalProps {
   isOpen: boolean;
@@ -24,7 +25,7 @@ interface DevolucaoModalProps {
   onConfirmar: (
     itens: Array<{ item_id: string; quantidade: number; motivo?: string }>,
     tipoCredito: "com_credito" | "sem_credito",
-    motivoGeral: string
+    motivoGeral: string,
   ) => void;
   itensVenda: ItemVenda[];
 }
@@ -39,7 +40,7 @@ export function DevolucaoModal({
     Record<string, { selecionado: boolean; quantidade: number; motivo: string }>
   >({});
   const [tipoCredito, setTipoCredito] = useState<"com_credito" | "sem_credito">(
-    "sem_credito"
+    "sem_credito",
   );
   const [motivoGeral, setMotivoGeral] = useState("");
 
@@ -52,6 +53,7 @@ export function DevolucaoModal({
 
   const handleToggleItem = (itemId: string) => {
     const item = itensVenda.find((i) => i.id === itemId);
+
     if (!item) return;
 
     const quantidadeDisponivel = item.quantidade - item.devolvido;
@@ -71,12 +73,13 @@ export function DevolucaoModal({
   const handleQuantidadeChange = (itemId: string, valor: string) => {
     const quantidade = parseInt(valor) || 0;
     const item = itensVenda.find((i) => i.id === itemId);
+
     if (!item) return;
 
     const quantidadeDisponivel = item.quantidade - item.devolvido;
     const quantidadeFinal = Math.min(
       Math.max(1, quantidade),
-      quantidadeDisponivel
+      quantidadeDisponivel,
     );
 
     setItensSelecionados((prev) => ({
@@ -100,14 +103,17 @@ export function DevolucaoModal({
 
   const calcularValorDevolucao = () => {
     let total = 0;
+
     for (const [itemId, dados] of Object.entries(itensSelecionados)) {
       if (!dados.selecionado) continue;
 
       const item = itensVenda.find((i) => i.id === itemId);
+
       if (!item) continue;
 
       total += item.preco_unitario * dados.quantidade;
     }
+
     return total;
   };
 
@@ -122,11 +128,13 @@ export function DevolucaoModal({
 
     if (itens.length === 0) {
       alert("Selecione pelo menos um item para devolução");
+
       return;
     }
 
     if (!motivoGeral.trim()) {
       alert("Informe o motivo geral da devolução");
+
       return;
     }
 
@@ -143,15 +151,15 @@ export function DevolucaoModal({
 
   const valorDevolucao = calcularValorDevolucao();
   const itensSelecionadosCount = Object.values(itensSelecionados).filter(
-    (d) => d.selecionado
+    (d) => d.selecionado,
   ).length;
 
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
-      size="3xl"
       scrollBehavior="inside"
+      size="3xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader>
@@ -165,12 +173,12 @@ export function DevolucaoModal({
           <div className="space-y-4">
             {/* Tipo de crédito */}
             <Select
+              description="Com crédito: gera saldo para o cliente usar em compras futuras. Sem crédito: devolução simples."
               label="Tipo de Devolução"
               selectedKeys={[tipoCredito]}
               onChange={(e) =>
                 setTipoCredito(e.target.value as "com_credito" | "sem_credito")
               }
-              description="Com crédito: gera saldo para o cliente usar em compras futuras. Sem crédito: devolução simples."
             >
               <SelectItem key="sem_credito">
                 Sem Crédito (Devolução Simples)
@@ -183,10 +191,10 @@ export function DevolucaoModal({
             {/* Motivo geral */}
             <Textarea
               label="Motivo da Devolução"
+              minRows={2}
+              placeholder="Descreva o motivo da devolução..."
               value={motivoGeral}
               onChange={(e) => setMotivoGeral(e.target.value)}
-              placeholder="Descreva o motivo da devolução..."
-              minRows={2}
             />
 
             <Divider />
@@ -242,31 +250,31 @@ export function DevolucaoModal({
                           <div className="space-y-2 pt-2">
                             <Input
                               label="Quantidade a devolver"
-                              type="number"
-                              min="1"
                               max={quantidadeDisponivel}
+                              min="1"
+                              size="sm"
+                              type="number"
                               value={itemData.quantidade.toString()}
                               onChange={(e) =>
                                 item.id &&
                                 handleQuantidadeChange(item.id, e.target.value)
                               }
-                              size="sm"
                             />
                             <Input
                               label="Motivo específico (opcional)"
+                              placeholder="Ex: Produto com defeito, cor errada..."
+                              size="sm"
                               value={itemData.motivo}
                               onChange={(e) =>
                                 item.id &&
                                 handleMotivoChange(item.id, e.target.value)
                               }
-                              placeholder="Ex: Produto com defeito, cor errada..."
-                              size="sm"
                             />
                             <p className="text-sm text-gray-600">
                               Subtotal devolução:{" "}
                               <span className="font-semibold">
                                 {formatarMoeda(
-                                  item.preco_unitario * itemData.quantidade
+                                  item.preco_unitario * itemData.quantidade,
                                 )}
                               </span>
                             </p>
@@ -313,8 +321,8 @@ export function DevolucaoModal({
           </Button>
           <Button
             color="warning"
-            onClick={handleConfirmar}
             isDisabled={itensSelecionadosCount === 0 || !motivoGeral.trim()}
+            onClick={handleConfirmar}
           >
             Confirmar Devolução
           </Button>

@@ -1,5 +1,7 @@
 "use client";
 
+import type { Tecnico } from "@/types/clientesTecnicos";
+
 import {
   Card,
   CardBody,
@@ -12,7 +14,6 @@ import {
 } from "@heroui/react";
 import {
   MoreVertical,
-  Edit,
   History,
   ToggleLeft,
   Trash2,
@@ -20,7 +21,6 @@ import {
   Mail,
   Briefcase,
 } from "lucide-react";
-import type { Tecnico } from "@/types/clientesTecnicos";
 
 interface TecnicoCardProps {
   tecnico: Tecnico;
@@ -40,6 +40,7 @@ export default function TecnicoCard({ tecnico, menuItems }: TecnicoCardProps) {
       toggle: <ToggleLeft className="w-4 h-4" />,
       delete: <Trash2 className="w-4 h-4" />,
     };
+
     return icons[iconName] || <MoreVertical className="w-4 h-4" />;
   };
 
@@ -65,8 +66,8 @@ export default function TecnicoCard({ tecnico, menuItems }: TecnicoCardProps) {
           </div>
           <div className="flex items-center gap-2">
             <Chip
-              size="sm"
               color={tecnico.ativo ? "success" : "danger"}
+              size="sm"
               variant="flat"
             >
               {tecnico.ativo ? "Ativo" : "Inativo"}
@@ -81,9 +82,9 @@ export default function TecnicoCard({ tecnico, menuItems }: TecnicoCardProps) {
                 {menuItems.map((item) => (
                   <DropdownItem
                     key={item.key}
+                    color={item.color}
                     startContent={getIcon(item.icon)}
                     onPress={item.onClick}
-                    color={item.color}
                   >
                     {item.label}
                   </DropdownItem>

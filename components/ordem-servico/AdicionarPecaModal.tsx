@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   ModalContent,
@@ -11,8 +11,6 @@ import {
   Input,
   Select,
   SelectItem,
-  Autocomplete,
-  AutocompleteItem,
   Divider,
   Chip,
   Card,
@@ -38,6 +36,7 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
+
 import { useToast } from "@/components/Toast";
 import {
   adicionarPecaOS,
@@ -134,6 +133,7 @@ export default function AdicionarPecaModal({
         setPaginaAtual(1);
         carregarProdutosEstoque(idLoja, 1, buscaProduto);
       }, 500);
+
       return () => clearTimeout(timeoutId);
     }
   }, [buscaProduto]);
@@ -149,7 +149,7 @@ export default function AdicionarPecaModal({
   const carregarProdutosEstoque = async (
     lojaId: number,
     pagina: number = 1,
-    termoBusca: string = ""
+    termoBusca: string = "",
   ) => {
     setLoadingProdutos(true);
     try {
@@ -159,7 +159,9 @@ export default function AdicionarPecaModal({
       // Caso contrário, usar paginação normal
       const limiteBusca = termoBusca.trim() ? 1000 : itensPorPagina;
       const inicioBusca = termoBusca.trim() ? 0 : (pagina - 1) * itensPorPagina;
-      const fimBusca = termoBusca.trim() ? limiteBusca - 1 : inicioBusca + itensPorPagina - 1;
+      const fimBusca = termoBusca.trim()
+        ? limiteBusca - 1
+        : inicioBusca + itensPorPagina - 1;
 
       // Construir query principal do estoque
       const { data, error, count } = await supabase
@@ -181,7 +183,7 @@ export default function AdicionarPecaModal({
             nome
           )
         `,
-          { count: "exact" }
+          { count: "exact" },
         )
         .eq("id_loja", lojaId)
         .gt("quantidade", 0)
@@ -208,7 +210,7 @@ export default function AdicionarPecaModal({
             loja_id: loja.id,
             loja_nome: loja.nome,
           };
-        }
+        },
       );
 
       // Se houver busca, filtrar no cliente
@@ -221,8 +223,9 @@ export default function AdicionarPecaModal({
 
         // Filtrar produtos onde TODOS os termos apareçam em algum lugar
         const produtosFiltrados = produtosFormatados.filter((p) => {
-          const textoCompleto = `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""}`.toLowerCase();
-          
+          const textoCompleto =
+            `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""}`.toLowerCase();
+
           // Verificar se todos os termos estão presentes no texto completo
           return termos.every((termo) => textoCompleto.includes(termo));
         });
@@ -230,7 +233,7 @@ export default function AdicionarPecaModal({
         // Aplicar paginação local
         const inicio = (pagina - 1) * itensPorPagina;
         const fim = inicio + itensPorPagina;
-        
+
         setTotalProdutos(produtosFiltrados.length);
         setProdutosEstoque(produtosFiltrados.slice(inicio, fim));
       } else {
@@ -263,7 +266,7 @@ export default function AdicionarPecaModal({
           valor_custo,
           valor_venda,
           produtos:id_produto(descricao, marca, categoria)
-        `
+        `,
         )
         .eq("id_ordem_servico", idOrdemServico)
         .order("criado_em", { ascending: false });
@@ -293,10 +296,12 @@ export default function AdicionarPecaModal({
       setProdutoSelecionado(null);
       setValorCustoEstoque("");
       setValorVendaEstoque("");
+
       return;
     }
 
     const produto = produtosEstoque.find((p) => p.id === produtoId);
+
     if (produto) {
       setIdProdutoSelecionado(produtoId);
       setProdutoSelecionado(produto);
@@ -326,6 +331,7 @@ export default function AdicionarPecaModal({
   const handleRemoverPeca = async (peca: PecaOS) => {
     if (!usuario) {
       toast.showToast("Usuário não autenticado", "error");
+
       return;
     }
 
@@ -352,29 +358,35 @@ export default function AdicionarPecaModal({
   const handleSubmit = async () => {
     if (!usuario) {
       toast.showToast("Usuário não autenticado", "error");
+
       return;
     }
 
     if (tipoPeca === "estoque") {
       if (!idProdutoSelecionado) {
         toast.showToast("Selecione um produto do estoque", "error");
+
         return;
       }
       if (!quantidadePeca || parseFloat(quantidadePeca) <= 0) {
         toast.showToast("Quantidade deve ser maior que zero", "error");
+
         return;
       }
     } else {
       if (!descricaoPecaAvulsa.trim()) {
         toast.showToast("Descrição da peça é obrigatória", "error");
+
         return;
       }
       if (!valorVendaAvulso || parseFloat(valorVendaAvulso) <= 0) {
         toast.showToast("Valor de venda deve ser maior que zero", "error");
+
         return;
       }
       if (!quantidadeAvulsa || parseFloat(quantidadeAvulsa) <= 0) {
         toast.showToast("Quantidade deve ser maior que zero", "error");
+
         return;
       }
     }
@@ -419,7 +431,7 @@ export default function AdicionarPecaModal({
           : tipoPeca === "estoque"
             ? "Produto adicionado e estoque reservado"
             : "Produto avulso adicionado",
-        "success"
+        "success",
       );
       setPecaEditando(null);
       limparCampos();
@@ -463,19 +475,20 @@ export default function AdicionarPecaModal({
     } else if (tipoPeca === "avulso" && valorVendaAvulso) {
       return parseFloat(valorVendaAvulso) * parseFloat(quantidadeAvulsa || "0");
     }
+
     return 0;
   };
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      size="5xl"
-      scrollBehavior="inside"
       classNames={{
         base: "max-h-[90vh]",
         body: "gap-4",
       }}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="5xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
@@ -486,21 +499,21 @@ export default function AdicionarPecaModal({
           <div className="space-y-3 mb-2">
             <div className="flex items-center justify-between">
               <h4 className="text-base font-semibold">Peças já vinculadas</h4>
-              <Chip size="sm" color="primary" variant="flat">
+              <Chip color="primary" size="sm" variant="flat">
                 {loadingPecas ? "Carregando" : `${pecas.length} peça(s)`}
               </Chip>
             </div>
 
             {loadingPecas ? (
               <div className="flex justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
               </div>
             ) : pecas.length === 0 ? (
               <div className="text-sm text-default-500 bg-default-100 dark:bg-default-50/10 p-3 rounded-lg">
                 Nenhuma peça vinculada ainda.
               </div>
             ) : (
-              <Table aria-label="Peças da OS" removeWrapper>
+              <Table removeWrapper aria-label="Peças da OS">
                 <TableHeader>
                   <TableColumn>Descrição</TableColumn>
                   <TableColumn>Tipo</TableColumn>
@@ -515,6 +528,7 @@ export default function AdicionarPecaModal({
                       peca.tipo_produto === "estoque"
                         ? peca.produtos?.descricao || "Produto do estoque"
                         : peca.descricao_peca || "Peça avulsa";
+
                     return (
                       <TableRow key={peca.id}>
                         <TableCell>
@@ -532,12 +546,12 @@ export default function AdicionarPecaModal({
                         </TableCell>
                         <TableCell>
                           <Chip
-                            size="sm"
                             color={
                               peca.tipo_produto === "estoque"
                                 ? "success"
                                 : "warning"
                             }
+                            size="sm"
                             variant="flat"
                           >
                             {peca.tipo_produto === "estoque"
@@ -563,19 +577,19 @@ export default function AdicionarPecaModal({
                         <TableCell>
                           <div className="flex items-center justify-center gap-2">
                             <Button
-                              size="sm"
-                              variant="flat"
                               color="secondary"
+                              size="sm"
                               startContent={<Edit className="w-4 h-4" />}
+                              variant="flat"
                               onPress={() => iniciarEdicao(peca)}
                             >
                               Substituir
                             </Button>
                             <Button
-                              size="sm"
-                              variant="light"
                               color="danger"
+                              size="sm"
                               startContent={<Trash2 className="w-4 h-4" />}
+                              variant="light"
                               onPress={() => handleRemoverPeca(peca)}
                             >
                               Remover
@@ -591,17 +605,18 @@ export default function AdicionarPecaModal({
           </div>
 
           <Select
+            isRequired
+            description="Escolha se vai usar peça do seu estoque ou se foi comprada externamente"
             label="Tipo de Peça"
             placeholder="Selecione o tipo"
             selectedKeys={[tipoPeca]}
+            variant="bordered"
             onSelectionChange={(keys) => {
               const tipo = Array.from(keys)[0] as "estoque" | "avulso";
+
               setTipoPeca(tipo);
               limparCampos();
             }}
-            variant="bordered"
-            isRequired
-            description="Escolha se vai usar peça do seu estoque ou se foi comprada externamente"
           >
             <SelectItem
               key="estoque"
@@ -633,28 +648,28 @@ export default function AdicionarPecaModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Input
-                    placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
-                    value={buscaProduto}
-                    onChange={(e) => setBuscaProduto(e.target.value)}
-                    startContent={
-                      <Search className="w-4 h-4 text-default-400" />
-                    }
                     isClearable
-                    onClear={() => setBuscaProduto("")}
-                    variant="bordered"
-                    size="lg"
                     className="flex-1"
                     classNames={{
                       input: "text-sm",
                     }}
                     description="Digite palavras-chave separadas por espaço para busca inteligente"
+                    placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
+                    size="lg"
+                    startContent={
+                      <Search className="w-4 h-4 text-default-400" />
+                    }
+                    value={buscaProduto}
+                    variant="bordered"
+                    onChange={(e) => setBuscaProduto(e.target.value)}
+                    onClear={() => setBuscaProduto("")}
                   />
                   {totalProdutos > 0 && (
                     <Chip
+                      className="ml-3"
+                      color="primary"
                       size="sm"
                       variant="flat"
-                      color="primary"
-                      className="ml-3"
                     >
                       {totalProdutos} produto{totalProdutos !== 1 ? "s" : ""}
                     </Chip>
@@ -663,7 +678,7 @@ export default function AdicionarPecaModal({
 
                 {loadingProdutos ? (
                   <div className="flex justify-center items-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                   </div>
                 ) : produtosEstoque.length === 0 ? (
                   <div className="text-center py-8 text-default-500">
@@ -680,14 +695,14 @@ export default function AdicionarPecaModal({
                       {produtosEstoque.map((produto) => (
                         <Card
                           key={produto.id}
-                          isPressable
                           isHoverable
-                          onPress={() => handleProdutoSelecionado(produto.id)}
+                          isPressable
                           className={`${
                             idProdutoSelecionado === produto.id
                               ? "border-2 border-primary bg-primary-50 dark:bg-primary-900/20"
                               : "border border-default-200 hover:border-primary-300"
                           } transition-all`}
+                          onPress={() => handleProdutoSelecionado(produto.id)}
                         >
                           <CardBody className="p-3 gap-2">
                             <div className="flex items-start justify-between gap-2">
@@ -699,24 +714,24 @@ export default function AdicionarPecaModal({
                                   <div className="flex flex-wrap gap-1 mb-2">
                                     {produto.marca && (
                                       <Chip
-                                        size="sm"
-                                        variant="flat"
                                         color="default"
+                                        size="sm"
                                         startContent={
                                           <Tag className="w-3 h-3" />
                                         }
+                                        variant="flat"
                                       >
                                         {produto.marca}
                                       </Chip>
                                     )}
                                     {produto.categoria && (
                                       <Chip
-                                        size="sm"
-                                        variant="flat"
                                         color="secondary"
+                                        size="sm"
                                         startContent={
                                           <Box className="w-3 h-3" />
                                         }
+                                        variant="flat"
                                       >
                                         {produto.categoria}
                                       </Chip>
@@ -725,7 +740,6 @@ export default function AdicionarPecaModal({
                                 )}
                               </div>
                               <Chip
-                                size="sm"
                                 color={
                                   produto.quantidade > 10
                                     ? "success"
@@ -733,6 +747,7 @@ export default function AdicionarPecaModal({
                                       ? "warning"
                                       : "danger"
                                 }
+                                size="sm"
                                 variant="flat"
                               >
                                 {produto.quantidade} un.
@@ -786,15 +801,15 @@ export default function AdicionarPecaModal({
                     {totalPaginas > 1 && (
                       <div className="flex justify-center items-center gap-2 pt-2">
                         <Pagination
-                          total={totalPaginas}
-                          page={paginaAtual}
-                          onChange={handleMudarPagina}
-                          size="sm"
                           showControls
-                          color="primary"
                           classNames={{
                             cursor: "bg-primary text-white",
                           }}
+                          color="primary"
+                          page={paginaAtual}
+                          size="sm"
+                          total={totalPaginas}
+                          onChange={handleMudarPagina}
                         />
                       </div>
                     )}
@@ -840,49 +855,49 @@ export default function AdicionarPecaModal({
 
                     <div className="grid grid-cols-3 gap-3">
                       <Input
+                        description="Ajuste se necessário"
                         label="Valor Custo (OS)"
-                        type="number"
                         min="0"
+                        size="sm"
+                        startContent={
+                          <span className="text-default-400 text-sm">R$</span>
+                        }
                         step="0.01"
+                        type="number"
                         value={valorCustoEstoque}
+                        variant="bordered"
                         onChange={(e) => setValorCustoEstoque(e.target.value)}
-                        startContent={
-                          <span className="text-default-400 text-sm">R$</span>
-                        }
-                        variant="bordered"
-                        description="Ajuste se necessário"
-                        size="sm"
                       />
 
                       <Input
-                        label="Valor Venda (OS)"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={valorVendaEstoque}
-                        onChange={(e) => setValorVendaEstoque(e.target.value)}
                         isRequired
-                        startContent={
-                          <span className="text-default-400 text-sm">R$</span>
-                        }
-                        variant="bordered"
-                        description="Ajuste se necessário"
                         color="success"
+                        description="Ajuste se necessário"
+                        label="Valor Venda (OS)"
+                        min="0"
                         size="sm"
+                        startContent={
+                          <span className="text-default-400 text-sm">R$</span>
+                        }
+                        step="0.01"
+                        type="number"
+                        value={valorVendaEstoque}
+                        variant="bordered"
+                        onChange={(e) => setValorVendaEstoque(e.target.value)}
                       />
 
                       <Input
-                        label="Quantidade"
-                        type="number"
-                        min="1"
-                        max={produtoSelecionado.quantidade}
-                        step="1"
-                        value={quantidadePeca}
-                        onChange={(e) => setQuantidadePeca(e.target.value)}
                         isRequired
-                        variant="bordered"
-                        size="sm"
                         description={`Máx: ${produtoSelecionado.quantidade}`}
+                        label="Quantidade"
+                        max={produtoSelecionado.quantidade}
+                        min="1"
+                        size="sm"
+                        step="1"
+                        type="number"
+                        value={quantidadePeca}
+                        variant="bordered"
+                        onChange={(e) => setQuantidadePeca(e.target.value)}
                       />
                     </div>
                   </div>
@@ -901,55 +916,55 @@ export default function AdicionarPecaModal({
               </div>
 
               <Input
+                isRequired
                 label="Descrição da Peça/Produto"
                 placeholder="Ex: Bateria genérica 3000mAh"
                 value={descricaoPecaAvulsa}
-                onChange={(e) => setDescricaoPecaAvulsa(e.target.value)}
-                isRequired
                 variant="bordered"
+                onChange={(e) => setDescricaoPecaAvulsa(e.target.value)}
               />
 
               <div className="grid grid-cols-2 gap-3">
                 <Input
+                  description="Opcional"
                   label="Valor Custo"
-                  type="number"
                   min="0"
-                  step="0.01"
                   placeholder="0.00"
-                  value={valorCustoAvulso}
-                  onChange={(e) => setValorCustoAvulso(e.target.value)}
                   startContent={
                     <span className="text-default-400 text-sm">R$</span>
                   }
+                  step="0.01"
+                  type="number"
+                  value={valorCustoAvulso}
                   variant="bordered"
-                  description="Opcional"
+                  onChange={(e) => setValorCustoAvulso(e.target.value)}
                 />
 
                 <Input
+                  isRequired
                   label="Valor Venda"
-                  type="number"
                   min="0"
-                  step="0.01"
                   placeholder="0.00"
-                  value={valorVendaAvulso}
-                  onChange={(e) => setValorVendaAvulso(e.target.value)}
                   startContent={
                     <span className="text-default-400 text-sm">R$</span>
                   }
-                  isRequired
+                  step="0.01"
+                  type="number"
+                  value={valorVendaAvulso}
                   variant="bordered"
+                  onChange={(e) => setValorVendaAvulso(e.target.value)}
                 />
               </div>
 
               <Input
+                isRequired
                 label="Quantidade"
-                type="number"
                 min="1"
                 step="1"
+                type="number"
                 value={quantidadeAvulsa}
-                onChange={(e) => setQuantidadeAvulsa(e.target.value)}
-                isRequired
                 variant="bordered"
+                onChange={(e) => setQuantidadeAvulsa(e.target.value)}
               />
             </>
           )}
@@ -973,7 +988,6 @@ export default function AdicionarPecaModal({
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
             isLoading={loading}
             startContent={
               !loading &&
@@ -983,6 +997,7 @@ export default function AdicionarPecaModal({
                 <PackagePlus className="w-4 h-4" />
               ))
             }
+            onPress={handleSubmit}
           >
             {pecaEditando ? "Substituir peça" : "Adicionar"}
           </Button>

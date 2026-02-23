@@ -25,7 +25,7 @@ export class AuthService {
         // Faz logout automático
         await this.logout();
         throw new Error(
-          "Usuário inativo. Entre em contato com o administrador."
+          "Usuário inativo. Entre em contato com o administrador.",
         );
       }
 
@@ -40,7 +40,9 @@ export class AuthService {
    */
   static async logout() {
     const { error } = await supabase.auth.signOut();
+
     if (error) throw error;
+
     return true;
   }
 
@@ -60,6 +62,7 @@ export class AuthService {
 
       // Primeiro verifica se é técnico
       const tecnico = await this.getTecnicoById(user.id);
+
       if (tecnico) {
         // Retorna técnico como usuário com tipo_usuario = 'tecnico'
         // IMPORTANTE: usar usuario_id (auth.uid) em vez de tecnico.id
@@ -78,6 +81,7 @@ export class AuthService {
 
       // Se não é técnico, busca como usuário administrativo
       const usuario = await this.getUsuarioById(user.id);
+
       if (usuario) {
         return {
           ...usuario,
@@ -88,6 +92,7 @@ export class AuthService {
       return null;
     } catch (err) {
       console.error("Erro em getUsuarioAtual:", err);
+
       return null;
     }
   }
@@ -107,6 +112,7 @@ export class AuthService {
 
       if (error) {
         console.error("Erro ao buscar técnico:", error);
+
         return null;
       }
 
@@ -146,12 +152,14 @@ export class AuthService {
 
       if (error) {
         console.error("Erro ao buscar usuário:", error.message);
+
         return null;
       }
 
       return data as Usuario;
     } catch (err) {
       console.error("Erro em getUsuarioById:", err);
+
       return null;
     }
   }
@@ -168,6 +176,7 @@ export class AuthService {
 
     if (error) {
       console.error("Erro ao buscar usuários:", error);
+
       return [];
     }
 
@@ -186,7 +195,7 @@ export class AuthService {
 
       if (!user) {
         console.warn(
-          "⚠️ [AuthService] Sem sessão ativa! Query pode falhar por RLS."
+          "⚠️ [AuthService] Sem sessão ativa! Query pode falhar por RLS.",
         );
       }
 
@@ -198,6 +207,7 @@ export class AuthService {
 
       if (error) {
         console.error("❌ [AuthService] Erro ao buscar usuários:", error);
+
         return [];
       }
 
@@ -205,6 +215,7 @@ export class AuthService {
       return (usuarios as Usuario[]) || [];
     } catch (err) {
       console.error("❌ [AuthService] Exceção capturada:", err);
+
       return [];
     }
   }
@@ -224,6 +235,7 @@ export class AuthService {
       .single();
 
     if (error) throw error;
+
     return data as Usuario;
   }
 

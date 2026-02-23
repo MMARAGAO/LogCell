@@ -28,7 +28,7 @@ export async function buscarClientes(filtros?: {
         *,
         loja:lojas!id_loja(id, nome)
       `,
-        { count: "exact" }
+        { count: "exact" },
       )
       .order("nome", { ascending: true })
       .range(rangeStart, rangeEnd);
@@ -44,32 +44,34 @@ export async function buscarClientes(filtros?: {
     if (filtros?.busca) {
       // Usar filtros separados para lidar com campos nullable
       const buscaPattern = `%${filtros.busca}%`;
+
       query = query.or(
-        `nome.ilike.${buscaPattern},telefone.ilike.${buscaPattern},doc.ilike.${buscaPattern},email.ilike.${buscaPattern}`
+        `nome.ilike.${buscaPattern},telefone.ilike.${buscaPattern},doc.ilike.${buscaPattern},email.ilike.${buscaPattern}`,
       );
     }
 
     const { data, error, count } = await query;
 
     if (error) throw error;
-    
-    return { 
-      data: data as Cliente[], 
+
+    return {
+      data: data as Cliente[],
       error: null,
       count: count || 0,
       page,
       pageSize,
-      totalPages: Math.ceil((count || 0) / pageSize)
+      totalPages: Math.ceil((count || 0) / pageSize),
     };
   } catch (error: any) {
     console.error("Erro ao buscar clientes:", error);
-    return { 
-      data: null, 
+
+    return {
+      data: null,
       error: error.message,
       count: 0,
       page: 1,
       pageSize: 50,
-      totalPages: 0
+      totalPages: 0,
     };
   }
 }
@@ -85,15 +87,17 @@ export async function buscarClientePorId(id: string) {
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .eq("id", id)
       .single();
 
     if (error) throw error;
+
     return { data: data as Cliente, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar cliente:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -125,6 +129,7 @@ export async function buscarClientePorTelefone(telefone: string | null) {
     return { data: data as Cliente, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar cliente por telefone:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -145,14 +150,16 @@ export async function criarCliente(dados: ClienteFormData, userId: string) {
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
     if (error) throw error;
+
     return { data: data as Cliente, error: null };
   } catch (error: any) {
     console.error("Erro ao criar cliente:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -163,7 +170,7 @@ export async function criarCliente(dados: ClienteFormData, userId: string) {
 export async function atualizarCliente(
   id: string,
   dados: Partial<ClienteFormData>,
-  userId: string
+  userId: string,
 ) {
   try {
     const { data, error } = await supabase
@@ -177,14 +184,16 @@ export async function atualizarCliente(
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
     if (error) throw error;
+
     return { data: data as Cliente, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar cliente:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -197,9 +206,11 @@ export async function deletarCliente(id: string) {
     const { error } = await supabase.from("clientes").delete().eq("id", id);
 
     if (error) throw error;
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao deletar cliente:", error);
+
     return { error: error.message };
   }
 }
@@ -210,7 +221,7 @@ export async function deletarCliente(id: string) {
 export async function toggleClienteAtivo(
   id: string,
   ativo: boolean,
-  userId: string
+  userId: string,
 ) {
   try {
     const { data, error } = await supabase
@@ -224,9 +235,11 @@ export async function toggleClienteAtivo(
       .single();
 
     if (error) throw error;
+
     return { data: data as Cliente, error: null };
   } catch (error: any) {
     console.error("Erro ao alterar status do cliente:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -244,6 +257,7 @@ export async function buscarHistoricoCliente(clienteId: string) {
 
     // Construir filtros dinamicamente baseado nos campos disponíveis
     const filtros = [];
+
     if (cliente.telefone) {
       filtros.push(`cliente_telefone.eq.${cliente.telefone}`);
     }
@@ -259,13 +273,15 @@ export async function buscarHistoricoCliente(clienteId: string) {
     const { data, error } = await supabase
       .from("ordem_servico")
       .select("*")
-      .or(filtros.join(','))
+      .or(filtros.join(","))
       .order("data_entrada", { ascending: false });
 
     if (error) throw error;
+
     return { data, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar histórico do cliente:", error);
+
     return { data: null, error: error.message };
   }
 }

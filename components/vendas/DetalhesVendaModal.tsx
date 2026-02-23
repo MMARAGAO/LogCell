@@ -1,5 +1,7 @@
 "use client";
 
+import type { VendaCompleta } from "@/types/vendas";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -8,8 +10,6 @@ import {
   ModalBody,
   ModalFooter,
   Button,
-  Card,
-  CardBody,
   Chip,
   Divider,
   Accordion,
@@ -38,8 +38,9 @@ import {
   Printer,
   Info,
 } from "lucide-react";
-import type { VendaCompleta } from "@/types/vendas";
+
 import { TrocarProdutoModal } from "./TrocarProdutoModal";
+
 import { supabase } from "@/lib/supabaseClient";
 import { salvarPDFNota, imprimirNotaVenda } from "@/lib/imprimirNotaVenda";
 
@@ -60,10 +61,13 @@ export function DetalhesVendaModal({
   const [itemSelecionado, setItemSelecionado] = useState<any>(null);
   const [trocas, setTrocas] = useState<any[]>([]);
   const [loadingTrocas, setLoadingTrocas] = useState(false);
+  const [brindes, setBrindes] = useState<any[]>([]);
+  const [loadingBrindes, setLoadingBrindes] = useState(false);
 
   useEffect(() => {
     if (isOpen && venda) {
       carregarTrocas();
+      carregarBrindes();
     }
   }, [isOpen, venda?.id]);
 
@@ -78,7 +82,7 @@ export function DetalhesVendaModal({
           `
           *,
           usuario:usuarios(nome)
-        `
+        `,
         )
         .eq("venda_id", venda.id)
         .order("criado_em", { ascending: false });
@@ -89,6 +93,27 @@ export function DetalhesVendaModal({
       console.error("Erro ao carregar trocas:", error);
     } finally {
       setLoadingTrocas(false);
+    }
+  };
+
+  const carregarBrindes = async () => {
+    if (!venda) return;
+
+    setLoadingBrindes(true);
+    try {
+      const { data, error } = await supabase
+        .from("brindes_aparelhos")
+        .select("id, descricao, valor_custo")
+        .eq("venda_id", venda.id)
+        .order("criado_em", { ascending: false });
+
+      if (error) throw error;
+      setBrindes(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar brindes:", error);
+      setBrindes([]);
+    } finally {
+      setLoadingBrindes(false);
     }
   };
 
@@ -110,6 +135,7 @@ export function DetalhesVendaModal({
       // Verifica se a data é válida
       if (isNaN(dataLocal.getTime())) {
         console.error("Data inválida:", data);
+
         return "Data inválida";
       }
 
@@ -122,6 +148,7 @@ export function DetalhesVendaModal({
       });
     } catch (error) {
       console.error("Erro ao formatar data:", data, error);
+
       return "Data inválida";
     }
   };
@@ -152,12 +179,17 @@ export function DetalhesVendaModal({
     }
   };
 
+  const totalBrindes = brindes.reduce(
+    (sum, item) => sum + Number(item.valor_custo || 0),
+    0,
+  );
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      size="2xl"
       scrollBehavior="outside"
+      size="2xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -173,9 +205,9 @@ export function DetalhesVendaModal({
 
         <ModalBody>
           <Accordion
-            variant="splitted"
-            selectionMode="multiple"
             defaultExpandedKeys={["info", "itens2", "financeiro"]}
+            selectionMode="multiple"
+            variant="splitted"
           >
             {/* Informações Gerais */}
             <AccordionItem
@@ -228,7 +260,7 @@ export function DetalhesVendaModal({
                       <p className="text-sm text-gray-500 mt-1">
                         Previsão de pagamento:{" "}
                         {new Date(
-                          venda.data_prevista_pagamento
+                          venda.data_prevista_pagamento,
                         ).toLocaleDateString("pt-BR")}
                       </p>
                     )}
@@ -261,7 +293,7 @@ export function DetalhesVendaModal({
                           Código: {item.produto_codigo}
                         </p>
                         {item.desconto_valor && item.desconto_valor > 0 && (
-                          <Chip size="sm" color="warning" variant="flat">
+                          <Chip color="warning" size="sm" variant="flat">
                             Desconto:{" "}
                             {item.desconto_tipo === "percentual"
                               ? `${item.desconto_valor}%`
@@ -279,16 +311,16 @@ export function DetalhesVendaModal({
                         </p>
                       </div>
                       <Button
-                        size="sm"
-                        color="primary"
-                        variant="flat"
                         isIconOnly
+                        color="primary"
+                        isDisabled={venda.status !== "concluida"}
+                        size="sm"
+                        title="Trocar produto"
+                        variant="flat"
                         onPress={() => {
                           setItemSelecionado(item);
                           setTrocaModalOpen(true);
                         }}
-                        title="Trocar produto"
-                        isDisabled={venda.status !== "concluida"}
                       >
                         <RefreshCw className="w-4 h-4" />
                       </Button>
@@ -299,6 +331,29 @@ export function DetalhesVendaModal({
                     Nenhum item nesta venda
                   </p>
                 )}
+                {brindes.length > 0 ? (
+                  <div className="space-y-2">
+                    {brindes.map((brinde: any) => (
+                      <div
+                        key={brinde.id}
+                        className="flex justify-between items-center p-3 bg-warning-50/60 dark:bg-warning-900/20 rounded-lg gap-3"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{brinde.descricao}</p>
+                          <Chip color="warning" size="sm" variant="flat">
+                            Brinde
+                          </Chip>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">Custo</p>
+                          <p className="font-bold">
+                            {formatarMoeda(Number(brinde.valor_custo || 0))}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </AccordionItem>
 
@@ -320,7 +375,7 @@ export function DetalhesVendaModal({
                     {formatarMoeda(
                       venda.valor_total +
                         (venda.valor_desconto || 0) -
-                        (venda.valor_desconto || 0)
+                        (venda.valor_desconto || 0),
                     )}
                   </span>
                 </div>
@@ -330,6 +385,31 @@ export function DetalhesVendaModal({
                     <span>- {formatarMoeda(venda.valor_desconto)}</span>
                   </div>
                 )}
+                {loadingBrindes ? (
+                  <div className="text-sm text-gray-400">
+                    Carregando brindes...
+                  </div>
+                ) : brindes.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center text-warning">
+                      <span>Custo de brindes</span>
+                      <span>{formatarMoeda(totalBrindes)}</span>
+                    </div>
+                    <div className="space-y-1 text-sm text-gray-500">
+                      {brindes.map((brinde: any) => (
+                        <div
+                          key={brinde.id}
+                          className="flex justify-between items-center"
+                        >
+                          <span>{brinde.descricao}</span>
+                          <span>
+                            {formatarMoeda(Number(brinde.valor_custo || 0))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <Divider />
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Total</span>
@@ -378,6 +458,7 @@ export function DetalhesVendaModal({
                         boleto: "Boleto",
                         credito_cliente: "Crédito do Cliente",
                       };
+
                       return tipos[tipo] || tipo;
                     };
 
@@ -481,13 +562,16 @@ export function DetalhesVendaModal({
                           cartao_debito: "Cartão Débito",
                           cartao_credito: "Cartão Crédito",
                         };
+
                         return `Reembolso: ${formas[troca.forma_pagamento_reembolso] || troca.forma_pagamento_reembolso}`;
                       }
+
                       return "";
                     };
 
                     const getTipoReembolsoColor = () => {
                       if (troca.tipo_reembolso === "credito") return "primary";
+
                       return "success";
                     };
 
@@ -539,7 +623,7 @@ export function DetalhesVendaModal({
                               <p className="text-sm font-bold text-red-600 mt-1">
                                 {formatarMoeda(
                                   troca.produto_antigo_preco *
-                                    troca.quantidade_trocada
+                                    troca.quantidade_trocada,
                                 )}
                               </p>
                             </div>
@@ -561,7 +645,7 @@ export function DetalhesVendaModal({
                               <p className="text-sm font-bold text-green-600 mt-1">
                                 {formatarMoeda(
                                   troca.produto_novo_preco *
-                                    troca.quantidade_trocada
+                                    troca.quantidade_trocada,
                                 )}
                               </p>
                             </div>
@@ -656,7 +740,7 @@ export function DetalhesVendaModal({
                     .sort(
                       (a: any, b: any) =>
                         new Date(b.criado_em || 0).getTime() -
-                        new Date(a.criado_em || 0).getTime()
+                        new Date(a.criado_em || 0).getTime(),
                     )
                     .map((evento: any, index: number) => {
                       const getIconeTipoAcao = (tipo: string) => {
@@ -757,16 +841,16 @@ export function DetalhesVendaModal({
           <div className="flex gap-2">
             <Button
               color="success"
-              variant="flat"
               startContent={<Download className="w-4 h-4" />}
+              variant="flat"
               onPress={() => salvarPDFNota(venda)}
             >
               Salvar PDF
             </Button>
             <Button
               color="primary"
-              variant="flat"
               startContent={<Printer className="w-4 h-4" />}
+              variant="flat"
               onPress={() => imprimirNotaVenda(venda)}
             >
               Imprimir
@@ -782,19 +866,19 @@ export function DetalhesVendaModal({
       {itemSelecionado && (
         <TrocarProdutoModal
           isOpen={trocaModalOpen}
-          onClose={() => {
-            setTrocaModalOpen(false);
-            setItemSelecionado(null);
-          }}
-          vendaId={venda.id}
           itemVendaId={itemSelecionado.id}
+          lojaId={venda.loja_id}
           produtoAtual={{
             id: itemSelecionado.produto_id,
             nome: itemSelecionado.produto_nome,
             quantidade: itemSelecionado.quantidade,
             preco_unitario: itemSelecionado.preco_unitario,
           }}
-          lojaId={venda.loja_id}
+          vendaId={venda.id}
+          onClose={() => {
+            setTrocaModalOpen(false);
+            setItemSelecionado(null);
+          }}
           onTrocaRealizada={() => {
             onAtualizarVenda?.();
             onClose();

@@ -34,24 +34,20 @@ import {
   TableCellsIcon,
   Squares2X2Icon,
 } from "@heroicons/react/24/outline";
+
+import { deletarUsuario, alternarStatusUsuario } from "./actions";
+
 import { Usuario } from "@/types";
 import { AuthService } from "@/services/authService";
 import { supabase } from "@/lib/supabaseClient";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { Permissao } from "@/components/Permissao";
-import {
-  cadastrarUsuario,
-  atualizarUsuario,
-  deletarUsuario,
-  alternarStatusUsuario,
-} from "./actions";
 import { UsuarioFormModal } from "@/components/usuarios/UsuarioFormModal";
 import { UsuariosStats } from "@/components/usuarios/UsuariosStats";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { PermissoesModal } from "@/components/usuarios/PermissoesModal";
 import { HistoricoUsuarioModal } from "@/components/usuarios/HistoricoUsuarioModal";
 import { UsuarioCard } from "@/components/usuarios/UsuarioCard";
-import { useFotoPerfilUsuario } from "@/hooks/useFotoPerfilUsuario";
 import { useToast } from "@/components/Toast";
 
 export default function UsuariosPage() {
@@ -65,7 +61,7 @@ export default function UsuariosPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const [fotosUsuarios, setFotosUsuarios] = useState<Record<string, string>>(
-    {}
+    {},
   );
 
   const {
@@ -101,6 +97,7 @@ export default function UsuariosPage() {
 
       try {
         const data = await AuthService.getTodosUsuarios();
+
         if (mounted) {
           setUsuarios(data);
 
@@ -157,6 +154,7 @@ export default function UsuariosPage() {
 
     try {
       const data = await AuthService.getTodosUsuarios();
+
       setUsuarios(data);
       await carregarFotosUsuarios(data.map((u) => u.id));
     } catch (error) {
@@ -174,6 +172,7 @@ export default function UsuariosPage() {
     novosEsteMes: usuarios.filter((u) => {
       const criadoEm = new Date(u.criado_em);
       const hoje = new Date();
+
       return (
         criadoEm.getMonth() === hoje.getMonth() &&
         criadoEm.getFullYear() === hoje.getFullYear()
@@ -184,6 +183,7 @@ export default function UsuariosPage() {
   // Filtra usuários
   const usuariosFiltrados = usuarios.filter((usuario) => {
     const termo = searchTerm.toLowerCase();
+
     return (
       usuario.nome.toLowerCase().includes(termo) ||
       usuario.email.toLowerCase().includes(termo) ||
@@ -195,6 +195,7 @@ export default function UsuariosPage() {
   const handleNovo = () => {
     if (!temPermissao("usuarios.criar")) {
       toast.error("Você não tem permissão para criar usuários");
+
       return;
     }
     setSelectedUsuario(null);
@@ -204,6 +205,7 @@ export default function UsuariosPage() {
   const handleEditar = (usuario: Usuario) => {
     if (!temPermissao("usuarios.editar")) {
       toast.error("Você não tem permissão para editar usuários");
+
       return;
     }
     setSelectedUsuario(usuario);
@@ -213,6 +215,7 @@ export default function UsuariosPage() {
   const handleExcluir = (usuario: Usuario) => {
     if (!temPermissao("usuarios.deletar")) {
       toast.error("Você não tem permissão para excluir usuários");
+
       return;
     }
     setSelectedUsuario(usuario);
@@ -228,6 +231,7 @@ export default function UsuariosPage() {
     setErrorMessage(null);
     try {
       const result = await alternarStatusUsuario(usuario.id, !usuario.ativo);
+
       if (result.success) {
         await carregarUsuarios();
       } else {
@@ -246,6 +250,7 @@ export default function UsuariosPage() {
     setErrorMessage(null);
     try {
       const result = await deletarUsuario(selectedUsuario.id);
+
       if (result.success) {
         await carregarUsuarios();
         onDeleteClose();
@@ -279,7 +284,7 @@ export default function UsuariosPage() {
           onPress={() => handleEditar(usuario)}
         >
           Editar
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -291,7 +296,7 @@ export default function UsuariosPage() {
           onPress={() => handlePermissoes(usuario)}
         >
           Gerenciar Permissões
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -306,7 +311,7 @@ export default function UsuariosPage() {
           }}
         >
           Ver Histórico
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -324,7 +329,7 @@ export default function UsuariosPage() {
           onPress={() => handleAlternarStatus(usuario)}
         >
           {usuario.ativo ? "Desativar" : "Ativar"}
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -338,7 +343,7 @@ export default function UsuariosPage() {
           onPress={() => handleExcluir(usuario)}
         >
           Excluir
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -349,7 +354,7 @@ export default function UsuariosPage() {
   if (loadingPermissoes) {
     return (
       <div className="flex justify-center items-center py-20">
-        <Spinner size="lg" label="Carregando permissões..." />
+        <Spinner label="Carregando permissões..." size="lg" />
       </div>
     );
   }
@@ -398,40 +403,40 @@ export default function UsuariosPage() {
 
       {/* Estatísticas */}
       <UsuariosStats
-        total={stats.total}
         ativos={stats.ativos}
         inativos={stats.inativos}
         novosEsteMes={stats.novosEsteMes}
+        total={stats.total}
       />
 
       {/* Barra de Pesquisa */}
       <div className="mb-6 flex gap-4 items-center">
         <Input
+          className="max-w-md"
           placeholder="Buscar por nome, email, CPF ou telefone..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
           startContent={
             <MagnifyingGlassIcon className="w-5 h-5 text-default-400" />
           }
+          value={searchTerm}
           variant="bordered"
-          className="max-w-md"
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
         <div className="flex gap-2">
           <Button
             isIconOnly
-            variant={viewMode === "table" ? "flat" : "light"}
-            color={viewMode === "table" ? "primary" : "default"}
-            onPress={() => setViewMode("table")}
             aria-label="Visualização em tabela"
+            color={viewMode === "table" ? "primary" : "default"}
+            variant={viewMode === "table" ? "flat" : "light"}
+            onPress={() => setViewMode("table")}
           >
             <TableCellsIcon className="w-5 h-5" />
           </Button>
           <Button
             isIconOnly
-            variant={viewMode === "cards" ? "flat" : "light"}
-            color={viewMode === "cards" ? "primary" : "default"}
-            onPress={() => setViewMode("cards")}
             aria-label="Visualização em cards"
+            color={viewMode === "cards" ? "primary" : "default"}
+            variant={viewMode === "cards" ? "flat" : "light"}
+            onPress={() => setViewMode("cards")}
           >
             <Squares2X2Icon className="w-5 h-5" />
           </Button>
@@ -441,7 +446,7 @@ export default function UsuariosPage() {
       {/* Tabela de Usuários */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <Spinner size="lg" label="Carregando usuários..." />
+          <Spinner label="Carregando usuários..." size="lg" />
         </div>
       ) : viewMode === "table" ? (
         <div className="bg-background rounded-lg border border-divider">
@@ -463,11 +468,11 @@ export default function UsuariosPage() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar
-                          name={usuario.nome}
-                          src={fotoUrl || undefined}
-                          size="sm"
                           showFallback
                           color="primary"
+                          name={usuario.nome}
+                          size="sm"
+                          src={fotoUrl || undefined}
                         />
                         <div>
                           <p className="font-semibold">{usuario.nome}</p>
@@ -490,8 +495,8 @@ export default function UsuariosPage() {
                     <TableCell>
                       <Chip
                         color={usuario.ativo ? "success" : "danger"}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {usuario.ativo ? "Ativo" : "Inativo"}
                       </Chip>
@@ -499,7 +504,7 @@ export default function UsuariosPage() {
                     <TableCell>
                       <p className="text-sm">
                         {new Date(usuario.criado_em).toLocaleDateString(
-                          "pt-BR"
+                          "pt-BR",
                         )}
                       </p>
                     </TableCell>
@@ -534,14 +539,14 @@ export default function UsuariosPage() {
               <UsuarioCard
                 key={usuario.id}
                 usuario={usuario}
+                onAlternarStatus={handleAlternarStatus}
                 onEditar={handleEditar}
-                onPermissoes={handlePermissoes}
+                onExcluir={handleExcluir}
                 onHistorico={(u) => {
                   setSelectedUsuario(u);
                   onHistoricoOpen();
                 }}
-                onAlternarStatus={handleAlternarStatus}
-                onExcluir={handleExcluir}
+                onPermissoes={handlePermissoes}
               />
             ))
           )}
@@ -551,8 +556,8 @@ export default function UsuariosPage() {
       {/* Modal de Formulário */}
       <UsuarioFormModal
         isOpen={isFormOpen}
-        onClose={onFormClose}
         usuario={selectedUsuario}
+        onClose={onFormClose}
         onSuccess={handleFormSuccess}
       />
 
@@ -560,9 +565,9 @@ export default function UsuariosPage() {
       {selectedUsuario && (
         <PermissoesModal
           isOpen={isPermissoesOpen}
-          onClose={onPermissoesClose}
           usuarioId={selectedUsuario.id}
           usuarioNome={selectedUsuario.nome}
+          onClose={onPermissoesClose}
           onSuccess={() => {
             // Opcional: recarregar dados se necessário
           }}
@@ -573,22 +578,22 @@ export default function UsuariosPage() {
       {selectedUsuario && (
         <HistoricoUsuarioModal
           isOpen={isHistoricoOpen}
-          onClose={onHistoricoClose}
           usuario={selectedUsuario}
+          onClose={onHistoricoClose}
         />
       )}
 
       {/* Modal de Confirmação de Exclusão */}
       <ConfirmModal
-        isOpen={isDeleteOpen}
-        onClose={onDeleteClose}
-        onConfirm={confirmarExclusao}
-        title="Confirmar Exclusão"
-        message={`Tem certeza que deseja excluir o usuário ${selectedUsuario?.nome}? Esta ação desativará o usuário no sistema.`}
-        confirmText="Excluir"
         cancelText="Cancelar"
         confirmColor="danger"
+        confirmText="Excluir"
         isLoading={isDeleting}
+        isOpen={isDeleteOpen}
+        message={`Tem certeza que deseja excluir o usuário ${selectedUsuario?.nome}? Esta ação desativará o usuário no sistema.`}
+        title="Confirmar Exclusão"
+        onClose={onDeleteClose}
+        onConfirm={confirmarExclusao}
       />
     </div>
   );

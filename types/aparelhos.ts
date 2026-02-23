@@ -1,6 +1,12 @@
-export type EstadoAparelho = 'novo' | 'usado' | 'seminovo' | 'recondicionado';
-export type CondicaoAparelho = 'perfeito' | 'bom' | 'regular' | 'ruim';
-export type StatusAparelho = 'disponivel' | 'vendido' | 'reservado' | 'defeito' | 'transferido';
+export type EstadoAparelho = "novo" | "usado" | "seminovo" | "recondicionado";
+export type CondicaoAparelho = "perfeito" | "bom" | "regular" | "ruim";
+export type StatusAparelho =
+  | "disponivel"
+  | "vendido"
+  | "reservado"
+  | "defeito"
+  | "transferido";
+export type TipoDevolucaoAparelho = "devolucao" | "troca" | "garantia";
 
 export interface FotoAparelho {
   id: string;
@@ -34,11 +40,20 @@ export interface Aparelho {
   data_entrada: string;
   data_venda?: string | null;
   venda_id?: string | null;
+  saude_bateria?: number | null;
+
+  // Campos de catálogo
+  exibir_catalogo?: boolean;
+  destaque?: boolean;
+  promocao?: boolean;
+  novidade?: boolean;
+  ordem_catalogo?: number;
+
   criado_por?: string | null;
   criado_em: string;
   atualizado_em: string;
   atualizado_por?: string | null;
-  
+
   // Relacionamentos
   loja?: {
     id: number;
@@ -62,6 +77,42 @@ export interface AparelhoFormData {
   valor_venda?: number;
   loja_id: number;
   status?: StatusAparelho;
+  saude_bateria?: number;
+
+  // Campos de catálogo
+  exibir_catalogo?: boolean;
+  destaque?: boolean;
+  promocao?: boolean;
+  novidade?: boolean;
+  ordem_catalogo?: number;
+}
+
+export interface DevolucaoAparelho {
+  id?: string;
+  aparelho_id: string;
+  venda_id?: string | null;
+  loja_id: number;
+  tipo: TipoDevolucaoAparelho;
+  motivo: string;
+  observacoes?: string | null;
+  data_ocorrencia?: string;
+  criado_em?: string;
+  criado_por?: string | null;
+  usuario?: {
+    id: string;
+    nome: string;
+  };
+}
+
+export interface BrindeAparelho {
+  id?: string;
+  loja_id: number;
+  venda_id?: string | null;
+  descricao: string;
+  valor_custo: number;
+  data_ocorrencia?: string;
+  criado_em?: string;
+  criado_por?: string | null;
 }
 
 export interface FiltrosAparelhos {
@@ -71,4 +122,8 @@ export interface FiltrosAparelhos {
   estado?: EstadoAparelho;
   status?: StatusAparelho;
   busca?: string; // Para IMEI, número série, marca, modelo
+  exibir_catalogo?: boolean;
+  destaque?: boolean;
+  promocao?: boolean;
+  novidade?: boolean;
 }

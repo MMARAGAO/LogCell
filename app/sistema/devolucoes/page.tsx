@@ -16,6 +16,8 @@ import {
   Spinner,
 } from "@heroui/react";
 import { PackageX, Search, Calendar, User, Store, History } from "lucide-react";
+import { toast } from "sonner";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { VendaCompleta } from "@/types/vendas";
@@ -23,7 +25,6 @@ import { ModalDevolucao } from "@/components/devolucoes/ModalDevolucao";
 import { HistoricoDevolucoes } from "@/components/devolucoes/HistoricoDevolucoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
-import { toast } from "sonner";
 
 export default function DevolucoesPage() {
   const { usuario } = useAuth();
@@ -97,7 +98,7 @@ export default function DevolucoesPage() {
             itens:itens_devolucao(*)
           )
         `,
-          { count: "exact" }
+          { count: "exact" },
         )
         .in("status", ["concluida", "devolvida"])
         .gt("valor_pago", 0) // Apenas vendas que já foram pagas
@@ -124,6 +125,7 @@ export default function DevolucoesPage() {
 
       setTotalVendas(count || 0);
       const temMais = (count || 0) > inicio + limite;
+
       setTemMaisVendas(temMais);
       setPaginaServidor(pagina);
 
@@ -172,7 +174,7 @@ export default function DevolucoesPage() {
             *,
             itens:itens_devolucao(*)
           )
-        `
+        `,
         )
         .eq("numero_venda", numeroVenda)
         .in("status", ["concluida", "devolvida"]);
@@ -187,10 +189,11 @@ export default function DevolucoesPage() {
       if (error) {
         if (error.code === "PGRST116") {
           toast.error(
-            `Venda #${numeroVenda} não encontrada ou não está concluída`
+            `Venda #${numeroVenda} não encontrada ou não está concluída`,
           );
         }
         console.error("Erro ao buscar venda:", error);
+
         return;
       }
 
@@ -198,9 +201,11 @@ export default function DevolucoesPage() {
         // Adicionar venda encontrada ao topo da lista se não estiver lá
         setVendas((prevVendas) => {
           const exists = prevVendas.some((v) => v.numero_venda === numeroVenda);
+
           if (exists) {
             return prevVendas;
           }
+
           return [data as VendaCompleta, ...prevVendas];
         });
         toast.success(`Venda #${numeroVenda} encontrada!`);
@@ -214,6 +219,7 @@ export default function DevolucoesPage() {
 
   const vendasFiltradas = vendas.filter((venda) => {
     const termo = busca.toLowerCase();
+
     return (
       venda.numero_venda?.toString().includes(termo) ||
       venda.cliente?.nome.toLowerCase().includes(termo) ||
@@ -224,6 +230,7 @@ export default function DevolucoesPage() {
   const handleAbrirModal = (venda: VendaCompleta) => {
     if (!temPermissao("devolucoes.criar")) {
       toast.error("Você não tem permissão para processar devoluções");
+
       return;
     }
     setVendaSelecionada(venda);
@@ -265,20 +272,22 @@ export default function DevolucoesPage() {
 
   const calcularQuantidadeDevolvida = (venda: VendaCompleta) => {
     if (!venda.itens) return 0;
+
     return venda.itens.reduce(
       (total, item) => total + (item.devolvido || 0),
-      0
+      0,
     );
   };
 
   const calcularQuantidadeTotal = (venda: VendaCompleta) => {
     if (!venda.itens) return 0;
+
     return venda.itens.reduce((total, item) => total + item.quantidade, 0);
   };
 
   // Paginação no cliente
   const totalPaginasCliente = Math.ceil(
-    vendasFiltradas.length / itensPorPagina
+    vendasFiltradas.length / itensPorPagina,
   );
   const indiceInicio = (paginaAtual - 1) * itensPorPagina;
   const indiceFim = indiceInicio + itensPorPagina;
@@ -326,14 +335,14 @@ export default function DevolucoesPage() {
       <Card className="mb-6">
         <CardBody>
           <Input
-            placeholder="Buscar por número da venda, cliente ou DOC..."
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            startContent={<Search className="w-4 h-4 text-default-400" />}
-            size="lg"
             classNames={{
               input: "text-base",
             }}
+            placeholder="Buscar por número da venda, cliente ou DOC..."
+            size="lg"
+            startContent={<Search className="w-4 h-4 text-default-400" />}
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
           />
         </CardBody>
       </Card>
@@ -357,9 +366,9 @@ export default function DevolucoesPage() {
             {totalPaginasCliente > 1 && (
               <div className="flex gap-2 items-center">
                 <Button
+                  isDisabled={paginaAtual === 1}
                   size="sm"
                   variant="flat"
-                  isDisabled={paginaAtual === 1}
                   onPress={() => setPaginaAtual(paginaAtual - 1)}
                 >
                   Anterior
@@ -368,9 +377,9 @@ export default function DevolucoesPage() {
                   Página {paginaAtual} de {totalPaginasCliente}
                 </span>
                 <Button
+                  isDisabled={paginaAtual === totalPaginasCliente}
                   size="sm"
                   variant="flat"
-                  isDisabled={paginaAtual === totalPaginasCliente}
                   onPress={() => setPaginaAtual(paginaAtual + 1)}
                 >
                   Próxima
@@ -456,15 +465,15 @@ export default function DevolucoesPage() {
                           color={
                             qtdDevolvida === qtdTotal ? "danger" : "warning"
                           }
-                          variant="flat"
                           size="sm"
+                          variant="flat"
                         >
                           {qtdDevolvida === qtdTotal
                             ? "Devolução Total"
                             : "Devolução Parcial"}
                         </Chip>
                       ) : (
-                        <Chip color="success" variant="flat" size="sm">
+                        <Chip color="success" size="sm" variant="flat">
                           Sem Devoluções
                         </Chip>
                       )}
@@ -473,22 +482,22 @@ export default function DevolucoesPage() {
                       <div className="flex gap-2">
                         {temPermissao("devolucoes.criar") && (
                           <Button
-                            size="sm"
                             color="danger"
+                            size="sm"
+                            startContent={<PackageX className="w-4 h-4" />}
                             variant="flat"
                             onPress={() => handleAbrirModal(venda)}
-                            startContent={<PackageX className="w-4 h-4" />}
                           >
                             Processar Devolução
                           </Button>
                         )}
                         {temDevolucao && (
                           <Button
-                            size="sm"
                             color="primary"
+                            size="sm"
+                            startContent={<History className="w-4 h-4" />}
                             variant="flat"
                             onPress={() => handleAbrirHistorico(venda.id)}
-                            startContent={<History className="w-4 h-4" />}
                           >
                             Histórico
                           </Button>
@@ -507,8 +516,8 @@ export default function DevolucoesPage() {
       {vendaSelecionada && (
         <ModalDevolucao
           isOpen={modalAberto}
-          onClose={handleFecharModal}
           venda={vendaSelecionada}
+          onClose={handleFecharModal}
           onSuccess={handleDevolucaoProcessada}
         />
       )}
@@ -517,8 +526,8 @@ export default function DevolucoesPage() {
       {vendaHistorico && (
         <HistoricoDevolucoes
           isOpen={modalHistoricoAberto}
-          onClose={handleFecharHistorico}
           vendaId={vendaHistorico}
+          onClose={handleFecharHistorico}
         />
       )}
     </div>

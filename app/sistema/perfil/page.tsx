@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 import { FotoPerfilService } from "@/services/fotoPerfilService";
 import { FotoPerfilUpload } from "@/components/perfil/FotoPerfilUpload";
 import { EditarPerfilForm } from "@/components/perfil/EditarPerfilForm";
@@ -29,6 +30,7 @@ export default function PerfilPage() {
     setLoadingFoto(true);
     try {
       const foto = await FotoPerfilService.getFotoAtual(usuario.id);
+
       setFotoAtual(foto);
     } catch (error) {
       console.error("Erro ao carregar foto:", error);
@@ -49,7 +51,7 @@ export default function PerfilPage() {
   if (!usuario) {
     return (
       <div className="flex justify-center items-center py-20">
-        <Spinner size="lg" label="Carregando perfil..." />
+        <Spinner label="Carregando perfil..." size="lg" />
       </div>
     );
   }
@@ -66,9 +68,9 @@ export default function PerfilPage() {
               <Spinner size="lg" />
             ) : (
               <FotoPerfilUpload
+                fotoAtual={fotoAtual}
                 usuarioId={usuario.id}
                 usuarioNome={usuario.nome}
-                fotoAtual={fotoAtual}
                 onUploadSuccess={handleUploadSuccess}
               />
             )}
@@ -79,10 +81,10 @@ export default function PerfilPage() {
               <div className="text-center">
                 <p className="text-sm text-default-500">Status</p>
                 <Chip
-                  color={usuario.ativo ? "success" : "danger"}
-                  variant="flat"
-                  size="sm"
                   className="mt-1"
+                  color={usuario.ativo ? "success" : "danger"}
+                  size="sm"
+                  variant="flat"
                 >
                   {usuario.ativo ? "Ativo" : "Inativo"}
                 </Chip>

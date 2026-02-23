@@ -10,7 +10,10 @@ export const abrirPreviewPDF = (doc: jsPDF, nomeArquivo?: string) => {
   const novaJanela = window.open(url, "_blank");
 
   if (!novaJanela) {
-    alert("Bloqueador de pop-up ativado. Permita pop-ups para visualizar o PDF.");
+    alert(
+      "Bloqueador de pop-up ativado. Permita pop-ups para visualizar o PDF.",
+    );
+
     return;
   }
 

@@ -26,6 +26,7 @@ export default function Logo({
 
     // Observar mudanças no tema
     const observer = new MutationObserver(checkTheme);
+
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class"],
@@ -38,23 +39,23 @@ export default function Logo({
 
   return (
     <svg
-      width={width}
-      height={height}
-      viewBox="0 0 333 338"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       className={className}
+      fill="none"
+      height={height}
       style={{ color: "hsl(var(--heroui-primary))" }}
+      viewBox="0 0 333 338"
+      width={width}
+      xmlns="http://www.w3.org/2000/svg"
     >
       <path
-        opacity="0.74"
         d="M48.8982 46.3072C46.0619 36.3103 53.359 26.3043 63.7444 25.9495L157.711 22.7398C171.924 22.2542 184.645 31.5023 188.567 45.1724L257.973 287.08C260.832 297.047 253.601 307.059 243.241 307.479L148.772 311.306C134.454 311.886 121.605 302.578 117.694 288.793L48.8982 46.3072Z"
         fill="black"
+        opacity="0.74"
       />
       <path
-        opacity="0.74"
         d="M51.8242 48.2879C48.9675 38.2849 56.266 28.2587 66.6629 27.9036L155.744 24.8607C169.939 24.3758 182.648 33.6005 186.587 47.2476L255.124 284.752C257.989 294.683 250.828 304.685 240.503 305.171L151.239 309.372C136.87 310.048 123.923 300.75 119.973 286.919L51.8242 48.2879Z"
         fill={secondaryColor}
+        opacity="0.74"
       />
       <path
         d="M42.2853 58.815C41.5769 56.3067 41.1233 53.7072 41.3594 51.1114C42.2616 41.1924 47.2912 34.8605 54.8328 28.8972C53.4999 29.9777 46.5536 34.9397 48.926 46.5165L116.663 286.214C123.866 305.449 131.68 310.853 151.886 311.216L241.143 307.55C250.139 307.779 255.171 302.856 258.081 295.571C256.561 303.271 251.246 309.991 243.865 314.848C241.114 316.658 237.832 317.403 234.54 317.486L150.516 319.605C128.373 320.468 119.452 315.909 109.921 298.285L42.2853 58.815Z"
@@ -70,65 +71,65 @@ export default function Logo({
         fill="currentColor"
       />
       <rect
-        x="94.0312"
-        y="32.4849"
-        width="43.1528"
+        fill="#231D1D"
+        fillOpacity="0.82"
         height="12.2333"
         rx="6.11667"
         transform="rotate(-1.84097 94.0312 32.4849)"
-        fill="#231D1D"
-        fillOpacity="0.82"
+        width="43.1528"
+        x="94.0312"
+        y="32.4849"
       />
       <rect
-        x="52.9092"
-        y="73.5734"
-        width="11.6982"
+        fill="#A9A0A0"
+        fillOpacity="0.82"
         height="3.69022"
         rx="1.84511"
         transform="rotate(74.46 52.9092 73.5734)"
-        fill="#A9A0A0"
-        fillOpacity="0.82"
+        width="11.6982"
+        x="52.9092"
+        y="73.5734"
       />
       <rect
-        x="57.5059"
-        y="89.8812"
-        width="15.4172"
+        fill="#595555"
+        fillOpacity="0.82"
         height="3.69022"
         rx="1.84511"
         transform="rotate(74.46 57.5059 89.8812)"
-        fill="#595555"
-        fillOpacity="0.82"
+        width="15.4172"
+        x="57.5059"
+        y="89.8812"
       />
       <rect
-        x="62.2598"
-        y="106.642"
-        width="15.4172"
+        fill="#595555"
+        fillOpacity="0.82"
         height="3.69022"
         rx="1.84511"
         transform="rotate(74.46 62.2598 106.642)"
-        fill="#595555"
-        fillOpacity="0.82"
+        width="15.4172"
+        x="62.2598"
+        y="106.642"
       />
 
       <defs>
         <linearGradient
+          gradientUnits="userSpaceOnUse"
           id="paint0_linear_44_14"
           x1="170.186"
-          y1="47.7303"
           x2="126.145"
+          y1="47.7303"
           y2="317.489"
-          gradientUnits="userSpaceOnUse"
         >
           <stop stopColor="#212020" />
           <stop offset="1" stopColor="#423D3D" />
         </linearGradient>
         <linearGradient
+          gradientUnits="userSpaceOnUse"
           id="paint1_linear_44_14"
           x1="170.186"
-          y1="47.7303"
           x2="126.145"
+          y1="47.7303"
           y2="317.489"
-          gradientUnits="userSpaceOnUse"
         >
           <stop offset="0.158654" stopColor="#9A9696" />
           <stop offset="0.307692" stopColor="#333333" />

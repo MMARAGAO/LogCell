@@ -14,17 +14,9 @@ import {
   Divider,
   Card,
   CardBody,
-  Chip,
 } from "@heroui/react";
-import {
-  DollarSign,
-  Plus,
-  Trash2,
-  Calendar,
-  Edit2,
-  Percent,
-  CheckCircle,
-} from "lucide-react";
+import { DollarSign, Plus, Calendar, Percent, CheckCircle } from "lucide-react";
+
 import { VendasService } from "@/services/vendasService";
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,7 +69,7 @@ export function AdicionarPagamentoModal({
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
   const [mostrarDesconto, setMostrarDesconto] = useState(false);
   const [tipoDesconto, setTipoDesconto] = useState<"valor" | "percentual">(
-    "percentual"
+    "percentual",
   );
   const [valorDesconto, setValorDesconto] = useState("");
   const [motivoDesconto, setMotivoDesconto] = useState("");
@@ -93,8 +85,10 @@ export function AdicionarPagamentoModal({
   useEffect(() => {
     const carregarDescontoMaximo = async () => {
       const maxDesconto = await getDescontoMaximo();
+
       setDescontoMaximo(maxDesconto);
     };
+
     if (isOpen) {
       carregarDescontoMaximo();
     }
@@ -114,11 +108,13 @@ export function AdicionarPagamentoModal({
     try {
       const { data, error } =
         await VendasService.buscarCreditosCliente(clienteId);
+
       if (!error && data) {
         const saldoTotal = data.reduce(
           (sum: number, c: any) => sum + (c.saldo || 0),
-          0
+          0,
         );
+
         setCreditoDisponivel(saldoTotal);
       }
     } catch (error) {
@@ -166,13 +162,16 @@ export function AdicionarPagamentoModal({
 
   const handleAdicionarPagamento = async () => {
     const valorNumerico = parseFloat(valor);
+
     if (!valorNumerico || valorNumerico <= 0) {
       toast.error("Informe um valor válido");
+
       return;
     }
 
     if (valorNumerico > saldoDevedor) {
       toast.error("Valor maior que o saldo devedor");
+
       return;
     }
 
@@ -180,12 +179,14 @@ export function AdicionarPagamentoModal({
     if (tipoPagamento === "credito_cliente") {
       if (creditoDisponivel === 0) {
         toast.error("Cliente não possui crédito disponível");
+
         return;
       }
       if (valorNumerico > creditoDisponivel) {
         toast.error(
-          `Crédito insuficiente. Disponível: ${formatarMoeda(creditoDisponivel)}`
+          `Crédito insuficiente. Disponível: ${formatarMoeda(creditoDisponivel)}`,
         );
+
         return;
       }
     }
@@ -223,12 +224,14 @@ export function AdicionarPagamentoModal({
       // Se for percentual, limitar ao desconto máximo
       if (numerico > descontoMaximo) {
         setValorDesconto(descontoMaximo.toString());
+
         return;
       }
 
       // Limitar a 100% se for percentual
       if (numerico > 100) {
         setValorDesconto("100");
+
         return;
       }
     } else {
@@ -240,6 +243,7 @@ export function AdicionarPagamentoModal({
 
       if (numerico > limiteReal) {
         setValorDesconto(limiteReal.toFixed(2));
+
         return;
       }
     }
@@ -249,13 +253,16 @@ export function AdicionarPagamentoModal({
 
   const handleAplicarDesconto = async () => {
     const valor = parseFloat(valorDesconto);
+
     if (!valor || valor <= 0) {
       toast.error("Informe um valor válido para o desconto");
+
       return;
     }
 
     if (!motivoDesconto.trim()) {
       toast.error("Informe o motivo do desconto");
+
       return;
     }
 
@@ -293,6 +300,7 @@ export function AdicionarPagamentoModal({
   const handleConcluirVenda = async () => {
     if (saldoDevedor > 0) {
       toast.error("Não é possível concluir a venda com saldo devedor pendente");
+
       return;
     }
 
@@ -300,7 +308,7 @@ export function AdicionarPagamentoModal({
     try {
       const resultado = await VendasService.concluirVenda(
         vendaId,
-        usuario?.id || ""
+        usuario?.id || "",
       );
 
       if (resultado.success) {
@@ -336,20 +344,22 @@ export function AdicionarPagamentoModal({
   const pagamentosAgrupados = pagamentos.reduce(
     (acc, pagamento) => {
       const tipo = pagamento.tipo_pagamento;
+
       if (!acc[tipo]) {
         acc[tipo] = [];
       }
       acc[tipo].push(pagamento);
+
       return acc;
     },
-    {} as Record<string, any[]>
+    {} as Record<string, any[]>,
   );
 
   const calcularTotalPorTipo = (tipo: string) => {
     return (
       pagamentosAgrupados[tipo]?.reduce(
         (sum: number, p: any) => sum + p.valor,
-        0
+        0,
       ) || 0
     );
   };
@@ -357,7 +367,7 @@ export function AdicionarPagamentoModal({
   return (
     <>
       {toast.ToastComponent}
-      <Modal isOpen={isOpen} onClose={handleFechar} size="2xl">
+      <Modal isOpen={isOpen} size="2xl" onClose={handleFechar}>
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-bold">Adicionar Pagamento</h3>
@@ -418,33 +428,28 @@ export function AdicionarPagamentoModal({
                     <div className="space-y-2 mt-3">
                       <div className="flex gap-2">
                         <Select
+                          className="max-w-[120px]"
                           label="Tipo"
-                          size="sm"
                           selectedKeys={[tipoDesconto]}
+                          size="sm"
                           onChange={(e) =>
                             setTipoDesconto(
-                              e.target.value as "valor" | "percentual"
+                              e.target.value as "valor" | "percentual",
                             )
                           }
-                          className="max-w-[120px]"
                         >
                           <SelectItem key="percentual">%</SelectItem>
                           <SelectItem key="valor">R$</SelectItem>
                         </Select>
                         <Input
-                          type="number"
+                          className="flex-1"
                           label="Valor"
-                          size="sm"
-                          value={valorDesconto}
-                          onChange={(e) =>
-                            handleValorDescontoChange(e.target.value)
-                          }
                           max={
                             tipoDesconto === "percentual"
                               ? descontoMaximo
                               : Math.min(
                                   saldoDevedor,
-                                  (saldoDevedor * descontoMaximo) / 100
+                                  (saldoDevedor * descontoMaximo) / 100,
                                 )
                           }
                           placeholder={
@@ -452,9 +457,10 @@ export function AdicionarPagamentoModal({
                               ? `Máx: ${descontoMaximo}%`
                               : `Máx: R$ ${Math.min(
                                   saldoDevedor,
-                                  (saldoDevedor * descontoMaximo) / 100
+                                  (saldoDevedor * descontoMaximo) / 100,
                                 ).toFixed(2)}`
                           }
+                          size="sm"
                           startContent={
                             tipoDesconto === "valor" ? (
                               <span className="text-default-400 text-sm">
@@ -466,23 +472,27 @@ export function AdicionarPagamentoModal({
                               </span>
                             )
                           }
-                          className="flex-1"
+                          type="number"
+                          value={valorDesconto}
+                          onChange={(e) =>
+                            handleValorDescontoChange(e.target.value)
+                          }
                         />
                       </div>
                       <Input
                         label="Motivo"
+                        placeholder="Ex: Promoção, Cliente especial..."
                         size="sm"
                         value={motivoDesconto}
                         onChange={(e) => setMotivoDesconto(e.target.value)}
-                        placeholder="Ex: Promoção, Cliente especial..."
                       />
                       <Button
-                        color="primary"
-                        size="sm"
-                        onClick={handleAplicarDesconto}
-                        startContent={<Percent className="w-4 h-4" />}
                         className="w-full"
+                        color="primary"
                         isLoading={loadingDesconto}
+                        size="sm"
+                        startContent={<Percent className="w-4 h-4" />}
+                        onClick={handleAplicarDesconto}
                       >
                         Aplicar Desconto
                       </Button>
@@ -546,7 +556,7 @@ export function AdicionarPagamentoModal({
                                         <Calendar className="h-3 w-3 text-default-400" />
                                         <span className="text-default-600">
                                           {new Date(
-                                            pagamento.criado_em
+                                            pagamento.criado_em,
                                           ).toLocaleDateString("pt-BR")}
                                         </span>
                                       </div>
@@ -556,11 +566,11 @@ export function AdicionarPagamentoModal({
                                         </span>
                                       </div>
                                     </div>
-                                  )
+                                  ),
                                 )}
                               </div>
                             </div>
-                          )
+                          ),
                         )}
                       </div>
                     )}
@@ -573,10 +583,10 @@ export function AdicionarPagamentoModal({
             {saldoDevedor > 0 ? (
               <div className="space-y-3">
                 <Select
+                  isRequired
                   label="Tipo de Pagamento"
                   selectedKeys={[tipoPagamento]}
                   onChange={(e) => setTipoPagamento(e.target.value)}
-                  isRequired
                 >
                   {tiposPagamento.map((tipo) => (
                     <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
@@ -606,26 +616,26 @@ export function AdicionarPagamentoModal({
                 )}
 
                 <Input
+                  isRequired
                   label="Valor"
-                  type="number"
-                  step="0.01"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
                   placeholder="0,00"
                   startContent={
                     <div className="pointer-events-none flex items-center">
                       <span className="text-default-400 text-small">R$</span>
                     </div>
                   }
-                  isRequired
+                  step="0.01"
+                  type="number"
+                  value={valor}
+                  onChange={(e) => setValor(e.target.value)}
                 />
 
                 <Button
+                  fullWidth
                   color="primary"
-                  onClick={handleAdicionarPagamento}
                   isLoading={loading}
                   startContent={!loading && <Plus className="w-4 h-4" />}
-                  fullWidth
+                  onClick={handleAdicionarPagamento}
                 >
                   Adicionar Pagamento
                 </Button>
@@ -649,9 +659,9 @@ export function AdicionarPagamentoModal({
             {saldoDevedor <= 0 && statusVenda !== "concluida" && (
               <Button
                 color="success"
-                onClick={handleConcluirVenda}
                 isLoading={loading}
                 startContent={!loading && <CheckCircle className="w-4 h-4" />}
+                onClick={handleConcluirVenda}
               >
                 Concluir Venda
               </Button>

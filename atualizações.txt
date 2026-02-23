@@ -1,0 +1,40 @@
+🔹 TELA FINANCEIRA
+
+– Folha salarial
+– Contas das lojas (aluguel, internet, luz, compras, etc.)
+– Vales de funcionários
+– Retiradas pessoais
+– Contas pagas de fornecedores
+– Contas tributárias da empresa
+
+👥 Gestão de Funcionários (Financeiro)
+
+– Folha salarial
+– Comissões por lucro
+– Vales
+– Descontos
+– Bonificações
+– Histórico financeiro por funcionário
+
+🧾 Impostos e Tributos
+
+– Simples Nacional / ICMS / ISS
+– DAS
+– Datas de vencimento
+– Comprovantes de pagamento
+– Impostos por loja
+
+🏷️ Centro de Custos (MUITO IMPORTANTE)
+
+Separar gastos por:
+– Loja
+– Tipo (estoque, marketing, estrutura, pessoal)
+Isso te mostra onde o dinheiro está indo de verdade.
+
+📈 Relatórios Gerenciais
+
+– Lucro líquido real (já descontando tudo)
+– Comparativo mês a mês
+– Crescimento ou queda por período
+– Margem de lucro por produto
+– Margem de lucro por vendedor

@@ -11,23 +11,19 @@ import { Input, Textarea } from "@heroui/input";
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
-import { Divider } from "@heroui/divider";
 import { Pagination } from "@heroui/pagination";
-import { useToast } from "@/components/Toast";
 import {
   ArrowRightIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   CurrencyDollarIcon,
   TrashIcon,
-  BoltIcon,
-  ClockIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   PrinterIcon,
   DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { Progress } from "@heroui/progress";
+
+import { useToast } from "@/components/Toast";
 import { Produto as ProdutoSistema } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -150,6 +146,7 @@ export default function TransferenciaModal({
 
       // Verificar sessão primeiro
       const sessaoValida = await verificarSessao();
+
       if (!sessaoValida) {
         return; // verificarSessao já redireciona para login
       }
@@ -216,6 +213,7 @@ export default function TransferenciaModal({
     const buscarProdutos = async () => {
       if (buscaProduto.trim() === "") {
         setProdutosFiltrados(produtosDisponiveis);
+
         return;
       }
 
@@ -236,6 +234,7 @@ export default function TransferenciaModal({
         });
 
         setProdutosFiltrados(filtrados);
+
         return;
       }
 
@@ -263,13 +262,13 @@ export default function TransferenciaModal({
                 loja:lojas(nome)
               )
             )
-          `
+          `,
           )
           .eq("produto.ativo", true)
           .gt("quantidade", 0)
           .or(
             `descricao.ilike.${searchPattern},marca.ilike.${searchPattern},modelos.ilike.${searchPattern}`,
-            { foreignTable: "produto" }
+            { foreignTable: "produto" },
           )
           .limit(100); // Limitar a 100 resultados na busca
 
@@ -297,7 +296,7 @@ export default function TransferenciaModal({
           // Mesclar com produtos já carregados (evitar duplicatas)
           const idsExistentes = new Set(produtosDisponiveis.map((p) => p.id));
           const produtosNovos = produtosBusca.filter(
-            (p) => !idsExistentes.has(p.id)
+            (p) => !idsExistentes.has(p.id),
           );
 
           const todosProdutos = [...produtosDisponiveis, ...produtosNovos];
@@ -409,7 +408,7 @@ export default function TransferenciaModal({
               quantidade,
               loja:lojas(nome)
             )
-          `
+          `,
           )
           .eq("ativo", true)
           .order("descricao", { ascending: true })
@@ -423,7 +422,7 @@ export default function TransferenciaModal({
             const estoques = item.estoques_lojas || [];
             const quantidadeTotal = estoques.reduce(
               (acc: number, est: any) => acc + (est.quantidade || 0),
-              0
+              0,
             );
 
             return {
@@ -479,14 +478,16 @@ export default function TransferenciaModal({
   // Quantidade já adicionada na lista para este produto
   const quantidadeJaAdicionada = useMemo(() => {
     const item = itensTransferencia.find(
-      (i) => i.id_produto === produtoSelecionado
+      (i) => i.id_produto === produtoSelecionado,
     );
+
     return item ? item.quantidade : 0;
   }, [itensTransferencia, produtoSelecionado]);
 
   // Quantidade disponível após considerar itens na lista
   const quantidadeDisponivel = useMemo(() => {
     if (!produtoAtual) return 0;
+
     return produtoAtual.quantidade_disponivel - quantidadeJaAdicionada;
   }, [produtoAtual, quantidadeJaAdicionada]);
 
@@ -499,11 +500,11 @@ export default function TransferenciaModal({
     const totalItens = itensTransferencia.length;
     const totalUnidades = itensTransferencia.reduce(
       (acc, item) => acc + item.quantidade,
-      0
+      0,
     );
     const valorTotal = itensTransferencia.reduce(
       (acc, item) => acc + (item.preco_venda || 0) * item.quantidade,
-      0
+      0,
     );
 
     return { totalItens, totalUnidades, valorTotal };
@@ -521,15 +522,17 @@ export default function TransferenciaModal({
     // Etapa 2: Todos os produtos têm origem e destino definidos
     etapas++;
     const todosComOrigemDestino = itensTransferencia.every(
-      (item) => item.loja_origem && item.loja_destino
+      (item) => item.loja_origem && item.loja_destino,
     );
+
     if (itensTransferencia.length > 0 && todosComOrigemDestino) completas++;
 
     // Etapa 3: Pronto para transferir (nenhuma origem = destino)
     etapas++;
     const nenhumInvalido = itensTransferencia.every(
-      (item) => item.loja_origem !== item.loja_destino
+      (item) => item.loja_origem !== item.loja_destino,
     );
+
     if (
       itensTransferencia.length > 0 &&
       todosComOrigemDestino &&
@@ -548,6 +551,7 @@ export default function TransferenciaModal({
   const produtosPaginados = useMemo(() => {
     const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
     const fim = inicio + ITENS_POR_PAGINA;
+
     return produtosFiltrados.slice(inicio, fim);
   }, [produtosFiltrados, paginaAtual]);
 
@@ -559,6 +563,7 @@ export default function TransferenciaModal({
   const itensTransferenciaPaginados = useMemo(() => {
     const inicio = (paginaAtualLista - 1) * ITENS_POR_PAGINA_LISTA;
     const fim = inicio + ITENS_POR_PAGINA_LISTA;
+
     return itensTransferencia.slice(inicio, fim);
   }, [itensTransferencia, paginaAtualLista]);
 
@@ -570,12 +575,13 @@ export default function TransferenciaModal({
   const historicoPaginado = useMemo(() => {
     const inicio = (paginaAtualHistorico - 1) * ITENS_POR_PAGINA_HISTORICO;
     const fim = inicio + ITENS_POR_PAGINA_HISTORICO;
+
     return historicoTransferencias.slice(inicio, fim);
   }, [historicoTransferencias, paginaAtualHistorico]);
 
   const totalPaginasHistorico = useMemo(() => {
     return Math.ceil(
-      historicoTransferencias.length / ITENS_POR_PAGINA_HISTORICO
+      historicoTransferencias.length / ITENS_POR_PAGINA_HISTORICO,
     );
   }, [historicoTransferencias]);
 
@@ -583,13 +589,14 @@ export default function TransferenciaModal({
   const adicionarProdutoDireto = (produto: Produto) => {
     // Verificar se já existe na lista
     const itemExistente = itensTransferencia.find(
-      (i) => i.id_produto === produto.id
+      (i) => i.id_produto === produto.id,
     );
 
     if (itemExistente) {
       toast.info(
-        `${produto.descricao} já está na lista. Edite a quantidade e selecione as lojas na seção abaixo.`
+        `${produto.descricao} já está na lista. Edite a quantidade e selecione as lojas na seção abaixo.`,
       );
+
       return;
     }
 
@@ -605,9 +612,10 @@ export default function TransferenciaModal({
       loja_destino: "", // Usuário selecionará depois
       estoques_lojas: produto.estoques_lojas,
     };
+
     setItensTransferencia((prev) => [novoItem, ...prev]);
     toast.success(
-      `${produto.descricao} adicionado à lista. Selecione as lojas de origem e destino.`
+      `${produto.descricao} adicionado à lista. Selecione as lojas de origem e destino.`,
     );
   };
 
@@ -617,7 +625,7 @@ export default function TransferenciaModal({
 
     // Verificar se já existe na lista
     const itemExistente = itensTransferencia.find(
-      (i) => i.id_produto === produtoSelecionado
+      (i) => i.id_produto === produtoSelecionado,
     );
 
     if (itemExistente) {
@@ -626,8 +634,8 @@ export default function TransferenciaModal({
         prev.map((item) =>
           item.id_produto === produtoSelecionado
             ? { ...item, quantidade: item.quantidade + quantidade }
-            : item
-        )
+            : item,
+        ),
       );
       toast.success("Quantidade atualizada");
     } else {
@@ -643,9 +651,10 @@ export default function TransferenciaModal({
         loja_destino: "", // Usuário selecionará depois
         estoques_lojas: produtoAtual.estoques_lojas,
       };
+
       setItensTransferencia((prev) => [novoItem, ...prev]);
       toast.success(
-        "Produto adicionado à lista. Selecione as lojas de origem e destino."
+        "Produto adicionado à lista. Selecione as lojas de origem e destino.",
       );
     }
 
@@ -659,7 +668,7 @@ export default function TransferenciaModal({
     if (!produtoAtual || quantidadeDisponivel <= 0) return;
 
     const itemExistente = itensTransferencia.find(
-      (i) => i.id_produto === produtoSelecionado
+      (i) => i.id_produto === produtoSelecionado,
     );
 
     if (itemExistente) {
@@ -667,11 +676,11 @@ export default function TransferenciaModal({
         prev.map((item) =>
           item.id_produto === produtoSelecionado
             ? { ...item, quantidade: item.quantidade + quantidadeDisponivel }
-            : item
-        )
+            : item,
+        ),
       );
       toast.success(
-        `Todo o estoque adicionado (${quantidadeDisponivel} unidades)`
+        `Todo o estoque adicionado (${quantidadeDisponivel} unidades)`,
       );
     } else {
       const novoItem: ItemTransferencia = {
@@ -685,9 +694,10 @@ export default function TransferenciaModal({
         loja_destino: "", // Usuário selecionará depois
         estoques_lojas: produtoAtual.estoques_lojas,
       };
+
       setItensTransferencia((prev) => [novoItem, ...prev]);
       toast.success(
-        `Todo o estoque adicionado (${quantidadeDisponivel} unidades). Selecione as lojas de origem e destino.`
+        `Todo o estoque adicionado (${quantidadeDisponivel} unidades). Selecione as lojas de origem e destino.`,
       );
     }
 
@@ -707,7 +717,7 @@ export default function TransferenciaModal({
   // Remover item da lista
   const removerItem = (idProduto: string) => {
     setItensTransferencia((prev) =>
-      prev.filter((item) => item.id_produto !== idProduto)
+      prev.filter((item) => item.id_produto !== idProduto),
     );
 
     // Se remover o último item da página atual e não for a primeira página, voltar uma página
@@ -723,11 +733,13 @@ export default function TransferenciaModal({
     // Validações finais
     if (itensTransferencia.length === 0) {
       toast.error("Adicione pelo menos um produto para transferir");
+
       return;
     }
 
     // Verificar sessão antes de processar
     const sessaoValida = await verificarSessao();
+
     if (!sessaoValida) {
       return; // verificarSessao já redireciona para login
     }
@@ -737,6 +749,7 @@ export default function TransferenciaModal({
       toast.error("Sessão expirada. Redirecionando para login...");
       console.error("❌ userId vazio - sessão expirada ou não autenticado");
       await verificarSessao(); // Redireciona para login
+
       return;
     }
 
@@ -746,27 +759,30 @@ export default function TransferenciaModal({
 
     if (itensSemOrigem.length > 0) {
       toast.error(
-        `${itensSemOrigem.length} produto(s) sem loja de origem definida`
+        `${itensSemOrigem.length} produto(s) sem loja de origem definida`,
       );
+
       return;
     }
 
     if (itensSemDestino.length > 0) {
       toast.error(
-        `${itensSemDestino.length} produto(s) sem loja de destino definida`
+        `${itensSemDestino.length} produto(s) sem loja de destino definida`,
       );
+
       return;
     }
 
     // Validar se há itens com origem = destino
     const itensInvalidos = itensTransferencia.filter(
-      (i) => i.loja_origem === i.loja_destino
+      (i) => i.loja_origem === i.loja_destino,
     );
 
     if (itensInvalidos.length > 0) {
       toast.error(
-        `${itensInvalidos.length} produto(s) com origem e destino iguais`
+        `${itensInvalidos.length} produto(s) com origem e destino iguais`,
       );
+
       return;
     }
 
@@ -812,14 +828,15 @@ export default function TransferenciaModal({
         const mensagem = itensComProblema
           .map(
             (item) =>
-              `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}${item.erro ? " (" + item.erro + ")" : ""}`
+              `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}${item.erro ? " (" + item.erro + ")" : ""}`,
           )
           .join("\n");
 
         toast.error(
-          `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nAjuste as quantidades ou selecione outra loja de origem.`
+          `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nAjuste as quantidades ou selecione outra loja de origem.`,
         );
         setLoading(false);
+
         return;
       }
 
@@ -829,6 +846,7 @@ export default function TransferenciaModal({
 
       itensTransferencia.forEach((item) => {
         const chave = `${item.loja_origem}->${item.loja_destino}`;
+
         if (!transferenciasAgrupadas[chave]) {
           transferenciasAgrupadas[chave] = [];
         }
@@ -869,7 +887,7 @@ export default function TransferenciaModal({
         if (errorTransferencia) {
           console.error("❌ Erro ao criar transferência:", errorTransferencia);
           throw new Error(
-            `Erro ao criar transferência: ${errorTransferencia.message || JSON.stringify(errorTransferencia)}`
+            `Erro ao criar transferência: ${errorTransferencia.message || JSON.stringify(errorTransferencia)}`,
           );
         }
 
@@ -906,7 +924,7 @@ export default function TransferenciaModal({
 
       toast.success(
         `${totalTransferenciasCriadas} transferência(s) criada(s) com sucesso! ` +
-          `${totalProdutos} produto(s) pendente(s) de confirmação.`
+          `${totalProdutos} produto(s) pendente(s) de confirmação.`,
       );
       onSuccess();
       onClose();
@@ -921,9 +939,9 @@ export default function TransferenciaModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      size="5xl"
       scrollBehavior="outside"
+      size="5xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -946,10 +964,10 @@ export default function TransferenciaModal({
               </span>
             </div>
             <Progress
-              value={progressoEtapas.percentual}
+              className="max-w-full"
               color={progressoEtapas.percentual === 100 ? "success" : "primary"}
               size="sm"
-              className="max-w-full"
+              value={progressoEtapas.percentual}
             />
             <div className="flex items-center justify-between mt-1 text-xs text-default-400">
               <span>
@@ -980,17 +998,17 @@ export default function TransferenciaModal({
 
               <div>
                 <Select
-                  label="Lojas para Visualizar Estoque"
-                  placeholder="Selecione lojas para visualizar estoque"
-                  selectionMode="multiple"
-                  selectedKeys={lojasParaVisualizar}
-                  onSelectionChange={(keys) => {
-                    setLojasParaVisualizar(Array.from(keys) as string[]);
-                  }}
                   classNames={{
                     trigger: "bg-content1",
                   }}
                   description="Selecione múltiplas lojas para visualizar o estoque atual e previsto de cada produto"
+                  label="Lojas para Visualizar Estoque"
+                  placeholder="Selecione lojas para visualizar estoque"
+                  selectedKeys={lojasParaVisualizar}
+                  selectionMode="multiple"
+                  onSelectionChange={(keys) => {
+                    setLojasParaVisualizar(Array.from(keys) as string[]);
+                  }}
                 >
                   {lojas && lojas.length > 0 ? (
                     lojas.map((loja) => (
@@ -1006,15 +1024,16 @@ export default function TransferenciaModal({
                   <div className="flex flex-wrap gap-2 mt-2">
                     {lojasParaVisualizar.map((lojaId) => {
                       const loja = lojas.find((l) => l.id === parseInt(lojaId));
+
                       return (
                         <Chip
                           key={lojaId}
                           color="secondary"
-                          variant="flat"
                           size="sm"
+                          variant="flat"
                           onClose={() => {
                             setLojasParaVisualizar(
-                              lojasParaVisualizar.filter((id) => id !== lojaId)
+                              lojasParaVisualizar.filter((id) => id !== lojaId),
                             );
                           }}
                         >
@@ -1073,7 +1092,7 @@ export default function TransferenciaModal({
                         {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        }
+                        },
                       )}
                     </div>
                     <div className="text-xs text-default-600 mt-1">
@@ -1121,12 +1140,7 @@ export default function TransferenciaModal({
 
               {/* Campo de Busca */}
               <Input
-                label="Buscar Produto"
-                placeholder="Ex: bat i 17, tela samsung, cabo usb..."
-                value={buscaProduto}
-                onValueChange={setBuscaProduto}
                 isClearable
-                onClear={() => setBuscaProduto("")}
                 classNames={{
                   inputWrapper: "bg-content1",
                 }}
@@ -1135,6 +1149,11 @@ export default function TransferenciaModal({
                     ? `${produtosFiltrados.length} produto(s) encontrado(s) - Página ${paginaAtual} de ${totalPaginasProdutos}`
                     : `${produtosFiltrados.length} de ${produtosDisponiveis.length} produto(s) encontrado(s)`
                 }
+                label="Buscar Produto"
+                placeholder="Ex: bat i 17, tela samsung, cabo usb..."
+                value={buscaProduto}
+                onClear={() => setBuscaProduto("")}
+                onValueChange={setBuscaProduto}
               />
 
               {/* Lista de Produtos */}
@@ -1160,7 +1179,7 @@ export default function TransferenciaModal({
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                     {produtosPaginados.map((produto) => {
                       const jaAdicionado = itensTransferencia.find(
-                        (i) => i.id_produto === produto.id
+                        (i) => i.id_produto === produto.id,
                       );
                       const quantidadeDisponivel =
                         produto.quantidade_disponivel -
@@ -1179,9 +1198,19 @@ export default function TransferenciaModal({
                             }
                             ${quantidadeDisponivel <= 0 ? "opacity-50 cursor-not-allowed" : ""}
                           `}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             if (quantidadeDisponivel > 0 && !jaAdicionado) {
                               adicionarProdutoDireto(produto);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              if (quantidadeDisponivel > 0 && !jaAdicionado) {
+                                adicionarProdutoDireto(produto);
+                              }
                             }
                           }}
                         >
@@ -1194,8 +1223,8 @@ export default function TransferenciaModal({
                                 </p>
                                 {jaAdicionado && (
                                   <Chip
-                                    size="sm"
                                     color="success"
+                                    size="sm"
                                     variant="flat"
                                   >
                                     ✓ Adicionado
@@ -1253,8 +1282,6 @@ export default function TransferenciaModal({
                               {/* Chips de Status */}
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Chip
-                                  size="sm"
-                                  variant="flat"
                                   color={
                                     quantidadeDisponivel > 10
                                       ? "success"
@@ -1262,21 +1289,23 @@ export default function TransferenciaModal({
                                         ? "warning"
                                         : "danger"
                                   }
+                                  size="sm"
                                   startContent={
                                     <span className="text-xs">📦</span>
                                   }
+                                  variant="flat"
                                 >
                                   Disponível: {quantidadeDisponivel}
                                 </Chip>
 
                                 {jaAdicionado && (
                                   <Chip
-                                    size="sm"
-                                    variant="flat"
                                     color="primary"
+                                    size="sm"
                                     startContent={
                                       <span className="text-xs">📋</span>
                                     }
+                                    variant="flat"
                                   >
                                     Na lista: {jaAdicionado.quantidade}
                                   </Chip>
@@ -1284,12 +1313,12 @@ export default function TransferenciaModal({
 
                                 {produto.quantidade_disponivel > 0 && (
                                   <Chip
-                                    size="sm"
-                                    variant="flat"
                                     color="default"
+                                    size="sm"
                                     startContent={
                                       <span className="text-xs">🏪</span>
                                     }
+                                    variant="flat"
                                   >
                                     Estoque total:{" "}
                                     {produto.quantidade_disponivel}
@@ -1309,8 +1338,8 @@ export default function TransferenciaModal({
                                       {produto.estoques_lojas
                                         .filter((estoque) =>
                                           lojasParaVisualizar.includes(
-                                            estoque.id_loja.toString()
-                                          )
+                                            estoque.id_loja.toString(),
+                                          ),
                                         )
                                         .map((estoque) => (
                                           <div
@@ -1321,14 +1350,14 @@ export default function TransferenciaModal({
                                               {estoque.loja_nome}
                                             </span>
                                             <Chip
-                                              size="sm"
-                                              variant="flat"
+                                              className="h-4 min-w-[30px] text-[10px] px-1"
                                               color={
                                                 estoque.quantidade > 0
                                                   ? "primary"
                                                   : "danger"
                                               }
-                                              className="h-4 min-w-[30px] text-[10px] px-1"
+                                              size="sm"
+                                              variant="flat"
                                             >
                                               {estoque.quantidade}
                                             </Chip>
@@ -1337,8 +1366,8 @@ export default function TransferenciaModal({
                                       {produto.estoques_lojas.filter(
                                         (estoque) =>
                                           lojasParaVisualizar.includes(
-                                            estoque.id_loja.toString()
-                                          )
+                                            estoque.id_loja.toString(),
+                                          ),
                                       ).length === 0 && (
                                         <span className="text-xs text-default-400 italic">
                                           Nenhuma das lojas selecionadas tem
@@ -1378,15 +1407,15 @@ export default function TransferenciaModal({
                   {totalPaginasProdutos > 1 && (
                     <div className="flex justify-center mt-4">
                       <Pagination
-                        total={totalPaginasProdutos}
-                        page={paginaAtual}
-                        onChange={setPaginaAtual}
-                        size="lg"
                         showControls
                         className="gap-2"
                         classNames={{
                           cursor: "bg-primary text-white",
                         }}
+                        page={paginaAtual}
+                        size="lg"
+                        total={totalPaginasProdutos}
+                        onChange={setPaginaAtual}
                       />
                     </div>
                   )}
@@ -1416,9 +1445,9 @@ export default function TransferenciaModal({
                   </div>
                   <Button
                     color="danger"
-                    variant="flat"
                     size="sm"
                     startContent={<TrashIcon className="h-4 w-4" />}
+                    variant="flat"
                     onPress={limparLista}
                   >
                     Limpar Lista
@@ -1430,9 +1459,10 @@ export default function TransferenciaModal({
                     // Calcular estoque previsto para cada loja
                     const calcularEstoquePrevisto = (
                       lojaId: number,
-                      estoqueAtual: number
+                      estoqueAtual: number,
                     ) => {
                       const lojaIdStr = lojaId.toString();
+
                       // Se for loja de origem deste item, diminui
                       if (lojaIdStr === item.loja_origem) {
                         return estoqueAtual - item.quantidade;
@@ -1441,6 +1471,7 @@ export default function TransferenciaModal({
                       if (lojaIdStr === item.loja_destino) {
                         return estoqueAtual + item.quantidade;
                       }
+
                       // Senão, mantém
                       return estoqueAtual;
                     };
@@ -1464,12 +1495,12 @@ export default function TransferenciaModal({
                           </div>
 
                           <Button
-                            color="danger"
-                            variant="light"
-                            size="sm"
                             isIconOnly
-                            onPress={() => removerItem(item.id_produto)}
                             className="flex-shrink-0"
+                            color="danger"
+                            size="sm"
+                            variant="light"
+                            onPress={() => removerItem(item.id_produto)}
                           >
                             ✕
                           </Button>
@@ -1478,64 +1509,9 @@ export default function TransferenciaModal({
                         {/* Seleção de Origem e Destino Individual */}
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <Select
-                            label="Origem"
-                            size="sm"
-                            selectedKeys={[item.loja_origem]}
-                            onSelectionChange={(keys) => {
-                              const novaOrigem = Array.from(keys)[0] as string;
-
-                              // Verificar se a loja tem estoque disponível
-                              const estoqueNaLoja = item.estoques_lojas?.find(
-                                (e) => e.id_loja === parseInt(novaOrigem)
-                              );
-                              const quantidadeDisponivel =
-                                estoqueNaLoja?.quantidade || 0;
-
-                              if (quantidadeDisponivel === 0) {
-                                toast.error(
-                                  `Esta loja não tem estoque de ${item.produto_descricao}`
-                                );
-                                return;
-                              }
-
-                              // Verificar se a quantidade solicitada é maior que o disponível
-                              if (item.quantidade > quantidadeDisponivel) {
-                                toast.warning(
-                                  `Quantidade ajustada de ${item.quantidade} para ${quantidadeDisponivel} (disponível na loja)`
-                                );
-                              }
-
-                              setItensTransferencia((prev) =>
-                                prev.map((i) =>
-                                  i.id_produto === item.id_produto
-                                    ? {
-                                        ...i,
-                                        loja_origem: novaOrigem,
-                                        // Ajustar quantidade se necessário
-                                        quantidade: Math.min(
-                                          item.quantidade,
-                                          quantidadeDisponivel
-                                        ),
-                                        // Resetar destino se igual à origem
-                                        loja_destino:
-                                          novaOrigem === i.loja_destino
-                                            ? ""
-                                            : i.loja_destino,
-                                      }
-                                    : i
-                                )
-                              );
-                            }}
                             classNames={{
                               trigger: "bg-content2",
                             }}
-                            disabledKeys={
-                              // Desabilitar lojas onde o produto tem estoque zerado OU insuficiente
-                              item.estoques_lojas
-                                ?.filter((estoque) => estoque.quantidade === 0)
-                                .map((estoque) => estoque.id_loja.toString()) ||
-                              []
-                            }
                             description={
                               item.loja_origem && item.estoques_lojas ? (
                                 <span className="text-xs">
@@ -1544,10 +1520,11 @@ export default function TransferenciaModal({
                                       item.estoques_lojas.find(
                                         (e) =>
                                           e.id_loja ===
-                                          parseInt(item.loja_origem)
+                                          parseInt(item.loja_origem),
                                       );
                                     const qtdDisp =
                                       estoqueOrigem?.quantidade || 0;
+
                                     return qtdDisp < item.quantidade ? (
                                       <span className="text-danger">
                                         ⚠ Disponível: {qtdDisp} | Necessário:{" "}
@@ -1563,10 +1540,66 @@ export default function TransferenciaModal({
                                 </span>
                               ) : null
                             }
+                            disabledKeys={
+                              // Desabilitar lojas onde o produto tem estoque zerado OU insuficiente
+                              item.estoques_lojas
+                                ?.filter((estoque) => estoque.quantidade === 0)
+                                .map((estoque) => estoque.id_loja.toString()) ||
+                              []
+                            }
+                            label="Origem"
+                            selectedKeys={[item.loja_origem]}
+                            size="sm"
+                            onSelectionChange={(keys) => {
+                              const novaOrigem = Array.from(keys)[0] as string;
+
+                              // Verificar se a loja tem estoque disponível
+                              const estoqueNaLoja = item.estoques_lojas?.find(
+                                (e) => e.id_loja === parseInt(novaOrigem),
+                              );
+                              const quantidadeDisponivel =
+                                estoqueNaLoja?.quantidade || 0;
+
+                              if (quantidadeDisponivel === 0) {
+                                toast.error(
+                                  `Esta loja não tem estoque de ${item.produto_descricao}`,
+                                );
+
+                                return;
+                              }
+
+                              // Verificar se a quantidade solicitada é maior que o disponível
+                              if (item.quantidade > quantidadeDisponivel) {
+                                toast.warning(
+                                  `Quantidade ajustada de ${item.quantidade} para ${quantidadeDisponivel} (disponível na loja)`,
+                                );
+                              }
+
+                              setItensTransferencia((prev) =>
+                                prev.map((i) =>
+                                  i.id_produto === item.id_produto
+                                    ? {
+                                        ...i,
+                                        loja_origem: novaOrigem,
+                                        // Ajustar quantidade se necessário
+                                        quantidade: Math.min(
+                                          item.quantidade,
+                                          quantidadeDisponivel,
+                                        ),
+                                        // Resetar destino se igual à origem
+                                        loja_destino:
+                                          novaOrigem === i.loja_destino
+                                            ? ""
+                                            : i.loja_destino,
+                                      }
+                                    : i,
+                                ),
+                              );
+                            }}
                           >
                             {lojas.map((loja) => {
                               const estoqueNaLoja = item.estoques_lojas?.find(
-                                (e) => e.id_loja === loja.id
+                                (e) => e.id_loja === loja.id,
                               );
                               const quantidade = estoqueNaLoja?.quantidade || 0;
 
@@ -1578,10 +1611,10 @@ export default function TransferenciaModal({
                                   <div className="flex justify-between items-center w-full">
                                     <span>{loja.nome}</span>
                                     <Chip
-                                      size="sm"
                                       color={
                                         quantidade === 0 ? "danger" : "success"
                                       }
+                                      size="sm"
                                       variant="flat"
                                     >
                                       {quantidade}
@@ -1593,27 +1626,28 @@ export default function TransferenciaModal({
                           </Select>
 
                           <Select
+                            classNames={{
+                              trigger: "bg-content2",
+                            }}
+                            isDisabled={!item.loja_origem}
                             label="Destino"
-                            size="sm"
                             selectedKeys={[item.loja_destino]}
+                            size="sm"
                             onSelectionChange={(keys) => {
                               const novoDestino = Array.from(keys)[0] as string;
+
                               setItensTransferencia((prev) =>
                                 prev.map((i) =>
                                   i.id_produto === item.id_produto
                                     ? { ...i, loja_destino: novoDestino }
-                                    : i
-                                )
+                                    : i,
+                                ),
                               );
-                            }}
-                            isDisabled={!item.loja_origem}
-                            classNames={{
-                              trigger: "bg-content2",
                             }}
                           >
                             {lojas
                               .filter(
-                                (l) => l.id.toString() !== item.loja_origem
+                                (l) => l.id.toString() !== item.loja_origem,
                               )
                               .map((loja) => (
                                 <SelectItem key={loja.id.toString()}>
@@ -1627,15 +1661,15 @@ export default function TransferenciaModal({
                         <div className="space-y-2 mb-3">
                           {item.loja_origem && item.loja_destino && (
                             <div className="flex items-center gap-2 justify-center">
-                              <Chip color="primary" variant="flat" size="sm">
+                              <Chip color="primary" size="sm" variant="flat">
                                 {lojas.find(
-                                  (l) => l.id === parseInt(item.loja_origem)
+                                  (l) => l.id === parseInt(item.loja_origem),
                                 )?.nome || "Origem"}
                               </Chip>
                               <ArrowRightIcon className="h-4 w-4 text-success" />
-                              <Chip color="success" variant="flat" size="sm">
+                              <Chip color="success" size="sm" variant="flat">
                                 {lojas.find(
-                                  (l) => l.id === parseInt(item.loja_destino)
+                                  (l) => l.id === parseInt(item.loja_destino),
                                 )?.nome || "Destino"}
                               </Chip>
                             </div>
@@ -1643,56 +1677,6 @@ export default function TransferenciaModal({
 
                           {/* Input de Quantidade */}
                           <Input
-                            type="number"
-                            label="Quantidade"
-                            size="sm"
-                            value={item.quantidade.toString()}
-                            onValueChange={(value) => {
-                              const novaQtd = parseInt(value) || 1;
-
-                              // Verificar estoque na loja de origem se já foi selecionada
-                              let maxQtd = item.quantidade_disponivel;
-                              if (item.loja_origem && item.estoques_lojas) {
-                                const estoqueOrigem = item.estoques_lojas.find(
-                                  (e) =>
-                                    e.id_loja === parseInt(item.loja_origem)
-                                );
-                                maxQtd = estoqueOrigem?.quantidade || 0;
-                              }
-
-                              if (novaQtd > maxQtd) {
-                                toast.warning(
-                                  `Quantidade ajustada para ${maxQtd} (máximo disponível${item.loja_origem ? " na loja de origem" : ""})`
-                                );
-                                setItensTransferencia((prev) =>
-                                  prev.map((i) =>
-                                    i.id_produto === item.id_produto
-                                      ? { ...i, quantidade: maxQtd }
-                                      : i
-                                  )
-                                );
-                                return;
-                              }
-
-                              if (novaQtd > 0) {
-                                setItensTransferencia((prev) =>
-                                  prev.map((i) =>
-                                    i.id_produto === item.id_produto
-                                      ? { ...i, quantidade: novaQtd }
-                                      : i
-                                  )
-                                );
-                              }
-                            }}
-                            min={1}
-                            max={
-                              item.loja_origem && item.estoques_lojas
-                                ? item.estoques_lojas.find(
-                                    (e) =>
-                                      e.id_loja === parseInt(item.loja_origem)
-                                  )?.quantidade || 0
-                                : item.quantidade_disponivel
-                            }
                             classNames={{
                               inputWrapper: "bg-content2",
                             }}
@@ -1703,21 +1687,75 @@ export default function TransferenciaModal({
                                       item.estoques_lojas.find(
                                         (e) =>
                                           e.id_loja ===
-                                          parseInt(item.loja_origem)
+                                          parseInt(item.loja_origem),
                                       );
                                     const maxDisp =
                                       estoqueOrigem?.quantidade || 0;
+
                                     return `Máx: ${maxDisp} (na loja de origem)`;
                                   })()
                                 : `Máx: ${item.quantidade_disponivel}`
                             }
+                            label="Quantidade"
+                            max={
+                              item.loja_origem && item.estoques_lojas
+                                ? item.estoques_lojas.find(
+                                    (e) =>
+                                      e.id_loja === parseInt(item.loja_origem),
+                                  )?.quantidade || 0
+                                : item.quantidade_disponivel
+                            }
+                            min={1}
+                            size="sm"
+                            type="number"
+                            value={item.quantidade.toString()}
+                            onValueChange={(value) => {
+                              const novaQtd = parseInt(value) || 1;
+
+                              // Verificar estoque na loja de origem se já foi selecionada
+                              let maxQtd = item.quantidade_disponivel;
+
+                              if (item.loja_origem && item.estoques_lojas) {
+                                const estoqueOrigem = item.estoques_lojas.find(
+                                  (e) =>
+                                    e.id_loja === parseInt(item.loja_origem),
+                                );
+
+                                maxQtd = estoqueOrigem?.quantidade || 0;
+                              }
+
+                              if (novaQtd > maxQtd) {
+                                toast.warning(
+                                  `Quantidade ajustada para ${maxQtd} (máximo disponível${item.loja_origem ? " na loja de origem" : ""})`,
+                                );
+                                setItensTransferencia((prev) =>
+                                  prev.map((i) =>
+                                    i.id_produto === item.id_produto
+                                      ? { ...i, quantidade: maxQtd }
+                                      : i,
+                                  ),
+                                );
+
+                                return;
+                              }
+
+                              if (novaQtd > 0) {
+                                setItensTransferencia((prev) =>
+                                  prev.map((i) =>
+                                    i.id_produto === item.id_produto
+                                      ? { ...i, quantidade: novaQtd }
+                                      : i,
+                                  ),
+                                );
+                              }
+                            }}
                           />
                         </div>
 
                         {/* Informações básicas */}
                         <div className="flex items-center gap-2 mb-3">
                           {item.preco_venda && (
-                            <Chip color="success" variant="flat" size="sm">
+                            <Chip color="success" size="sm" variant="flat">
                               R${" "}
                               {(
                                 item.preco_venda * item.quantidade
@@ -1740,17 +1778,17 @@ export default function TransferenciaModal({
                                 {lojasParaVisualizar.map((lojaIdStr) => {
                                   const lojaId = parseInt(lojaIdStr);
                                   const estoqueLoja = item.estoques_lojas?.find(
-                                    (e) => e.id_loja === lojaId
+                                    (e) => e.id_loja === lojaId,
                                   );
                                   const estoqueAtual =
                                     estoqueLoja?.quantidade || 0;
                                   const estoquePrevisto =
                                     calcularEstoquePrevisto(
                                       lojaId,
-                                      estoqueAtual
+                                      estoqueAtual,
                                     );
                                   const loja = lojas.find(
-                                    (l) => l.id === lojaId
+                                    (l) => l.id === lojaId,
                                   );
                                   const houveAlteracao =
                                     estoqueAtual !== estoquePrevisto;
@@ -1771,14 +1809,14 @@ export default function TransferenciaModal({
                                       </div>
                                       <div className="flex items-center gap-2">
                                         <Chip
+                                          className="min-w-[60px]"
                                           color={
                                             estoqueAtual > 0
                                               ? "default"
                                               : "danger"
                                           }
-                                          variant="flat"
                                           size="sm"
-                                          className="min-w-[60px]"
+                                          variant="flat"
                                         >
                                           Atual: {estoqueAtual}
                                         </Chip>
@@ -1786,6 +1824,7 @@ export default function TransferenciaModal({
                                           <>
                                             <ArrowRightIcon className="h-3 w-3 text-default-400" />
                                             <Chip
+                                              className="min-w-[60px]"
                                               color={
                                                 estoquePrevisto > estoqueAtual
                                                   ? "success"
@@ -1794,9 +1833,8 @@ export default function TransferenciaModal({
                                                     ? "warning"
                                                     : "default"
                                               }
-                                              variant="flat"
                                               size="sm"
-                                              className="min-w-[60px]"
+                                              variant="flat"
                                             >
                                               Após: {estoquePrevisto}
                                             </Chip>
@@ -1818,15 +1856,15 @@ export default function TransferenciaModal({
                 {totalPaginasLista > 1 && (
                   <div className="flex justify-center mt-4 pt-4 border-t border-divider">
                     <Pagination
-                      total={totalPaginasLista}
-                      page={paginaAtualLista}
-                      onChange={setPaginaAtualLista}
-                      size="lg"
                       showControls
                       className="gap-2"
                       classNames={{
                         cursor: "bg-primary text-white",
                       }}
+                      page={paginaAtualLista}
+                      size="lg"
+                      total={totalPaginasLista}
+                      onChange={setPaginaAtualLista}
                     />
                   </div>
                 )}
@@ -1839,15 +1877,15 @@ export default function TransferenciaModal({
             <Card className="bg-content2 shadow-md">
               <CardBody className="p-6">
                 <Textarea
-                  label="Observação (Opcional)"
-                  placeholder="Adicione uma observação sobre esta transferência..."
-                  value={observacao}
-                  onValueChange={setObservacao}
-                  minRows={2}
-                  maxRows={4}
                   classNames={{
                     inputWrapper: "bg-content1",
                   }}
+                  label="Observação (Opcional)"
+                  maxRows={4}
+                  minRows={2}
+                  placeholder="Adicione uma observação sobre esta transferência..."
+                  value={observacao}
+                  onValueChange={setObservacao}
                 />
               </CardBody>
             </Card>
@@ -1892,16 +1930,18 @@ export default function TransferenciaModal({
             {itensTransferencia.length > 0 && (
               <>
                 <Button
-                  variant="flat"
                   color="secondary"
                   size="lg"
                   startContent={<PrinterIcon className="h-5 w-5" />}
+                  variant="flat"
                   onPress={() => {
                     // Agrupar itens por par de lojas
                     const grupos: Record<string, typeof itensTransferencia> =
                       {};
+
                     itensTransferencia.forEach((item) => {
                       const chave = `${item.loja_origem}->${item.loja_destino}`;
+
                       if (!grupos[chave]) {
                         grupos[chave] = [];
                       }
@@ -1932,6 +1972,7 @@ export default function TransferenciaModal({
                           quantidade: item.quantidade,
                         })),
                       };
+
                       gerarRelatorioTransferenciaDetalhado(transferenciaTemp);
                     });
                   }}
@@ -1939,16 +1980,18 @@ export default function TransferenciaModal({
                   Detalhado
                 </Button>
                 <Button
-                  variant="flat"
                   color="secondary"
                   size="lg"
                   startContent={<DocumentTextIcon className="h-5 w-5" />}
+                  variant="flat"
                   onPress={() => {
                     // Agrupar itens por par de lojas
                     const grupos: Record<string, typeof itensTransferencia> =
                       {};
+
                     itensTransferencia.forEach((item) => {
                       const chave = `${item.loja_origem}->${item.loja_destino}`;
+
                       if (!grupos[chave]) {
                         grupos[chave] = [];
                       }
@@ -1979,6 +2022,7 @@ export default function TransferenciaModal({
                           quantidade: item.quantidade,
                         })),
                       };
+
                       gerarRelatorioTransferenciaResumido(transferenciaTemp);
                     });
                   }}
@@ -1990,18 +2034,15 @@ export default function TransferenciaModal({
           </div>
 
           <Button
-            variant="light"
-            onPress={onClose}
             isDisabled={loading}
             size="lg"
+            variant="light"
+            onPress={onClose}
           >
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleTransferir}
-            isLoading={loading}
-            size="lg"
             isDisabled={
               itensTransferencia.length === 0 ||
               loading ||
@@ -2009,10 +2050,13 @@ export default function TransferenciaModal({
                 (item) =>
                   item.loja_origem &&
                   item.loja_destino &&
-                  item.loja_origem !== item.loja_destino
+                  item.loja_origem !== item.loja_destino,
               )
             }
+            isLoading={loading}
+            size="lg"
             startContent={!loading && <CheckCircleIcon className="h-5 w-5" />}
+            onPress={handleTransferir}
           >
             {loading ? "Criando..." : "Criar Transferência Pendente"}
           </Button>

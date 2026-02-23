@@ -13,7 +13,7 @@ export function ReloadDetector() {
       reloadCount++;
       if (reloadCount % 10 === 0) {
         console.warn(
-          `⚠️ [ReloadDetector] Componente ativo há ${reloadCount} segundos`
+          `⚠️ [ReloadDetector] Componente ativo há ${reloadCount} segundos`,
         );
       }
     }, 1000);
@@ -27,7 +27,7 @@ export function ReloadDetector() {
     const handleVisibilityChange = () => {
       console.log(
         "👁️ [ReloadDetector] Visibilidade:",
-        document.hidden ? "Oculta" : "Visível"
+        document.hidden ? "Oculta" : "Visível",
       );
     };
 
@@ -43,7 +43,7 @@ export function ReloadDetector() {
       console.log(
         "❌ [ReloadDetector] Componente desmontado após",
         reloadCount,
-        "segundos"
+        "segundos",
       );
       clearInterval(checkInterval);
       window.removeEventListener("beforeunload", handleBeforeUnload);
@@ -53,7 +53,7 @@ export function ReloadDetector() {
 
   useEffect(() => {
     console.log(
-      "🔍 [ReloadDetector] useEffect disparado - pode indicar re-renderização"
+      "🔍 [ReloadDetector] useEffect disparado - pode indicar re-renderização",
     );
   });
 

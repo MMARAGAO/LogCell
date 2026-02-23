@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
+
 import { supabase } from "@/lib/supabaseClient";
 
 /**
@@ -15,6 +16,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Não verificar sessão em páginas de autenticação
     const isAuthPage = pathname?.startsWith("/auth");
+
     if (isAuthPage) {
       return;
     }
@@ -42,6 +44,7 @@ export function SessionGuard({ children }: { children: React.ReactNode }) {
       if (event === "SIGNED_OUT" || (!session && event === "TOKEN_REFRESHED")) {
         console.warn("⚠️ Sessão expirada (evento: " + event + ")");
         const isAuthPage = window.location.pathname.startsWith("/auth");
+
         if (!isAuthPage) {
           router.push("/auth");
         }

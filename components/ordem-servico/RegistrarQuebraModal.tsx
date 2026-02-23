@@ -12,13 +12,14 @@ import { Input, Textarea } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Checkbox } from "@heroui/checkbox";
 import { useState, useEffect } from "react";
-import { useToast } from "@/components/Toast";
 import {
   ExclamationTriangleIcon,
   PlusIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
+
+import { useToast } from "@/components/Toast";
 
 interface RegistrarQuebraModalProps {
   isOpen: boolean;
@@ -94,7 +95,7 @@ export default function RegistrarQuebraModal({
   const carregarProdutos = async () => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -114,7 +115,7 @@ export default function RegistrarQuebraModal({
             descricao,
             preco_venda
           )
-        `
+        `,
         )
         .eq("id_ordem_servico", ordemServicoId);
 
@@ -148,7 +149,7 @@ export default function RegistrarQuebraModal({
       // Remover duplicatas (caso o mesmo produto do estoque apareça mais de uma vez)
       const produtosUnicos = produtosDaOS.filter(
         (produto: any, index: number, self: any[]) =>
-          self.findIndex((p) => p.id === produto.id) === index
+          self.findIndex((p) => p.id === produto.id) === index,
       );
 
       console.log("Produtos carregados (estoque + externos):", produtosUnicos);
@@ -162,7 +163,7 @@ export default function RegistrarQuebraModal({
   const carregarQuebrasExistentes = async () => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -177,6 +178,7 @@ export default function RegistrarQuebraModal({
       // Agrupar por produto e somar quantidades
       // Para peças externas (id_produto null), usa o produto_descricao como chave
       const quebrasMap: Record<string, number> = {};
+
       (data || []).forEach((quebra: any) => {
         // Define a chave: para externos usa descricao, para internos usa id
         const chave =
@@ -203,20 +205,24 @@ export default function RegistrarQuebraModal({
 
     if (!produtoSelecionado) {
       toast.error("Selecione o produto");
+
       return;
     }
 
     if (!motivo.trim()) {
       toast.error("Descreva o motivo da quebra/perda");
+
       return;
     }
 
     // Buscar info do produto
     const produto = produtos.find((p) => p.id === produtoSelecionado);
+
     console.log("Produto encontrado:", produto);
 
     if (!produto) {
       toast.error("Produto não encontrado");
+
       return;
     }
 
@@ -234,16 +240,20 @@ export default function RegistrarQuebraModal({
       if (produto.tipo === "estoque") {
         // Produto interno: compara ID
         const duplicado = q.id_produto === produtoSelecionado;
+
         console.log(
-          `Produto estoque - ID ${q.id_produto} === ${produtoSelecionado}? ${duplicado}`
+          `Produto estoque - ID ${q.id_produto} === ${produtoSelecionado}? ${duplicado}`,
         );
+
         return duplicado;
       } else {
         // Peça externa: compara pelo nome do produto
         const duplicado = q.produto_nome === produto.descricao;
+
         console.log(
-          `Peça externa - Nome "${q.produto_nome}" === "${produto.descricao}"? ${duplicado}`
+          `Peça externa - Nome "${q.produto_nome}" === "${produto.descricao}"? ${duplicado}`,
         );
+
         return duplicado;
       }
     });
@@ -252,8 +262,9 @@ export default function RegistrarQuebraModal({
 
     if (produtoJaAdicionado) {
       toast.error(
-        "Este produto já foi adicionado à lista. Remova o item anterior para adicionar novamente com valores diferentes."
+        "Este produto já foi adicionado à lista. Remova o item anterior para adicionar novamente com valores diferentes.",
       );
+
       return;
     }
 
@@ -273,9 +284,11 @@ export default function RegistrarQuebraModal({
 
     if (jaRegistradoNoBanco) {
       const quantidadeJaRegistrada = quebrasExistentes[chaveParaBusca] || 0;
+
       toast.error(
-        `Este produto já foi registrado anteriormente (${quantidadeJaRegistrada} quebra(s)). Não é possível adicionar mais quebras do mesmo produto.`
+        `Este produto já foi registrado anteriormente (${quantidadeJaRegistrada} quebra(s)). Não é possível adicionar mais quebras do mesmo produto.`,
       );
+
       return;
     }
 
@@ -302,8 +315,9 @@ export default function RegistrarQuebraModal({
     // Validar se não excede a quantidade disponível na OS
     if (quantidadeTotal > produto.quantidade_na_os) {
       toast.error(
-        `Não é possível adicionar. Total de quebras (${quantidadeTotal}) excederia a quantidade disponível na OS (${produto.quantidade_na_os}). Já foram registradas ${quantidadeNoBank} quebra(s) anteriormente.`
+        `Não é possível adicionar. Total de quebras (${quantidadeTotal}) excederia a quantidade disponível na OS (${produto.quantidade_na_os}). Já foram registradas ${quantidadeNoBank} quebra(s) anteriormente.`,
       );
+
       return;
     }
 
@@ -340,13 +354,14 @@ export default function RegistrarQuebraModal({
 
     if (quebrasLista.length === 0) {
       toast.error("Adicione pelo menos uma quebra antes de registrar");
+
       return;
     }
 
     setLoading(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -387,8 +402,9 @@ export default function RegistrarQuebraModal({
       console.log("Quebras registradas com sucesso!");
 
       const totalQuebras = quebrasLista.length;
+
       toast.success(
-        `${totalQuebras} quebra(s) registrada(s)! Aguardando aprovação do administrador`
+        `${totalQuebras} quebra(s) registrada(s)! Aguardando aprovação do administrador`,
       );
       setQuebrasLista([]);
       limparFormulario();
@@ -403,7 +419,7 @@ export default function RegistrarQuebraModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="2xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <ExclamationTriangleIcon className="w-5 h-5 text-warning" />
@@ -430,17 +446,9 @@ export default function RegistrarQuebraModal({
 
             {/* Produto */}
             <Select
-              label="Produto/Peça que quebrou"
-              placeholder="Selecione o produto"
-              selectedKeys={
-                produtoSelecionado ? [produtoSelecionado] : undefined
-              }
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys as Set<string>)[0];
-                const value = selected || "";
-                console.log("Produto selecionado:", value);
-                console.log("Keys recebidas:", keys);
-                setProdutoSelecionado(value);
+              classNames={{
+                trigger: "min-h-12",
+                value: "text-default-900",
               }}
               description={
                 produtos.length > 0
@@ -448,10 +456,19 @@ export default function RegistrarQuebraModal({
                   : "Nenhum produto vinculado a esta OS"
               }
               isDisabled={produtos.length === 0}
+              label="Produto/Peça que quebrou"
+              placeholder="Selecione o produto"
+              selectedKeys={
+                produtoSelecionado ? [produtoSelecionado] : undefined
+              }
               variant="bordered"
-              classNames={{
-                trigger: "min-h-12",
-                value: "text-default-900",
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys as Set<string>)[0];
+                const value = selected || "";
+
+                console.log("Produto selecionado:", value);
+                console.log("Keys recebidas:", keys);
+                setProdutoSelecionado(value);
               }}
             >
               {produtos.map((produto) => {
@@ -499,9 +516,9 @@ export default function RegistrarQuebraModal({
                 return (
                   <SelectItem
                     key={produto.id}
-                    textValue={produto.descricao}
-                    isDisabled={disponivel <= 0}
                     className={disponivel <= 0 ? "opacity-50" : ""}
+                    isDisabled={disponivel <= 0}
+                    textValue={produto.descricao}
                   >
                     <div className="flex justify-between items-center gap-2">
                       <span className="flex-1">{produto.descricao}</span>
@@ -551,22 +568,23 @@ export default function RegistrarQuebraModal({
 
             {/* Quantidade */}
             <Input
-              type="number"
               label="Quantidade"
+              min={1}
+              type="number"
               value={quantidade}
               onChange={(e) => setQuantidade(e.target.value)}
-              min={1}
             />
 
             {/* Tipo de Ocorrência */}
             <Select
+              disallowEmptySelection
               label="Tipo de Ocorrência"
               selectedKeys={[tipoOcorrencia]}
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0];
+
                 setTipoOcorrencia(selected ? String(selected) : "quebra");
               }}
-              disallowEmptySelection
             >
               <SelectItem key="quebra">🔨 Quebra (durante o reparo)</SelectItem>
               <SelectItem key="defeito">
@@ -580,14 +598,15 @@ export default function RegistrarQuebraModal({
 
             {/* Responsável */}
             <Select
+              disallowEmptySelection
+              description="Quem causou ou foi responsável pela ocorrência"
               label="Responsável"
               selectedKeys={[responsavel]}
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0];
+
                 setResponsavel(selected ? String(selected) : "tecnico");
               }}
-              description="Quem causou ou foi responsável pela ocorrência"
-              disallowEmptySelection
             >
               <SelectItem key="tecnico">👤 Técnico</SelectItem>
               <SelectItem key="fornecedor">
@@ -603,12 +622,12 @@ export default function RegistrarQuebraModal({
 
             {/* Motivo */}
             <Textarea
+              isRequired
               label="Motivo Detalhado"
+              minRows={3}
               placeholder="Descreva o que aconteceu com a peça..."
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              minRows={3}
-              isRequired
             />
 
             {/* Descontar do Técnico */}
@@ -642,11 +661,11 @@ export default function RegistrarQuebraModal({
 
             {/* Botão Adicionar à Lista */}
             <Button
+              className="w-full"
               color="primary"
+              startContent={<PlusIcon className="w-4 h-4" />}
               variant="flat"
               onPress={adicionarQuebraALista}
-              startContent={<PlusIcon className="w-4 h-4" />}
-              className="w-full"
             >
               Adicionar Quebra à Lista
             </Button>
@@ -681,8 +700,8 @@ export default function RegistrarQuebraModal({
                         </div>
                         <Button
                           isIconOnly
-                          size="sm"
                           color="danger"
+                          size="sm"
                           variant="light"
                           onPress={() => removerQuebraDaLista(index)}
                         >
@@ -715,10 +734,10 @@ export default function RegistrarQuebraModal({
           </Button>
           <Button
             color="danger"
-            onPress={registrarQuebras}
-            isLoading={loading}
             isDisabled={quebrasLista.length === 0}
+            isLoading={loading}
             startContent={<ExclamationTriangleIcon className="w-4 h-4" />}
+            onPress={registrarQuebras}
           >
             Registrar {quebrasLista.length > 0 && `(${quebrasLista.length})`}{" "}
             Quebra(s)

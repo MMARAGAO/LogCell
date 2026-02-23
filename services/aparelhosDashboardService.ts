@@ -12,13 +12,33 @@ export interface KpisAparelhos {
 }
 
 export class AparelhosDashboardService {
-  static async getKpis(params: { loja_id?: number; data?: Date } = {}): Promise<KpisAparelhos> {
+  static async getKpis(
+    params: { loja_id?: number; data?: Date } = {},
+  ): Promise<KpisAparelhos> {
     const hoje = params.data ? new Date(params.data) : new Date();
-    const inicioHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    const fimHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59);
+    const inicioHoje = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth(),
+      hoje.getDate(),
+    );
+    const fimHoje = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth(),
+      hoje.getDate(),
+      23,
+      59,
+      59,
+    );
 
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+    const fimMes = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
 
     let vendasHoje = 0;
     let recebimentosHoje = 0;
@@ -41,6 +61,7 @@ export class AparelhosDashboardService {
       if (params.loja_id) query = query.eq("loja_id", params.loja_id);
 
       const { data } = await query;
+
       vendasHoje = (data || []).length;
     }
 
@@ -48,20 +69,25 @@ export class AparelhosDashboardService {
     {
       let query = supabase
         .from("pagamentos_venda")
-        .select("valor, venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)")
+        .select(
+          "valor, venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)",
+        )
         .gte("data_pagamento", inicioHoje.toISOString())
         .lte("data_pagamento", fimHoje.toISOString());
 
       if (params.loja_id) query = query.eq("venda.loja_id", params.loja_id);
 
       const { data } = await query;
-      const vendaIds = Array.from(new Set((data || []).map((p: any) => p.venda_id)));
+      const vendaIds = Array.from(
+        new Set((data || []).map((p: any) => p.venda_id)),
+      );
 
       let relacionados = 0;
+
       if (vendaIds.length > 0) {
         const setVendasAparelhos = new Set<string>();
         const batchSize = 50;
-        
+
         // Processar em batches para evitar URL muito longa
         for (let i = 0; i < vendaIds.length; i += batchSize) {
           const batch = vendaIds.slice(i, i + batchSize);
@@ -69,11 +95,15 @@ export class AparelhosDashboardService {
             .from("aparelhos")
             .select("venda_id")
             .in("venda_id", batch);
-          (aparelhos || []).forEach((a: any) => setVendasAparelhos.add(a.venda_id));
+
+          (aparelhos || []).forEach((a: any) =>
+            setVendasAparelhos.add(a.venda_id),
+          );
         }
-        
+
         (data || []).forEach((p: any) => {
-          if (setVendasAparelhos.has(p.venda_id)) relacionados += Number(p.valor || 0);
+          if (setVendasAparelhos.has(p.venda_id))
+            relacionados += Number(p.valor || 0);
         });
       }
       recebimentosHoje = relacionados;
@@ -86,14 +116,16 @@ export class AparelhosDashboardService {
         .select("id, saldo_devedor, loja_id")
         .gt("saldo_devedor", 0);
 
-      if (params.loja_id) queryVendas = queryVendas.eq("loja_id", params.loja_id);
+      if (params.loja_id)
+        queryVendas = queryVendas.eq("loja_id", params.loja_id);
 
       const { data: vendas } = await queryVendas;
       const vendaIds = (vendas || []).map((v) => v.id);
+
       if (vendaIds.length > 0) {
         const setVendasAparelhos = new Set<string>();
         const batchSize = 50;
-        
+
         // Processar em batches para evitar URL muito longa
         for (let i = 0; i < vendaIds.length; i += batchSize) {
           const batch = vendaIds.slice(i, i + batchSize);
@@ -101,11 +133,16 @@ export class AparelhosDashboardService {
             .from("aparelhos")
             .select("venda_id")
             .in("venda_id", batch);
-          (aparelhos || []).forEach((a: any) => setVendasAparelhos.add(a.venda_id));
+
+          (aparelhos || []).forEach((a: any) =>
+            setVendasAparelhos.add(a.venda_id),
+          );
         }
-        
+
         aReceber = (vendas || []).reduce((sum, v: any) => {
-          if (setVendasAparelhos.has(v.id)) return sum + Number(v.saldo_devedor || 0);
+          if (setVendasAparelhos.has(v.id))
+            return sum + Number(v.saldo_devedor || 0);
+
           return sum;
         }, 0);
       }
@@ -133,10 +170,12 @@ export class AparelhosDashboardService {
 
         const { data } = await query;
         const batch = data || [];
+
         totalQtd += batch.length;
         batch.forEach((a: any) => {
           const vv = Number(a.valor_venda || 0);
           const vc = Number(a.valor_compra || 0);
+
           totalValor += vv;
           totalLucro += vv - vc;
         });
@@ -170,6 +209,7 @@ export class AparelhosDashboardService {
 
         const { data } = await query;
         const batch = data || [];
+
         totalDisp += batch.length;
         if (batch.length < pageSize) break;
         from += pageSize;
@@ -179,7 +219,16 @@ export class AparelhosDashboardService {
       disponiveis = totalDisp;
     }
 
-    return { vendasHoje, recebimentosHoje, aReceber, vendasMes, disponiveis, valorVendidoMes, ticketMedioMes, lucroEstimadoMes };
+    return {
+      vendasHoje,
+      recebimentosHoje,
+      aReceber,
+      vendasMes,
+      disponiveis,
+      valorVendidoMes,
+      ticketMedioMes,
+      lucroEstimadoMes,
+    };
   }
 
   static async getUltimasVendasAparelhos(loja_id?: number, limit: number = 10) {
@@ -193,6 +242,7 @@ export class AparelhosDashboardService {
     if (loja_id) query = query.eq("loja_id", loja_id);
 
     const { data } = await query;
+
     return data || [];
   }
 
@@ -200,7 +250,9 @@ export class AparelhosDashboardService {
     // Vendas com saldo_devedor > 0 que estão relacionadas com aparelhos
     let queryVendas = supabase
       .from("vendas")
-      .select("id, numero_venda, cliente_id, valor_total, valor_pago, saldo_devedor, loja_id")
+      .select(
+        "id, numero_venda, cliente_id, valor_total, valor_pago, saldo_devedor, loja_id",
+      )
       .gt("saldo_devedor", 0)
       .order("criado_em", { ascending: false })
       .limit(200);

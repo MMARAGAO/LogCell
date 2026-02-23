@@ -17,6 +17,7 @@ import {
   Divider,
 } from "@heroui/react";
 import { DollarSign, Trash2, CreditCard } from "lucide-react";
+
 import { useToast } from "@/components/Toast";
 import { OrdemServico } from "@/types/ordemServico";
 
@@ -76,6 +77,7 @@ export default function PagamentoOSModal({
   const carregarCreditoCliente = async () => {
     if (!os?.cliente_nome) {
       setCreditoDisponivel(0);
+
       return;
     }
 
@@ -92,6 +94,7 @@ export default function PagamentoOSModal({
 
       if (erroCliente || !cliente) {
         setCreditoDisponivel(0);
+
         return;
       }
 
@@ -105,6 +108,7 @@ export default function PagamentoOSModal({
       if (error) throw error;
 
       const total = creditos?.reduce((sum, c) => sum + Number(c.saldo), 0) || 0;
+
       setCreditoDisponivel(total);
     } catch (error: any) {
       console.error("Erro ao carregar crédito do cliente:", error);
@@ -141,6 +145,7 @@ export default function PagamentoOSModal({
   const calcularValorTotal = () => {
     const valorBase = os?.valor_orcamento || os?.valor_total || 0;
     const desconto = parseFloat(valorDesconto) || 0;
+
     return valorBase - desconto;
   };
 
@@ -159,17 +164,21 @@ export default function PagamentoOSModal({
 
     if (desconto < 0) {
       toast.error("O desconto não pode ser negativo");
+
       return;
     }
 
     const valorBase = os.valor_orcamento || os.valor_total || 0;
+
     if (desconto > valorBase) {
       toast.error("O desconto não pode ser maior que o valor da OS");
+
       return;
     }
 
     if (desconto > 0 && !motivoDesconto.trim()) {
       toast.error("Informe o motivo do desconto");
+
       return;
     }
 
@@ -223,11 +232,13 @@ export default function PagamentoOSModal({
 
     if (!valor || valor <= 0) {
       toast.error("Informe um valor válido para o pagamento");
+
       return;
     }
 
     if (!dataPagamento) {
       toast.error("Informe a data do pagamento");
+
       return;
     }
 
@@ -235,6 +246,7 @@ export default function PagamentoOSModal({
     if (formaPagamento === "credito_cliente") {
       if (creditoDisponivel <= 0) {
         toast.error("Cliente não possui crédito disponível");
+
         return;
       }
 
@@ -242,15 +254,18 @@ export default function PagamentoOSModal({
         toast.error(
           `Crédito insuficiente. Disponível: R$ ${creditoDisponivel.toFixed(2)}`,
         );
+
         return;
       }
     }
 
     const saldoRestante = calcularSaldoRestante();
+
     if (valor > saldoRestante) {
       const confirmar = confirm(
         `O valor informado (R$ ${valor.toFixed(2)}) é maior que o saldo restante (R$ ${saldoRestante.toFixed(2)}). Deseja continuar?`,
       );
+
       if (!confirmar) return;
     }
 
@@ -289,6 +304,7 @@ export default function PagamentoOSModal({
 
         // Dar baixa nos créditos
         let valorRestante = valor;
+
         for (const credito of creditos) {
           if (valorRestante <= 0) break;
 
@@ -362,6 +378,7 @@ export default function PagamentoOSModal({
     const confirmar = confirm(
       `Deseja realmente remover este pagamento de R$ ${pagamento.valor.toFixed(2)}?`,
     );
+
     if (!confirmar) return;
 
     setLoading(true);
@@ -416,13 +433,14 @@ export default function PagamentoOSModal({
       cheque: "Cheque",
       credito_cliente: "Crédito do Cliente",
     };
+
     return formas[forma] || forma;
   };
 
   if (!os) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -535,34 +553,34 @@ export default function PagamentoOSModal({
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
-                    label="Valor do Desconto"
-                    type="number"
-                    placeholder="0.00"
-                    value={valorDesconto}
-                    onValueChange={setValorDesconto}
-                    variant="bordered"
-                    startContent={<span className="text-default-400">R$</span>}
                     description="Valor a ser descontado do total"
+                    label="Valor do Desconto"
+                    placeholder="0.00"
+                    startContent={<span className="text-default-400">R$</span>}
+                    type="number"
+                    value={valorDesconto}
+                    variant="bordered"
+                    onValueChange={setValorDesconto}
                   />
 
                   <Input
+                    description="Obrigatório para descontos"
                     label="Motivo do Desconto"
                     placeholder="Ex: Cliente fidelizado, promoção..."
                     value={motivoDesconto}
-                    onValueChange={setMotivoDesconto}
                     variant="bordered"
-                    description="Obrigatório para descontos"
+                    onValueChange={setMotivoDesconto}
                   />
                 </div>
                 <div className="mt-3 flex justify-end">
                   <Button
                     color="danger"
-                    variant="flat"
-                    onPress={aplicarDesconto}
-                    isLoading={aplicandoDesconto}
                     isDisabled={
                       !valorDesconto || parseFloat(valorDesconto) <= 0
                     }
+                    isLoading={aplicandoDesconto}
+                    variant="flat"
+                    onPress={aplicarDesconto}
                   >
                     Aplicar Desconto
                   </Button>
@@ -584,31 +602,31 @@ export default function PagamentoOSModal({
                     label="Data do Pagamento"
                     type="date"
                     value={dataPagamento}
-                    onValueChange={setDataPagamento}
                     variant="bordered"
+                    onValueChange={setDataPagamento}
                   />
 
                   <Input
                     label="Valor"
-                    type="number"
                     placeholder="0.00"
-                    value={valorPagamento}
-                    onValueChange={setValorPagamento}
-                    variant="bordered"
                     startContent={<span className="text-default-400">R$</span>}
+                    type="number"
+                    value={valorPagamento}
+                    variant="bordered"
+                    onValueChange={setValorPagamento}
                   />
 
                   <Select
-                    label="Forma de Pagamento"
-                    selectedKeys={[formaPagamento]}
-                    onSelectionChange={(keys) =>
-                      setFormaPagamento(Array.from(keys)[0] as string)
-                    }
-                    variant="bordered"
                     description={
                       formaPagamento === "credito_cliente"
                         ? `Saldo disponível: R$ ${creditoDisponivel.toFixed(2)}`
                         : undefined
+                    }
+                    label="Forma de Pagamento"
+                    selectedKeys={[formaPagamento]}
+                    variant="bordered"
+                    onSelectionChange={(keys) =>
+                      setFormaPagamento(Array.from(keys)[0] as string)
                     }
                   >
                     <SelectItem key="dinheiro">Dinheiro</SelectItem>
@@ -635,16 +653,16 @@ export default function PagamentoOSModal({
                     label="Observação (opcional)"
                     placeholder="Ex: Parcela 1/3"
                     value={observacaoPagamento}
-                    onValueChange={setObservacaoPagamento}
                     variant="bordered"
+                    onValueChange={setObservacaoPagamento}
                   />
                 </div>
 
                 <Button
-                  color="primary"
-                  onPress={adicionarPagamento}
-                  isLoading={loading}
                   className="w-full"
+                  color="primary"
+                  isLoading={loading}
+                  onPress={adicionarPagamento}
                 >
                   Adicionar Pagamento
                 </Button>
@@ -673,7 +691,7 @@ export default function PagamentoOSModal({
                             <span className="font-semibold text-success">
                               R$ {pag.valor.toFixed(2)}
                             </span>
-                            <Chip size="sm" variant="flat" color="primary">
+                            <Chip color="primary" size="sm" variant="flat">
                               {formatarFormaPagamento(pag.forma_pagamento)}
                             </Chip>
                           </div>
@@ -686,11 +704,11 @@ export default function PagamentoOSModal({
                         </div>
                         <Button
                           isIconOnly
-                          size="sm"
                           color="danger"
+                          isDisabled={loading}
+                          size="sm"
                           variant="light"
                           onPress={() => removerPagamento(pag)}
-                          isDisabled={loading}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

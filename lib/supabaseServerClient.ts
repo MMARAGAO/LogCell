@@ -36,6 +36,6 @@ export async function createServerSupabaseClient() {
           }
         },
       },
-    }
+    },
   );
 }

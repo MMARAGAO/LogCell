@@ -6,7 +6,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ usuarioId: string }> }
+  context: { params: Promise<{ usuarioId: string }> },
 ) {
   try {
     const params = await context.params;
@@ -22,9 +22,10 @@ export async function GET(
     return NextResponse.json({ permissoes });
   } catch (error) {
     console.error("Erro ao buscar permissões:", error);
+
     return NextResponse.json(
       { error: "Erro ao buscar permissões" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

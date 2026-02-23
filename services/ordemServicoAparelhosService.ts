@@ -13,7 +13,7 @@ import { OrdemServicoAparelho } from "@/types/ordemServico";
  * Buscar todos os aparelhos de uma OS
  */
 export async function buscarAparelhosOS(
-  idOrdemServico: string
+  idOrdemServico: string,
 ): Promise<{ data: OrdemServicoAparelho[] | null; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -24,9 +24,11 @@ export async function buscarAparelhosOS(
       .order("sequencia", { ascending: true });
 
     if (error) throw error;
+
     return { data: data as OrdemServicoAparelho[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar aparelhos da OS:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -36,11 +38,8 @@ export async function buscarAparelhosOS(
  */
 export async function adicionarAparelho(
   idOrdemServico: string,
-  aparelho: Omit<
-    OrdemServicoAparelho,
-    "id" | "criado_em" | "atualizado_em"
-  >,
-  userId: string
+  aparelho: Omit<OrdemServicoAparelho, "id" | "criado_em" | "atualizado_em">,
+  userId: string,
 ): Promise<{ data: OrdemServicoAparelho | null; error: string | null }> {
   try {
     // Buscar próxima sequência
@@ -75,6 +74,7 @@ export async function adicionarAparelho(
     return { data: data as OrdemServicoAparelho, error: null };
   } catch (error: any) {
     console.error("Erro ao adicionar aparelho:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -85,7 +85,7 @@ export async function adicionarAparelho(
 export async function atualizarAparelho(
   idAparelho: string,
   aparelho: Partial<OrdemServicoAparelho>,
-  userId: string
+  userId: string,
 ): Promise<{ data: OrdemServicoAparelho | null; error: string | null }> {
   try {
     const { data, error } = await supabase
@@ -108,12 +108,14 @@ export async function atualizarAparelho(
       aparelho.valor_pago
     ) {
       const aparelhoAtualizado = data as OrdemServicoAparelho;
+
       await atualizarTotalOS(aparelhoAtualizado.id_ordem_servico);
     }
 
     return { data: data as OrdemServicoAparelho, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar aparelho:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -123,7 +125,7 @@ export async function atualizarAparelho(
  */
 export async function removerAparelho(
   idAparelho: string,
-  userId: string
+  userId: string,
 ): Promise<{ error: string | null }> {
   try {
     const { error } = await supabase
@@ -150,6 +152,7 @@ export async function removerAparelho(
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao remover aparelho:", error);
+
     return { error: error.message };
   }
 }
@@ -158,15 +161,13 @@ export async function removerAparelho(
  * Atualizar total geral da OS (soma de todos os aparelhos ativos)
  */
 export async function atualizarTotalOS(
-  idOrdemServico: string
+  idOrdemServico: string,
 ): Promise<{ error: string | null }> {
   try {
     // Buscar todos os aparelhos ativos
     const { data: aparelhos, error: erroAparelhos } = await supabase
       .from("ordem_servico_aparelhos")
-      .select(
-        "valor_total, valor_orcamento, valor_desconto, valor_pago"
-      )
+      .select("valor_total, valor_orcamento, valor_desconto, valor_pago")
       .eq("id_ordem_servico", idOrdemServico)
       .eq("status", "ativo");
 
@@ -175,19 +176,19 @@ export async function atualizarTotalOS(
     // Calcular totais
     const totalGeral = (aparelhos || []).reduce(
       (sum, app) => sum + (app.valor_total || 0),
-      0
+      0,
     );
     const totalOrcamento = (aparelhos || []).reduce(
       (sum, app) => sum + (app.valor_orcamento || 0),
-      0
+      0,
     );
     const totalDesconto = (aparelhos || []).reduce(
       (sum, app) => sum + (app.valor_desconto || 0),
-      0
+      0,
     );
     const totalPago = (aparelhos || []).reduce(
       (sum, app) => sum + (app.valor_pago || 0),
-      0
+      0,
     );
 
     // Atualizar OS
@@ -207,6 +208,7 @@ export async function atualizarTotalOS(
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar total da OS:", error);
+
     return { error: error.message };
   }
 }
@@ -215,7 +217,7 @@ export async function atualizarTotalOS(
  * Atualizar flag de múltiplos aparelhos na OS
  */
 export async function atualizarStatusMultiplosAparelhosOS(
-  idOrdemServico: string
+  idOrdemServico: string,
 ): Promise<{ error: string | null }> {
   try {
     // Contar aparelhos ativos
@@ -239,6 +241,7 @@ export async function atualizarStatusMultiplosAparelhosOS(
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar status de múltiplos aparelhos:", error);
+
     return { error: error.message };
   }
 }
@@ -249,7 +252,7 @@ export async function atualizarStatusMultiplosAparelhosOS(
  */
 export async function migrarOSParaMultiplosAparelhos(
   idOrdemServico: string,
-  userId: string
+  userId: string,
 ): Promise<{ error: string | null }> {
   try {
     // Buscar OS atual
@@ -320,6 +323,7 @@ export async function migrarOSParaMultiplosAparelhos(
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao migrar OS para múltiplos aparelhos:", error);
+
     return { error: error.message };
   }
 }
@@ -327,9 +331,7 @@ export async function migrarOSParaMultiplosAparelhos(
 /**
  * Calcular totais por aparelho e geral
  */
-export async function calcularTotaisOS(
-  idOrdemServico: string
-): Promise<{
+export async function calcularTotaisOS(idOrdemServico: string): Promise<{
   totalGeral: number;
   totalOrcamento: number;
   totalDesconto: number;

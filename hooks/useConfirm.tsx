@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 interface ConfirmOptions {
@@ -55,7 +56,7 @@ export function useConfirm() {
         {...options}
       />
     ),
-    [isOpen, handleClose, handleConfirm, options]
+    [isOpen, handleClose, handleConfirm, options],
   );
 
   return { confirm, ConfirmDialog: ConfirmDialogComponent };

@@ -1,8 +1,9 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { PermissoesModulos } from "@/types";
-import { revalidatePath } from "next/cache";
 
 /**
  * Busca as permissões de um usuário
@@ -22,9 +23,11 @@ export async function getPermissoes(usuarioId: string) {
       if (error.code === "PGRST116") {
         // Não encontrado - retorna null
         console.log("ℹ️ Nenhuma permissão customizada encontrada");
+
         return { success: true, data: null };
       }
       console.error("❌ Erro ao buscar permissões:", error);
+
       return {
         success: false,
         error: "Erro ao buscar permissões",
@@ -32,9 +35,11 @@ export async function getPermissoes(usuarioId: string) {
     }
 
     console.log("✅ Permissões carregadas:", JSON.stringify(data, null, 2));
+
     return { success: true, data };
   } catch (error) {
     console.error("❌ Erro inesperado ao buscar permissões:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao buscar permissões",
@@ -51,7 +56,7 @@ export async function salvarPermissoes(
     permissoes: PermissoesModulos;
     loja_id?: number | null;
     todas_lojas?: boolean;
-  }
+  },
 ) {
   try {
     console.log("💾 Salvando permissões:", {
@@ -70,7 +75,7 @@ export async function salvarPermissoes(
 
     console.log(
       "📋 Permissões existentes?",
-      permissoesExistentes ? "SIM" : "NÃO"
+      permissoesExistentes ? "SIM" : "NÃO",
     );
 
     if (permissoesExistentes) {
@@ -93,6 +98,7 @@ export async function salvarPermissoes(
       if (error) {
         console.error("❌ Erro ao atualizar permissões:", error);
         console.error("❌ Detalhes do erro:", JSON.stringify(error, null, 2));
+
         return {
           success: false,
           error: "Erro ao atualizar permissões",
@@ -100,9 +106,10 @@ export async function salvarPermissoes(
       }
 
       const permissoesAtualizadas = updated?.[0] || updated;
+
       console.log(
         "✅ Permissões atualizadas:",
-        JSON.stringify(permissoesAtualizadas, null, 2)
+        JSON.stringify(permissoesAtualizadas, null, 2),
       );
 
       return {
@@ -123,6 +130,7 @@ export async function salvarPermissoes(
 
       if (error) {
         console.error("❌ Erro ao criar permissões:", error);
+
         return {
           success: false,
           error: "Erro ao criar permissões",
@@ -130,9 +138,10 @@ export async function salvarPermissoes(
       }
 
       const permissoesCriadas = created?.[0] || created;
+
       console.log(
         "✅ Permissões criadas:",
-        JSON.stringify(permissoesCriadas, null, 2)
+        JSON.stringify(permissoesCriadas, null, 2),
       );
 
       return {
@@ -142,6 +151,7 @@ export async function salvarPermissoes(
     }
   } catch (error) {
     console.error("❌ Erro inesperado ao salvar permissões:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao salvar permissões",
@@ -162,6 +172,7 @@ export async function removerPermissoes(usuarioId: string) {
 
     if (error) {
       console.error("Erro ao remover permissões:", error);
+
       return {
         success: false,
         error: "Erro ao remover permissões",
@@ -169,9 +180,11 @@ export async function removerPermissoes(usuarioId: string) {
     }
 
     revalidatePath("/sistema/usuarios");
+
     return { success: true };
   } catch (error) {
     console.error("Erro inesperado ao remover permissões:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao remover permissões",

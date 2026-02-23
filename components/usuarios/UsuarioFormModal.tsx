@@ -12,6 +12,7 @@ import {
 } from "@heroui/modal";
 import { Switch } from "@heroui/switch";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+
 import { Usuario } from "@/types";
 import {
   cadastrarUsuario,
@@ -74,6 +75,7 @@ export function UsuarioFormModal({
 
   const formatCPF = (value: string) => {
     const cpf = value.replace(/\D/g, "");
+
     return cpf
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -82,6 +84,7 @@ export function UsuarioFormModal({
 
   const formatTelefone = (value: string) => {
     const telefone = value.replace(/\D/g, "");
+
     if (telefone.length <= 10) {
       return telefone
         .replace(/(\d{2})(\d)/, "($1) $2")
@@ -100,16 +103,19 @@ export function UsuarioFormModal({
     // Validações
     if (!formData.nome || !formData.email) {
       setError("Nome e email são obrigatórios");
+
       return;
     }
 
     if (!usuario && !formData.senha) {
       setError("Senha é obrigatória para novo usuário");
+
       return;
     }
 
     if (formData.senha && formData.senha.length < 6) {
       setError("A senha deve ter no mínimo 6 caracteres");
+
       return;
     }
 
@@ -151,7 +157,7 @@ export function UsuarioFormModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+    <Modal isOpen={isOpen} size="2xl" onClose={onClose}>
       <ModalContent>
         <form onSubmit={handleSubmit}>
           <ModalHeader>
@@ -161,61 +167,55 @@ export function UsuarioFormModal({
             <div className="space-y-4">
               {/* Nome */}
               <Input
-                type="text"
+                isRequired
                 label="Nome Completo"
                 placeholder="Digite o nome completo"
+                type="text"
                 value={formData.nome}
-                onChange={(e) => handleChange("nome", e.target.value)}
-                isRequired
                 variant="bordered"
+                onChange={(e) => handleChange("nome", e.target.value)}
               />
 
               {/* Email */}
               <Input
-                type="email"
+                isRequired
                 label="Email"
                 placeholder="email@exemplo.com"
+                type="email"
                 value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
-                isRequired
                 variant="bordered"
+                onChange={(e) => handleChange("email", e.target.value)}
               />
 
               {/* Telefone */}
               <Input
-                type="text"
                 label="Telefone"
+                maxLength={15}
                 placeholder="(00) 00000-0000"
+                type="text"
                 value={formData.telefone}
+                variant="bordered"
                 onChange={(e) =>
                   handleChange("telefone", formatTelefone(e.target.value))
                 }
-                maxLength={15}
-                variant="bordered"
               />
 
               {/* CPF */}
               <Input
-                type="text"
                 label="CPF"
-                placeholder="000.000.000-00"
-                value={formData.cpf}
-                onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
                 maxLength={14}
+                placeholder="000.000.000-00"
+                type="text"
+                value={formData.cpf}
                 variant="bordered"
+                onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
               />
 
               {/* Senha (apenas para novo usuário) */}
               {!usuario && (
                 <>
                   <Input
-                    type={showPassword ? "text" : "password"}
-                    label="Senha"
-                    placeholder="Mínimo 6 caracteres"
-                    value={formData.senha}
-                    onChange={(e) => handleChange("senha", e.target.value)}
                     isRequired
-                    variant="bordered"
                     endContent={
                       <button
                         className="focus:outline-none"
@@ -229,6 +229,12 @@ export function UsuarioFormModal({
                         )}
                       </button>
                     }
+                    label="Senha"
+                    placeholder="Mínimo 6 caracteres"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.senha}
+                    variant="bordered"
+                    onChange={(e) => handleChange("senha", e.target.value)}
                   />
                   <div className="text-sm text-default-500 bg-default-100 p-3 rounded-lg">
                     ℹ️ O usuário será criado como <strong>inativo</strong> e
@@ -260,7 +266,7 @@ export function UsuarioFormModal({
             <Button variant="light" onPress={onClose}>
               Cancelar
             </Button>
-            <Button color="primary" type="submit" isLoading={loading}>
+            <Button color="primary" isLoading={loading} type="submit">
               {usuario ? "Salvar" : "Criar"}
             </Button>
           </ModalFooter>

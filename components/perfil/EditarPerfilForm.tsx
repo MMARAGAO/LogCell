@@ -5,6 +5,7 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Divider } from "@heroui/divider";
+
 import { Usuario } from "@/types";
 import { atualizarMeuPerfil } from "@/app/sistema/perfil/actions";
 
@@ -34,6 +35,7 @@ export function EditarPerfilForm({
 
   const formatCPF = (value: string) => {
     const cpf = value.replace(/\D/g, "");
+
     return cpf
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -42,6 +44,7 @@ export function EditarPerfilForm({
 
   const formatTelefone = (value: string) => {
     const telefone = value.replace(/\D/g, "");
+
     if (telefone.length <= 10) {
       return telefone
         .replace(/(\d{2})(\d)/, "($1) $2")
@@ -60,6 +63,7 @@ export function EditarPerfilForm({
 
     if (!formData.nome) {
       setError("Nome é obrigatório");
+
       return;
     }
 
@@ -93,46 +97,46 @@ export function EditarPerfilForm({
       </CardHeader>
       <Divider />
       <CardBody>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <Input
-            type="text"
+            isRequired
             label="Nome Completo"
             placeholder="Digite seu nome completo"
-            value={formData.nome}
-            onChange={(e) => handleChange("nome", e.target.value)}
-            isRequired
-            variant="bordered"
-          />
-
-          <Input
-            type="email"
-            label="Email"
-            value={usuario.email}
-            isReadOnly
-            variant="bordered"
-            description="O email não pode ser alterado"
-          />
-
-          <Input
             type="text"
+            value={formData.nome}
+            variant="bordered"
+            onChange={(e) => handleChange("nome", e.target.value)}
+          />
+
+          <Input
+            isReadOnly
+            description="O email não pode ser alterado"
+            label="Email"
+            type="email"
+            value={usuario.email}
+            variant="bordered"
+          />
+
+          <Input
             label="Telefone"
+            maxLength={15}
             placeholder="(00) 00000-0000"
+            type="text"
             value={formData.telefone}
+            variant="bordered"
             onChange={(e) =>
               handleChange("telefone", formatTelefone(e.target.value))
             }
-            maxLength={15}
-            variant="bordered"
           />
 
           <Input
-            type="text"
             label="CPF"
-            placeholder="000.000.000-00"
-            value={formData.cpf}
-            onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
             maxLength={14}
+            placeholder="000.000.000-00"
+            type="text"
+            value={formData.cpf}
             variant="bordered"
+            onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
           />
 
           {error && (
@@ -147,7 +151,7 @@ export function EditarPerfilForm({
             </div>
           )}
 
-          <Button type="submit" color="primary" isLoading={loading} fullWidth>
+          <Button fullWidth color="primary" isLoading={loading} type="submit">
             Salvar Alterações
           </Button>
         </form>

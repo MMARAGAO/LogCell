@@ -1,5 +1,7 @@
 "use client";
 
+import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -17,6 +19,7 @@ import { Divider } from "@heroui/divider";
 import { Chip } from "@heroui/chip";
 import { Card, CardBody } from "@heroui/card";
 import { UserPlus, Wrench, Package, Store, Trash2 } from "lucide-react";
+
 import {
   OrdemServico,
   OrdemServicoFormData,
@@ -26,7 +29,6 @@ import {
   STATUS_OS_LABELS,
   PRIORIDADE_OS_LABELS,
 } from "@/types/ordemServico";
-import type { Cliente, Tecnico } from "@/types/clientesTecnicos";
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";
 import { supabase } from "@/lib/supabaseClient";
@@ -277,6 +279,7 @@ export default function OrdemServicoFormModal({
 
       if (error) {
         console.error("Erro ao carregar peças:", error);
+
         return;
       }
 
@@ -310,6 +313,7 @@ export default function OrdemServicoFormModal({
 
       if (error) {
         console.error("Erro ao carregar pagamentos:", error);
+
         return;
       }
 
@@ -329,6 +333,7 @@ export default function OrdemServicoFormModal({
         (sum, p) => sum + p.valor,
         0,
       );
+
       setValorPago(totalPago.toString());
     } catch (error) {
       console.error("Erro ao carregar pagamentos existentes:", error);
@@ -339,6 +344,7 @@ export default function OrdemServicoFormModal({
     setLoadingClientes(true);
     try {
       const clientes = await buscarTodosClientesAtivos();
+
       setClientes(clientes);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
@@ -404,6 +410,7 @@ export default function OrdemServicoFormModal({
 
     if (!produto) {
       console.error("Produto não encontrado no array produtosEstoque");
+
       return;
     }
 
@@ -435,15 +442,18 @@ export default function OrdemServicoFormModal({
     if (tipoPeca === "estoque") {
       if (!idLojaPeca || !produtoSelecionado || !qtdPeca || !valorVendaPeca) {
         toast.showToast("Preencha todos os campos obrigatórios", "error");
+
         return;
       }
 
       const quantidade = parseInt(qtdPeca);
+
       if (quantidade > produtoSelecionado.estoque_disponivel) {
         toast.showToast(
           `Quantidade indisponível. Estoque: ${produtoSelecionado.estoque_disponivel}`,
           "error",
         );
+
         return;
       }
 
@@ -463,6 +473,7 @@ export default function OrdemServicoFormModal({
       // Peça avulsa
       if (!descricaoPeca || !qtdPeca || !valorVendaPeca) {
         toast.showToast("Preencha todos os campos obrigatórios", "error");
+
         return;
       }
 
@@ -488,6 +499,7 @@ export default function OrdemServicoFormModal({
   const carregarTecnicos = async () => {
     setLoadingTecnicos(true);
     const { data } = await buscarTecnicosAtivos();
+
     setTecnicos(data || []);
     setLoadingTecnicos(false);
   };
@@ -495,6 +507,7 @@ export default function OrdemServicoFormModal({
   const handleClienteSelecionado = (id: string | null) => {
     setClienteId(id);
     const cliente = clientes.find((c) => c.id === id);
+
     setClienteSelecionado(cliente || null);
 
     if (cliente) {
@@ -555,12 +568,15 @@ export default function OrdemServicoFormModal({
           (s, svc) => s + (Number(svc.valor) || 0),
           0,
         );
+
         return sum + totalServicos;
       }, 0);
+
       return totalAparelhos - desconto;
     }
 
     const orcamento = parseFloat(valorOrcamento) || 0;
+
     return orcamento - desconto;
   };
 
@@ -592,6 +608,7 @@ export default function OrdemServicoFormModal({
   const calcularSaldoRestante = () => {
     const total = calcularValorTotal();
     const pago = calcularTotalPago();
+
     return total - pago;
   };
 
@@ -600,11 +617,13 @@ export default function OrdemServicoFormModal({
 
     if (!valor || valor <= 0) {
       alert("Informe um valor válido para o pagamento");
+
       return;
     }
 
     if (!dataPagamento) {
       alert("Informe a data do pagamento");
+
       return;
     }
 
@@ -622,6 +641,7 @@ export default function OrdemServicoFormModal({
 
     // Atualizar valor pago total
     const totalPago = novosPagamentos.reduce((sum, p) => sum + p.valor, 0);
+
     setValorPago(totalPago.toString());
 
     // Limpar campos
@@ -632,10 +652,12 @@ export default function OrdemServicoFormModal({
 
   const removerPagamento = (index: number) => {
     const novosPagamentos = pagamentos.filter((_, i) => i !== index);
+
     setPagamentos(novosPagamentos);
 
     // Atualizar valor pago total
     const totalPago = novosPagamentos.reduce((sum, p) => sum + p.valor, 0);
+
     setValorPago(totalPago.toString());
   };
 
@@ -644,25 +666,30 @@ export default function OrdemServicoFormModal({
     if (!clienteNome.trim()) {
       alert("Nome do cliente é obrigatório");
       setTabSelecionada("cliente");
+
       return;
     }
 
     if (aparelhos.length === 0) {
       alert("Adicione pelo menos um aparelho");
       setTabSelecionada("aparelhos");
+
       return;
     }
 
     for (let idx = 0; idx < aparelhos.length; idx++) {
       const ap = aparelhos[idx];
+
       if (!ap.equipamento_tipo.trim()) {
         alert(`Informe o tipo do aparelho #${idx + 1}`);
         setTabSelecionada("aparelhos");
+
         return;
       }
       if (!ap.defeito_reclamado.trim()) {
         alert(`Informe o defeito reclamado do aparelho #${idx + 1}`);
         setTabSelecionada("aparelhos");
+
         return;
       }
     }
@@ -672,6 +699,7 @@ export default function OrdemServicoFormModal({
       if (peca.tipo_produto === "estoque" && !peca.id_loja) {
         alert("Todas as peças do estoque devem ter uma loja definida");
         setTabSelecionada("pecas");
+
         return;
       }
     }
@@ -698,6 +726,7 @@ export default function OrdemServicoFormModal({
               const produtoNome =
                 (estoqueAtual?.produtos as any)?.descricao ||
                 peca.descricao_peca;
+
               alert(
                 `Estoque insuficiente!\n\n` +
                   `Produto: ${produtoNome}\n` +
@@ -706,6 +735,7 @@ export default function OrdemServicoFormModal({
                   `Por favor, ajuste a quantidade ou remova a peça.`,
               );
               setLoading(false);
+
               return;
             }
           }
@@ -730,6 +760,7 @@ export default function OrdemServicoFormModal({
           (s, svc) => s + (Number(svc.valor) || 0),
           0,
         );
+
         return sum + totalServicos;
       }, 0);
 
@@ -985,11 +1016,11 @@ export default function OrdemServicoFormModal({
   return (
     <>
       <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        size="2xl"
-        scrollBehavior="outside"
         isDismissable={!loading}
+        isOpen={isOpen}
+        scrollBehavior="outside"
+        size="2xl"
+        onClose={onClose}
       >
         <ModalContent>
           <ModalHeader>
@@ -998,10 +1029,10 @@ export default function OrdemServicoFormModal({
 
           <ModalBody>
             <Tabs
-              selectedKey={tabSelecionada}
-              onSelectionChange={(key) => setTabSelecionada(key as string)}
               color="primary"
+              selectedKey={tabSelecionada}
               variant="underlined"
+              onSelectionChange={(key) => setTabSelecionada(key as string)}
             >
               {/* ABA 1: CLIENTE */}
               <Tab key="cliente" title="1. Cliente">
@@ -1016,16 +1047,16 @@ export default function OrdemServicoFormModal({
                   </div>
 
                   <Autocomplete
+                    description={`${clientes.length} clientes disponíveis para seleção`}
+                    isLoading={loadingClientes}
                     label="Buscar Cliente"
                     placeholder="Digite o nome ou telefone do cliente"
                     selectedKey={clienteId}
+                    startContent={<UserPlus className="w-4 h-4" />}
+                    variant="bordered"
                     onSelectionChange={(key) =>
                       handleClienteSelecionado(key as string)
                     }
-                    isLoading={loadingClientes}
-                    variant="bordered"
-                    startContent={<UserPlus className="w-4 h-4" />}
-                    description={`${clientes.length} clientes disponíveis para seleção`}
                   >
                     {clientes.map((cliente) => (
                       <AutocompleteItem
@@ -1052,48 +1083,48 @@ export default function OrdemServicoFormModal({
                   <Divider />
 
                   <Input
+                    isRequired
+                    isReadOnly={!!clienteSelecionado}
                     label="Nome do Cliente"
                     placeholder="Nome completo"
                     value={clienteNome}
-                    onValueChange={setClienteNome}
-                    isRequired
                     variant="bordered"
-                    isReadOnly={!!clienteSelecionado}
+                    onValueChange={setClienteNome}
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
+                      isReadOnly={!!clienteSelecionado}
                       label="Telefone"
                       placeholder="(00) 00000-0000"
                       value={clienteTelefone}
-                      onValueChange={setClienteTelefone}
                       variant="bordered"
-                      isReadOnly={!!clienteSelecionado}
+                      onValueChange={setClienteTelefone}
                     />
 
                     <Input
-                      label="E-mail"
-                      type="email"
-                      placeholder="cliente@email.com"
-                      value={clienteEmail}
-                      onValueChange={setClienteEmail}
-                      variant="bordered"
                       isReadOnly={!!clienteSelecionado}
+                      label="E-mail"
+                      placeholder="cliente@email.com"
+                      type="email"
+                      value={clienteEmail}
+                      variant="bordered"
+                      onValueChange={setClienteEmail}
                     />
                   </div>
 
                   <Select
+                    isRequired
+                    description="Informe se o cliente é lojista ou consumidor final"
                     label="Tipo de Cliente"
                     placeholder="Selecione o tipo"
                     selectedKeys={[tipoCliente]}
+                    variant="bordered"
                     onSelectionChange={(keys) =>
                       setTipoCliente(
                         Array.from(keys)[0] as "lojista" | "consumidor_final",
                       )
                     }
-                    isRequired
-                    variant="bordered"
-                    description="Informe se o cliente é lojista ou consumidor final"
                   >
                     <SelectItem key="consumidor_final">
                       Consumidor Final
@@ -1142,8 +1173,8 @@ export default function OrdemServicoFormModal({
                             </Chip>
                           </div>
                           <Button
-                            size="sm"
                             color="danger"
+                            size="sm"
                             variant="light"
                             onPress={() =>
                               setAparelhos(
@@ -1157,19 +1188,20 @@ export default function OrdemServicoFormModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <Select
+                            isRequired
                             label="Tipo"
                             placeholder="Selecione"
                             selectedKeys={
                               ap.equipamento_tipo ? [ap.equipamento_tipo] : []
                             }
+                            variant="bordered"
                             onSelectionChange={(keys) => {
                               const valor = Array.from(keys)[0] as string;
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, equipamento_tipo: valor };
                               setAparelhos(copia);
                             }}
-                            isRequired
-                            variant="bordered"
                           >
                             {tiposEquipamento.map((tipo) => (
                               <SelectItem key={tipo}>{tipo}</SelectItem>
@@ -1179,23 +1211,25 @@ export default function OrdemServicoFormModal({
                           <Input
                             label="Marca"
                             value={ap.equipamento_marca || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, equipamento_marca: v };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
                           />
 
                           <Input
                             label="Modelo"
                             value={ap.equipamento_modelo || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, equipamento_modelo: v };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
                           />
                         </div>
 
@@ -1203,8 +1237,10 @@ export default function OrdemServicoFormModal({
                           <Input
                             label="Número de Série / IMEI"
                             value={ap.equipamento_numero_serie || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = {
                                 ...ap,
                                 equipamento_numero_serie: v,
@@ -1212,65 +1248,71 @@ export default function OrdemServicoFormModal({
                               };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
                           />
 
                           <Input
                             label="Senha / PIN"
                             type="password"
                             value={ap.equipamento_senha || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, equipamento_senha: v };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
                           />
 
                           <Input
                             label="Acessórios"
                             value={ap.acessorios_entregues || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, acessorios_entregues: v };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
                           />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <Textarea
+                            isRequired
                             label="Defeito Reclamado"
+                            minRows={2}
                             value={ap.defeito_reclamado}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, defeito_reclamado: v };
                               setAparelhos(copia);
                             }}
-                            isRequired
-                            variant="bordered"
-                            minRows={2}
                           />
 
                           <Textarea
                             label="Estado do Equipamento"
+                            minRows={2}
                             value={ap.estado_equipamento || ""}
+                            variant="bordered"
                             onValueChange={(v) => {
                               const copia = [...aparelhos];
+
                               copia[idx] = { ...ap, estado_equipamento: v };
                               setAparelhos(copia);
                             }}
-                            variant="bordered"
-                            minRows={2}
                           />
                         </div>
 
                         <Textarea
                           label="Observações Técnicas / Diagnóstico"
+                          minRows={2}
                           value={ap.observacoes_tecnicas || ""}
+                          variant="bordered"
                           onValueChange={(v) => {
                             const copia = [...aparelhos];
+
                             copia[idx] = {
                               ...ap,
                               observacoes_tecnicas: v,
@@ -1278,8 +1320,6 @@ export default function OrdemServicoFormModal({
                             };
                             setAparelhos(copia);
                           }}
-                          variant="bordered"
-                          minRows={2}
                         />
 
                         <Divider />
@@ -1294,6 +1334,7 @@ export default function OrdemServicoFormModal({
                             onPress={() => {
                               const copia = [...aparelhos];
                               const servicos = ap.servicos || [];
+
                               copia[idx] = {
                                 ...ap,
                                 servicos: [
@@ -1322,9 +1363,11 @@ export default function OrdemServicoFormModal({
                             <Input
                               label="Descrição"
                               value={svc.descricao}
+                              variant="bordered"
                               onValueChange={(v) => {
                                 const copia = [...aparelhos];
                                 const servicos = [...(ap.servicos || [])];
+
                                 servicos[sIdx] = {
                                   ...servicos[sIdx],
                                   descricao: v,
@@ -1332,18 +1375,19 @@ export default function OrdemServicoFormModal({
                                 copia[idx] = { ...ap, servicos };
                                 setAparelhos(copia);
                               }}
-                              variant="bordered"
                             />
                             <Input
                               label="Valor"
-                              type="number"
                               startContent={
                                 <span className="text-default-400">R$</span>
                               }
+                              type="number"
                               value={svc.valor?.toString() || "0"}
+                              variant="bordered"
                               onValueChange={(v) => {
                                 const copia = [...aparelhos];
                                 const servicos = [...(ap.servicos || [])];
+
                                 servicos[sIdx] = {
                                   ...servicos[sIdx],
                                   valor: parseFloat(v || "0") || 0,
@@ -1351,15 +1395,15 @@ export default function OrdemServicoFormModal({
                                 copia[idx] = { ...ap, servicos };
                                 setAparelhos(copia);
                               }}
-                              variant="bordered"
                             />
                             <Button
-                              size="sm"
                               color="danger"
+                              size="sm"
                               variant="light"
                               onPress={() => {
                                 const copia = [...aparelhos];
                                 const servicos = [...(ap.servicos || [])];
+
                                 servicos.splice(sIdx, 1);
                                 copia[idx] = { ...ap, servicos };
                                 setAparelhos(copia);
@@ -1429,13 +1473,13 @@ export default function OrdemServicoFormModal({
                                 {peca.descricao_peca}
                               </span>
                               <Chip
-                                size="sm"
-                                variant="flat"
                                 color={
                                   peca.tipo_produto === "estoque"
                                     ? "primary"
                                     : "warning"
                                 }
+                                size="sm"
+                                variant="flat"
                               >
                                 {peca.tipo_produto === "estoque"
                                   ? "Estoque"
@@ -1443,10 +1487,10 @@ export default function OrdemServicoFormModal({
                               </Chip>
                               {peca.nome_loja && (
                                 <Chip
-                                  size="sm"
-                                  variant="flat"
                                   color="default"
+                                  size="sm"
                                   startContent={<Store className="w-3 h-3" />}
+                                  variant="flat"
                                 >
                                   {peca.nome_loja}
                                 </Chip>
@@ -1460,8 +1504,8 @@ export default function OrdemServicoFormModal({
                           </div>
                           <Button
                             isIconOnly
-                            size="sm"
                             color="danger"
+                            size="sm"
                             variant="light"
                             onPress={() =>
                               setPecasTemp(
@@ -1568,26 +1612,26 @@ export default function OrdemServicoFormModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Valor do Orçamento"
-                      type="number"
                       placeholder="0.00"
-                      value={valorOrcamento}
-                      onValueChange={setValorOrcamento}
-                      variant="bordered"
                       startContent={
                         <span className="text-default-400">R$</span>
                       }
+                      type="number"
+                      value={valorOrcamento}
+                      variant="bordered"
+                      onValueChange={setValorOrcamento}
                     />
 
                     <Input
                       label="Desconto"
-                      type="number"
                       placeholder="0.00"
-                      value={valorDesconto}
-                      onValueChange={setValorDesconto}
-                      variant="bordered"
                       startContent={
                         <span className="text-default-400">R$</span>
                       }
+                      type="number"
+                      value={valorDesconto}
+                      variant="bordered"
+                      onValueChange={setValorDesconto}
                     />
                   </div>
 
@@ -1608,8 +1652,8 @@ export default function OrdemServicoFormModal({
                     label="Previsão de Entrega"
                     type="date"
                     value={previsaoEntrega}
-                    onValueChange={setPrevisaoEntrega}
                     variant="bordered"
+                    onValueChange={setPrevisaoEntrega}
                   />
                 </div>
               </Tab>
@@ -1686,29 +1730,29 @@ export default function OrdemServicoFormModal({
                           label="Data do Pagamento"
                           type="date"
                           value={dataPagamento}
-                          onValueChange={setDataPagamento}
                           variant="bordered"
+                          onValueChange={setDataPagamento}
                         />
 
                         <Input
                           label="Valor"
-                          type="number"
                           placeholder="0.00"
-                          value={valorPagamento}
-                          onValueChange={setValorPagamento}
-                          variant="bordered"
                           startContent={
                             <span className="text-default-400">R$</span>
                           }
+                          type="number"
+                          value={valorPagamento}
+                          variant="bordered"
+                          onValueChange={setValorPagamento}
                         />
 
                         <Select
                           label="Forma de Pagamento"
                           selectedKeys={[formaPagamento]}
+                          variant="bordered"
                           onSelectionChange={(keys) =>
                             setFormaPagamento(Array.from(keys)[0] as string)
                           }
-                          variant="bordered"
                         >
                           <SelectItem key="dinheiro">Dinheiro</SelectItem>
                           <SelectItem key="cartao_credito">
@@ -1731,15 +1775,15 @@ export default function OrdemServicoFormModal({
                           label="Observação (opcional)"
                           placeholder="Ex: Parcela 1/3"
                           value={observacaoPagamento}
-                          onValueChange={setObservacaoPagamento}
                           variant="bordered"
+                          onValueChange={setObservacaoPagamento}
                         />
                       </div>
 
                       <Button
+                        className="w-full"
                         color="primary"
                         onPress={adicionarPagamento}
-                        className="w-full"
                       >
                         Adicionar Pagamento
                       </Button>
@@ -1777,8 +1821,8 @@ export default function OrdemServicoFormModal({
                               </div>
                               <Button
                                 isIconOnly
-                                size="sm"
                                 color="danger"
+                                size="sm"
                                 variant="light"
                                 onPress={() => removerPagamento(index)}
                               >
@@ -1805,13 +1849,13 @@ export default function OrdemServicoFormModal({
                   </div>
 
                   <Autocomplete
+                    isLoading={loadingTecnicos}
                     label="Técnico Responsável"
                     placeholder="Selecione o técnico"
                     selectedKey={tecnicoId}
-                    onSelectionChange={(key) => setTecnicoId(key as string)}
-                    isLoading={loadingTecnicos}
-                    variant="bordered"
                     startContent={<Wrench className="w-4 h-4" />}
+                    variant="bordered"
+                    onSelectionChange={(key) => setTecnicoId(key as string)}
                   >
                     {tecnicos.map((tecnico) => (
                       <AutocompleteItem
@@ -1833,10 +1877,10 @@ export default function OrdemServicoFormModal({
                     <Select
                       label="Status"
                       selectedKeys={[status]}
+                      variant="bordered"
                       onSelectionChange={(keys) =>
                         setStatus(Array.from(keys)[0] as StatusOS)
                       }
-                      variant="bordered"
                     >
                       {Object.entries(STATUS_OS_LABELS).map(([key, label]) => (
                         <SelectItem key={key}>{label}</SelectItem>
@@ -1846,10 +1890,10 @@ export default function OrdemServicoFormModal({
                     <Select
                       label="Prioridade"
                       selectedKeys={[prioridade]}
+                      variant="bordered"
                       onSelectionChange={(keys) =>
                         setPrioridade(Array.from(keys)[0] as PrioridadeOS)
                       }
-                      variant="bordered"
                     >
                       {Object.entries(PRIORIDADE_OS_LABELS).map(
                         ([key, label]) => (
@@ -1864,10 +1908,10 @@ export default function OrdemServicoFormModal({
           </ModalBody>
 
           <ModalFooter>
-            <Button variant="light" onPress={onClose} isDisabled={loading}>
+            <Button isDisabled={loading} variant="light" onPress={onClose}>
               Cancelar
             </Button>
-            <Button color="primary" onPress={handleSubmit} isLoading={loading}>
+            <Button color="primary" isLoading={loading} onPress={handleSubmit}>
               {ordem ? "Atualizar" : "Criar"} OS
             </Button>
           </ModalFooter>
@@ -1877,26 +1921,26 @@ export default function OrdemServicoFormModal({
       {/* Modal para adicionar peça */}
       <Modal
         isOpen={modalPecaOpen}
+        size="lg"
         onClose={() => {
           setModalPecaOpen(false);
           limparModalPeca();
         }}
-        size="lg"
       >
         <ModalContent>
           <ModalHeader>Adicionar Peça/Produto</ModalHeader>
           <ModalBody>
             <div className="space-y-4">
               <Select
+                isRequired
+                description="Escolha se vai usar peça do seu estoque ou se foi comprada externamente"
                 label="Tipo de Peça"
                 selectedKeys={[tipoPeca]}
+                variant="bordered"
                 onSelectionChange={(keys) => {
                   setTipoPeca(Array.from(keys)[0] as "estoque" | "avulso");
                   limparModalPeca();
                 }}
-                variant="bordered"
-                isRequired
-                description="Escolha se vai usar peça do seu estoque ou se foi comprada externamente"
               >
                 <SelectItem
                   key="estoque"
@@ -1926,19 +1970,20 @@ export default function OrdemServicoFormModal({
                   </div>
 
                   <Select
+                    isRequired
                     label="Loja"
                     placeholder="Selecione a loja"
                     selectedKeys={idLojaPeca ? [idLojaPeca.toString()] : []}
+                    startContent={<Store className="w-4 h-4" />}
+                    variant="bordered"
                     onSelectionChange={(keys) => {
                       const lojaId = parseInt(Array.from(keys)[0] as string);
+
                       setIdLojaPeca(lojaId);
                       carregarProdutosEstoque(lojaId);
                       setIdProdutoSelecionado(null);
                       setProdutoSelecionado(null);
                     }}
-                    isRequired
-                    variant="bordered"
-                    startContent={<Store className="w-4 h-4" />}
                   >
                     {lojas.map((loja) => (
                       <SelectItem key={loja.id.toString()}>
@@ -1948,22 +1993,8 @@ export default function OrdemServicoFormModal({
                   </Select>
 
                   <Autocomplete
-                    label="Produto"
-                    placeholder={
-                      idLojaPeca
-                        ? "Buscar produto no estoque (ex: i 16 pro)"
-                        : "Selecione uma loja primeiro"
-                    }
-                    selectedKey={idProdutoSelecionado}
-                    onSelectionChange={(key) =>
-                      handleProdutoSelecionado(key as string)
-                    }
-                    isLoading={loadingProdutos}
                     isRequired
-                    variant="bordered"
-                    startContent={<Package className="w-4 h-4" />}
                     allowsCustomValue={false}
-                    isDisabled={!idLojaPeca}
                     defaultFilter={(textValue, inputValue) => {
                       const normalizedInput = inputValue
                         .toLowerCase()
@@ -1977,6 +2008,7 @@ export default function OrdemServicoFormModal({
                       const produto = produtosEstoque.find(
                         (p) => p.descricao === textValue,
                       );
+
                       if (!produto) return false;
 
                       // Criar texto de busca combinando descrição e marca
@@ -1990,6 +2022,20 @@ export default function OrdemServicoFormModal({
                         textoBusca.includes(term),
                       );
                     }}
+                    isDisabled={!idLojaPeca}
+                    isLoading={loadingProdutos}
+                    label="Produto"
+                    placeholder={
+                      idLojaPeca
+                        ? "Buscar produto no estoque (ex: i 16 pro)"
+                        : "Selecione uma loja primeiro"
+                    }
+                    selectedKey={idProdutoSelecionado}
+                    startContent={<Package className="w-4 h-4" />}
+                    variant="bordered"
+                    onSelectionChange={(key) =>
+                      handleProdutoSelecionado(key as string)
+                    }
                   >
                     {produtosEstoque.map((produto) => (
                       <AutocompleteItem
@@ -2027,44 +2073,44 @@ export default function OrdemServicoFormModal({
                   </div>
 
                   <Input
+                    isRequired
                     label="Descrição"
                     placeholder="Ex: Bateria compatível comprada externamente"
                     value={descricaoPeca}
-                    onValueChange={setDescricaoPeca}
-                    isRequired
                     variant="bordered"
+                    onValueChange={setDescricaoPeca}
                   />
                 </>
               )}
 
               <div className="grid grid-cols-3 gap-3">
                 <Input
-                  type="number"
-                  label="Quantidade"
-                  value={qtdPeca}
-                  onValueChange={setQtdPeca}
-                  min="1"
                   isRequired
+                  label="Quantidade"
+                  min="1"
+                  type="number"
+                  value={qtdPeca}
                   variant="bordered"
+                  onValueChange={setQtdPeca}
                 />
                 <Input
-                  type="number"
                   label="Valor Custo"
                   placeholder="0.00"
-                  value={valorCustoPeca}
-                  onValueChange={setValorCustoPeca}
                   startContent={<span className="text-default-400">R$</span>}
+                  type="number"
+                  value={valorCustoPeca}
                   variant="bordered"
+                  onValueChange={setValorCustoPeca}
                 />
                 <Input
-                  type="number"
+                  isRequired
                   label="Valor Venda"
                   placeholder="0.00"
-                  value={valorVendaPeca}
-                  onValueChange={setValorVendaPeca}
                   startContent={<span className="text-default-400">R$</span>}
-                  isRequired
+                  type="number"
+                  value={valorVendaPeca}
                   variant="bordered"
+                  onValueChange={setValorVendaPeca}
                 />
               </div>
 

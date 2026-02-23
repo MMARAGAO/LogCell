@@ -1,5 +1,6 @@
+import type { TransferenciaCompleta } from "@/types";
+
 import { supabase } from "@/lib/supabaseClient";
-import type { Transferencia, TransferenciaCompleta } from "@/types";
 
 export class TransferenciasService {
   /**
@@ -32,7 +33,7 @@ export class TransferenciasService {
           criado_por_usuario:usuarios!usuario_id(nome),
           confirmado_por_usuario:usuarios!confirmado_por(nome),
           cancelado_por_usuario:usuarios!cancelado_por(nome)
-        `
+        `,
         )
         .order("criado_em", { ascending: false });
 
@@ -42,7 +43,7 @@ export class TransferenciasService {
 
       if (filtros?.loja_id) {
         query = query.or(
-          `loja_origem_id.eq.${filtros.loja_id},loja_destino_id.eq.${filtros.loja_id}`
+          `loja_origem_id.eq.${filtros.loja_id},loja_destino_id.eq.${filtros.loja_id}`,
         );
       }
 
@@ -51,7 +52,7 @@ export class TransferenciasService {
       if (error) {
         console.error("Erro ao buscar transferências:", error);
         throw new Error(
-          `Erro ao buscar transferências: ${error.message || error.details || JSON.stringify(error)}`
+          `Erro ao buscar transferências: ${error.message || error.details || JSON.stringify(error)}`,
         );
       }
 
@@ -89,7 +90,7 @@ export class TransferenciasService {
    */
   static async confirmarTransferencia(
     transferencia_id: string,
-    usuario_id: string
+    usuario_id: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { data, error } = await supabase.rpc("confirmar_transferencia", {
@@ -108,6 +109,7 @@ export class TransferenciasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao confirmar transferência:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -118,7 +120,7 @@ export class TransferenciasService {
   static async cancelarTransferencia(
     transferencia_id: string,
     usuario_id: string,
-    motivo: string
+    motivo: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase
@@ -137,6 +139,7 @@ export class TransferenciasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao cancelar transferência:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -145,7 +148,7 @@ export class TransferenciasService {
    * Buscar transferência por ID
    */
   static async buscarTransferenciaPorId(
-    id: string
+    id: string,
   ): Promise<TransferenciaCompleta | null> {
     try {
       const { data, error } = await supabase
@@ -161,7 +164,7 @@ export class TransferenciasService {
           loja_destino:lojas!loja_destino_id(nome),
           criado_por_usuario:usuarios!criado_por(nome),
           confirmado_por_usuario:usuarios!confirmado_por(nome)
-        `
+        `,
         )
         .eq("id", id)
         .single();

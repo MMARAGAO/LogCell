@@ -6,6 +6,7 @@ import { Input } from "@heroui/input";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Divider } from "@heroui/divider";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+
 import { supabase } from "@/lib/supabaseClient";
 
 export function AlterarSenhaForm() {
@@ -33,16 +34,19 @@ export function AlterarSenhaForm() {
     // Validações
     if (!formData.novaSenha || !formData.confirmarSenha) {
       setError("Preencha todos os campos");
+
       return;
     }
 
     if (formData.novaSenha.length < 6) {
       setError("A senha deve ter no mínimo 6 caracteres");
+
       return;
     }
 
     if (formData.novaSenha !== formData.confirmarSenha) {
       setError("As senhas não coincidem");
+
       return;
     }
 
@@ -77,15 +81,9 @@ export function AlterarSenhaForm() {
       </CardHeader>
       <Divider />
       <CardBody>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <Input
-            type={showPassword ? "text" : "password"}
-            label="Nova Senha"
-            placeholder="Mínimo 6 caracteres"
-            value={formData.novaSenha}
-            onChange={(e) => handleChange("novaSenha", e.target.value)}
             isRequired
-            variant="bordered"
             endContent={
               <button
                 className="focus:outline-none"
@@ -99,16 +97,16 @@ export function AlterarSenhaForm() {
                 )}
               </button>
             }
+            label="Nova Senha"
+            placeholder="Mínimo 6 caracteres"
+            type={showPassword ? "text" : "password"}
+            value={formData.novaSenha}
+            variant="bordered"
+            onChange={(e) => handleChange("novaSenha", e.target.value)}
           />
 
           <Input
-            type={showConfirmPassword ? "text" : "password"}
-            label="Confirmar Nova Senha"
-            placeholder="Digite a senha novamente"
-            value={formData.confirmarSenha}
-            onChange={(e) => handleChange("confirmarSenha", e.target.value)}
             isRequired
-            variant="bordered"
             endContent={
               <button
                 className="focus:outline-none"
@@ -122,6 +120,12 @@ export function AlterarSenhaForm() {
                 )}
               </button>
             }
+            label="Confirmar Nova Senha"
+            placeholder="Digite a senha novamente"
+            type={showConfirmPassword ? "text" : "password"}
+            value={formData.confirmarSenha}
+            variant="bordered"
+            onChange={(e) => handleChange("confirmarSenha", e.target.value)}
           />
 
           {error && (
@@ -136,7 +140,7 @@ export function AlterarSenhaForm() {
             </div>
           )}
 
-          <Button type="submit" color="primary" isLoading={loading} fullWidth>
+          <Button fullWidth color="primary" isLoading={loading} type="submit">
             Alterar Senha
           </Button>
         </form>

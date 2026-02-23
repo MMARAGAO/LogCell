@@ -1,9 +1,6 @@
 "use client";
 
 import { Bars3Icon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { useFotoPerfil } from "@/hooks/useFotoPerfil";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import { Avatar } from "@heroui/avatar";
 import { Input } from "@heroui/input";
 import {
@@ -15,7 +12,6 @@ import {
 import { Chip } from "@heroui/chip";
 import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/modal";
 import { useRouter, usePathname } from "next/navigation";
-import { NotificacoesDropdown } from "./NotificacoesDropdown";
 import { useState, useEffect, useRef } from "react";
 import {
   Search,
@@ -26,6 +22,12 @@ import {
   TrendingUp,
   FileText,
 } from "lucide-react";
+
+import { NotificacoesDropdown } from "./NotificacoesDropdown";
+
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { useFotoPerfil } from "@/hooks/useFotoPerfil";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface SearchResult {
   id: string;
@@ -83,6 +85,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       venda: "Venda",
       tecnico: "Técnico",
     };
+
     return labels[category];
   };
 
@@ -90,29 +93,35 @@ export function Header({ onMenuClick }: HeaderProps) {
   const formatTelefone = (telefone: string) => {
     if (!telefone) return "";
     const numbers = telefone.replace(/\D/g, "");
+
     if (numbers.length === 11) {
       return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
     } else if (numbers.length === 10) {
       return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
     }
+
     return telefone;
   };
 
   const formatCPF = (cpf: string) => {
     if (!cpf) return "";
     const numbers = cpf.replace(/\D/g, "");
+
     if (numbers.length === 11) {
       return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9)}`;
     }
+
     return cpf;
   };
 
   const formatCNPJ = (cnpj: string) => {
     if (!cnpj) return "";
     const numbers = cnpj.replace(/\D/g, "");
+
     if (numbers.length === 14) {
       return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12)}`;
     }
+
     return cnpj;
   };
 
@@ -128,6 +137,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     if (!query.trim()) {
       setSearchResults([]);
       setShowResults(false);
+
       return;
     }
 
@@ -142,6 +152,7 @@ export function Header({ onMenuClick }: HeaderProps) {
       }
 
       const data = await response.json();
+
       setSearchResults(data.results || []);
       setSelectedIndex(0);
     } catch (error) {
@@ -157,6 +168,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setShowResults(false);
+
       return;
     }
 
@@ -196,6 +208,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     };
 
     document.addEventListener("keydown", handleKeyDown);
+
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showResults]);
 
@@ -206,7 +219,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) =>
-        prev < searchResults.length - 1 ? prev + 1 : prev
+        prev < searchResults.length - 1 ? prev + 1 : prev,
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -231,6 +244,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
+
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
@@ -258,6 +272,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         route = "/sistema/vendas";
         // Extrair o número da venda ou nome do cliente
         const vendaParts = result.title.split(" - ");
+
         searchParam = vendaParts.length > 1 ? vendaParts[1] : vendaParts[0];
         break;
       case "tecnico":
@@ -286,12 +301,14 @@ export function Header({ onMenuClick }: HeaderProps) {
     if (pathname?.includes("/perfil")) return "Meu Perfil";
     if (pathname?.includes("/configuracoes")) return "Configurações";
     if (pathname?.includes("/ajuda")) return "Ajuda & Suporte";
+
     return "Sistema";
   };
 
   // Gera breadcrumb
   const getBreadcrumb = () => {
     const paths = pathname?.split("/").filter(Boolean) || [];
+
     return paths.length > 1 ? paths[paths.length - 1] : null;
   };
 
@@ -307,9 +324,9 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* Left Section - Menu + Title */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <button
-            onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-default-100 rounded-lg transition-colors"
             aria-label="Abrir menu"
+            className="lg:hidden p-2 hover:bg-default-100 rounded-lg transition-colors"
+            onClick={onMenuClick}
           >
             <Bars3Icon className="w-6 h-6" />
           </button>
@@ -320,7 +337,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                 {pageTitle}
               </h1>
               {breadcrumb && (
-                <Chip size="sm" variant="flat" color="primary">
+                <Chip color="primary" size="sm" variant="flat">
                   {breadcrumb}
                 </Chip>
               )}
@@ -342,7 +359,13 @@ export function Header({ onMenuClick }: HeaderProps) {
         >
           <Input
             ref={inputRef}
+            classNames={{
+              input: "text-sm",
+              inputWrapper: "h-9 bg-default-100/50",
+            }}
             placeholder="Buscar produtos, clientes, OS... (Ctrl+K)"
+            radius="lg"
+            size="sm"
             startContent={
               isSearching ? (
                 <Loader2 className="w-4 h-4 animate-spin text-default-400" />
@@ -350,16 +373,10 @@ export function Header({ onMenuClick }: HeaderProps) {
                 <Search className="w-4 h-4 text-default-400" />
               )
             }
-            classNames={{
-              input: "text-sm",
-              inputWrapper: "h-9 bg-default-100/50",
-            }}
-            size="sm"
-            radius="lg"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
             onFocus={() => searchQuery && setShowResults(true)}
+            onKeyDown={handleKeyDown}
           />
 
           {/* Dropdown de resultados */}
@@ -418,8 +435,8 @@ export function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-2">
           {/* Search button - Mobile */}
           <button
-            className="xl:hidden p-2 hover:bg-default-100 rounded-lg transition-colors"
             aria-label="Buscar"
+            className="xl:hidden p-2 hover:bg-default-100 rounded-lg transition-colors"
             onClick={() => setIsSearchModalOpen(true)}
           >
             <MagnifyingGlassIcon className="w-5 h-5" />
@@ -434,12 +451,12 @@ export function Header({ onMenuClick }: HeaderProps) {
               <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-default-100 rounded-lg transition-colors">
                 <Avatar
                   isBordered
+                  showFallback
                   className="w-8 h-8"
+                  color="primary"
                   name={usuario?.nome}
                   size="sm"
                   src={fotoUrl || undefined}
-                  showFallback
-                  color="primary"
                 />
                 <div className="hidden md:flex flex-col items-start">
                   <span className="text-sm font-medium max-w-[120px] truncate">
@@ -463,30 +480,30 @@ export function Header({ onMenuClick }: HeaderProps) {
               </DropdownItem>
               <DropdownItem
                 key="meu-perfil"
-                onPress={() => router.push("/sistema/perfil")}
                 description="Editar informações pessoais"
+                onPress={() => router.push("/sistema/perfil")}
               >
                 Meu Perfil
               </DropdownItem>
               <DropdownItem
                 key="configuracoes"
-                onPress={() => router.push("/sistema/configuracoes")}
                 description="Preferências do sistema"
+                onPress={() => router.push("/sistema/configuracoes")}
               >
                 Configurações
               </DropdownItem>
               <DropdownItem
                 key="ajuda"
-                onPress={() => router.push("/sistema/ajuda")}
                 description="Central de ajuda"
+                onPress={() => router.push("/sistema/ajuda")}
               >
                 Ajuda & Suporte
               </DropdownItem>
               <DropdownItem
                 key="logout"
+                className="text-danger"
                 color="danger"
                 onPress={handleLogout}
-                className="text-danger"
               >
                 Sair
               </DropdownItem>
@@ -497,11 +514,13 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Modal de busca - Mobile */}
       <Modal
-        isOpen={isSearchModalOpen}
-        onOpenChange={setIsSearchModalOpen}
-        placement="top"
-        size="full"
         hideCloseButton
+        classNames={{
+          base: "m-0 sm:m-0 h-dvh",
+          wrapper: "items-start h-dvh",
+          backdrop: "backdrop-blur-xl backdrop-saturate-150",
+        }}
+        isOpen={isSearchModalOpen}
         motionProps={{
           variants: {
             enter: {
@@ -522,18 +541,15 @@ export function Header({ onMenuClick }: HeaderProps) {
             },
           },
         }}
-        classNames={{
-          base: "m-0 sm:m-0 h-dvh",
-          wrapper: "items-start h-dvh",
-          backdrop: "backdrop-blur-xl backdrop-saturate-150",
-        }}
+        placement="top"
+        size="full"
+        onOpenChange={setIsSearchModalOpen}
       >
         <ModalContent className="bg-content1/10 backdrop-blur-2xl backdrop-saturate-200 shadow-2xl border border-divider/30 h-dvh max-h-dvh">
           {(onClose) => (
             <>
               <ModalHeader className="flex items-center gap-2 px-4 pt-4 pb-2">
                 <Input
-                  autoFocus
                   classNames={{
                     base: "w-full",
                     mainWrapper: "w-full",
@@ -556,21 +572,21 @@ export function Header({ onMenuClick }: HeaderProps) {
                   onKeyDown={handleKeyDown}
                 />
                 <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-default-100 rounded-lg transition-colors shrink-0"
                   aria-label="Fechar busca"
+                  className="p-2 hover:bg-default-100 rounded-lg transition-colors shrink-0"
+                  onClick={onClose}
                 >
                   <svg
                     className="w-6 h-6"
                     fill="none"
-                    viewBox="0 0 24 24"
                     stroke="currentColor"
+                    viewBox="0 0 24 24"
                   >
                     <path
+                      d="M6 18L18 6M6 6l12 12"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
                 </button>

@@ -12,7 +12,7 @@ export class FotoPerfilService {
    */
   static async uploadFoto(
     usuarioId: string,
-    file: File
+    file: File,
   ): Promise<{ success: boolean; url?: string; error?: string }> {
     try {
       // 1. Gera nome único para o arquivo
@@ -30,6 +30,7 @@ export class FotoPerfilService {
 
       if (uploadError) {
         console.error("Erro no upload:", uploadError);
+
         return { success: false, error: "Erro ao fazer upload da imagem" };
       }
 
@@ -48,6 +49,7 @@ export class FotoPerfilService {
         console.error("Erro ao salvar no banco:", dbError);
         // Tenta deletar a imagem do storage
         await this.deletarArquivo(filePath);
+
         return {
           success: false,
           error: "Erro ao salvar foto no banco de dados",
@@ -57,6 +59,7 @@ export class FotoPerfilService {
       return { success: true, url: publicUrl };
     } catch (error) {
       console.error("Erro inesperado:", error);
+
       return { success: false, error: "Erro inesperado ao fazer upload" };
     }
   }
@@ -75,6 +78,7 @@ export class FotoPerfilService {
     if (error && error.code !== "PGRST116") {
       // PGRST116 = nenhum resultado encontrado
       console.error("Erro ao buscar foto:", error);
+
       return null;
     }
 
@@ -121,6 +125,7 @@ export class FotoPerfilService {
       return { success: true };
     } catch (error) {
       console.error("Erro ao deletar foto:", error);
+
       return { success: false, error: "Erro inesperado ao deletar foto" };
     }
   }
@@ -150,6 +155,7 @@ export class FotoPerfilService {
 
     if (error) {
       console.error("Erro ao listar fotos:", error);
+
       return [];
     }
 

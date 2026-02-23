@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+
 import { ItemCarrinho, Carrinho } from "@/types/catalogo";
 
 interface CarrinhoContextType {
@@ -13,7 +14,7 @@ interface CarrinhoContextType {
 }
 
 const CarrinhoContext = createContext<CarrinhoContextType | undefined>(
-  undefined
+  undefined,
 );
 
 const CHAVE_LOCALSTORAGE = "logcell_carrinho";
@@ -37,9 +38,11 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
   // Carregar do localStorage na inicialização
   useEffect(() => {
     const carregado = localStorage.getItem(CHAVE_LOCALSTORAGE);
+
     if (carregado) {
       try {
         const dados = JSON.parse(carregado);
+
         setCarrinho(dados);
       } catch (erro) {
         console.error("Erro ao carregar carrinho do localStorage:", erro);
@@ -58,7 +61,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
   // Calcular totais
   const calcularTotais = (
     itens: ItemCarrinho[],
-    desconto: number
+    desconto: number,
   ): Pick<Carrinho, "subtotal" | "total" | "total_itens"> => {
     const subtotal = itens.reduce((acc, item) => acc + item.subtotal, 0);
     const total_itens = itens.reduce((acc, item) => acc + item.quantidade, 0);
@@ -71,7 +74,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
     setCarrinho((prev) => {
       // Verificar se o produto já existe no carrinho
       const itemExistente = prev.itens.find(
-        (i) => i.produto_id === item.produto_id
+        (i) => i.produto_id === item.produto_id,
       );
 
       let novoItens: ItemCarrinho[];
@@ -85,7 +88,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
                 quantidade: i.quantidade + item.quantidade,
                 subtotal: (i.quantidade + item.quantidade) * i.preco_unitario,
               }
-            : i
+            : i,
         );
       } else {
         // Se não existe, adicionar novo item
@@ -125,6 +128,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
   const atualizarQuantidade = (produtoId: string, quantidade: number) => {
     if (quantidade <= 0) {
       removerItem(produtoId);
+
       return;
     }
 
@@ -136,7 +140,7 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
               quantidade,
               subtotal: quantidade * i.preco_unitario,
             }
-          : i
+          : i,
       );
 
       const totais = calcularTotais(novoItens, prev.desconto);
@@ -190,8 +194,10 @@ export function CarrinhoProvider({ children }: { children: React.ReactNode }) {
 
 export function useCarrinho() {
   const context = useContext(CarrinhoContext);
+
   if (!context) {
     throw new Error("useCarrinho deve ser usado dentro de CarrinhoProvider");
   }
+
   return context;
 }

@@ -9,13 +9,14 @@ import { Button } from "@heroui/button";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
 import { useState, useEffect, useRef } from "react";
-import { FotoProduto } from "@/types";
 import {
   PhotoIcon,
   TrashIcon,
   StarIcon as StarOutline,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
+
+import { FotoProduto } from "@/types";
 import { CarrosselFotos } from "@/components/CarrosselFotos";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toast";
@@ -62,6 +63,7 @@ export default function GerenciarFotosProdutoModal({
     setLoading(true);
     try {
       const dados = await onLoadFotos(produtoId);
+
       setFotos(dados);
     } catch (error) {
       console.error("Erro ao carregar fotos:", error);
@@ -71,9 +73,10 @@ export default function GerenciarFotosProdutoModal({
   };
 
   const handleFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = event.target.files;
+
     if (!files || files.length === 0) return;
 
     setUploading(true);
@@ -82,6 +85,7 @@ export default function GerenciarFotosProdutoModal({
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const isPrincipal = fotos.length === 0 && i === 0; // Primeira foto é principal se não houver outras
+
         await onUploadFoto(file, isPrincipal);
       }
 
@@ -134,7 +138,7 @@ export default function GerenciarFotosProdutoModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <span>Gerenciar Fotos</span>
@@ -148,18 +152,18 @@ export default function GerenciarFotosProdutoModal({
             <div>
               <input
                 ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
                 multiple
-                onChange={handleFileSelect}
+                accept="image/jpeg,image/jpg,image/png,image/webp"
                 className="hidden"
+                type="file"
+                onChange={handleFileSelect}
               />
               <Button
                 color="primary"
+                isDisabled={uploading}
+                isLoading={uploading}
                 startContent={<PhotoIcon className="w-5 h-5" />}
                 onPress={() => fileInputRef.current?.click()}
-                isLoading={uploading}
-                isDisabled={uploading}
               >
                 {uploading ? "Enviando..." : "Adicionar Fotos"}
               </Button>
@@ -204,9 +208,9 @@ export default function GerenciarFotosProdutoModal({
                       {/* Imagem */}
                       <div className="aspect-square bg-default-100">
                         <img
-                          src={foto.url}
                           alt={`Foto ${foto.ordem + 1}`}
                           className="w-full h-full object-cover"
+                          src={foto.url}
                         />
                       </div>
 
@@ -215,9 +219,9 @@ export default function GerenciarFotosProdutoModal({
                         <div className="absolute top-2 left-2">
                           <Chip
                             color="warning"
-                            variant="solid"
                             size="sm"
                             startContent={<StarSolid className="w-3 h-3" />}
+                            variant="solid"
                           >
                             Principal
                           </Chip>
@@ -229,22 +233,22 @@ export default function GerenciarFotosProdutoModal({
                         {!foto.is_principal && (
                           <Button
                             isIconOnly
-                            size="sm"
                             color="warning"
+                            size="sm"
+                            title="Definir como principal"
                             variant="flat"
                             onPress={() => handleSetPrincipal(foto.id)}
-                            title="Definir como principal"
                           >
                             <StarOutline className="w-4 h-4" />
                           </Button>
                         )}
                         <Button
                           isIconOnly
-                          size="sm"
                           color="danger"
+                          size="sm"
+                          title="Excluir foto"
                           variant="flat"
                           onPress={() => handleDelete(foto.id)}
-                          title="Excluir foto"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </Button>
@@ -263,7 +267,7 @@ export default function GerenciarFotosProdutoModal({
                 <PhotoIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>Nenhuma foto adicionada ainda.</p>
                 <p className="text-xs mt-1">
-                  Clique em "Adicionar Fotos" para começar.
+                  Clique em &quot;Adicionar Fotos&quot; para começar.
                 </p>
               </div>
             )}
@@ -278,13 +282,13 @@ export default function GerenciarFotosProdutoModal({
 
       {/* Confirm Modal */}
       <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, fotoId: "" })}
-        title="Excluir Foto"
-        message="Tem certeza que deseja excluir esta foto? Esta ação não pode ser desfeita."
-        confirmText="Excluir"
         cancelText="Cancelar"
         confirmColor="danger"
+        confirmText="Excluir"
+        isOpen={confirmModal.isOpen}
+        message="Tem certeza que deseja excluir esta foto? Esta ação não pode ser desfeita."
+        title="Excluir Foto"
+        onClose={() => setConfirmModal({ isOpen: false, fotoId: "" })}
         onConfirm={confirmarDelete}
       />
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import type { CreditoCliente } from "@/types/vendas";
+
+import { useState } from "react";
 import {
   Card,
   CardBody,
@@ -8,12 +10,10 @@ import {
   Chip,
   Divider,
   Button,
-  Tooltip,
   Accordion,
   AccordionItem,
 } from "@heroui/react";
 import { Wallet, Clock, TrendingUp, History, Info } from "lucide-react";
-import type { CreditoCliente } from "@/types/vendas";
 
 interface CreditosClientePanelProps {
   clienteId: string;
@@ -46,7 +46,7 @@ export function CreditosClientePanel({
   const totalDisponivel = creditos.reduce((sum, c) => sum + c.saldo, 0);
   const totalUtilizado = creditos.reduce(
     (sum, c) => sum + c.valor_utilizado,
-    0
+    0,
   );
 
   // Mostra apenas os 5 últimos por padrão
@@ -101,13 +101,13 @@ export function CreditosClientePanel({
         <CardHeader className="flex items-center gap-2">
           <History className="w-5 h-5 text-primary" />
           <span className="font-semibold">Histórico de Créditos</span>
-          <Chip size="sm" variant="flat" color="primary">
+          <Chip color="primary" size="sm" variant="flat">
             {creditos.length}
           </Chip>
         </CardHeader>
         <Divider />
         <CardBody className="space-y-3">
-          <Accordion variant="splitted" selectionMode="multiple">
+          <Accordion selectionMode="multiple" variant="splitted">
             {creditosExibidos.map((credito) => (
               <AccordionItem
                 key={credito.id}
@@ -127,7 +127,7 @@ export function CreditosClientePanel({
                             </span>
                           )}
                           {credito.saldo > 0 && (
-                            <Chip size="sm" color="success" variant="flat">
+                            <Chip color="success" size="sm" variant="flat">
                               Disponível
                             </Chip>
                           )}
@@ -175,9 +175,9 @@ export function CreditosClientePanel({
           {temMais && (
             <div className="flex justify-center pt-2">
               <Button
-                variant="flat"
                 color="primary"
                 size="sm"
+                variant="flat"
                 onPress={() => setMostrarTodos(!mostrarTodos)}
               >
                 {mostrarTodos
@@ -197,9 +197,9 @@ export function CreditosClientePanel({
             <div className="text-xs">
               <p className="font-semibold mb-1">Como usar os créditos?</p>
               <p>
-                Na etapa de pagamento, selecione "Crédito Cliente" como forma de
-                pagamento. O sistema utilizará automaticamente os créditos
-                disponíveis mais antigos primeiro.
+                Na etapa de pagamento, selecione &quot;Crédito Cliente&quot;
+                como forma de pagamento. O sistema utilizará automaticamente os
+                créditos disponíveis mais antigos primeiro.
               </p>
             </div>
           </div>

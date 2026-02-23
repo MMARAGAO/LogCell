@@ -1,15 +1,14 @@
-﻿import { supabase } from "@/lib/supabaseClient";
-import type {
+﻿import type {
   Venda,
   ItemVenda,
   PagamentoVenda,
   DescontoVenda,
   DevolucaoVenda,
-  ItemDevolucao,
-  CreditoCliente,
   HistoricoVenda,
   VendaCompleta,
 } from "@/types/vendas";
+
+import { supabase } from "@/lib/supabaseClient";
 
 export class VendasService {
   /**
@@ -74,6 +73,7 @@ export class VendasService {
       return { success: true, venda: data };
     } catch (error: any) {
       console.error("Erro ao criar venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -83,11 +83,12 @@ export class VendasService {
    */
   static async adicionarItem(
     vendaId: string,
-    item: Omit<ItemVenda, "id" | "venda_id" | "criado_em">
+    item: Omit<ItemVenda, "id" | "venda_id" | "criado_em">,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Calcula valor do desconto se houver
       let valorDesconto = 0;
+
       if (item.desconto_tipo && item.desconto_valor) {
         if (item.desconto_tipo === "valor") {
           valorDesconto = item.desconto_valor;
@@ -134,6 +135,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao adicionar item:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -143,7 +145,7 @@ export class VendasService {
    */
   static async removerItem(
     itemId: string,
-    vendaId: string
+    vendaId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase
@@ -159,6 +161,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao remover item:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -168,7 +171,7 @@ export class VendasService {
    */
   static async adicionarPagamento(
     vendaId: string,
-    pagamento: Omit<PagamentoVenda, "id" | "venda_id" | "criado_em">
+    pagamento: Omit<PagamentoVenda, "id" | "venda_id" | "criado_em">,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Se for pagamento com crédito do cliente, verificar e dar baixa
@@ -200,6 +203,7 @@ export class VendasService {
 
         if (erroCreditos) {
           console.error("❌ Erro ao buscar créditos:", erroCreditos);
+
           return {
             success: false,
             error: `Erro ao buscar créditos: ${erroCreditos.message}`,
@@ -215,8 +219,9 @@ export class VendasService {
 
         const totalDisponivel = creditos.reduce(
           (sum, c) => sum + Number(c.saldo),
-          0
+          0,
         );
+
         console.log("💵 Total disponível:", totalDisponivel);
         console.log("💸 Valor do pagamento:", pagamento.valor);
 
@@ -229,6 +234,7 @@ export class VendasService {
 
         // Dar baixa nos créditos (FIFO)
         let valorRestante = Number(pagamento.valor);
+
         for (const credito of creditos) {
           if (valorRestante <= 0) break;
 
@@ -252,6 +258,7 @@ export class VendasService {
 
           if (erroUpdate) {
             console.error("❌ Erro ao atualizar crédito:", erroUpdate);
+
             return {
               success: false,
               error: `Erro ao dar baixa no crédito: ${erroUpdate.message}`,
@@ -289,6 +296,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao adicionar pagamento:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -300,7 +308,7 @@ export class VendasService {
     pagamentoId: string,
     vendaId: string,
     novoTipo: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase
@@ -326,6 +334,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao editar pagamento:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -335,7 +344,7 @@ export class VendasService {
    */
   static async aplicarDesconto(
     vendaId: string,
-    desconto: Omit<DescontoVenda, "id" | "venda_id" | "criado_em">
+    desconto: Omit<DescontoVenda, "id" | "venda_id" | "criado_em">,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase.from("descontos_venda").insert({
@@ -359,6 +368,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao aplicar desconto:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -368,7 +378,7 @@ export class VendasService {
    */
   static async finalizarVenda(
     vendaId: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Atualiza status da venda
@@ -395,6 +405,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao finalizar venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -403,7 +414,7 @@ export class VendasService {
    * Busca venda completa com todos os relacionamentos
    */
   static async buscarVendaCompleta(
-    vendaId: string
+    vendaId: string,
   ): Promise<VendaCompleta | null> {
     try {
       console.log("🔍 Buscando venda completa:", vendaId);
@@ -421,7 +432,7 @@ export class VendasService {
           descontos:descontos_venda(*),
           devolucoes:devolucoes_venda(*, itens:itens_devolucao(*)),
           historico:historico_vendas(*, usuario:usuarios(nome))
-        `
+        `,
         )
         .eq("id", vendaId)
         .maybeSingle();
@@ -445,6 +456,7 @@ export class VendasService {
       return data as VendaCompleta;
     } catch (error) {
       console.error("Erro ao buscar venda:", error);
+
       return null;
     }
   }
@@ -492,6 +504,7 @@ export class VendasService {
         .eq("venda_id", vendaId);
 
       let valorDescontoGeral = 0;
+
       for (const desconto of descontos || []) {
         if (desconto.tipo === "valor") {
           valorDescontoGeral += desconto.valor;
@@ -557,7 +570,7 @@ export class VendasService {
    * Registra ação no histórico
    */
   private static async registrarHistorico(
-    dados: Omit<HistoricoVenda, "id" | "criado_em">
+    dados: Omit<HistoricoVenda, "id" | "criado_em">,
   ): Promise<void> {
     try {
       await supabase.from("historico_vendas").insert(dados);
@@ -572,7 +585,7 @@ export class VendasService {
   static async cancelarVenda(
     vendaId: string,
     usuarioId: string,
-    motivo: string
+    motivo: string,
   ): Promise<{ success: boolean; error?: string }> {
     console.log("🚀 INICIANDO CANCELAMENTO DE VENDA:", {
       vendaId,
@@ -607,7 +620,7 @@ export class VendasService {
           produto_id, 
           quantidade,
           itens_devolucao:itens_devolucao(quantidade)
-        `
+        `,
         )
         .eq("venda_id", vendaId);
 
@@ -620,7 +633,7 @@ export class VendasService {
           const quantidadeDevolvida =
             item.itens_devolucao?.reduce(
               (total: number, dev: any) => total + (dev.quantidade || 0),
-              0
+              0,
             ) || 0;
 
           // Calcular quanto ainda precisa ser devolvido
@@ -630,13 +643,13 @@ export class VendasService {
             `📦 Produto ${item.produto_id}:`,
             `Total: ${item.quantidade},`,
             `Já devolvido: ${quantidadeDevolvida},`,
-            `A devolver: ${quantidadeADevolver}`
+            `A devolver: ${quantidadeADevolver}`,
           );
 
           // Se já devolveu tudo, pula este item
           if (quantidadeADevolver <= 0) {
             console.log(
-              `⏭️ Produto ${item.produto_id} já foi totalmente devolvido, pulando...`
+              `⏭️ Produto ${item.produto_id} já foi totalmente devolvido, pulando...`,
             );
             continue;
           }
@@ -651,12 +664,13 @@ export class VendasService {
 
           console.log(
             `📊 Estoque atual do produto ${item.produto_id}:`,
-            estoqueAtual
+            estoqueAtual,
           );
 
           if (estoqueAtual) {
             const novaQuantidade =
               estoqueAtual.quantidade + quantidadeADevolver;
+
             console.log(`➕ Nova quantidade será: ${novaQuantidade}`);
 
             // Devolver ao estoque
@@ -674,13 +688,13 @@ export class VendasService {
               console.error("❌ Erro ao atualizar estoque:", errorUpdate);
             } else {
               console.log(
-                `✅ Estoque devolvido com sucesso para produto ${item.produto_id}: +${quantidadeADevolver}`
+                `✅ Estoque devolvido com sucesso para produto ${item.produto_id}: +${quantidadeADevolver}`,
               );
             }
           } else {
             console.error(
               `❌ Estoque não encontrado para produto ${item.produto_id} na loja ${venda.loja_id}`,
-              errorEstoque
+              errorEstoque,
             );
           }
         }
@@ -748,6 +762,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao cancelar venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -757,7 +772,7 @@ export class VendasService {
    */
   static async concluirVenda(
     vendaId: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Buscar dados da venda
@@ -799,6 +814,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao concluir venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -837,7 +853,7 @@ export class VendasService {
         motivo: string;
       } | null;
     },
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     console.log("🚀 editarVendaSeguro INICIADO", {
       vendaId,
@@ -858,6 +874,7 @@ export class VendasService {
 
       if (errorVenda || !vendaAtual) {
         console.error("❌ Venda não encontrada:", errorVenda);
+
         return { success: false, error: "Venda não encontrada" };
       }
 
@@ -887,10 +904,10 @@ export class VendasService {
 
       // Criar mapas para facilitar comparação
       const mapaAntigos = new Map(
-        itensAntigos.map((item) => [item.produto_id, item])
+        itensAntigos.map((item) => [item.produto_id, item]),
       );
       const mapaNovos = new Map(
-        itensNovos.map((item) => [item.produto_id, item])
+        itensNovos.map((item) => [item.produto_id, item]),
       );
 
       // Processar itens removidos
@@ -931,7 +948,7 @@ export class VendasService {
           // Deletar item
           await supabase.from("itens_venda").delete().eq("id", itemAntigo.id);
           alteracoes.push(
-            `Removido: ${itemAntigo.produto_nome} (${itemAntigo.quantidade}un)`
+            `Removido: ${itemAntigo.produto_nome} (${itemAntigo.quantidade}un)`,
           );
 
           // Registrar no histórico da venda
@@ -973,19 +990,21 @@ export class VendasService {
           }
 
           // Inserir item (trigger vai baixar estoque e registrar histórico automaticamente)
-          const { data: itemInserido, error: erroInsert } = await supabase.from("itens_venda").insert({
-            venda_id: vendaId,
-            produto_id: itemNovo.produto_id,
-            produto_nome: itemNovo.produto_nome,
-            produto_codigo: itemNovo.produto_codigo,
-            quantidade: itemNovo.quantidade,
-            preco_unitario: itemNovo.preco_unitario,
-            subtotal: itemNovo.subtotal,
-            desconto_tipo: itemNovo.desconto_tipo || null,
-            desconto_valor: itemNovo.desconto_valor || 0,
-            valor_desconto: itemNovo.valor_desconto || 0,
-            devolvido: 0,
-          });
+          const { data: itemInserido, error: erroInsert } = await supabase
+            .from("itens_venda")
+            .insert({
+              venda_id: vendaId,
+              produto_id: itemNovo.produto_id,
+              produto_nome: itemNovo.produto_nome,
+              produto_codigo: itemNovo.produto_codigo,
+              quantidade: itemNovo.quantidade,
+              preco_unitario: itemNovo.preco_unitario,
+              subtotal: itemNovo.subtotal,
+              desconto_tipo: itemNovo.desconto_tipo || null,
+              desconto_valor: itemNovo.desconto_valor || 0,
+              valor_desconto: itemNovo.valor_desconto || 0,
+              devolvido: 0,
+            });
 
           if (erroInsert) {
             console.error("❌ ERRO AO INSERIR ITEM:", {
@@ -995,8 +1014,9 @@ export class VendasService {
                 venda_id: vendaId,
                 produto_id: itemNovo.produto_id,
                 quantidade: itemNovo.quantidade,
-              }
+              },
             });
+
             return {
               success: false,
               error: `Erro ao adicionar item ${itemNovo.produto_nome}: ${erroInsert.message}`,
@@ -1010,7 +1030,7 @@ export class VendasService {
           });
 
           alteracoes.push(
-            `Adicionado: ${itemNovo.produto_nome} (${itemNovo.quantidade}un)`
+            `Adicionado: ${itemNovo.produto_nome} (${itemNovo.quantidade}un)`,
           );
 
           // Registrar no histórico da venda
@@ -1109,7 +1129,7 @@ export class VendasService {
             });
 
             alteracoes.push(
-              `Alterado: ${itemNovo.produto_nome} (${itemAntigo.quantidade} → ${itemNovo.quantidade}un)`
+              `Alterado: ${itemNovo.produto_nome} (${itemAntigo.quantidade} → ${itemNovo.quantidade}un)`,
             );
 
             // Registrar no histórico da venda
@@ -1123,7 +1143,7 @@ export class VendasService {
 
           if (precoMudou) {
             alteracoes.push(
-              `Preço alterado: ${itemNovo.produto_nome} (R$ ${itemAntigo.preco_unitario} → R$ ${itemNovo.preco_unitario})`
+              `Preço alterado: ${itemNovo.produto_nome} (R$ ${itemAntigo.preco_unitario} → R$ ${itemNovo.preco_unitario})`,
             );
 
             // Registrar no histórico da venda
@@ -1158,6 +1178,7 @@ export class VendasService {
 
             if (erroUpdate) {
               console.error("❌ Erro ao atualizar item:", erroUpdate);
+
               return {
                 success: false,
                 error: `Erro ao atualizar item: ${erroUpdate.message}`,
@@ -1166,7 +1187,7 @@ export class VendasService {
 
             console.log(
               "✅ Item atualizado com sucesso. Resultado:",
-              updateResult
+              updateResult,
             );
 
             // Verificar se realmente atualizou
@@ -1185,7 +1206,7 @@ export class VendasService {
 
       // 3. Ajustar PAGAMENTOS (comparar e atualizar ao invés de deletar e recriar)
       console.log("💳 Atualizando pagamentos...");
-      
+
       const pagamentosAntigos = (vendaAtual.pagamentos as any[]) || [];
       const pagamentosNovos = dados.pagamentos;
 
@@ -1195,28 +1216,33 @@ export class VendasService {
       });
 
       // Criar identificador único para pagamento baseado em tipo + valor + data
-      const criarChavePagamento = (pag: any) => 
+      const criarChavePagamento = (pag: any) =>
         `${pag.tipo_pagamento}-${pag.valor}-${pag.data_pagamento || new Date().toISOString().split("T")[0]}`;
 
       const mapaPagamentosAntigos = new Map(
-        pagamentosAntigos.map((pag) => [criarChavePagamento(pag), pag])
+        pagamentosAntigos.map((pag) => [criarChavePagamento(pag), pag]),
       );
       const mapaPagamentosNovos = new Map(
-        pagamentosNovos.map((pag) => [criarChavePagamento(pag), pag])
+        pagamentosNovos.map((pag) => [criarChavePagamento(pag), pag]),
       );
 
       // Remover pagamentos que não existem mais
       for (const pagAntigo of pagamentosAntigos) {
         const chave = criarChavePagamento(pagAntigo);
+
         if (!mapaPagamentosNovos.has(chave)) {
           console.log("🗑️ Removendo pagamento:", pagAntigo);
-          await supabase.from("pagamentos_venda").delete().eq("id", pagAntigo.id);
+          await supabase
+            .from("pagamentos_venda")
+            .delete()
+            .eq("id", pagAntigo.id);
         }
       }
 
       // Adicionar novos pagamentos (que não existiam antes)
       for (const pagNovo of pagamentosNovos) {
         const chave = criarChavePagamento(pagNovo);
+
         if (!mapaPagamentosAntigos.has(chave)) {
           console.log("➕ Adicionando novo pagamento:", pagNovo);
           await supabase.from("pagamentos_venda").insert({
@@ -1250,14 +1276,15 @@ export class VendasService {
 
       const valorTotalItens = dados.itens.reduce(
         (sum, item) => sum + item.subtotal,
-        0
+        0,
       );
       const valorPagoTotal = dados.pagamentos.reduce(
         (sum, pag) => sum + pag.valor,
-        0
+        0,
       );
 
       let valorDescontoTotal = 0;
+
       if (dados.desconto) {
         if (dados.desconto.tipo === "valor") {
           valorDescontoTotal = dados.desconto.valor;
@@ -1270,6 +1297,7 @@ export class VendasService {
         valorTotalItens - valorDescontoTotal - valorPagoTotal;
 
       let statusFinal = vendaAtual.status;
+
       if (saldoDevedorFinal <= 0 && valorPagoTotal > 0) {
         statusFinal = "concluida";
       } else if (valorPagoTotal > 0 && saldoDevedorFinal > 0) {
@@ -1307,6 +1335,7 @@ export class VendasService {
       });
 
       console.log("✅ editarVendaSeguro CONCLUÍDO com sucesso!");
+
       return { success: true };
     } catch (error: any) {
       console.error("❌ Erro ao editar venda:", error);
@@ -1330,7 +1359,7 @@ export class VendasService {
   // ============================================================================
   // FUNÇÃO REMOVIDA: editarVenda (antiga versão)
   // ============================================================================
-  // MOTIVO: Fazia baixa manual de estoque duplicando com a trigger 
+  // MOTIVO: Fazia baixa manual de estoque duplicando com a trigger
   //         baixa_estoque_ao_adicionar_item que já executa automaticamente
   //         após INSERT em itens_venda.
   //
@@ -1350,7 +1379,7 @@ export class VendasService {
    */
   static async excluirVenda(
     vendaId: string,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Buscar a venda
@@ -1394,19 +1423,23 @@ export class VendasService {
       // Usar função SQL que configura o usuário e deleta a venda
       // Usar a nova função que usa delete_context para rastrear o usuário
       // Isso garante que o trigger log_deletion captura o usuário correto mesmo em cascata
-      console.log('🔍 Chamando deletar_venda_com_contexto:', { vendaId, usuarioId });
-      const { data, error } = await supabase.rpc('deletar_venda_com_contexto', {
-        p_venda_id: vendaId,
-        p_usuario_id: usuarioId
+      console.log("🔍 Chamando deletar_venda_com_contexto:", {
+        vendaId,
+        usuarioId,
       });
-      
-      console.log('📊 Resultado da RPC:', { data, error });
+      const { data, error } = await supabase.rpc("deletar_venda_com_contexto", {
+        p_venda_id: vendaId,
+        p_usuario_id: usuarioId,
+      });
+
+      console.log("📊 Resultado da RPC:", { data, error });
 
       if (error) throw error;
 
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao excluir venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -1440,7 +1473,7 @@ export class VendasService {
             pagamentos:pagamentos_venda(id, valor, tipo_pagamento, criado_em),
             itens:itens_venda(id, produto_id, quantidade, preco_unitario, subtotal, devolvido),
             devolucoes:devolucoes_venda(id)
-          `
+          `,
           )
           .order("criado_em", { ascending: false })
           .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -1465,6 +1498,7 @@ export class VendasService {
         }
 
         const { data, error } = await query;
+
         if (error) throw error;
 
         allData = [...allData, ...(data || [])];
@@ -1475,6 +1509,7 @@ export class VendasService {
       return (allData as VendaCompleta[]) || [];
     } catch (error) {
       console.error("Erro ao listar vendas:", error);
+
       return [];
     }
   }
@@ -1501,7 +1536,7 @@ export class VendasService {
         observacao?: string;
       }>;
     },
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { data: vendaAtual, error: errorVenda } = await supabase
@@ -1538,7 +1573,7 @@ export class VendasService {
 
         console.log(
           "📊 Estoque atual antes da devolução:",
-          estoqueAtual?.quantidade
+          estoqueAtual?.quantidade,
         );
 
         if (estoqueAtual) {
@@ -1554,7 +1589,7 @@ export class VendasService {
 
           console.log(
             "✅ Estoque após devolução:",
-            estoqueAtual.quantidade + itemAntigo.quantidade
+            estoqueAtual.quantidade + itemAntigo.quantidade,
           );
         }
       }
@@ -1608,6 +1643,7 @@ export class VendasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao substituir venda:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -1616,7 +1652,7 @@ export class VendasService {
    * Busca os créditos disponíveis de um cliente
    */
   static async buscarCreditosCliente(
-    clienteId: string
+    clienteId: string,
   ): Promise<{ data: any[] | null; error?: string }> {
     try {
       const { data, error } = await supabase
@@ -1630,6 +1666,7 @@ export class VendasService {
       return { data };
     } catch (error: any) {
       console.error("Erro ao buscar créditos do cliente:", error);
+
       return { data: null, error: error.message };
     }
   }
@@ -1675,7 +1712,7 @@ export class VendasService {
       // Calcular valor total da devolução (subtotal dos itens)
       const subtotalItens = dados.itens.reduce(
         (total, item) => total + item.quantidade * item.preco_unitario,
-        0
+        0,
       );
 
       console.log("💰 Subtotal dos itens devolvidos:", subtotalItens);
@@ -1683,14 +1720,16 @@ export class VendasService {
         "💰 Venda - desconto:",
         venda.valor_desconto,
         "total:",
-        venda.valor_total
+        venda.valor_total,
       );
 
       // Aplicar desconto proporcional se a venda teve desconto
       let valorDevolvido = subtotalItens;
+
       if (venda.valor_desconto > 0 && venda.valor_total > 0) {
         const percentualDesconto = venda.valor_desconto / venda.valor_total;
         const descontoProporcional = subtotalItens * percentualDesconto;
+
         valorDevolvido = subtotalItens - descontoProporcional;
 
         console.log("💰 Cálculo da devolução COM DESCONTO:", {
@@ -1731,7 +1770,7 @@ export class VendasService {
           "🔍 item_venda_id:",
           item.item_venda_id,
           "tipo:",
-          typeof item.item_venda_id
+          typeof item.item_venda_id,
         );
 
         // Buscar informações completas do item de venda
@@ -1773,13 +1812,13 @@ export class VendasService {
           {
             p_item_id: item.item_venda_id,
             p_quantidade: item.quantidade,
-          }
+          },
         );
 
         if (erroUpdate) {
           console.warn(
             "Aviso: RPC não encontrada, atualizando diretamente:",
-            erroUpdate
+            erroUpdate,
           );
           // Fallback: atualizar diretamente
           await supabase
@@ -1838,7 +1877,7 @@ export class VendasService {
 
       if (todosItensVenda) {
         const todosDevolvidos = todosItensVenda.every(
-          (item) => item.quantidade === (item.devolvido || 0)
+          (item) => item.quantidade === (item.devolvido || 0),
         );
 
         if (todosDevolvidos) {
@@ -1848,7 +1887,9 @@ export class VendasService {
             .update({ status: "devolvida" })
             .eq("id", dados.venda_id);
 
-          console.log("✅ Venda marcada como devolvida (todos os itens foram devolvidos)");
+          console.log(
+            "✅ Venda marcada como devolvida (todos os itens foram devolvidos)",
+          );
         }
       }
 
@@ -1865,6 +1906,7 @@ export class VendasService {
       return { success: true, devolucao };
     } catch (error: any) {
       console.error("❌ Erro ao processar devolução:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -1939,7 +1981,7 @@ export class VendasService {
    * Busca devoluções de uma venda
    */
   static async buscarDevolucoes(
-    vendaId: string
+    vendaId: string,
   ): Promise<{ data: DevolucaoVenda[] | null; error?: string }> {
     try {
       const { data, error } = await supabase
@@ -1948,7 +1990,7 @@ export class VendasService {
           `
           *,
           itens:itens_devolucao(*)
-        `
+        `,
         )
         .eq("venda_id", vendaId)
         .order("criado_em", { ascending: false });
@@ -1958,6 +2000,7 @@ export class VendasService {
       return { data };
     } catch (error: any) {
       console.error("Erro ao buscar devoluções:", error);
+
       return { data: null, error: error.message };
     }
   }

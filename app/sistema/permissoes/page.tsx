@@ -1,5 +1,7 @@
 "use client";
 
+import type { Permissao, PerfilUsuario } from "@/types/permissoes";
+
 import { useState, useEffect } from "react";
 import {
   Card,
@@ -25,9 +27,9 @@ import {
   Spinner,
 } from "@heroui/react";
 import { Shield, User, Edit, RotateCcw, Search } from "lucide-react";
+
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/Toast";
-import type { Permissao, PerfilUsuario } from "@/types/permissoes";
 import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { MetasService, type MetaUsuario } from "@/services/metasService";
@@ -50,45 +52,45 @@ interface PermissoesUsuario {
 
 // Mapa de labels legíveis para permissões
 const PERMISSOES_LABELS: Record<string, string> = {
-  "deletar_entregue": "Deletar Entregue",
-  "cancelar": "Cancelar",
-  "cancelar_entregue": "Cancelar Entregue",
-  "gerenciar_permissoes": "Gerenciar Permissões",
-  "gerenciar_pecas": "Gerenciar Peças",
-  "gerenciar_fotos": "Gerenciar Fotos",
-  "gerenciar_pagamentos": "Gerenciar Pagamentos",
-  "alterar_status": "Alterar Status",
-  "assumir": "Assumir",
-  "gerar_pdf": "Gerar PDF",
-  "processar_creditos": "Processar Créditos",
-  "editar_pagas": "Editar Pagas",
-  "aplicar_desconto": "Aplicar Desconto",
-  "processar_pagamentos": "Processar Pagamentos",
-  "ver_estatisticas_faturamento": "Ver Estatísticas",
-  "ver_todas_vendas": "Ver Todas Vendas",
-  "ver_resumo_pagamentos": "Ver Resumo",
-  "devolver": "Devolver",
-  "transferir": "Transferir",
-  "ajustar": "Ajustar",
-  "ver_estatisticas": "Ver Estatísticas",
-  "ver_preco_custo": "Ver Preço Custo",
-  "abrir": "Abrir",
-  "fechar": "Fechar",
-  "sangria": "Sangria",
-  "suprimento": "Suprimento",
-  "visualizar_movimentacoes": "Ver Movimentações",
-  "ver_relatorios": "Ver Relatórios",
-  "exportar_dados": "Exportar Dados",
-  "definir_metas": "Definir Metas",
-  "visualizar_metas_outros": "Ver Metas Outros",
-  "filtrar": "Filtrar",
-  "ver_detalhes": "Ver Detalhes",
-  "exportar": "Exportar",
-  "aprovar": "Aprovar",
-  "rejeitar": "Rejeitar",
-  "deletar_sem_restricao": "Deletar sem Restrição",
-  "confirmar": "Confirmar",
-  "gerenciar": "Gerenciar",
+  deletar_entregue: "Deletar Entregue",
+  cancelar: "Cancelar",
+  cancelar_entregue: "Cancelar Entregue",
+  gerenciar_permissoes: "Gerenciar Permissões",
+  gerenciar_pecas: "Gerenciar Peças",
+  gerenciar_fotos: "Gerenciar Fotos",
+  gerenciar_pagamentos: "Gerenciar Pagamentos",
+  alterar_status: "Alterar Status",
+  assumir: "Assumir",
+  gerar_pdf: "Gerar PDF",
+  processar_creditos: "Processar Créditos",
+  editar_pagas: "Editar Pagas",
+  aplicar_desconto: "Aplicar Desconto",
+  processar_pagamentos: "Processar Pagamentos",
+  ver_estatisticas_faturamento: "Ver Estatísticas",
+  ver_todas_vendas: "Ver Todas Vendas",
+  ver_resumo_pagamentos: "Ver Resumo",
+  devolver: "Devolver",
+  transferir: "Transferir",
+  ajustar: "Ajustar",
+  ver_estatisticas: "Ver Estatísticas",
+  ver_preco_custo: "Ver Preço Custo",
+  abrir: "Abrir",
+  fechar: "Fechar",
+  sangria: "Sangria",
+  suprimento: "Suprimento",
+  visualizar_movimentacoes: "Ver Movimentações",
+  ver_relatorios: "Ver Relatórios",
+  exportar_dados: "Exportar Dados",
+  definir_metas: "Definir Metas",
+  visualizar_metas_outros: "Ver Metas Outros",
+  filtrar: "Filtrar",
+  ver_detalhes: "Ver Detalhes",
+  exportar: "Exportar",
+  aprovar: "Aprovar",
+  rejeitar: "Rejeitar",
+  deletar_sem_restricao: "Deletar sem Restrição",
+  confirmar: "Confirmar",
+  gerenciar: "Gerenciar",
 };
 
 // Lista de todas as permissões disponíveis organizadas por módulo
@@ -237,7 +239,7 @@ export default function GerenciarPermissoesPage() {
   const [loading, setLoading] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(
-    null
+    null,
   );
   const [permissoesSelecionadas, setPermissoesSelecionadas] = useState<
     Permissao[]
@@ -276,8 +278,9 @@ export default function GerenciarPermissoesPage() {
       // Combinar dados
       const usuariosComPermissoes = usuariosData.map((usuario) => {
         const permissoes = permissoesData.find(
-          (p) => p.usuario_id === usuario.id
+          (p) => p.usuario_id === usuario.id,
         );
+
         return {
           ...usuario,
           permissoes_customizadas: permissoes?.permissoes || null,
@@ -299,6 +302,7 @@ export default function GerenciarPermissoesPage() {
     // Carregar metas do usuário
     try {
       const meta = await MetasService.buscarMetaUsuario(usuario.id);
+
       if (meta) {
         setMetaAtual(meta);
         setMetaMensalVendas(meta.meta_mensal_vendas.toString());
@@ -357,7 +361,7 @@ export default function GerenciarPermissoesPage() {
           `Permissões salvas, mas erro nas metas: ${errorMetas.message}`,
           {
             description: "As permissões foram atualizadas com sucesso.",
-          }
+          },
         );
       }
 
@@ -396,13 +400,15 @@ export default function GerenciarPermissoesPage() {
   const usuariosFiltrados = usuarios.filter(
     (u) =>
       u.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      u.email.toLowerCase().includes(busca.toLowerCase())
+      u.email.toLowerCase().includes(busca.toLowerCase()),
   );
 
   const getPerfilPadrao = (usuario: Usuario): PerfilUsuario => {
     const emailsAdmin = ["admin@logcell.com", "matheusmoxil@gmail.com"];
+
     if (emailsAdmin.includes(usuario.email)) return "admin";
     if (usuario.tipo_usuario === "tecnico") return "tecnico";
+
     return "vendedor";
   };
 
@@ -413,6 +419,7 @@ export default function GerenciarPermissoesPage() {
       vendedor: "success",
       tecnico: "warning",
     };
+
     return cores[perfil];
   };
 
@@ -453,11 +460,11 @@ export default function GerenciarPermissoesPage() {
       <Card>
         <CardHeader>
           <Input
+            isClearable
             placeholder="Buscar usuário..."
+            startContent={<Search className="w-4 h-4" />}
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            startContent={<Search className="w-4 h-4" />}
-            isClearable
             onClear={() => setBusca("")}
           />
         </CardHeader>
@@ -488,19 +495,19 @@ export default function GerenciarPermissoesPage() {
                     <TableCell>
                       <Chip
                         color={getCorPerfil(perfil) as any}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {perfil.toUpperCase()}
                       </Chip>
                     </TableCell>
                     <TableCell>
                       {temCustomizadas ? (
-                        <Chip color="secondary" variant="flat" size="sm">
+                        <Chip color="secondary" size="sm" variant="flat">
                           {usuario.permissoes_customizadas?.length} Customizadas
                         </Chip>
                       ) : (
-                        <Chip color="default" variant="flat" size="sm">
+                        <Chip color="default" size="sm" variant="flat">
                           Padrão do Perfil
                         </Chip>
                       )}
@@ -508,9 +515,9 @@ export default function GerenciarPermissoesPage() {
                     <TableCell>
                       <Button
                         isIconOnly
+                        color="primary"
                         size="sm"
                         variant="light"
-                        color="primary"
                         onPress={() => abrirModalEdicao(usuario)}
                       >
                         <Edit className="w-4 h-4" />
@@ -527,9 +534,9 @@ export default function GerenciarPermissoesPage() {
       {/* Modal de Edição */}
       <Modal
         isOpen={modalAberto}
-        onClose={() => setModalAberto(false)}
-        size="5xl"
         scrollBehavior="inside"
+        size="5xl"
+        onClose={() => setModalAberto(false)}
       >
         <ModalContent>
           <ModalHeader>
@@ -549,32 +556,32 @@ export default function GerenciarPermissoesPage() {
                 <p className="text-sm font-medium mb-2">Templates Rápidos:</p>
                 <div className="flex gap-2 flex-wrap">
                   <Button
-                    size="sm"
                     color="danger"
+                    size="sm"
                     variant="flat"
                     onPress={() => aplicarTemplatePermissoes("admin")}
                   >
                     Admin (Todas)
                   </Button>
                   <Button
-                    size="sm"
                     color="primary"
+                    size="sm"
                     variant="flat"
                     onPress={() => aplicarTemplatePermissoes("gerente")}
                   >
                     Gerente
                   </Button>
                   <Button
-                    size="sm"
                     color="success"
+                    size="sm"
                     variant="flat"
                     onPress={() => aplicarTemplatePermissoes("vendedor")}
                   >
                     Vendedor
                   </Button>
                   <Button
-                    size="sm"
                     color="warning"
+                    size="sm"
                     variant="flat"
                     onPress={() => aplicarTemplatePermissoes("tecnico")}
                   >
@@ -599,13 +606,15 @@ export default function GerenciarPermissoesPage() {
                       >
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           {permissoes.map((permissao) => {
-                            const chave = permissao.split(".").pop() || permissao;
+                            const chave =
+                              permissao.split(".").pop() || permissao;
                             const label = PERMISSOES_LABELS[chave] || chave;
+
                             return (
                               <Checkbox
                                 key={permissao}
-                                value={permissao}
                                 size="sm"
+                                value={permissao}
                               >
                                 {label}
                               </Checkbox>
@@ -614,7 +623,7 @@ export default function GerenciarPermissoesPage() {
                         </div>
                       </CheckboxGroup>
                     </div>
-                  )
+                  ),
                 )}
               </div>
 
@@ -633,41 +642,41 @@ export default function GerenciarPermissoesPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input
+                    description="Valor em reais que o usuário deve atingir por mês"
                     label="Meta Mensal de Vendas (R$)"
-                    placeholder="10000"
-                    value={metaMensalVendas}
-                    onValueChange={setMetaMensalVendas}
-                    type="number"
                     min="0"
-                    step="100"
+                    placeholder="10000"
                     startContent={
                       <div className="pointer-events-none flex items-center">
                         <span className="text-default-400 text-small">R$</span>
                       </div>
                     }
-                    description="Valor em reais que o usuário deve atingir por mês"
+                    step="100"
+                    type="number"
+                    value={metaMensalVendas}
+                    onValueChange={setMetaMensalVendas}
                   />
 
                   <Input
+                    description="Quantidade de OS a concluir (para técnicos)"
                     label="Meta Mensal de OS"
+                    min="0"
                     placeholder="0"
+                    step="1"
+                    type="number"
                     value={metaMensalOS}
                     onValueChange={setMetaMensalOS}
-                    type="number"
-                    min="0"
-                    step="1"
-                    description="Quantidade de OS a concluir (para técnicos)"
                   />
 
                   <Input
+                    description="Para cálculo da meta diária"
                     label="Dias Úteis do Mês"
+                    max="31"
+                    min="1"
                     placeholder="26"
+                    type="number"
                     value={diasUteis}
                     onValueChange={setDiasUteis}
-                    type="number"
-                    min="1"
-                    max="31"
-                    description="Para cálculo da meta diária"
                   />
                 </div>
 
@@ -686,25 +695,25 @@ export default function GerenciarPermissoesPage() {
           <ModalFooter>
             <Button
               color="default"
+              isDisabled={salvando}
               variant="flat"
               onPress={() => setModalAberto(false)}
-              isDisabled={salvando}
             >
               Cancelar
             </Button>
             <Button
               color="warning"
-              variant="flat"
-              startContent={<RotateCcw className="w-4 h-4" />}
-              onPress={resetarParaPadrao}
               isLoading={salvando}
+              startContent={<RotateCcw className="w-4 h-4" />}
+              variant="flat"
+              onPress={resetarParaPadrao}
             >
               Resetar para Padrão
             </Button>
             <Button
               color="primary"
-              onPress={salvarPermissoes}
               isLoading={salvando}
+              onPress={salvarPermissoes}
             >
               Salvar ({permissoesSelecionadas.length} permissões)
             </Button>

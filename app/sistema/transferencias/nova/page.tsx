@@ -16,8 +16,6 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { useToast } from "@/components/Toast";
-import { useAuth } from "@/hooks/useAuth";
 import {
   MagnifyingGlassIcon,
   ArrowRightIcon,
@@ -26,6 +24,9 @@ import {
   CheckCircleIcon,
   ArrowLeftIcon,
 } from "@heroicons/react/24/outline";
+
+import { useToast } from "@/components/Toast";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Loja {
@@ -181,6 +182,7 @@ export default function NovaTransferenciaPage() {
           const estoqueOrigem = p.estoques_lojas.find(
             (e: EstoqueLoja) => e.id_loja === parseInt(lojaOrigemId),
           );
+
           return estoqueOrigem && estoqueOrigem.quantidade > 0;
         });
 
@@ -226,6 +228,7 @@ export default function NovaTransferenciaPage() {
       const produtosUnicos = new Set(
         allProdutos.map((item) => item.id_produto),
       );
+
       setTotalProdutosLoja(produtosUnicos.size);
     } catch (error) {
       console.error("Erro ao buscar total de produtos:", error);
@@ -240,12 +243,14 @@ export default function NovaTransferenciaPage() {
 
     if (!estoqueOrigem || estoqueOrigem.quantidade <= 0) {
       toast.error("Produto sem estoque na loja de origem");
+
       return;
     }
 
     // Verificar se produto já foi adicionado
     if (itensTransferencia.some((i) => i.produto_id === produto.id)) {
       toast.error("Produto já adicionado");
+
       return;
     }
 
@@ -331,6 +336,7 @@ export default function NovaTransferenciaPage() {
       if (data.status !== "pendente") {
         toast.error("Só é possível editar transferências pendentes.");
         router.push("/sistema/transferencias");
+
         return;
       }
 
@@ -389,6 +395,7 @@ export default function NovaTransferenciaPage() {
     const itensSemDestino = itensTransferencia.filter(
       (i) => !i.loja_destino_id || i.loja_destino_id === 0,
     );
+
     if (itensSemDestino.length > 0) {
       erros.push(
         `${itensSemDestino.length} produto(s) sem loja de destino definida`,
@@ -401,6 +408,7 @@ export default function NovaTransferenciaPage() {
         i.quantidade_transferir <= 0 ||
         i.quantidade_transferir > i.estoque_origem,
     );
+
     if (itensComQuantidadeInvalida.length > 0) {
       erros.push("Verifique as quantidades dos produtos");
     }
@@ -408,6 +416,7 @@ export default function NovaTransferenciaPage() {
     const itensOrigemDestinoIgual = itensTransferencia.filter(
       (i) => i.loja_destino_id === parseInt(lojaOrigemId || "0"),
     );
+
     if (itensOrigemDestinoIgual.length > 0) {
       erros.push("Loja de origem e destino não podem ser iguais");
     }
@@ -418,6 +427,7 @@ export default function NovaTransferenciaPage() {
           .map((i) => i.loja_destino_id)
           .filter((id) => id && id > 0),
       );
+
       if (destinosUnicos.size > 1) {
         erros.push("Todos os itens devem ter a mesma loja de destino");
       }
@@ -428,6 +438,7 @@ export default function NovaTransferenciaPage() {
 
   const handleCriarTransferencia = async () => {
     const sessaoValida = await verificarSessao();
+
     if (!sessaoValida || !usuario?.id) {
       return;
     }
@@ -436,6 +447,7 @@ export default function NovaTransferenciaPage() {
     try {
       // Agrupar itens por loja destino
       const itensPorDestino: Record<number, ItemTransferencia[]> = {};
+
       itensTransferencia.forEach((item) => {
         if (!itensPorDestino[item.loja_destino_id]) {
           itensPorDestino[item.loja_destino_id] = [];
@@ -500,6 +512,7 @@ export default function NovaTransferenciaPage() {
     if (!transferenciaId) return;
 
     const sessaoValida = await verificarSessao();
+
     if (!sessaoValida || !usuario?.id) {
       return;
     }
@@ -515,6 +528,7 @@ export default function NovaTransferenciaPage() {
       );
 
       const destinoId = destinosUnicos[0];
+
       if (!destinoId) {
         throw new Error("Selecione a loja de destino");
       }
@@ -580,9 +594,9 @@ export default function NovaTransferenciaPage() {
           <div className="flex items-center gap-3">
             <Button
               isIconOnly
+              isDisabled={loading}
               variant="light"
               onPress={() => router.push("/sistema/transferencias")}
-              isDisabled={loading}
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </Button>
@@ -612,11 +626,15 @@ export default function NovaTransferenciaPage() {
           </CardHeader>
           <CardBody className="space-y-4">
             <Select
+              isRequired
+              isDisabled={loading || editando}
               label="Loja de Origem"
               placeholder="Escolha a loja de origem"
               selectedKeys={lojaOrigemId ? [lojaOrigemId] : []}
+              size="lg"
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0] as string;
+
                 setLojaOrigemId(selected);
                 setItensTransferencia([]);
                 // Resetar loja destino padrão se for a mesma
@@ -624,9 +642,6 @@ export default function NovaTransferenciaPage() {
                   setLojaDestinoPadrao("");
                 }
               }}
-              isRequired
-              isDisabled={loading || editando}
-              size="lg"
             >
               {lojas.map((loja) => (
                 <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
@@ -635,12 +650,15 @@ export default function NovaTransferenciaPage() {
 
             {lojaOrigemId && (
               <Select
+                description="Os produtos adicionados terão esta loja como destino inicial"
+                isDisabled={loading}
                 label="Loja de Destino Padrão (opcional)"
                 placeholder="Selecione uma loja de destino padrão"
-                description="Os produtos adicionados terão esta loja como destino inicial"
                 selectedKeys={lojaDestinoPadrao ? [lojaDestinoPadrao] : []}
+                size="lg"
                 onSelectionChange={(keys) => {
                   const selected = Array.from(keys)[0] as string;
+
                   setLojaDestinoPadrao(selected);
                   if (editando) {
                     setItensTransferencia((itens) =>
@@ -651,8 +669,6 @@ export default function NovaTransferenciaPage() {
                     );
                   }
                 }}
-                isDisabled={loading}
-                size="lg"
               >
                 {lojas
                   .filter((l) => l.id !== parseInt(lojaOrigemId))
@@ -683,17 +699,17 @@ export default function NovaTransferenciaPage() {
             </CardHeader>
             <CardBody className="space-y-3">
               <Input
-                placeholder="Digite o nome do produto para buscar..."
-                value={buscaProduto}
-                onValueChange={setBuscaProduto}
-                startContent={<MagnifyingGlassIcon className="h-5 w-5" />}
-                isDisabled={loading}
                 isClearable
+                isDisabled={loading}
+                placeholder="Digite o nome do produto para buscar..."
+                size="lg"
+                startContent={<MagnifyingGlassIcon className="h-5 w-5" />}
+                value={buscaProduto}
                 onClear={() => {
                   setBuscaProduto("");
                   setProdutos([]);
                 }}
-                size="lg"
+                onValueChange={setBuscaProduto}
               />
 
               {loadingProdutos && (
@@ -736,6 +752,7 @@ export default function NovaTransferenciaPage() {
                             const jaAdicionado = itensTransferencia.some(
                               (i) => i.produto_id === produto.id,
                             );
+
                             return (
                               <TableRow key={produto.id}>
                                 <TableCell>{produto.descricao}</TableCell>
@@ -746,8 +763,8 @@ export default function NovaTransferenciaPage() {
                                 <TableCell>
                                   <Chip
                                     color="primary"
-                                    variant="flat"
                                     size="sm"
+                                    variant="flat"
                                   >
                                     {estoqueOrigem?.quantidade || 0}
                                   </Chip>
@@ -758,13 +775,13 @@ export default function NovaTransferenciaPage() {
                                       outrasLojas.map((estoque) => (
                                         <Chip
                                           key={estoque.id_loja}
-                                          size="sm"
-                                          variant="flat"
                                           color={
                                             estoque.quantidade > 0
                                               ? "success"
                                               : "default"
                                           }
+                                          size="sm"
+                                          variant="flat"
                                         >
                                           {estoque.loja_nome}:{" "}
                                           {estoque.quantidade}
@@ -780,8 +797,8 @@ export default function NovaTransferenciaPage() {
                                 <TableCell>
                                   {jaAdicionado ? (
                                     <Button
-                                      size="sm"
                                       color="danger"
+                                      size="sm"
                                       variant="flat"
                                       onPress={() => removerItem(produto.id)}
                                     >
@@ -789,8 +806,8 @@ export default function NovaTransferenciaPage() {
                                     </Button>
                                   ) : (
                                     <Button
-                                      size="sm"
                                       color="primary"
+                                      size="sm"
                                       onPress={() => adicionarProduto(produto)}
                                     >
                                       Adicionar
@@ -806,9 +823,9 @@ export default function NovaTransferenciaPage() {
                       {totalPaginas > 1 && (
                         <div className="flex justify-center items-center gap-2">
                           <Button
+                            isDisabled={paginaProdutos === 1}
                             size="sm"
                             variant="flat"
-                            isDisabled={paginaProdutos === 1}
                             onPress={() =>
                               setPaginaProdutos(paginaProdutos - 1)
                             }
@@ -819,9 +836,9 @@ export default function NovaTransferenciaPage() {
                             Página {paginaProdutos} de {totalPaginas}
                           </span>
                           <Button
+                            isDisabled={paginaProdutos === totalPaginas}
                             size="sm"
                             variant="flat"
-                            isDisabled={paginaProdutos === totalPaginas}
                             onPress={() =>
                               setPaginaProdutos(paginaProdutos + 1)
                             }
@@ -900,14 +917,18 @@ export default function NovaTransferenciaPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Chip color="default" variant="flat" size="sm">
+                              <Chip color="default" size="sm" variant="flat">
                                 {item.estoque_origem}
                               </Chip>
                             </TableCell>
                             <TableCell>
                               <Input
-                                type="text"
+                                className="w-24"
                                 inputMode="numeric"
+                                isDisabled={loading}
+                                placeholder="Qtd"
+                                size="sm"
+                                type="text"
                                 value={
                                   item.quantidade_transferir !== undefined
                                     ? item.quantidade_transferir.toString()
@@ -925,6 +946,7 @@ export default function NovaTransferenciaPage() {
                                       item.produto_id,
                                       undefined,
                                     );
+
                                     return;
                                   }
 
@@ -943,32 +965,29 @@ export default function NovaTransferenciaPage() {
                                     );
                                   }
                                 }}
-                                size="sm"
-                                className="w-24"
-                                isDisabled={loading}
-                                placeholder="Qtd"
                               />
                             </TableCell>
                             <TableCell>
                               <Select
+                                className="min-w-[180px]"
+                                isDisabled={loading || editando}
                                 placeholder="Selecione o destino"
                                 selectedKeys={
                                   item.loja_destino_id
                                     ? [item.loja_destino_id.toString()]
                                     : []
                                 }
+                                size="sm"
                                 onSelectionChange={(keys) => {
                                   const selected = Array.from(
                                     keys,
                                   )[0] as string;
+
                                   atualizarLojaDestino(
                                     item.produto_id,
                                     parseInt(selected),
                                   );
                                 }}
-                                size="sm"
-                                className="min-w-[180px]"
-                                isDisabled={loading || editando}
                               >
                                 {lojas
                                   .filter(
@@ -988,14 +1007,14 @@ export default function NovaTransferenciaPage() {
                                     ? "default"
                                     : "warning"
                                 }
-                                variant="flat"
                                 size="sm"
+                                variant="flat"
                               >
                                 {estoqueDestinoAtual}
                               </Chip>
                             </TableCell>
                             <TableCell>
-                              <Chip color="success" variant="flat" size="sm">
+                              <Chip color="success" size="sm" variant="flat">
                                 {Number.isFinite(estoqueDestinoApos)
                                   ? estoqueDestinoApos
                                   : ""}
@@ -1004,11 +1023,11 @@ export default function NovaTransferenciaPage() {
                             <TableCell>
                               <Button
                                 isIconOnly
-                                size="sm"
                                 color="danger"
+                                isDisabled={loading}
+                                size="sm"
                                 variant="light"
                                 onPress={() => removerItem(item.produto_id)}
-                                isDisabled={loading}
                               >
                                 <TrashIcon className="h-4 w-4" />
                               </Button>
@@ -1030,12 +1049,12 @@ export default function NovaTransferenciaPage() {
               </CardHeader>
               <CardBody>
                 <Textarea
+                  isDisabled={loading}
+                  maxLength={500}
+                  minRows={3}
                   placeholder="Adicione uma observação sobre esta transferência..."
                   value={observacao}
                   onValueChange={setObservacao}
-                  maxLength={500}
-                  isDisabled={loading}
-                  minRows={3}
                 />
               </CardBody>
             </Card>
@@ -1043,15 +1062,16 @@ export default function NovaTransferenciaPage() {
             <div className="flex justify-end gap-3">
               <Button
                 color="danger"
-                variant="light"
-                size="lg"
-                onPress={() => router.push("/sistema/transferencias")}
                 isDisabled={loading}
+                size="lg"
                 startContent={<XMarkIcon className="h-5 w-5" />}
+                variant="light"
+                onPress={() => router.push("/sistema/transferencias")}
               >
                 Cancelar
               </Button>
               <Tooltip
+                showArrow
                 content={
                   <div className="px-1 py-2 max-w-xs">
                     <div className="text-small font-bold mb-1">
@@ -1066,21 +1086,20 @@ export default function NovaTransferenciaPage() {
                 }
                 isDisabled={errosValidacao.length === 0 || loading}
                 placement="top"
-                showArrow
               >
                 <div>
                   <Button
                     color="primary"
+                    isDisabled={loading || errosValidacao.length > 0}
+                    isLoading={loading}
                     size="lg"
+                    startContent={
+                      !loading && <CheckCircleIcon className="h-5 w-5" />
+                    }
                     onPress={
                       editando
                         ? handleAtualizarTransferencia
                         : handleCriarTransferencia
-                    }
-                    isLoading={loading}
-                    isDisabled={loading || errosValidacao.length > 0}
-                    startContent={
-                      !loading && <CheckCircleIcon className="h-5 w-5" />
                     }
                   >
                     {editando ? "Salvar Alterações" : "Criar Transferência"}

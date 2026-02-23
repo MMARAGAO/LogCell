@@ -44,20 +44,20 @@ export function ConfirmModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} placement="center">
+    <Modal isOpen={isOpen} placement="center" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">{title}</ModalHeader>
         <ModalBody>
           <div className="text-default-700">{message}</div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="light" onPress={onClose} isDisabled={isLoading}>
+          <Button isDisabled={isLoading} variant="light" onPress={onClose}>
             {cancelText}
           </Button>
           <Button
             color={confirmColor}
-            onPress={handleConfirm}
             isLoading={isLoading}
+            onPress={handleConfirm}
           >
             {confirmText}
           </Button>

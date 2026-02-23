@@ -12,6 +12,7 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Textarea } from "@heroui/input";
 import { Switch } from "@heroui/switch";
+
 import { Fornecedor, FornecedorFormData } from "@/types/fornecedor";
 import {
   criarFornecedor,
@@ -88,15 +89,17 @@ export default function FornecedorModal({
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   // Funções de formatação
   const formatCNPJ = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 14) {
       return numbers
         .replace(/^(\d{2})(\d)/, "$1.$2")
@@ -104,60 +107,72 @@ export default function FornecedorModal({
         .replace(/\.(\d{3})(\d)/, ".$1/$2")
         .replace(/(\d{4})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const formatTelefone = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 11) {
       if (numbers.length <= 10) {
         return numbers
           .replace(/^(\d{2})(\d)/, "($1) $2")
           .replace(/(\d{4})(\d)/, "$1-$2");
       }
+
       return numbers
         .replace(/^(\d{2})(\d)/, "($1) $2")
         .replace(/(\d{5})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const formatCEP = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 8) {
       return numbers.replace(/^(\d{5})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const handleCNPJChange = (value: string) => {
     const formatted = formatCNPJ(value);
+
     setFormData((prev) => ({ ...prev, cnpj: formatted }));
   };
 
   const handleTelefoneChange = (value: string) => {
     const formatted = formatTelefone(value);
+
     setFormData((prev) => ({ ...prev, telefone: formatted }));
   };
 
   const handleContatoTelefoneChange = (value: string) => {
     const formatted = formatTelefone(value);
+
     setFormData((prev) => ({ ...prev, contato_telefone: formatted }));
   };
 
   const handleCEPChange = (value: string) => {
     const formatted = formatCEP(value);
+
     setFormData((prev) => ({ ...prev, cep: formatted }));
   };
 
   const handleEstadoChange = (value: string) => {
     const upperValue = value.toUpperCase().replace(/[^A-Z]/g, "");
+
     setFormData((prev) => ({ ...prev, estado: upperValue }));
   };
 
   const handleSubmit = async () => {
     if (!formData.nome.trim()) {
       showToast("Nome do fornecedor é obrigatório", "error");
+
       return;
     }
 
@@ -170,12 +185,12 @@ export default function FornecedorModal({
     if (error) {
       showToast(
         `Erro ao ${fornecedor ? "atualizar" : "criar"} fornecedor`,
-        "error"
+        "error",
       );
     } else {
       showToast(
         `Fornecedor ${fornecedor ? "atualizado" : "criado"} com sucesso`,
-        "success"
+        "success",
       );
       onSave();
       onClose();
@@ -193,9 +208,9 @@ export default function FornecedorModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
-      size="3xl"
       scrollBehavior="inside"
+      size="3xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -210,41 +225,41 @@ export default function FornecedorModal({
               </h3>
 
               <Input
+                isRequired
                 label="Nome *"
                 name="nome"
+                placeholder="Nome do fornecedor"
                 value={formData.nome}
                 onChange={handleChange}
-                placeholder="Nome do fornecedor"
-                isRequired
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Input
                   label="CNPJ"
+                  maxLength={18}
                   name="cnpj"
+                  placeholder="00.000.000/0000-00"
                   value={formData.cnpj}
                   onChange={(e) => handleCNPJChange(e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                  maxLength={18}
                 />
 
                 <Input
                   label="Email"
                   name="email"
+                  placeholder="contato@fornecedor.com"
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="contato@fornecedor.com"
                 />
               </div>
 
               <Input
                 label="Telefone"
+                maxLength={15}
                 name="telefone"
+                placeholder="(00) 00000-0000"
                 value={formData.telefone}
                 onChange={(e) => handleTelefoneChange(e.target.value)}
-                placeholder="(00) 00000-0000"
-                maxLength={15}
               />
             </div>
 
@@ -257,36 +272,36 @@ export default function FornecedorModal({
               <Input
                 label="Endereço"
                 name="endereco"
+                placeholder="Rua, número, complemento"
                 value={formData.endereco}
                 onChange={handleChange}
-                placeholder="Rua, número, complemento"
               />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Input
                   label="Cidade"
                   name="cidade"
+                  placeholder="Cidade"
                   value={formData.cidade}
                   onChange={handleChange}
-                  placeholder="Cidade"
                 />
 
                 <Input
                   label="Estado"
+                  maxLength={2}
                   name="estado"
+                  placeholder="UF"
                   value={formData.estado}
                   onChange={(e) => handleEstadoChange(e.target.value)}
-                  placeholder="UF"
-                  maxLength={2}
                 />
 
                 <Input
                   label="CEP"
+                  maxLength={9}
                   name="cep"
+                  placeholder="00000-000"
                   value={formData.cep}
                   onChange={(e) => handleCEPChange(e.target.value)}
-                  placeholder="00000-000"
-                  maxLength={9}
                 />
               </div>
             </div>
@@ -301,18 +316,18 @@ export default function FornecedorModal({
                 <Input
                   label="Nome do Contato"
                   name="contato_nome"
+                  placeholder="Nome do responsável"
                   value={formData.contato_nome}
                   onChange={handleChange}
-                  placeholder="Nome do responsável"
                 />
 
                 <Input
                   label="Telefone do Contato"
+                  maxLength={15}
                   name="contato_telefone"
+                  placeholder="(00) 00000-0000"
                   value={formData.contato_telefone}
                   onChange={(e) => handleContatoTelefoneChange(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  maxLength={15}
                 />
               </div>
             </div>
@@ -320,11 +335,11 @@ export default function FornecedorModal({
             {/* Observações */}
             <Textarea
               label="Observações"
+              minRows={3}
               name="observacoes"
+              placeholder="Informações adicionais sobre o fornecedor"
               value={formData.observacoes}
               onChange={handleChange}
-              placeholder="Informações adicionais sobre o fornecedor"
-              minRows={3}
             />
 
             {/* Status */}
@@ -346,9 +361,9 @@ export default function FornecedorModal({
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
-            isLoading={loading}
             isDisabled={!formData.nome.trim()}
+            isLoading={loading}
+            onPress={handleSubmit}
           >
             {fornecedor ? "Atualizar" : "Criar"}
           </Button>

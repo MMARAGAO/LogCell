@@ -9,7 +9,7 @@ const BUCKET_NAME = "fotos-aparelhos";
 
 // Buscar todas as fotos de um aparelho
 export async function getFotosAparelho(
-  aparelhoId: string
+  aparelhoId: string,
 ): Promise<FotoAparelho[]> {
   try {
     const { data, error } = await supabase
@@ -29,7 +29,7 @@ export async function getFotosAparelho(
 
 // Buscar foto principal de um aparelho
 export async function getFotoPrincipal(
-  aparelhoId: string
+  aparelhoId: string,
 ): Promise<FotoAparelho | null> {
   try {
     const { data, error } = await supabase
@@ -56,7 +56,7 @@ export async function uploadFotoAparelho(
   aparelhoId: string,
   file: File,
   usuarioId: string,
-  isPrincipal: boolean = false
+  isPrincipal: boolean = false,
 ): Promise<FotoAparelho> {
   try {
     // Gerar nome único para o arquivo
@@ -161,7 +161,7 @@ export async function deletarFotoAparelho(fotoId: string): Promise<void> {
 // Definir foto como principal
 export async function definirFotoPrincipal(
   fotoId: string,
-  aparelhoId: string
+  aparelhoId: string,
 ): Promise<void> {
   try {
     // Remover flag principal de todas as fotos do aparelho
@@ -185,12 +185,12 @@ export async function definirFotoPrincipal(
 
 // Reordenar fotos
 export async function reordenarFotos(
-  fotosOrdenadas: { id: string; ordem: number }[]
+  fotosOrdenadas: { id: string; ordem: number }[],
 ): Promise<void> {
   try {
     // Atualizar ordem de cada foto
     const promises = fotosOrdenadas.map(({ id, ordem }) =>
-      supabase.from("fotos_aparelhos").update({ ordem }).eq("id", id)
+      supabase.from("fotos_aparelhos").update({ ordem }).eq("id", id),
     );
 
     await Promise.all(promises);

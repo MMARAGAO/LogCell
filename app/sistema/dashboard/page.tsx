@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { DashboardService } from "@/services/dashboardService";
 import type { DadosDashboard } from "@/types/dashboard";
-import { supabase } from "@/lib/supabaseClient";
+
+import { useEffect, useMemo, useState } from "react";
 import { Select, SelectItem } from "@heroui/react";
 import { useTheme } from "next-themes";
 import {
@@ -27,7 +26,6 @@ import {
   FaUsers,
   FaBriefcase,
 } from "react-icons/fa";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -41,7 +39,11 @@ import {
   Filler,
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { Line, Bar } from "react-chartjs-2";
+import { Line } from "react-chartjs-2";
+
+import { supabase } from "@/lib/supabaseClient";
+import { DashboardService } from "@/services/dashboardService";
+import { usePermissoes } from "@/hooks/usePermissoes";
 
 ChartJS.register(
   CategoryScale,
@@ -79,13 +81,16 @@ const CORES_GRAFICOS = [
 export default function DashboardPage() {
   const { theme } = useTheme();
   const hojeISO = useMemo(() => new Date().toISOString().split("T")[0], []);
-  
+
   // Calcular primeiro dia do mês atual
   const primeiroDiaDoMes = useMemo(() => {
     const hoje = new Date();
-    return new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split("T")[0];
+
+    return new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
   }, []);
-  
+
   const [dados, setDados] = useState<DadosDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +118,7 @@ export default function DashboardPage() {
         data_fim: dataFim || hojeISO,
         loja_id: lojaId ? Number(lojaId) : undefined,
       });
+
       setDados(data);
 
       // Carregar dados dos gráficos
@@ -163,7 +169,6 @@ export default function DashboardPage() {
     if (!permissoesLoading && temPermissao("dashboard.visualizar")) {
       carregar();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permissoesLoading]);
 
   // carregar lojas para o select
@@ -175,6 +180,7 @@ export default function DashboardPage() {
       .then(({ data, error }) => {
         if (error) {
           console.error("Erro ao buscar lojas:", error);
+
           return;
         }
         setLojas(data || []);
@@ -186,7 +192,7 @@ export default function DashboardPage() {
       {permissoesLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center space-y-2">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
             <p className="text-default-500">Carregando...</p>
           </div>
         </div>
@@ -211,9 +217,9 @@ export default function DashboardPage() {
               </p>
             </div>
             <button
-              onClick={carregar}
-              disabled={loading}
               className="px-4 py-2 rounded-md text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+              disabled={loading}
+              onClick={carregar}
             >
               {loading ? "Atualizando..." : "Atualizar"}
             </button>
@@ -222,67 +228,76 @@ export default function DashboardPage() {
           {/* Filtros */}
           <section className="rounded-xl border border-default-200 bg-content1/40 p-4 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-default-600">
+              <label
+                className="text-xs font-semibold text-default-600"
+                htmlFor="dashboard-data-inicio"
+              >
                 Data início
               </label>
               <input
+                className="h-10 rounded-md border border-default-200 px-3 text-sm bg-content1 text-foreground"
+                id="dashboard-data-inicio"
                 type="date"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
-                className="h-10 rounded-md border border-default-200 px-3 text-sm bg-content1 text-foreground"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-default-600">
+              <label
+                className="text-xs font-semibold text-default-600"
+                htmlFor="dashboard-data-fim"
+              >
                 Data fim
               </label>
               <input
+                className="h-10 rounded-md border border-default-200 px-3 text-sm bg-content1 text-foreground"
+                id="dashboard-data-fim"
                 type="date"
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
-                className="h-10 rounded-md border border-default-200 px-3 text-sm bg-content1 text-foreground"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-default-600">
+              <p className="text-xs font-semibold text-default-600">
                 Loja (opcional)
-              </label>
+              </p>
               <Select
+                disallowEmptySelection
+                className="h-10"
                 items={[
                   { id: "todas", nome: "Todas as lojas" },
                   ...lojas.map((l) => ({ id: l.id.toString(), nome: l.nome })),
                 ]}
-                selectedKeys={[lojaId || "todas"]}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
-                  setLojaId(value === "todas" ? "" : value);
-                }}
-                className="h-10"
-                disallowEmptySelection
                 renderValue={(items) =>
                   items[0]?.data?.nome || "Todas as lojas"
                 }
+                selectedKeys={[lojaId || "todas"]}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+
+                  setLojaId(value === "todas" ? "" : value);
+                }}
               >
                 {(item) => <SelectItem key={item.id}>{item.nome}</SelectItem>}
               </Select>
             </div>
             <div className="flex items-end justify-start gap-2">
               <button
-                onClick={carregar}
-                disabled={loading}
                 className="h-10 px-4 rounded-md text-sm font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+                disabled={loading}
+                onClick={carregar}
               >
                 {loading ? "Aplicando..." : "Aplicar filtros"}
               </button>
               <button
+                className="h-10 px-3 rounded-md text-sm font-semibold border border-default-200 text-default-700 hover:bg-default-100 disabled:opacity-50"
+                disabled={loading}
                 onClick={() => {
                   setDataInicio("2000-01-01");
                   setDataFim(hojeISO);
                   setLojaId("");
                   carregar();
                 }}
-                disabled={loading}
-                className="h-10 px-3 rounded-md text-sm font-semibold border border-default-200 text-default-700 hover:bg-default-100 disabled:opacity-50"
               >
                 Limpar
               </button>
@@ -968,7 +983,7 @@ export default function DashboardPage() {
           {!loading && (
             <section className="space-y-8">
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded"></div>
+                <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded" />
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Análises Detalhadas
                 </h2>
@@ -992,7 +1007,7 @@ export default function DashboardPage() {
                 {loadingGraficos ? (
                   <div className="h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-b-blue-500 mx-auto mb-3"></div>
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-b-blue-500 mx-auto mb-3" />
                       <p className="text-default-500">Carregando gráfico...</p>
                     </div>
                   </div>
@@ -1002,6 +1017,7 @@ export default function DashboardPage() {
                       data={{
                         labels: evolucaoVendas.map((item) => {
                           const [ano, mes, dia] = item.data.split("-");
+
                           return `${dia}/${mes}`;
                         }),
                         datasets: [
@@ -1095,9 +1111,11 @@ export default function DashboardPage() {
                               label: (context) => {
                                 const label = context.dataset.label || "";
                                 const value = context.parsed.y;
+
                                 if (label.includes("Receita")) {
                                   return `${label}: ${formatarMoeda(value ?? 0)}`;
                                 }
+
                                 return `${label}: ${value ?? 0}`;
                               },
                             },
@@ -1183,7 +1201,7 @@ export default function DashboardPage() {
                   {loadingGraficos ? (
                     <div className="h-96 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-200 border-b-amber-500 mx-auto mb-3"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-200 border-b-amber-500 mx-auto mb-3" />
                         <p className="text-default-500">Carregando...</p>
                       </div>
                     </div>
@@ -1249,7 +1267,7 @@ export default function DashboardPage() {
                   {loadingGraficos ? (
                     <div className="h-96 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-b-green-500 mx-auto mb-3"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-b-green-500 mx-auto mb-3" />
                         <p className="text-default-500">Carregando...</p>
                       </div>
                     </div>
@@ -1321,7 +1339,7 @@ export default function DashboardPage() {
                 {loadingGraficos ? (
                   <div className="h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-b-purple-500 mx-auto mb-3"></div>
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-b-purple-500 mx-auto mb-3" />
                       <p className="text-default-500">Carregando...</p>
                     </div>
                   </div>

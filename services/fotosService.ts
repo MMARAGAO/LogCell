@@ -7,7 +7,7 @@ export const fotosService = {
   async uploadFoto(
     bucket: string,
     file: File,
-    entidade_id: string
+    entidade_id: string,
   ): Promise<{ publicUrl: string }> {
     const fileExt = file.name.split(".").pop();
     const fileName = `${entidade_id}_${Date.now()}.${fileExt}`;
@@ -34,7 +34,7 @@ export const fotosService = {
   async linkFotoToEntity(
     bucket: string,
     entidade_id: string,
-    url: string
+    url: string,
   ): Promise<{ id: string }> {
     const { data, error } = await supabase
       .from(`${bucket}_fotos`)
@@ -58,7 +58,7 @@ export const fotosService = {
   async removeFoto(
     bucket: string,
     filePath: string,
-    id: string
+    id: string,
   ): Promise<void> {
     // Remove do storage
     const { error: storageError } = await supabase.storage

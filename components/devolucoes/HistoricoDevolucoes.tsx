@@ -15,6 +15,7 @@ import {
   Spinner,
 } from "@heroui/react";
 import { History, PackageX, User, Calendar, CreditCard } from "lucide-react";
+
 import { supabase } from "@/lib/supabaseClient";
 import { DevolucaoVenda } from "@/types/vendas";
 
@@ -75,7 +76,7 @@ export function HistoricoDevolucoes({
             *,
             item_venda:itens_venda(produto_nome, produto_codigo, preco_unitario)
           )
-        `
+        `,
         )
         .eq("venda_id", vendaId)
         .order("criado_em", { ascending: false });
@@ -94,8 +95,9 @@ export function HistoricoDevolucoes({
 
             return { ...devolucao, credito };
           }
+
           return devolucao;
-        })
+        }),
       );
 
       console.log("📦 Devoluções carregadas:", devolucoesComCreditos);
@@ -106,7 +108,7 @@ export function HistoricoDevolucoes({
           valor_total_devolucao: d.valor_total,
           credito: d.credito,
           tipo: d.tipo,
-        }))
+        })),
       );
 
       setDevolucoes(devolucoesComCreditos || []);
@@ -131,6 +133,7 @@ export function HistoricoDevolucoes({
 
   const formatarMoeda = (valor?: number | null) => {
     if (valor === undefined || valor === null) return "R$ 0,00";
+
     return Number(valor).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -139,7 +142,7 @@ export function HistoricoDevolucoes({
 
   if (loading) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} size="4xl">
+      <Modal isOpen={isOpen} size="4xl" onClose={onClose}>
         <ModalContent>
           <ModalBody className="py-8">
             <div className="flex justify-center">
@@ -152,7 +155,7 @@ export function HistoricoDevolucoes({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -185,23 +188,23 @@ export function HistoricoDevolucoes({
                         <div className="flex items-center gap-2">
                           <Chip
                             color="danger"
-                            variant="flat"
                             size="sm"
                             startContent={<PackageX className="w-3 h-3" />}
+                            variant="flat"
                           >
                             Devolução #{index + 1}
                           </Chip>
                           {devolucao.tipo === "com_credito" ? (
                             <Chip
                               color="success"
-                              variant="flat"
                               size="sm"
                               startContent={<CreditCard className="w-3 h-3" />}
+                              variant="flat"
                             >
                               Com Crédito
                             </Chip>
                           ) : (
-                            <Chip color="warning" variant="flat" size="sm">
+                            <Chip color="warning" size="sm" variant="flat">
                               Sem Crédito
                             </Chip>
                           )}
@@ -298,7 +301,7 @@ export function HistoricoDevolucoes({
                                       {item.quantidade}x{" "}
                                       {item.item_venda?.preco_unitario
                                         ? formatarMoeda(
-                                            item.item_venda.preco_unitario
+                                            item.item_venda.preco_unitario,
                                           )
                                         : "-"}
                                     </p>
@@ -306,7 +309,7 @@ export function HistoricoDevolucoes({
                                       {item.item_venda?.preco_unitario
                                         ? formatarMoeda(
                                             item.quantidade *
-                                              item.item_venda.preco_unitario
+                                              item.item_venda.preco_unitario,
                                           )
                                         : "-"}
                                     </p>
@@ -335,7 +338,7 @@ export function HistoricoDevolucoes({
                                 </p>
                                 <p className="font-semibold">
                                   {formatarMoeda(
-                                    devolucao.credito?.valor_total
+                                    devolucao.credito?.valor_total,
                                   )}
                                 </p>
                               </div>

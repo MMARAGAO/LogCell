@@ -23,7 +23,7 @@ export class HistoricoUsuariosService {
    * Busca o histórico de alterações de um usuário específico
    */
   static async getHistoricoUsuario(
-    usuarioId: string
+    usuarioId: string,
   ): Promise<HistoricoUsuario[]> {
     const { data, error } = await supabase
       .from("historico_usuarios")
@@ -34,7 +34,7 @@ export class HistoricoUsuariosService {
           nome,
           email
         )
-      `
+      `,
       )
       .eq("usuario_id", usuarioId)
       .order("data_alteracao", { ascending: false });
@@ -60,7 +60,7 @@ export class HistoricoUsuariosService {
           nome,
           email
         )
-      `
+      `,
       )
       .order("data_alteracao", { ascending: false })
       .limit(100); // Limita a 100 registros mais recentes
@@ -109,7 +109,7 @@ export class HistoricoUsuariosService {
    * Retorna a cor para o tipo de operação
    */
   static getCorOperacao(
-    operacao: string
+    operacao: string,
   ): "success" | "warning" | "danger" | "default" {
     const cores: Record<string, "success" | "warning" | "danger" | "default"> =
       {

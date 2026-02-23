@@ -1,5 +1,7 @@
 "use client";
 
+import type { HistoricoVenda } from "@/types/vendas";
+
 import { Card, CardBody, CardHeader, Chip, Divider } from "@heroui/react";
 import {
   Clock,
@@ -10,7 +12,6 @@ import {
   CheckCircle,
   Edit2,
 } from "lucide-react";
-import type { HistoricoVenda } from "@/types/vendas";
 
 interface HistoricoVendaProps {
   historico: HistoricoVenda[];
@@ -149,7 +150,7 @@ export function HistoricoVendaComponent({ historico }: HistoricoVendaProps) {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <Chip size="sm" color={config.color} variant="flat">
+                          <Chip color={config.color} size="sm" variant="flat">
                             {config.label}
                           </Chip>
                           <span className="text-xs text-gray-500">

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
-import { HistoricoEstoque, HistoricoEstoqueCompleto } from "@/types";
+import { HistoricoEstoqueCompleto } from "@/types";
 
 /**
  * Serviço para gerenciamento de histórico de movimentações de estoque
@@ -8,7 +8,7 @@ import { HistoricoEstoque, HistoricoEstoqueCompleto } from "@/types";
 // Buscar histórico de um produto
 export async function getHistoricoProduto(
   produtoId: string,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<HistoricoEstoqueCompleto[]> {
   try {
     // Query 1: Buscar histórico
@@ -19,7 +19,7 @@ export async function getHistoricoProduto(
         *,
         produto:produtos(descricao, marca),
         loja:lojas(nome)
-      `
+      `,
       )
       .eq("id_produto", produtoId)
       .order("criado_em", { ascending: false })
@@ -31,7 +31,7 @@ export async function getHistoricoProduto(
 
     // Query 2: Buscar nomes dos usuários
     const usuarioIds = Array.from(
-      new Set(historico.map((h) => h.usuario_id).filter(Boolean))
+      new Set(historico.map((h) => h.usuario_id).filter(Boolean)),
     );
 
     let usuariosMap: Record<string, string> = {};
@@ -45,7 +45,7 @@ export async function getHistoricoProduto(
       if (usuariosData) {
         usuariosMap = usuariosData.reduce(
           (acc, u) => ({ ...acc, [u.id]: u.nome }),
-          {}
+          {},
         );
       }
     }
@@ -69,7 +69,7 @@ export async function getHistoricoProduto(
 // Buscar histórico de uma loja
 export async function getHistoricoLoja(
   lojaId: number,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<HistoricoEstoqueCompleto[]> {
   try {
     // Query 1: Buscar histórico
@@ -80,7 +80,7 @@ export async function getHistoricoLoja(
         *,
         produto:produtos(descricao, marca),
         loja:lojas(nome)
-      `
+      `,
       )
       .eq("id_loja", lojaId)
       .order("criado_em", { ascending: false })
@@ -92,7 +92,7 @@ export async function getHistoricoLoja(
 
     // Query 2: Buscar nomes dos usuários
     const usuarioIds = Array.from(
-      new Set(historico.map((h) => h.usuario_id).filter(Boolean))
+      new Set(historico.map((h) => h.usuario_id).filter(Boolean)),
     );
 
     let usuariosMap: Record<string, string> = {};
@@ -106,7 +106,7 @@ export async function getHistoricoLoja(
       if (usuariosData) {
         usuariosMap = usuariosData.reduce(
           (acc, u) => ({ ...acc, [u.id]: u.nome }),
-          {}
+          {},
         );
       }
     }
@@ -136,7 +136,7 @@ export async function getTodoHistorico(
     data_fim?: string;
   },
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<{ data: HistoricoEstoqueCompleto[]; total: number }> {
   try {
     let query = supabase.from("historico_estoque").select(
@@ -145,7 +145,7 @@ export async function getTodoHistorico(
         produto:produtos(descricao, marca),
         loja:lojas(nome)
       `,
-      { count: "exact" }
+      { count: "exact" },
     );
 
     // Filtros
@@ -179,7 +179,7 @@ export async function getTodoHistorico(
 
     // Query 2: Buscar nomes dos usuários
     const usuarioIds = Array.from(
-      new Set(historico.map((h: any) => h.usuario_id).filter(Boolean))
+      new Set(historico.map((h: any) => h.usuario_id).filter(Boolean)),
     );
 
     let usuariosMap: Record<string, string> = {};
@@ -193,7 +193,7 @@ export async function getTodoHistorico(
       if (usuariosData) {
         usuariosMap = usuariosData.reduce(
           (acc, u) => ({ ...acc, [u.id]: u.nome }),
-          {}
+          {},
         );
       }
     }
@@ -223,7 +223,7 @@ export async function getTodoHistorico(
 export async function getHistoricoProdutoLoja(
   produtoId: string,
   lojaId: number,
-  limit: number = 50
+  limit: number = 50,
 ): Promise<HistoricoEstoqueCompleto[]> {
   try {
     // Query 1: Buscar histórico
@@ -234,7 +234,7 @@ export async function getHistoricoProdutoLoja(
         *,
         produto:produtos(descricao, marca),
         loja:lojas(nome)
-      `
+      `,
       )
       .eq("id_produto", produtoId)
       .eq("id_loja", lojaId)
@@ -247,7 +247,7 @@ export async function getHistoricoProdutoLoja(
 
     // Query 2: Buscar nomes dos usuários
     const usuarioIds = Array.from(
-      new Set(historico.map((h) => h.usuario_id).filter(Boolean))
+      new Set(historico.map((h) => h.usuario_id).filter(Boolean)),
     );
 
     let usuariosMap: Record<string, string> = {};
@@ -261,7 +261,7 @@ export async function getHistoricoProdutoLoja(
       if (usuariosData) {
         usuariosMap = usuariosData.reduce(
           (acc, u) => ({ ...acc, [u.id]: u.nome }),
-          {}
+          {},
         );
       }
     }
@@ -284,10 +284,11 @@ export async function getHistoricoProdutoLoja(
 
 // Buscar movimentações recentes (últimas 24h)
 export async function getMovimentacoesRecentes(
-  limit: number = 20
+  limit: number = 20,
 ): Promise<HistoricoEstoqueCompleto[]> {
   try {
     const dataLimite = new Date();
+
     dataLimite.setHours(dataLimite.getHours() - 24);
 
     const { data, error } = await supabase
@@ -297,7 +298,7 @@ export async function getMovimentacoesRecentes(
         *,
         produto:produtos(descricao, marca),
         loja:lojas(nome)
-      `
+      `,
       )
       .gte("criado_em", dataLimite.toISOString())
       .order("criado_em", { ascending: false })
@@ -320,7 +321,7 @@ export async function getMovimentacoesRecentes(
 
 // Buscar estatísticas de movimentações
 export async function getEstatisticasMovimentacoes(
-  periodo: "hoje" | "semana" | "mes" = "hoje"
+  periodo: "hoje" | "semana" | "mes" = "hoje",
 ) {
   try {
     const hoje = new Date();

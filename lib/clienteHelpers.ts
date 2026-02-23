@@ -38,9 +38,11 @@ export async function buscarTodosClientesAtivos(): Promise<Cliente[]> {
     }
 
     console.log(`✅ ${todosClientes.length} clientes ativos carregados`);
+
     return todosClientes;
   } catch (error) {
     console.error("Erro ao carregar clientes:", error);
+
     return [];
   }
 }
@@ -51,17 +53,17 @@ export async function buscarTodosClientesAtivos(): Promise<Cliente[]> {
  */
 export async function buscarClientesPorTermo(
   termo: string,
-  limite: number = 50
+  limite: number = 50,
 ): Promise<Cliente[]> {
   try {
     const searchPattern = `%${termo}%`;
-    
+
     const { data, error } = await supabase
       .from("clientes")
       .select("*")
       .eq("ativo", true)
       .or(
-        `nome.ilike.${searchPattern},doc.ilike.${searchPattern},telefone.ilike.${searchPattern},email.ilike.${searchPattern}`
+        `nome.ilike.${searchPattern},doc.ilike.${searchPattern},telefone.ilike.${searchPattern},email.ilike.${searchPattern}`,
       )
       .order("nome")
       .limit(limite);
@@ -74,6 +76,7 @@ export async function buscarClientesPorTermo(
     return data || [];
   } catch (error) {
     console.error("Erro ao buscar clientes por termo:", error);
+
     return [];
   }
 }

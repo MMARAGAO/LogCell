@@ -1,7 +1,8 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { revalidatePath } from "next/cache";
+
+import { createServerSupabaseClient } from "@/lib/supabase/action";
 
 interface LojaData {
   nome: string;
@@ -52,6 +53,7 @@ export async function cadastrarLoja(dados: LojaData, usuarioId: string) {
 
     if (error) {
       console.error("❌ [cadastrarLoja] Erro ao inserir no banco:", error);
+
       return {
         success: false,
         error: `Erro ao cadastrar loja: ${error.message}`,
@@ -59,12 +61,14 @@ export async function cadastrarLoja(dados: LojaData, usuarioId: string) {
     }
 
     revalidatePath("/sistema/lojas");
+
     return {
       success: true,
       loja: data,
     };
   } catch (error) {
     console.error("❌ [cadastrarLoja] Erro inesperado:", error);
+
     return {
       success: false,
       error: `Erro inesperado ao cadastrar loja: ${error instanceof Error ? error.message : String(error)}`,
@@ -78,7 +82,7 @@ export async function cadastrarLoja(dados: LojaData, usuarioId: string) {
 export async function atualizarLoja(
   id: number,
   dados: LojaData,
-  usuarioId: string
+  usuarioId: string,
 ) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -115,6 +119,7 @@ export async function atualizarLoja(
 
     if (error) {
       console.error("Erro ao atualizar loja:", error);
+
       return {
         success: false,
         error: "Erro ao atualizar loja",
@@ -125,12 +130,14 @@ export async function atualizarLoja(
     const lojaAtualizada = Array.isArray(data) ? data[0] : data;
 
     revalidatePath("/sistema/lojas");
+
     return {
       success: true,
       loja: lojaAtualizada,
     };
   } catch (error) {
     console.error("Erro inesperado:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao atualizar loja",
@@ -152,6 +159,7 @@ export async function deletarLoja(id: number, usuarioId: string) {
 
     if (error) {
       console.error("Erro ao deletar loja:", error);
+
       return {
         success: false,
         error: "Erro ao deletar loja",
@@ -159,9 +167,11 @@ export async function deletarLoja(id: number, usuarioId: string) {
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true };
   } catch (error) {
     console.error("Erro inesperado:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao deletar loja",
@@ -175,7 +185,7 @@ export async function deletarLoja(id: number, usuarioId: string) {
 export async function alternarStatusLoja(
   id: number,
   ativo: boolean,
-  usuarioId: string
+  usuarioId: string,
 ) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -186,11 +196,12 @@ export async function alternarStatusLoja(
         p_id: id,
         p_ativo: ativo,
         p_usuario_id: usuarioId,
-      }
+      },
     );
 
     if (error) {
       console.error("Erro ao alterar status da loja:", error);
+
       return {
         success: false,
         error: "Erro ao alterar status da loja",
@@ -198,9 +209,11 @@ export async function alternarStatusLoja(
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true };
   } catch (error) {
     console.error("Erro inesperado:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao alterar status da loja",

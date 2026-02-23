@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { Card } from "@heroui/card";
-import { Button } from "@heroui/button";
+import { Button, Card } from "@heroui/react";
 import {
   CheckCircleIcon,
   XCircleIcon,
@@ -8,7 +7,6 @@ import {
   InformationCircleIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-
 export type ToastType = "success" | "error" | "warning" | "info";
 
 interface ToastProps {
@@ -75,10 +73,10 @@ export function Toast({
         </div>
         <Button
           isIconOnly
+          className="shrink-0 text-white hover:bg-white/20"
           size="sm"
           variant="light"
           onPress={onClose}
-          className="shrink-0 text-white hover:bg-white/20"
         >
           <XMarkIcon className="w-4 h-4" />
         </Button>
@@ -118,7 +116,7 @@ export function useToast() {
         show: true,
       });
     },
-    []
+    [],
   );
 
   const hideToast = useCallback(() => {
@@ -127,8 +125,8 @@ export function useToast() {
 
   const ToastComponent = toast.show ? (
     <Toast
-      message={toast.message}
       description={toast.description}
+      message={toast.message}
       type={toast.type}
       onClose={hideToast}
     />

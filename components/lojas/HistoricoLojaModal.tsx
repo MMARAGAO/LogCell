@@ -1,5 +1,7 @@
 "use client";
 
+import type { HistoricoLojaComUsuario, Loja } from "@/types";
+
 import {
   Modal,
   ModalContent,
@@ -12,8 +14,8 @@ import {
 } from "@heroui/react";
 import { XMarkIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
+
 import { HistoricoLojasService } from "@/services/historicoLojasService";
-import type { HistoricoLojaComUsuario, Loja } from "@/types";
 
 interface HistoricoLojaModalProps {
   isOpen: boolean;
@@ -41,6 +43,7 @@ export function HistoricoLojaModal({
     setLoading(true);
     try {
       const data = await HistoricoLojasService.getHistoricoPorLoja(lojaId);
+
       setHistorico(data);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
@@ -125,7 +128,7 @@ export function HistoricoLojaModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <ClockIcon className="w-5 h-5" />
@@ -157,10 +160,10 @@ export function HistoricoLojaModal({
                     <div className="flex items-center gap-2">
                       <Chip
                         color={HistoricoLojasService.getCorOperacao(
-                          item.operacao
+                          item.operacao,
                         )}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {HistoricoLojasService.formatarOperacao(item.operacao)}
                       </Chip>
@@ -192,9 +195,9 @@ export function HistoricoLojaModal({
         <ModalFooter>
           <Button
             color="danger"
+            startContent={<XMarkIcon className="w-4 h-4" />}
             variant="light"
             onPress={onClose}
-            startContent={<XMarkIcon className="w-4 h-4" />}
           >
             Fechar
           </Button>

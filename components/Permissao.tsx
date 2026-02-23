@@ -1,8 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import type { Permissao } from "@/types/permissoes";
+
+import { ReactNode } from "react";
+
+import { usePermissoes } from "@/hooks/usePermissoes";
 
 interface PermissaoProps {
   children: ReactNode;
@@ -83,5 +85,6 @@ interface PodeFazerProps {
  */
 export function PodeFazer({ acao }: PodeFazerProps): boolean {
   const { temPermissao } = usePermissoes();
+
   return temPermissao(acao);
 }

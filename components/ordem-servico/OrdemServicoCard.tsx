@@ -35,6 +35,8 @@ import {
   ModalFooter,
 } from "@heroui/modal";
 import { Select, SelectItem } from "@heroui/select";
+import { useState, useEffect } from "react";
+
 import {
   OrdemServico,
   STATUS_OS_LABELS,
@@ -42,7 +44,6 @@ import {
   PRIORIDADE_OS_LABELS,
   PRIORIDADE_OS_COLORS,
 } from "@/types/ordemServico";
-import { useState, useEffect } from "react";
 import MiniCarrossel from "@/components/MiniCarrossel";
 import { useTextosGarantia } from "@/hooks/useTextosGarantia";
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -115,12 +116,13 @@ export default function OrdemServicoCard({
 
   const formatarData = (data?: string) => {
     if (!data) return "-";
+
     return new Date(data).toLocaleDateString("pt-BR");
   };
 
   const abrirModalGarantia = () => {
     setTipoGarantiaSelecionado(
-      (os.tipo_garantia as TipoServicoGarantia) || "servico_geral"
+      (os.tipo_garantia as TipoServicoGarantia) || "servico_geral",
     );
     setModalGarantiaOpen(true);
   };
@@ -131,7 +133,7 @@ export default function OrdemServicoCard({
       const { supabase } = await import("@/lib/supabaseClient");
 
       const textoSelecionado = textosGarantia.find(
-        (t) => t.tipo_servico === tipoGarantiaSelecionado
+        (t) => t.tipo_servico === tipoGarantiaSelecionado,
       );
 
       const { error } = await supabase
@@ -160,6 +162,7 @@ export default function OrdemServicoCard({
   const calcularSaldoPendente = () => {
     const total = os.valor_total || 0;
     const pago = os.valor_pago || 0;
+
     return total - pago;
   };
 
@@ -169,6 +172,7 @@ export default function OrdemServicoCard({
     // Verificar pagamento pendente
     if (os.valor_total && os.valor_total > 0) {
       const saldo = calcularSaldoPendente();
+
       if (saldo > 0) {
         alertas.push({
           tipo: "pagamento",
@@ -235,7 +239,7 @@ export default function OrdemServicoCard({
           {/* Mini Carrossel de Fotos ou Placeholder */}
           {fotos.length > 0 ? (
             <div className="mb-3 -mx-4 -mt-4">
-              <MiniCarrossel images={fotos} aspectRatio="video" />
+              <MiniCarrossel aspectRatio="video" images={fotos} />
             </div>
           ) : (
             <div className="mb-3 -mx-4 -mt-4 bg-default-100 flex items-center justify-center aspect-video">
@@ -254,15 +258,15 @@ export default function OrdemServicoCard({
                   OS #{os.numero_os}
                 </h3>
                 <Chip
-                  size="sm"
                   color={STATUS_OS_COLORS[os.status]}
+                  size="sm"
                   variant="flat"
                 >
                   {STATUS_OS_LABELS[os.status]}
                 </Chip>
                 <Chip
-                  size="sm"
                   color={PRIORIDADE_OS_COLORS[os.prioridade]}
+                  size="sm"
                   variant="dot"
                 >
                   {PRIORIDADE_OS_LABELS[os.prioridade]}
@@ -279,16 +283,16 @@ export default function OrdemServicoCard({
               <DropdownMenu aria-label="Ações da OS">
                 <DropdownItem
                   key="assumir"
-                  startContent={<User className="w-4 h-4" />}
-                  onPress={() => onAssumirOS?.(os)}
-                  color="primary"
                   className={os.tecnico_responsavel ? "opacity-50" : ""}
+                  color="primary"
                   description={
                     os.tecnico_responsavel
                       ? "Já atribuída a um técnico"
                       : "Assumir responsabilidade"
                   }
                   isDisabled={!onAssumirOS}
+                  startContent={<User className="w-4 h-4" />}
+                  onPress={() => onAssumirOS?.(os)}
                 >
                   {os.tecnico_responsavel ? "Já Atribuída" : "Assumir OS"}
                 </DropdownItem>
@@ -308,32 +312,30 @@ export default function OrdemServicoCard({
                 </DropdownItem>
                 <DropdownItem
                   key="pecas"
+                  color="secondary"
                   startContent={<Package className="w-4 h-4" />}
                   onPress={() => onGerenciarPecas(os)}
-                  color="secondary"
                 >
                   Gerenciar Peças
                 </DropdownItem>
                 <DropdownItem
                   key="fotos"
+                  color="secondary"
                   startContent={<Camera className="w-4 h-4" />}
                   onPress={() => onGerenciarFotos?.(os)}
-                  color="secondary"
                 >
                   Gerenciar Fotos
                 </DropdownItem>
                 <DropdownItem
                   key="pagamentos"
+                  color="success"
                   startContent={<DollarSign className="w-4 h-4" />}
                   onPress={() => onGerenciarPagamentos?.(os)}
-                  color="success"
                 >
                   Pagamentos
                 </DropdownItem>
                 <DropdownItem
                   key="garantia"
-                  startContent={<Shield className="w-4 h-4" />}
-                  onPress={abrirModalGarantia}
                   color="primary"
                   description={
                     os.tipo_garantia
@@ -342,6 +344,8 @@ export default function OrdemServicoCard({
                         ]
                       : "Definir garantia"
                   }
+                  startContent={<Shield className="w-4 h-4" />}
+                  onPress={abrirModalGarantia}
                 >
                   Tipo de Garantia
                 </DropdownItem>
@@ -352,35 +356,41 @@ export default function OrdemServicoCard({
                 >
                   Ver Histórico
                 </DropdownItem>
-                {onCancelar && os.status !== "cancelado" && os.status !== "entregue" && temPermissao("os.editar") ? (
+                {onCancelar &&
+                os.status !== "cancelado" &&
+                os.status !== "entregue" &&
+                temPermissao("os.editar") ? (
                   <DropdownItem
                     key="cancelar"
-                    startContent={<AlertTriangle className="w-4 h-4" />}
-                    color="warning"
                     className="text-warning"
+                    color="warning"
+                    startContent={<AlertTriangle className="w-4 h-4" />}
                     onPress={() => onCancelar(os)}
                   >
                     Cancelar OS
                   </DropdownItem>
                 ) : null}
-                {onCancelar && os.status === "entregue" && temPermissao("os.cancelar_entregue") ? (
+                {onCancelar &&
+                os.status === "entregue" &&
+                temPermissao("os.cancelar_entregue") ? (
                   <DropdownItem
                     key="cancelar_entregue"
-                    startContent={<AlertTriangle className="w-4 h-4" />}
-                    color="warning"
                     className="text-warning"
+                    color="warning"
+                    startContent={<AlertTriangle className="w-4 h-4" />}
                     onPress={() => onCancelar(os)}
                   >
                     Cancelar OS
                   </DropdownItem>
                 ) : null}
-                {((temPermissao("os.deletar") && os.status === "cancelado") ||
-                  (temPermissao("os.deletar_entregue") && os.status === "entregue")) ? (
+                {(temPermissao("os.deletar") && os.status === "cancelado") ||
+                (temPermissao("os.deletar_entregue") &&
+                  os.status === "entregue") ? (
                   <DropdownItem
                     key="deletar"
-                    startContent={<Trash2 className="w-4 h-4" />}
-                    color="danger"
                     className="text-danger"
+                    color="danger"
+                    startContent={<Trash2 className="w-4 h-4" />}
                     onPress={() => onDeletar(os)}
                   >
                     Excluir
@@ -397,10 +407,10 @@ export default function OrdemServicoCard({
               <span className="font-medium">{os.cliente_nome}</span>
               {os.tipo_cliente && (
                 <Chip
-                  size="sm"
                   color={
                     os.tipo_cliente === "lojista" ? "primary" : "secondary"
                   }
+                  size="sm"
                   variant="flat"
                 >
                   {os.tipo_cliente === "lojista" ? "Lojista" : "Consumidor"}
@@ -436,6 +446,7 @@ export default function OrdemServicoCard({
             <div className="space-y-2 mb-3">
               {alertas.map((alerta, index) => {
                 const Icon = alerta.icone;
+
                 return (
                   <div
                     key={index}
@@ -518,11 +529,11 @@ export default function OrdemServicoCard({
           {/* Footer */}
           <div className="flex gap-2 mt-3 pt-3 border-t border-default-200">
             <Button
-              size="sm"
+              className="flex-1"
               color="primary"
+              size="sm"
               variant="flat"
               onPress={() => onVisualizar(os)}
-              className="flex-1"
             >
               Ver Detalhes
             </Button>
@@ -533,8 +544,8 @@ export default function OrdemServicoCard({
       {/* Modal de Seleção de Garantia */}
       <Modal
         isOpen={modalGarantiaOpen}
-        onClose={() => setModalGarantiaOpen(false)}
         size="md"
+        onClose={() => setModalGarantiaOpen(false)}
       >
         <ModalContent>
           <ModalHeader>
@@ -550,15 +561,15 @@ export default function OrdemServicoCard({
               </p>
 
               <Select
+                isRequired
                 label="Tipo de Garantia"
                 selectedKeys={[tipoGarantiaSelecionado]}
+                variant="bordered"
                 onSelectionChange={(keys) =>
                   setTipoGarantiaSelecionado(
-                    Array.from(keys)[0] as TipoServicoGarantia
+                    Array.from(keys)[0] as TipoServicoGarantia,
                   )
                 }
-                variant="bordered"
-                isRequired
               >
                 {textosGarantia.map((texto) => (
                   <SelectItem
@@ -571,20 +582,20 @@ export default function OrdemServicoCard({
               </Select>
 
               {textosGarantia.find(
-                (t) => t.tipo_servico === tipoGarantiaSelecionado
+                (t) => t.tipo_servico === tipoGarantiaSelecionado,
               ) && (
                 <div className="bg-default-100 p-3 rounded-lg">
                   <p className="text-sm font-semibold mb-2">
                     {
                       textosGarantia.find(
-                        (t) => t.tipo_servico === tipoGarantiaSelecionado
+                        (t) => t.tipo_servico === tipoGarantiaSelecionado,
                       )?.titulo
                     }
                   </p>
                   <p className="text-xs text-default-600">
                     Esta garantia terá{" "}
                     {textosGarantia.find(
-                      (t) => t.tipo_servico === tipoGarantiaSelecionado
+                      (t) => t.tipo_servico === tipoGarantiaSelecionado,
                     )?.dias_garantia || 0}{" "}
                     dias
                   </p>
@@ -594,16 +605,16 @@ export default function OrdemServicoCard({
           </ModalBody>
           <ModalFooter>
             <Button
+              isDisabled={salvandoGarantia}
               variant="light"
               onPress={() => setModalGarantiaOpen(false)}
-              isDisabled={salvandoGarantia}
             >
               Cancelar
             </Button>
             <Button
               color="primary"
-              onPress={salvarGarantia}
               isLoading={salvandoGarantia}
+              onPress={salvarGarantia}
             >
               Salvar Garantia
             </Button>

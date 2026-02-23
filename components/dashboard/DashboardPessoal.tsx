@@ -7,8 +7,6 @@ import { Progress } from "@heroui/progress";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
 import { Button } from "@heroui/button";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import {
   TrendingUp,
   DollarSign,
@@ -21,6 +19,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
+
+import { useAuthContext } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { MetasService } from "@/services/metasService";
 
 interface MetricasPessoais {
@@ -56,6 +57,23 @@ interface MetricasPessoais {
   }>;
 }
 
+interface AparelhoVendaRow {
+  id: string;
+  marca: string | null;
+  modelo: string | null;
+  valor_venda: number | null;
+  valor_compra: number | null;
+  venda_id: string | null;
+  data_venda: string | null;
+  loja_id: number;
+}
+
+interface VendaResumoRow {
+  id: string;
+  vendedor_id: string | null;
+  numero_venda: number | null;
+}
+
 export default function DashboardPessoal() {
   const { usuario } = useAuthContext();
   const { lojaId, perfil } = usePermissoes();
@@ -76,7 +94,7 @@ export default function DashboardPessoal() {
     setLoading(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -88,7 +106,7 @@ export default function DashboardPessoal() {
 
       const metaUsuario = await MetasService.buscarMetaUsuario(
         usuario.id,
-        lojaId || undefined
+        lojaId || undefined,
       );
 
       console.log("📊 Meta encontrada:", metaUsuario);
@@ -117,7 +135,7 @@ export default function DashboardPessoal() {
       const inicioHoje = new Date(
         hoje.getFullYear(),
         hoje.getMonth(),
-        hoje.getDate()
+        hoje.getDate(),
       );
       const fimHoje = new Date(
         hoje.getFullYear(),
@@ -125,7 +143,7 @@ export default function DashboardPessoal() {
         hoje.getDate(),
         23,
         59,
-        59
+        59,
       );
 
       // Início e fim do mês atual
@@ -136,51 +154,117 @@ export default function DashboardPessoal() {
         0,
         23,
         59,
-        59
+        59,
       );
 
-      // Vendas de hoje
-      let queryVendasHoje = supabase
-        .from("vendas")
-        .select("id, numero_venda, valor_total, criado_em")
-        .eq("vendedor_id", usuario.id)
-        .eq("status", "concluida")
-        .gte("criado_em", inicioHoje.toISOString())
-        .lte("criado_em", fimHoje.toISOString());
+      const buscarAparelhosVendidos = async (
+        inicioISO: string,
+        fimISO: string,
+        loja: number | null,
+      ): Promise<AparelhoVendaRow[]> => {
+        const pageSize = 1000;
+        let from = 0;
+        let to = pageSize - 1;
+        const resultado: AparelhoVendaRow[] = [];
 
-      if (lojaId) {
-        queryVendasHoje = queryVendasHoje.eq("loja_id", lojaId);
-      }
+        while (true) {
+          let query = supabase
+            .from("aparelhos")
+            .select(
+              "id, marca, modelo, valor_venda, valor_compra, venda_id, data_venda, loja_id",
+            )
+            .eq("status", "vendido")
+            .gte("data_venda", inicioISO)
+            .lte("data_venda", fimISO)
+            .range(from, to);
 
-      const { data: vendasHoje, error: errorHoje } = await queryVendasHoje;
+          if (loja) {
+            query = query.eq("loja_id", loja);
+          }
 
-      if (errorHoje) throw errorHoje;
+          const { data, error } = await query;
 
-      const totalHoje =
-        vendasHoje?.reduce((sum, v) => sum + Number(v.valor_total), 0) || 0;
-      const quantidadeHoje = vendasHoje?.length || 0;
+          if (error) throw error;
+
+          const batch = (data || []) as AparelhoVendaRow[];
+
+          resultado.push(...batch);
+
+          if (batch.length < pageSize) break;
+          from += pageSize;
+          to += pageSize;
+        }
+
+        return resultado;
+      };
+
+      const buscarVendas = async (
+        vendaIds: string[],
+      ): Promise<VendaResumoRow[]> => {
+        if (!vendaIds.length) return [];
+
+        const batchSize = 50;
+        const resultado: VendaResumoRow[] = [];
+
+        for (let i = 0; i < vendaIds.length; i += batchSize) {
+          const batch = vendaIds.slice(i, i + batchSize);
+          const { data, error } = await supabase
+            .from("vendas")
+            .select("id, vendedor_id, numero_venda")
+            .in("id", batch);
+
+          if (error) throw error;
+          resultado.push(...((data || []) as VendaResumoRow[]));
+        }
+
+        return resultado;
+      };
+
+      const aparelhosMes = await buscarAparelhosVendidos(
+        inicioMes.toISOString(),
+        fimMes.toISOString(),
+        lojaId || null,
+      );
+
+      const vendaIds = Array.from(
+        new Set(aparelhosMes.map((ap) => ap.venda_id).filter(Boolean)),
+      ) as string[];
+
+      const vendas = await buscarVendas(vendaIds);
+      const vendaMap = new Map(vendas.map((v) => [v.id, v]));
+
+      const aparelhosVendedor = aparelhosMes.filter((ap) => {
+        if (!ap.venda_id) return false;
+        const venda = vendaMap.get(ap.venda_id);
+
+        return venda?.vendedor_id === usuario.id;
+      });
+
+      const aparelhosHoje = aparelhosVendedor.filter((ap) => {
+        if (!ap.data_venda) return false;
+        const data = new Date(ap.data_venda);
+
+        return data >= inicioHoje && data <= fimHoje;
+      });
+
+      const totalHoje = aparelhosHoje.reduce((sum, ap) => {
+        const valorVenda = Number(ap.valor_venda || 0);
+        const valorCompra = Number(ap.valor_compra || 0);
+
+        return sum + (valorVenda - valorCompra);
+      }, 0);
+
+      const quantidadeHoje = aparelhosHoje.length;
       const ticketMedio = quantidadeHoje > 0 ? totalHoje / quantidadeHoje : 0;
 
-      // Vendas do mês
-      let queryVendasMes = supabase
-        .from("vendas")
-        .select("id, valor_total")
-        .eq("vendedor_id", usuario.id)
-        .eq("status", "concluida")
-        .gte("criado_em", inicioMes.toISOString())
-        .lte("criado_em", fimMes.toISOString());
+      const totalMes = aparelhosVendedor.reduce((sum, ap) => {
+        const valorVenda = Number(ap.valor_venda || 0);
+        const valorCompra = Number(ap.valor_compra || 0);
 
-      if (lojaId) {
-        queryVendasMes = queryVendasMes.eq("loja_id", lojaId);
-      }
+        return sum + (valorVenda - valorCompra);
+      }, 0);
 
-      const { data: vendasMes, error: errorMes } = await queryVendasMes;
-
-      if (errorMes) throw errorMes;
-
-      const totalMes =
-        vendasMes?.reduce((sum, v) => sum + Number(v.valor_total), 0) || 0;
-      const quantidadeMes = vendasMes?.length || 0;
+      const quantidadeMes = aparelhosVendedor.length;
 
       // Calcular meta diária usando os dias úteis configurados
       const metaDiariaValor = metaMensalAtual / diasUteisAtual;
@@ -226,8 +310,27 @@ export default function DashboardPessoal() {
         };
       }
 
-      // Últimas 5 vendas
-      const ultimasVendas = vendasHoje?.slice(0, 5) || [];
+      // Últimas 5 vendas (por lucro)
+      const ultimasVendas = aparelhosHoje
+        .sort((a, b) => {
+          const dataA = a.data_venda ? new Date(a.data_venda).getTime() : 0;
+          const dataB = b.data_venda ? new Date(b.data_venda).getTime() : 0;
+
+          return dataB - dataA;
+        })
+        .slice(0, 5)
+        .map((ap) => {
+          const venda = ap.venda_id ? vendaMap.get(ap.venda_id) : null;
+          const valorVenda = Number(ap.valor_venda || 0);
+          const valorCompra = Number(ap.valor_compra || 0);
+
+          return {
+            id: ap.id,
+            numero_venda: Number(venda?.numero_venda || 0),
+            valor_total: valorVenda - valorCompra,
+            criado_em: ap.data_venda || new Date().toISOString(),
+          };
+        });
 
       setMetricas({
         vendasHoje: {
@@ -262,7 +365,7 @@ export default function DashboardPessoal() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <Spinner size="lg" label="Carregando seu dashboard..." />
+        <Spinner label="Carregando seu dashboard..." size="lg" />
       </div>
     );
   }
@@ -322,7 +425,7 @@ export default function DashboardPessoal() {
                   <ShoppingCart className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Vendas Hoje
+                  Lucro Hoje
                 </span>
               </div>
               <div>
@@ -346,7 +449,7 @@ export default function DashboardPessoal() {
                   <DollarSign className="w-5 h-5 text-success-600 dark:text-success-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Ticket Médio
+                  Lucro Médio
                 </span>
               </div>
               <div>
@@ -368,7 +471,7 @@ export default function DashboardPessoal() {
                   <TrendingUp className="w-5 h-5 text-warning-600 dark:text-warning-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Total do Mês
+                  Lucro do Mês
                 </span>
               </div>
               <div>
@@ -392,7 +495,7 @@ export default function DashboardPessoal() {
                   <Target className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Meta Mensal
+                  Meta de Lucro
                 </span>
               </div>
               <div>
@@ -419,7 +522,7 @@ export default function DashboardPessoal() {
             <div className="flex flex-col">
               <p className="text-lg font-bold">Meta Diária</p>
               <p className="text-sm text-default-500">
-                {formatarMoeda(metricas.metaDiaria.valor)} por dia
+                {formatarMoeda(metricas.metaDiaria.valor)} de lucro por dia
               </p>
             </div>
           </CardHeader>
@@ -436,8 +539,6 @@ export default function DashboardPessoal() {
                   </p>
                 </div>
                 <Chip
-                  size="md"
-                  variant="flat"
                   className="font-bold"
                   color={
                     metricas.metaDiaria.progresso >= 100
@@ -446,12 +547,14 @@ export default function DashboardPessoal() {
                         ? "warning"
                         : "danger"
                   }
+                  size="md"
+                  variant="flat"
                 >
                   {metricas.metaDiaria.progresso.toFixed(1)}%
                 </Chip>
               </div>
               <Progress
-                value={Math.min(metricas.metaDiaria.progresso, 100)}
+                className="h-2"
                 color={
                   metricas.metaDiaria.progresso >= 100
                     ? "success"
@@ -460,7 +563,7 @@ export default function DashboardPessoal() {
                       : "danger"
                 }
                 size="md"
-                className="h-2"
+                value={Math.min(metricas.metaDiaria.progresso, 100)}
               />
               {metricas.metaDiaria.faltando > 0 ? (
                 <p className="text-sm text-default-500">
@@ -489,7 +592,7 @@ export default function DashboardPessoal() {
             <div className="flex flex-col">
               <p className="text-lg font-bold">Meta Mensal</p>
               <p className="text-sm text-default-500">
-                {formatarMoeda(metricas.metaMensal.valor)} no mês
+                {formatarMoeda(metricas.metaMensal.valor)} de lucro no mês
               </p>
             </div>
           </CardHeader>
@@ -506,8 +609,6 @@ export default function DashboardPessoal() {
                   </p>
                 </div>
                 <Chip
-                  size="md"
-                  variant="flat"
                   className="font-bold"
                   color={
                     metricas.metaMensal.progresso >= 100
@@ -516,12 +617,14 @@ export default function DashboardPessoal() {
                         ? "warning"
                         : "danger"
                   }
+                  size="md"
+                  variant="flat"
                 >
                   {metricas.metaMensal.progresso.toFixed(1)}%
                 </Chip>
               </div>
               <Progress
-                value={Math.min(metricas.metaMensal.progresso, 100)}
+                className="h-2"
                 color={
                   metricas.metaMensal.progresso >= 100
                     ? "success"
@@ -530,7 +633,7 @@ export default function DashboardPessoal() {
                       : "danger"
                 }
                 size="md"
-                className="h-2"
+                value={Math.min(metricas.metaMensal.progresso, 100)}
               />
               {metricas.metaMensal.faltando > 0 ? (
                 <p className="text-sm text-default-500">
@@ -614,7 +717,9 @@ export default function DashboardPessoal() {
               <div className="p-3 rounded-xl bg-primary-100 dark:bg-primary-900/30">
                 <ShoppingCart className="w-5 h-5 text-primary-600 dark:text-primary-400" />
               </div>
-              <h3 className="text-xl font-bold">Últimas Vendas de Hoje</h3>
+              <h3 className="text-xl font-bold">
+                Últimas Vendas de Hoje (Lucro)
+              </h3>
             </CardHeader>
             <Divider />
             <CardBody className="pt-4">
@@ -640,7 +745,7 @@ export default function DashboardPessoal() {
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              }
+                              },
                             )}
                           </p>
                         </div>
@@ -662,12 +767,12 @@ export default function DashboardPessoal() {
       {/* Botão de Atualizar */}
       <div className="flex justify-center pt-4 animate-in fade-in duration-500 delay-1000">
         <Button
-          size="lg"
+          className="font-semibold"
           color="primary"
+          size="lg"
+          startContent={<TrendingUp className="w-5 h-5" />}
           variant="shadow"
           onPress={carregarMetricas}
-          startContent={<TrendingUp className="w-5 h-5" />}
-          className="font-semibold"
         >
           Atualizar Dados
         </Button>

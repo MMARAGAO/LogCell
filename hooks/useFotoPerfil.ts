@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { FotoPerfilService } from "@/services/fotoPerfilService";
 import { useAuthContext } from "@/contexts/AuthContext";
 
@@ -29,6 +30,7 @@ export function useFotoPerfil(usuarioId?: string) {
     try {
       setLoading(true);
       const foto = await FotoPerfilService.getFotoAtual(targetUserId);
+
       setFotoUrl(foto?.url || null);
     } catch (error) {
       console.error("Erro ao carregar foto de perfil:", error);
@@ -57,13 +59,14 @@ export function useFotoPerfil(usuarioId?: string) {
 
     // Buscar a foto atual para pegar o ID
     const fotoAtual = await FotoPerfilService.getFotoAtual(targetUserId);
+
     if (!fotoAtual) {
       return { success: false, error: "Nenhuma foto encontrada" };
     }
 
     const result = await FotoPerfilService.deletarFoto(
       fotoAtual.id,
-      targetUserId
+      targetUserId,
     );
 
     if (result.success) {

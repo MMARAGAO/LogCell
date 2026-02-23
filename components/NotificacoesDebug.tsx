@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+
 import { logger } from "@/lib/logger";
 
 /**
@@ -18,12 +19,12 @@ export function NotificacoesDebug() {
     const tempoDesdeUltimoLog = agora - lastLogRef.current;
 
     logger.log(
-      `🔔 [NotificacoesDebug #${mountId}] Sistema de notificações montado`
+      `🔔 [NotificacoesDebug #${mountId}] Sistema de notificações montado`,
     );
 
     if (lastLogRef.current > 0 && tempoDesdeUltimoLog < 5000) {
       logger.warn(
-        `⚠️ [NotificacoesDebug] ATENÇÃO: Remontagem rápida detectada (${tempoDesdeUltimoLog}ms desde último mount)`
+        `⚠️ [NotificacoesDebug] ATENÇÃO: Remontagem rápida detectada (${tempoDesdeUltimoLog}ms desde último mount)`,
       );
     }
 

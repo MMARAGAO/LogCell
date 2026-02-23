@@ -59,6 +59,7 @@ export default function EstoqueStats({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((stat, index) => {
         const Icon = stat.icon;
+
         return (
           <Card
             key={index}
@@ -69,7 +70,7 @@ export default function EstoqueStats({
                 <div className={`p-3 rounded-xl ${stat.bgColor}`}>
                   <Icon className={`w-6 h-6 ${stat.textColor}`} />
                 </div>
-                <Chip color={stat.color} variant="flat" size="sm">
+                <Chip color={stat.color} size="sm" variant="flat">
                   {stat.value}
                 </Chip>
               </div>

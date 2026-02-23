@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 interface TransferenciaItem {
@@ -38,7 +39,7 @@ function formatarValorMonetario(valor: number): string {
 // ============== EXPORTAÇÃO GERAL (EXCEL) ==============
 export function exportarTransferenciasParaExcel(
   transferencias: TransferenciaCompleta[],
-  nomeArquivo: string = "transferencias"
+  nomeArquivo: string = "transferencias",
 ) {
   // Criar dados formatados
   const dadosExcel = transferencias.map((t) => ({
@@ -113,12 +114,13 @@ export function exportarTransferenciasParaExcel(
       Indicador: "Total de Itens Transferidos",
       Valor: transferencias.reduce(
         (sum, t) => sum + t.itens.reduce((s, i) => s + i.quantidade, 0),
-        0
+        0,
       ),
     },
   ];
 
   const wsResumo = XLSX.utils.json_to_sheet(resumoData);
+
   wsResumo["!cols"] = [{ wch: 30 }, { wch: 25 }];
 
   aplicarEstilosCabecalho(wsResumo);
@@ -128,6 +130,7 @@ export function exportarTransferenciasParaExcel(
 
   // Salvar arquivo
   const timestamp = new Date().toISOString().split("T")[0];
+
   XLSX.writeFile(wb, `${nomeArquivo}_${timestamp}.xlsx`, {
     bookType: "xlsx",
     cellStyles: true,
@@ -136,7 +139,7 @@ export function exportarTransferenciasParaExcel(
 
 // ============== RELATÓRIO INDIVIDUAL (PDF) ==============
 export function gerarRelatorioTransferenciaPDF(
-  transferencia: TransferenciaCompleta
+  transferencia: TransferenciaCompleta,
 ) {
   const doc = new jsPDF();
   const margemEsquerda = 14;
@@ -157,7 +160,7 @@ export function gerarRelatorioTransferenciaPDF(
   doc.text(
     `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
     margemEsquerda,
-    32
+    32,
   );
 
   yPos = 50;
@@ -171,6 +174,7 @@ export function gerarRelatorioTransferenciaPDF(
   };
 
   const status = statusConfig[transferencia.status];
+
   doc.setFillColor(status.color[0], status.color[1], status.color[2]);
   doc.rect(margemEsquerda, yPos, 182, 10, "F");
   doc.setTextColor(255, 255, 255);
@@ -195,8 +199,14 @@ export function gerarRelatorioTransferenciaPDF(
   doc.setTextColor(0, 0, 0);
 
   const infoTransferencia = [
-    ["Loja de Origem:", transferencia.loja_origem_nome || transferencia.loja_origem || "-"],
-    ["Loja de Destino:", transferencia.loja_destino_nome || transferencia.loja_destino || "-"],
+    [
+      "Loja de Origem:",
+      transferencia.loja_origem_nome || transferencia.loja_origem || "-",
+    ],
+    [
+      "Loja de Destino:",
+      transferencia.loja_destino_nome || transferencia.loja_destino || "-",
+    ],
     ["Criado em:", new Date(transferencia.criado_em).toLocaleString("pt-BR")],
     ["Criado por:", transferencia.usuario_nome || "-"],
   ];
@@ -207,7 +217,7 @@ export function gerarRelatorioTransferenciaPDF(
         "Confirmado em:",
         new Date(transferencia.confirmado_em).toLocaleString("pt-BR"),
       ],
-      ["Confirmado por:", transferencia.confirmado_por_nome || "-"]
+      ["Confirmado por:", transferencia.confirmado_por_nome || "-"],
     );
   }
 
@@ -218,7 +228,7 @@ export function gerarRelatorioTransferenciaPDF(
         new Date(transferencia.cancelado_em).toLocaleString("pt-BR"),
       ],
       ["Cancelado por:", transferencia.cancelado_por_nome || "-"],
-      ["Motivo:", transferencia.motivo_cancelamento || "-"]
+      ["Motivo:", transferencia.motivo_cancelamento || "-"],
     );
   }
 
@@ -291,7 +301,7 @@ export function gerarRelatorioTransferenciaPDF(
   const totalItens = transferencia.itens.length;
   const totalQuantidade = transferencia.itens.reduce(
     (sum, item) => sum + item.quantidade,
-    0
+    0,
   );
 
   doc.setFillColor(245, 245, 245);
@@ -303,16 +313,17 @@ export function gerarRelatorioTransferenciaPDF(
   doc.text(
     `Total de Produtos Diferentes: ${totalItens}`,
     margemEsquerda + 5,
-    yPos + 8
+    yPos + 8,
   );
   doc.text(
     `Quantidade Total Transferida: ${totalQuantidade}`,
     margemEsquerda + 5,
-    yPos + 15
+    yPos + 15,
   );
 
   // Rodapé
   const totalPaginas = (doc as any).internal.getNumberOfPages();
+
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
@@ -321,19 +332,20 @@ export function gerarRelatorioTransferenciaPDF(
       `Página ${i} de ${totalPaginas}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
-      { align: "center" }
+      { align: "center" },
     );
   }
 
   // Salvar
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_${transferencia.id.substring(0, 8)}_${timestamp}`;
+
   abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
 // ============== RELATÓRIO DETALHADO DE TRANSFERÊNCIA ==============
 export function gerarRelatorioTransferenciaDetalhado(
-  transferencia: TransferenciaCompleta
+  transferencia: TransferenciaCompleta,
 ) {
   const doc = new jsPDF();
   const margemEsquerda = 14;
@@ -379,7 +391,7 @@ export function gerarRelatorioTransferenciaDetalhado(
         "Confirmado em:",
         new Date(transferencia.confirmado_em).toLocaleString("pt-BR"),
       ],
-      ["Confirmado por:", transferencia.confirmado_por_nome || "-"]
+      ["Confirmado por:", transferencia.confirmado_por_nome || "-"],
     );
   }
 
@@ -390,7 +402,7 @@ export function gerarRelatorioTransferenciaDetalhado(
         new Date(transferencia.cancelado_em).toLocaleString("pt-BR"),
       ],
       ["Cancelado por:", transferencia.cancelado_por_nome || "-"],
-      ["Motivo:", transferencia.motivo_cancelamento || "-"]
+      ["Motivo:", transferencia.motivo_cancelamento || "-"],
     );
   }
 
@@ -458,7 +470,7 @@ export function gerarRelatorioTransferenciaDetalhado(
   const totalItens = transferencia.itens.length;
   const totalQuantidade = transferencia.itens.reduce(
     (sum, item) => sum + item.quantidade,
-    0
+    0,
   );
 
   doc.setFillColor(240, 248, 255);
@@ -471,16 +483,17 @@ export function gerarRelatorioTransferenciaDetalhado(
   doc.text(
     `• Total de Produtos Diferentes: ${totalItens}`,
     margemEsquerda + 5,
-    yPos + 14
+    yPos + 14,
   );
   doc.text(
     `• Quantidade Total Transferida: ${totalQuantidade} unidades`,
     margemEsquerda + 5,
-    yPos + 20
+    yPos + 20,
   );
 
   // Rodapé
   const totalPaginas = (doc as any).internal.getNumberOfPages();
+
   for (let i = 1; i <= totalPaginas; i++) {
     doc.setPage(i);
     doc.setFontSize(8);
@@ -489,18 +502,19 @@ export function gerarRelatorioTransferenciaDetalhado(
       `Relatório Detalhado - Página ${i} de ${totalPaginas} - Gerado em ${new Date().toLocaleString("pt-BR")}`,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 10,
-      { align: "center" }
+      { align: "center" },
     );
   }
 
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_detalhado_${transferencia.id.substring(0, 8)}_${timestamp}`;
+
   abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
 // ============== RELATÓRIO RESUMIDO DE TRANSFERÊNCIA ==============
 export function gerarRelatorioTransferenciaResumido(
-  transferencia: TransferenciaCompleta
+  transferencia: TransferenciaCompleta,
 ) {
   const doc = new jsPDF();
   const margemEsquerda = 14;
@@ -529,28 +543,20 @@ export function gerarRelatorioTransferenciaResumido(
   doc.text(
     `#${transferencia.id.substring(0, 8)} - ${new Date(transferencia.criado_em).toLocaleDateString("pt-BR")}`,
     margemEsquerda + 35,
-    yPos
+    yPos,
   );
 
   yPos += 7;
   doc.setFont("helvetica", "bold");
   doc.text("De:", margemEsquerda, yPos);
   doc.setFont("helvetica", "normal");
-  doc.text(
-    transferencia.loja_origem_nome || "-",
-    margemEsquerda + 35,
-    yPos
-  );
+  doc.text(transferencia.loja_origem_nome || "-", margemEsquerda + 35, yPos);
 
   yPos += 7;
   doc.setFont("helvetica", "bold");
   doc.text("Para:", margemEsquerda, yPos);
   doc.setFont("helvetica", "normal");
-  doc.text(
-    transferencia.loja_destino_nome || "-",
-    margemEsquerda + 35,
-    yPos
-  );
+  doc.text(transferencia.loja_destino_nome || "-", margemEsquerda + 35, yPos);
 
   yPos += 7;
   doc.setFont("helvetica", "bold");
@@ -562,6 +568,7 @@ export function gerarRelatorioTransferenciaResumido(
       : transferencia.status === "confirmada"
         ? "Confirmada"
         : "Cancelada";
+
   doc.text(statusTexto, margemEsquerda + 35, yPos);
 
   yPos += 12;
@@ -608,7 +615,7 @@ export function gerarRelatorioTransferenciaResumido(
   const totalItens = transferencia.itens.length;
   const totalQuantidade = transferencia.itens.reduce(
     (sum, item) => sum + item.quantidade,
-    0
+    0,
   );
 
   doc.setFillColor(245, 245, 245);
@@ -618,7 +625,7 @@ export function gerarRelatorioTransferenciaResumido(
   doc.text(
     `Total: ${totalItens} produto(s) | ${totalQuantidade} unidade(s)`,
     margemEsquerda + 5,
-    yPos + 10
+    yPos + 10,
   );
 
   // Rodapé
@@ -628,11 +635,12 @@ export function gerarRelatorioTransferenciaResumido(
     `Relatório Resumido - Gerado em ${new Date().toLocaleString("pt-BR")}`,
     doc.internal.pageSize.getWidth() / 2,
     doc.internal.pageSize.getHeight() - 10,
-    { align: "center" }
+    { align: "center" },
   );
 
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `transferencia_resumido_${transferencia.id.substring(0, 8)}_${timestamp}`;
+
   abrirPreviewPDF(doc, `${nomeArquivo}.pdf`);
 }
 
@@ -642,6 +650,7 @@ function aplicarEstilosCabecalho(ws: XLSX.WorkSheet) {
 
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const address = XLSX.utils.encode_col(C) + "1";
+
     if (!ws[address]) continue;
 
     ws[address].s = {
@@ -675,6 +684,7 @@ function aplicarEstilosLinhas(ws: XLSX.WorkSheet) {
 
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_cell({ r: R, c: C });
+
       if (!ws[address]) continue;
 
       ws[address].s = {

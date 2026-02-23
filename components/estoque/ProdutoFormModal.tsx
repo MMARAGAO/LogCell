@@ -6,17 +6,17 @@ import {
   ModalFooter,
 } from "@heroui/modal";
 import { Button } from "@heroui/button";
-import { Input, Textarea } from "@heroui/input";
-import { Select, SelectItem } from "@heroui/select";
+import { Input } from "@heroui/input";
 import { Switch } from "@heroui/switch";
 import { useState, useEffect } from "react";
-import { Produto } from "@/types";
-import { useToast } from "@/components/Toast";
 import {
   CurrencyDollarIcon,
   SparklesIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
+
+import { Produto } from "@/types";
+import { useToast } from "@/components/Toast";
 
 interface ProdutoFormModalProps {
   isOpen: boolean;
@@ -84,9 +84,11 @@ export default function ProdutoFormModal({
     if (!formData.preco_compra || !porcentagem) return;
 
     const percentual = parseFloat(porcentagem);
+
     if (isNaN(percentual)) return;
 
     const precoVenda = formData.preco_compra * (1 + percentual / 100);
+
     setFormData({
       ...formData,
       preco_venda: parseFloat(precoVenda.toFixed(2)),
@@ -113,11 +115,11 @@ export default function ProdutoFormModal({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="2xl"
-      scrollBehavior="inside"
       isDismissable={!loading}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="2xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -128,14 +130,14 @@ export default function ProdutoFormModal({
             {/* Descrição */}
             <div className="md:col-span-2">
               <Input
+                isRequired
                 label="Descrição do Produto"
                 placeholder="Ex: Notebook Dell Inspiron 15"
                 value={formData.descricao}
+                variant="bordered"
                 onValueChange={(value) =>
                   setFormData({ ...formData, descricao: value })
                 }
-                variant="bordered"
-                isRequired
               />
             </div>
 
@@ -144,10 +146,10 @@ export default function ProdutoFormModal({
               label="Grupo"
               placeholder="Ex: Informática, Periféricos"
               value={formData.grupo}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({ ...formData, grupo: value })
               }
-              variant="bordered"
             />
 
             {/* Categoria */}
@@ -155,10 +157,10 @@ export default function ProdutoFormModal({
               label="Categoria"
               placeholder="Ex: Notebooks, Monitores"
               value={formData.categoria}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({ ...formData, categoria: value })
               }
-              variant="bordered"
             />
 
             {/* Código do Fabricante */}
@@ -166,10 +168,10 @@ export default function ProdutoFormModal({
               label="Código do Fabricante"
               placeholder="Ex: ABC123XYZ"
               value={formData.codigo_fabricante}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({ ...formData, codigo_fabricante: value })
               }
-              variant="bordered"
             />
 
             {/* Marca */}
@@ -177,10 +179,10 @@ export default function ProdutoFormModal({
               label="Marca"
               placeholder="Ex: Dell, HP, Lenovo"
               value={formData.marca}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({ ...formData, marca: value })
               }
-              variant="bordered"
             />
 
             {/* Modelos */}
@@ -189,21 +191,24 @@ export default function ProdutoFormModal({
                 label="Modelos"
                 placeholder="Ex: i5-10ª geração, 8GB RAM, SSD 256GB"
                 value={formData.modelos}
+                variant="bordered"
                 onValueChange={(value) =>
                   setFormData({ ...formData, modelos: value })
                 }
-                variant="bordered"
               />
             </div>
 
             {/* Preço de Compra */}
             <Input
               label="Preço de Compra (R$)"
-              type="number"
+              startContent={<span className="text-default-400">R$</span>}
               step="0.01"
+              type="number"
               value={formData.preco_compra?.toString() || ""}
+              variant="bordered"
               onValueChange={(value) => {
                 const precoCompra = value ? parseFloat(value) : undefined;
+
                 setFormData({
                   ...formData,
                   preco_compra: precoCompra,
@@ -211,8 +216,10 @@ export default function ProdutoFormModal({
                 // Recalcular preço de venda se houver porcentagem
                 if (porcentagemGanho && precoCompra) {
                   const percentual = parseFloat(porcentagemGanho);
+
                   if (!isNaN(percentual)) {
                     const precoVenda = precoCompra * (1 + percentual / 100);
+
                     setFormData({
                       ...formData,
                       preco_compra: precoCompra,
@@ -221,63 +228,38 @@ export default function ProdutoFormModal({
                   }
                 }
               }}
-              variant="bordered"
-              startContent={<span className="text-default-400">R$</span>}
             />
 
             {/* Preço de Venda */}
             <Input
               label="Preço de Venda (R$)"
-              type="number"
+              startContent={<span className="text-default-400">R$</span>}
               step="0.01"
+              type="number"
               value={formData.preco_venda?.toString() || ""}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({
                   ...formData,
                   preco_venda: value ? parseFloat(value) : undefined,
                 })
               }
-              variant="bordered"
-              startContent={<span className="text-default-400">R$</span>}
             />
 
             {/* Porcentagem de Ganho */}
             <div className="md:col-span-2">
               <div className="relative">
                 <Input
-                  label={
-                    <div className="flex items-center gap-2">
-                      <CurrencyDollarIcon className="w-4 h-4" />
-                      <span>Calcular Margem de Lucro</span>
-                    </div>
-                  }
-                  type="number"
-                  step="0.01"
-                  placeholder="Digite a porcentagem (ex: 30)"
-                  value={porcentagemGanho}
-                  onValueChange={(value) => {
-                    setPorcentagemGanho(value);
-                    if (value && formData.preco_compra) {
-                      calcularPrecoVendaPorPorcentagem(value);
-                    }
-                  }}
-                  variant="bordered"
-                  isDisabled={!formData.preco_compra}
-                  color={
-                    porcentagemGanho && formData.preco_compra
-                      ? "success"
-                      : "default"
-                  }
                   classNames={{
                     input: "text-lg font-semibold",
                     inputWrapper: formData.preco_compra
                       ? "border-2 hover:border-success focus-within:border-success"
                       : "",
                   }}
-                  endContent={
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-success">%</span>
-                    </div>
+                  color={
+                    porcentagemGanho && formData.preco_compra
+                      ? "success"
+                      : "default"
                   }
                   description={
                     formData.preco_compra && porcentagemGanho ? (
@@ -303,23 +285,46 @@ export default function ProdutoFormModal({
                       </div>
                     )
                   }
+                  endContent={
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-success">%</span>
+                    </div>
+                  }
+                  isDisabled={!formData.preco_compra}
+                  label={
+                    <div className="flex items-center gap-2">
+                      <CurrencyDollarIcon className="w-4 h-4" />
+                      <span>Calcular Margem de Lucro</span>
+                    </div>
+                  }
+                  placeholder="Digite a porcentagem (ex: 30)"
+                  step="0.01"
+                  type="number"
+                  value={porcentagemGanho}
+                  variant="bordered"
+                  onValueChange={(value) => {
+                    setPorcentagemGanho(value);
+                    if (value && formData.preco_compra) {
+                      calcularPrecoVendaPorPorcentagem(value);
+                    }
+                  }}
                 />
               </div>
             </div>
 
             {/* Quantidade Mínima */}
             <Input
+              isRequired
               label="Quantidade Mínima"
               type="number"
               value={formData.quantidade_minima?.toString() || "0"}
+              variant="bordered"
               onValueChange={(value) =>
                 setFormData({
                   ...formData,
                   quantidade_minima: parseInt(value) || 0,
                 })
               }
-              variant="bordered"
-              isRequired
             />
 
             {/* Status Ativo */}
@@ -336,14 +341,14 @@ export default function ProdutoFormModal({
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="light" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="light" onPress={onClose}>
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
-            isLoading={loading}
             isDisabled={!isFormValid}
+            isLoading={loading}
+            onPress={handleSubmit}
           >
             {produto ? "Salvar Alterações" : "Criar Produto"}
           </Button>

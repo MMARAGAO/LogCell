@@ -22,11 +22,8 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Divider,
   Tabs,
   Tab,
-  Select,
-  SelectItem,
 } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
 import {
@@ -45,7 +42,6 @@ import {
   Clock,
   AlertTriangle,
   History,
-  Download,
   ExternalLink,
   Banknote,
   Smartphone,
@@ -54,13 +50,14 @@ import {
   HelpCircle,
   RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { CaixaService } from "@/services/caixaService";
 import { CaixaCompleto, ResumoCaixa, MovimentacaoCaixa } from "@/types/caixa";
 import { supabase } from "@/lib/supabaseClient";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
-import { toast } from "sonner";
 
 const ITENS_POR_PAGINA_HISTORICO = 10;
 
@@ -137,6 +134,7 @@ export default function CaixaPage() {
 
   const historicosPaginados = useMemo(() => {
     const indiceInicial = (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO;
+
     return historicosCaixa.slice(
       indiceInicial,
       indiceInicial + ITENS_POR_PAGINA_HISTORICO,
@@ -173,6 +171,7 @@ export default function CaixaPage() {
       const lojasComCaixa = await Promise.all(
         (data || []).map(async (loja) => {
           const caixa = await CaixaService.buscarCaixaAberto(loja.id);
+
           return {
             ...loja,
             caixa,
@@ -230,6 +229,7 @@ export default function CaixaPage() {
               "Erro ao calcular saldo esperado para caixa histórico:",
               error,
             );
+
             return caixa;
           }
         }),
@@ -247,6 +247,7 @@ export default function CaixaPage() {
   const handleAbrirModal = (loja: LojaComCaixa) => {
     if (!temPermissao("caixa.abrir")) {
       toast.error("Você não tem permissão para abrir caixa");
+
       return;
     }
     setLojaSelecionada(loja);
@@ -258,6 +259,7 @@ export default function CaixaPage() {
   const handleFecharModal = (loja: LojaComCaixa) => {
     if (!temPermissao("caixa.fechar")) {
       toast.error("Você não tem permissão para fechar caixa");
+
       return;
     }
     setLojaSelecionada(loja);
@@ -313,6 +315,7 @@ export default function CaixaPage() {
       toast.error(
         "Você não tem permissão para visualizar movimentações do caixa",
       );
+
       return;
     }
     setLoading(true);
@@ -376,7 +379,9 @@ export default function CaixaPage() {
 
   const formatarMoeda = (valor: number | null | undefined) => {
     const numerico = Number(valor || 0);
+
     if (Number.isNaN(numerico)) return "R$ 0,00";
+
     return numerico.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
@@ -385,6 +390,7 @@ export default function CaixaPage() {
 
   const formatarData = (data: string | null | undefined) => {
     if (!data) return "N/A";
+
     return new Date(data).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
@@ -400,6 +406,7 @@ export default function CaixaPage() {
     const diff = agora.getTime() - abertura.getTime();
     const horas = Math.floor(diff / (1000 * 60 * 60));
     const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
     return `${horas}h ${minutos}min`;
   };
 
@@ -411,6 +418,7 @@ export default function CaixaPage() {
 
     // Buscar detalhes das devoluções com itens
     let devolucoesDetalhadas: any[] = [];
+
     if (
       resumo.devolucoes.quantidade > 0 ||
       resumo.devolucoes_sem_credito.quantidade > 0
@@ -473,9 +481,11 @@ export default function CaixaPage() {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     const lojaTexto = `Loja: ${caixaDetalhes.loja?.nome || "N/A"}`;
+
     doc.text(lojaTexto, 15, 35, { maxWidth: pageWidth - 30 });
 
     const abertoTexto = `Aberto por: ${caixaDetalhes.usuario_abertura_info?.nome || "N/A"}`;
+
     doc.text(abertoTexto, 15, 42, { maxWidth: pageWidth - 30 });
 
     doc.text(
@@ -490,6 +500,7 @@ export default function CaixaPage() {
         56,
       );
       const fechadoTexto = `Fechado por: ${caixaDetalhes.usuario_fechamento_info?.nome || "N/A"}`;
+
       doc.text(fechadoTexto, 15, 63, { maxWidth: pageWidth - 30 });
     }
 
@@ -501,6 +512,7 @@ export default function CaixaPage() {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     let yPos = caixaDetalhes.data_fechamento ? 88 : 81;
+
     doc.text(`Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`, 15, yPos);
     yPos += 7;
     doc.text(
@@ -532,6 +544,7 @@ export default function CaixaPage() {
     doc.setTextColor(255, 255, 255);
     const totalGeral =
       resumo.saldo_inicial + resumo.total_entradas - resumo.total_saidas;
+
     doc.text(
       `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
       pageWidth / 2,
@@ -554,6 +567,7 @@ export default function CaixaPage() {
       yPos += 7;
       const diferenca = caixaDetalhes.saldo_final - resumo.saldo_esperado;
       const diferencaColor = diferenca >= 0 ? [34, 197, 94] : [239, 68, 68];
+
       doc.setTextColor(diferencaColor[0], diferencaColor[1], diferencaColor[2]);
       doc.text(`Diferença: ${formatarMoeda(diferenca)}`, 15, yPos);
       doc.setTextColor(0, 0, 0);
@@ -586,9 +600,11 @@ export default function CaixaPage() {
           !m.gerou_credito &&
           new Date(m.data).toDateString() === new Date(mov.data).toDateString(),
       );
+
       if (temDevolucaoSemCredito) return;
 
       const forma = mov.forma_pagamento || "nao_informado";
+
       if (!vendasPorFormaPagamento[forma]) {
         vendasPorFormaPagamento[forma] = [];
       }
@@ -684,6 +700,7 @@ export default function CaixaPage() {
             venda.cliente.length > 40
               ? venda.cliente.substring(0, 37) + "..."
               : venda.cliente;
+
           doc.text(
             `${venda.data} - #${venda.numero} - ${nomeCliente}`,
             25,
@@ -722,6 +739,7 @@ export default function CaixaPage() {
 
     // ===== VENDAS COM CRÉDITO DO CLIENTE =====
     const vendasComCredito = vendasPorFormaPagamento["credito_cliente"] || [];
+
     if (vendasComCredito.length > 0) {
       if (yPos > 230) {
         doc.addPage();
@@ -751,6 +769,7 @@ export default function CaixaPage() {
         (sum, v) => sum + v.valor,
         0,
       );
+
       doc.text(`Crédito do Cliente - ${formatarMoeda(totalCredito)}`, 22, yPos);
       yPos += 8;
 
@@ -766,6 +785,7 @@ export default function CaixaPage() {
           venda.cliente.length > 40
             ? venda.cliente.substring(0, 37) + "..."
             : venda.cliente;
+
         doc.text(
           `${venda.data} - #${venda.numero} - ${nomeCliente}`,
           25,
@@ -799,6 +819,7 @@ export default function CaixaPage() {
             mov,
           });
         }
+
         return (
           mov.tipo === "ordem_servico" &&
           mov.descricao &&
@@ -846,6 +867,7 @@ export default function CaixaPage() {
       if (mov.pagamentos && mov.pagamentos.length > 0) {
         mov.pagamentos.forEach((pag: any) => {
           const forma = pag.tipo_pagamento || "nao_informado";
+
           if (!osPorFormaPagamento[forma]) {
             osPorFormaPagamento[forma] = [];
           }
@@ -861,6 +883,7 @@ export default function CaixaPage() {
         });
       } else {
         const forma = mov.forma_pagamento || "nao_informado";
+
         if (!osPorFormaPagamento[forma]) {
           osPorFormaPagamento[forma] = [];
         }
@@ -875,6 +898,7 @@ export default function CaixaPage() {
 
     // Só renderizar a seção se houver pelo menos uma OS válida
     const totalOSValidas = Object.values(osPorFormaPagamento).flat().length;
+
     if (totalOSValidas > 0) {
       // Verificar se precisa de nova página antes da seção
       if (yPos > 230) {
@@ -942,6 +966,7 @@ export default function CaixaPage() {
             ordem.cliente.length > 40
               ? ordem.cliente.substring(0, 37) + "..."
               : ordem.cliente;
+
           doc.text(
             `${ordem.data} - ${ordem.numero} - ${nomeCliente}`,
             25,
@@ -1084,6 +1109,7 @@ export default function CaixaPage() {
 
         // Criar mapa de itens devolvidos
         const itensDevolvidos = new Map();
+
         dev.itens?.forEach((item: any) => {
           itensDevolvidos.set(item.item_venda_id, item.quantidade);
         });
@@ -1271,6 +1297,7 @@ export default function CaixaPage() {
 
     // ===== REEMBOLSOS DE ORDEM DE SERVIÇO =====
     const reembolsosOS = resumo.devolu_os_reembolso?.lista || [];
+
     if (reembolsosOS && reembolsosOS.length > 0) {
       if (yPos > 240) {
         doc.addPage();
@@ -1320,12 +1347,14 @@ export default function CaixaPage() {
 
     // Rodapé
     const pageCount = doc.getNumberOfPages();
+
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
 
       // Logo (caso exista)
       try {
         const logoImg = new Image();
+
         logoImg.src = "/logo.png";
         // Adicionar logo no rodapé (esquerda)
         doc.addImage(
@@ -1354,6 +1383,7 @@ export default function CaixaPage() {
     // Visualizar PDF em nova aba
     const pdfBlob = doc.output("blob");
     const pdfUrl = URL.createObjectURL(pdfBlob);
+
     window.open(pdfUrl, "_blank");
 
     toast.success("PDF aberto em nova aba!");
@@ -1391,6 +1421,7 @@ export default function CaixaPage() {
         </div>
         <Button
           color="primary"
+          isLoading={loading}
           variant="flat"
           onPress={() => {
             if (abaAtiva === "caixas") {
@@ -1399,7 +1430,6 @@ export default function CaixaPage() {
               carregarHistorico();
             }
           }}
-          isLoading={loading}
         >
           Atualizar
         </Button>
@@ -1407,12 +1437,12 @@ export default function CaixaPage() {
 
       {/* Tabs */}
       <Tabs
-        selectedKey={abaAtiva}
-        onSelectionChange={(key) => setAbaAtiva(key as string)}
-        variant="underlined"
         classNames={{
           tabList: "gap-6",
         }}
+        selectedKey={abaAtiva}
+        variant="underlined"
+        onSelectionChange={(key) => setAbaAtiva(key as string)}
       >
         <Tab
           key="caixas"
@@ -1440,8 +1470,8 @@ export default function CaixaPage() {
                     </div>
                     <Chip
                       color={loja.caixa ? "success" : "default"}
-                      variant="flat"
                       size="sm"
+                      variant="flat"
                     >
                       {loja.caixa ? "ABERTO" : "FECHADO"}
                     </Chip>
@@ -1509,9 +1539,9 @@ export default function CaixaPage() {
                         {temPermissao("caixa.visualizar_movimentacoes") && (
                           <Button
                             color="primary"
-                            variant="flat"
                             size="sm"
                             startContent={<Eye className="w-4 h-4" />}
+                            variant="flat"
                             onPress={() => handleVerDetalhes(loja.caixa!)}
                           >
                             Detalhes
@@ -1519,9 +1549,9 @@ export default function CaixaPage() {
                         )}
                         <Button
                           color="warning"
-                          variant="flat"
                           size="sm"
                           startContent={<TrendingDown className="w-4 h-4" />}
+                          variant="flat"
                           onPress={() => handleSangria(loja)}
                         >
                           Sangria
@@ -1552,8 +1582,8 @@ export default function CaixaPage() {
 
                       {temPermissao("caixa.abrir") && (
                         <Button
-                          color="success"
                           className="w-full"
+                          color="success"
                           startContent={<Unlock className="w-4 h-4" />}
                           onPress={() => handleAbrirModal(loja)}
                         >
@@ -1582,11 +1612,15 @@ export default function CaixaPage() {
             <CardBody>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-sm text-default-600 mb-2 block">
+                  <label
+                    className="text-sm text-default-600 mb-2 block"
+                    htmlFor="caixa-historico-loja"
+                  >
                     Loja
                   </label>
                   <select
                     className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-100 hover:border-default-400 focus:border-primary focus:outline-none"
+                    id="caixa-historico-loja"
                     value={lojaFiltroHistorico}
                     onChange={(e) => setLojaFiltroHistorico(e.target.value)}
                   >
@@ -1600,24 +1634,24 @@ export default function CaixaPage() {
                 </div>
 
                 <Input
-                  type="date"
                   label="Data Início"
+                  type="date"
                   value={dataInicioHistorico}
                   onChange={(e) => setDataInicioHistorico(e.target.value)}
                 />
 
                 <Input
-                  type="date"
                   label="Data Fim"
+                  type="date"
                   value={dataFimHistorico}
                   onChange={(e) => setDataFimHistorico(e.target.value)}
                 />
 
                 <Button
-                  color="primary"
-                  onPress={carregarHistorico}
-                  isLoading={loading}
                   className="mt-auto"
+                  color="primary"
+                  isLoading={loading}
+                  onPress={carregarHistorico}
                 >
                   Filtrar
                 </Button>
@@ -1712,6 +1746,7 @@ export default function CaixaPage() {
                               ? parseFloat(c.saldo_final.toString()) -
                                 parseFloat(c.saldo_inicial.toString())
                               : 0;
+
                             return sum + diferenca;
                           }, 0),
                         )}
@@ -1810,8 +1845,8 @@ export default function CaixaPage() {
                         <TableCell>
                           <Button
                             size="sm"
-                            variant="flat"
                             startContent={<Eye className="w-4 h-4" />}
+                            variant="flat"
                             onPress={() => handleVerDetalhes(caixa)}
                           >
                             Detalhes
@@ -1825,11 +1860,11 @@ export default function CaixaPage() {
               {historicosCaixa.length > 0 && totalPaginasHistorico > 1 && (
                 <div className="flex justify-center mt-4">
                   <Pagination
+                    showControls
+                    color="primary"
                     page={paginaHistorico}
                     total={totalPaginasHistorico}
                     onChange={setPaginaHistorico}
-                    showControls
-                    color="primary"
                   />
                 </div>
               )}
@@ -1861,21 +1896,21 @@ export default function CaixaPage() {
           </ModalHeader>
           <ModalBody>
             <Input
+              description="Informe o valor em dinheiro no caixa"
               label="Saldo Inicial (Dinheiro em espécie)"
               placeholder="0,00"
+              startContent={<DollarSign className="w-4 h-4" />}
+              step="0.01"
+              type="number"
               value={saldoInicial}
               onChange={(e) => setSaldoInicial(e.target.value)}
-              type="number"
-              step="0.01"
-              startContent={<DollarSign className="w-4 h-4" />}
-              description="Informe o valor em dinheiro no caixa"
             />
             <Textarea
               label="Observações (opcional)"
+              maxRows={3}
               placeholder="Ex: Troco do dia anterior, fundo de caixa..."
               value={observacoesAbertura}
               onChange={(e) => setObservacoesAbertura(e.target.value)}
-              maxRows={3}
             />
           </ModalBody>
           <ModalFooter>
@@ -1884,9 +1919,9 @@ export default function CaixaPage() {
             </Button>
             <Button
               color="success"
-              onPress={handleAbrirCaixa}
-              isLoading={loading}
               isDisabled={!saldoInicial}
+              isLoading={loading}
+              onPress={handleAbrirCaixa}
             >
               Abrir Caixa
             </Button>
@@ -1897,8 +1932,8 @@ export default function CaixaPage() {
       {/* Modal Fechar Caixa */}
       <Modal
         isOpen={modalFecharAberto}
-        onClose={() => setModalFecharAberto(false)}
         size="2xl"
+        onClose={() => setModalFecharAberto(false)}
       >
         <ModalContent>
           <ModalHeader>
@@ -1929,10 +1964,10 @@ export default function CaixaPage() {
 
             <Textarea
               label="Observações do Fechamento (opcional)"
+              maxRows={3}
               placeholder="Ex: Diferença devido a troco errado..."
               value={observacoesFechamento}
               onChange={(e) => setObservacoesFechamento(e.target.value)}
-              maxRows={3}
             />
           </ModalBody>
           <ModalFooter>
@@ -1941,8 +1976,8 @@ export default function CaixaPage() {
             </Button>
             <Button
               color="danger"
-              onPress={handleFecharCaixa}
               isLoading={loading}
+              onPress={handleFecharCaixa}
             >
               Fechar Caixa
             </Button>
@@ -1953,9 +1988,9 @@ export default function CaixaPage() {
       {/* Modal Detalhes */}
       <Modal
         isOpen={modalDetalhesAberto}
-        onClose={() => setModalDetalhesAberto(false)}
-        size="5xl"
         scrollBehavior="inside"
+        size="5xl"
+        onClose={() => setModalDetalhesAberto(false)}
       >
         <ModalContent>
           <ModalHeader>
@@ -2179,6 +2214,7 @@ export default function CaixaPage() {
                           {(() => {
                             const credito = vendasDetalhadas["credito_cliente"];
                             const total = credito?.total || 0;
+
                             return formatarMoeda(total);
                           })()}
                         </p>
@@ -2186,11 +2222,13 @@ export default function CaixaPage() {
                           {(() => {
                             const vendas =
                               vendasDetalhadas["credito_cliente"]?.vendas || [];
+
                             return vendas.length;
                           })()}{" "}
                           {(() => {
                             const vendas =
                               vendasDetalhadas["credito_cliente"]?.vendas || [];
+
                             return vendas.length === 1 ? "venda" : "vendas";
                           })()}
                         </p>
@@ -2296,7 +2334,7 @@ export default function CaixaPage() {
                                         {formaPagamento.toUpperCase()}
                                       </span>
                                     )}
-                                    <Chip size="sm" color="success">
+                                    <Chip color="success" size="sm">
                                       {formatarMoeda(dados.total)}
                                     </Chip>
                                   </div>
@@ -2332,9 +2370,9 @@ export default function CaixaPage() {
                                               </TableCell>
                                               <TableCell>
                                                 <Chip
+                                                  color="primary"
                                                   size="sm"
                                                   variant="flat"
-                                                  color="primary"
                                                 >
                                                   #{venda.numero_venda}
                                                 </Chip>
@@ -2412,9 +2450,9 @@ export default function CaixaPage() {
                                 </TableCell>
                                 <TableCell>
                                   <Chip
+                                    color="warning"
                                     size="sm"
                                     variant="flat"
-                                    color="warning"
                                   >
                                     #{os.numero_os}
                                   </Chip>
@@ -2448,7 +2486,7 @@ export default function CaixaPage() {
                         <TableColumn width="15%">TIPO</TableColumn>
                         <TableColumn width="30%">DESCRIÇÃO</TableColumn>
                         <TableColumn width="40%">PAGAMENTOS</TableColumn>
-                        <TableColumn width="15%" align="end">
+                        <TableColumn align="end" width="15%">
                           VALOR TOTAL
                         </TableColumn>
                       </TableHeader>
@@ -2458,7 +2496,6 @@ export default function CaixaPage() {
                             <TableCell>
                               <div className="flex gap-1 flex-wrap">
                                 <Chip
-                                  size="sm"
                                   color={
                                     mov.tipo === "venda"
                                       ? "success"
@@ -2470,6 +2507,7 @@ export default function CaixaPage() {
                                             ? "danger"
                                             : "primary"
                                   }
+                                  size="sm"
                                   variant="flat"
                                 >
                                   {mov.tipo === "venda"
@@ -2484,8 +2522,8 @@ export default function CaixaPage() {
                                 </Chip>
                                 {mov.gerou_credito && (
                                   <Chip
-                                    size="sm"
                                     color="warning"
+                                    size="sm"
                                     variant="flat"
                                   >
                                     Gerou Crédito
@@ -2494,9 +2532,8 @@ export default function CaixaPage() {
                                 {mov.tipo === "devolucao" &&
                                   mov.forma_pagamento && (
                                     <Chip
-                                      size="sm"
                                       color="primary"
-                                      variant="flat"
+                                      size="sm"
                                       startContent={
                                         mov.forma_pagamento === "dinheiro" ? (
                                           <Banknote className="w-3 h-3" />
@@ -2512,6 +2549,7 @@ export default function CaixaPage() {
                                           <Gift className="w-3 h-3" />
                                         ) : undefined
                                       }
+                                      variant="flat"
                                     >
                                       {mov.forma_pagamento === "dinheiro" &&
                                         "Dinheiro"}
@@ -2526,10 +2564,10 @@ export default function CaixaPage() {
                                   )}
                                 {mov.eh_credito_cliente && (
                                   <Chip
-                                    size="sm"
                                     color="secondary"
-                                    variant="flat"
+                                    size="sm"
                                     startContent={<Gift className="w-3 h-3" />}
+                                    variant="flat"
                                   >
                                     Usou Crédito (não soma no caixa)
                                   </Chip>
@@ -2568,12 +2606,12 @@ export default function CaixaPage() {
                                   </span>
                                   {mov.eh_credito_cliente && (
                                     <Chip
-                                      size="sm"
                                       color="warning"
-                                      variant="flat"
+                                      size="sm"
                                       startContent={
                                         <AlertTriangle className="w-3 h-3" />
                                       }
+                                      variant="flat"
                                     >
                                       Não soma no caixa
                                     </Chip>
@@ -2676,22 +2714,22 @@ export default function CaixaPage() {
           </ModalHeader>
           <ModalBody>
             <Input
+              description="Informe o valor retirado do caixa"
               label="Valor da Sangria *"
               placeholder="0,00"
+              startContent={<DollarSign className="w-4 h-4" />}
+              step="0.01"
+              type="number"
               value={valorSangria}
               onChange={(e) => setValorSangria(e.target.value)}
-              type="number"
-              step="0.01"
-              startContent={<DollarSign className="w-4 h-4" />}
-              description="Informe o valor retirado do caixa"
             />
             <Textarea
+              isRequired
               label="Motivo *"
+              maxRows={3}
               placeholder="Ex: Pagamento fornecedor, Despesa, Troco banco..."
               value={motivoSangria}
               onChange={(e) => setMotivoSangria(e.target.value)}
-              maxRows={3}
-              isRequired
             />
           </ModalBody>
           <ModalFooter>
@@ -2703,9 +2741,9 @@ export default function CaixaPage() {
             </Button>
             <Button
               color="warning"
-              onPress={handleRegistrarSangria}
-              isLoading={loading}
               isDisabled={!valorSangria || !motivoSangria}
+              isLoading={loading}
+              onPress={handleRegistrarSangria}
             >
               Registrar Sangria
             </Button>

@@ -59,6 +59,7 @@ export class OrdemServicoDevolucoesService {
       return { success: true, devolucao };
     } catch (error: any) {
       console.error("Erro ao registrar devolução de OS:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -96,7 +97,7 @@ export class OrdemServicoDevolucoesService {
   static async buscarDevolucoesOSPorPeriodo(
     data_inicio: string,
     data_fim: string,
-    loja_id?: number
+    loja_id?: number,
   ): Promise<DevolucaoOS[]> {
     try {
       let query = supabase
@@ -117,21 +118,23 @@ export class OrdemServicoDevolucoesService {
             id_loja
           ),
           usuario:usuarios(id, nome)
-        `
+        `,
         )
         .gte("criado_em", data_inicio)
         .lte("criado_em", data_fim);
 
       const { data, error } = await query;
+
       if (error) throw error;
 
       let result = (data || []) as DevolucaoOS[];
 
       if (loja_id) {
         result = result.filter((dev) => {
-          const os = Array.isArray(dev.ordem_servico) 
+          const os = Array.isArray(dev.ordem_servico)
             ? (dev.ordem_servico as any[])[0]
             : dev.ordem_servico;
+
           return (os as any)?.id_loja === loja_id;
         });
       }
@@ -139,6 +142,7 @@ export class OrdemServicoDevolucoesService {
       return result;
     } catch (error) {
       console.error("Erro ao buscar devoluções de OS:", error);
+
       return [];
     }
   }
@@ -149,7 +153,7 @@ export class OrdemServicoDevolucoesService {
   static async buscarReembolsosOS(
     data_inicio: string,
     data_fim: string,
-    loja_id?: number
+    loja_id?: number,
   ): Promise<DevolucaoOS[]> {
     try {
       let query = supabase
@@ -169,22 +173,24 @@ export class OrdemServicoDevolucoesService {
             id_loja
           ),
           usuario:usuarios(id, nome)
-        `
+        `,
         )
         .eq("tipo_devolucao", "reembolso")
         .gte("criado_em", data_inicio)
         .lte("criado_em", data_fim);
 
       const { data, error } = await query;
+
       if (error) throw error;
 
       let result = (data || []) as DevolucaoOS[];
 
       if (loja_id) {
         result = result.filter((dev) => {
-          const os = Array.isArray(dev.ordem_servico) 
+          const os = Array.isArray(dev.ordem_servico)
             ? (dev.ordem_servico as any[])[0]
             : dev.ordem_servico;
+
           return (os as any)?.id_loja === loja_id;
         });
       }
@@ -192,6 +198,7 @@ export class OrdemServicoDevolucoesService {
       return result;
     } catch (error) {
       console.error("Erro ao buscar reembolsos de OS:", error);
+
       return [];
     }
   }
@@ -202,7 +209,7 @@ export class OrdemServicoDevolucoesService {
   static async buscarCreditosOS(
     data_inicio: string,
     data_fim: string,
-    loja_id?: number
+    loja_id?: number,
   ): Promise<DevolucaoOS[]> {
     try {
       let query = supabase
@@ -222,22 +229,24 @@ export class OrdemServicoDevolucoesService {
             id_loja
           ),
           usuario:usuarios(id, nome)
-        `
+        `,
         )
         .eq("tipo_devolucao", "credito")
         .gte("criado_em", data_inicio)
         .lte("criado_em", data_fim);
 
       const { data, error } = await query;
+
       if (error) throw error;
 
       let result = (data || []) as DevolucaoOS[];
 
       if (loja_id) {
         result = result.filter((dev) => {
-          const os = Array.isArray(dev.ordem_servico) 
+          const os = Array.isArray(dev.ordem_servico)
             ? (dev.ordem_servico as any[])[0]
             : dev.ordem_servico;
+
           return (os as any)?.id_loja === loja_id;
         });
       }
@@ -245,6 +254,7 @@ export class OrdemServicoDevolucoesService {
       return result;
     } catch (error) {
       console.error("Erro ao buscar créditos de OS:", error);
+
       return [];
     }
   }

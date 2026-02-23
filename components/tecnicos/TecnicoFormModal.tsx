@@ -1,5 +1,7 @@
 "use client";
 
+import type { Tecnico, TecnicoFormData } from "@/types/clientesTecnicos";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -14,14 +16,10 @@ import {
   Chip,
 } from "@heroui/react";
 import { Wrench, Phone, Briefcase, Palette } from "lucide-react";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { criarTecnico, atualizarTecnico } from "@/services/tecnicoService";
-import type {
-  Tecnico,
-  TecnicoFormData,
-  ESPECIALIDADES_TECNICO,
-} from "@/types/clientesTecnicos";
 
 const especialidadesDisponiveis = [
   "Smartphones",
@@ -91,23 +89,26 @@ export default function TecnicoFormModal({
 
   const toggleEspecialidade = (esp: string) => {
     setEspecialidades((prev) =>
-      prev.includes(esp) ? prev.filter((e) => e !== esp) : [...prev, esp]
+      prev.includes(esp) ? prev.filter((e) => e !== esp) : [...prev, esp],
     );
   };
 
   const handleSubmit = async () => {
     if (!usuario) {
       toast.error("Usuário não autenticado");
+
       return;
     }
 
     if (!nome.trim()) {
       toast.error("Nome é obrigatório");
+
       return;
     }
 
     if (!telefone.trim()) {
       toast.error("Telefone é obrigatório");
+
       return;
     }
 
@@ -129,15 +130,19 @@ export default function TecnicoFormModal({
     try {
       if (tecnico) {
         const { error } = await atualizarTecnico(tecnico.id, dados, usuario.id);
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Técnico atualizado com sucesso!");
       } else {
         const { error } = await criarTecnico(dados, usuario.id);
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Técnico cadastrado com sucesso!");
@@ -153,7 +158,7 @@ export default function TecnicoFormModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="2xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <Wrench className="w-5 h-5" />
@@ -172,10 +177,10 @@ export default function TecnicoFormModal({
             >
               <div className="space-y-4 py-4">
                 <Input
+                  isRequired
                   label="Nome Completo"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  isRequired
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Input
@@ -184,15 +189,15 @@ export default function TecnicoFormModal({
                     onChange={(e) => setCpf(e.target.value)}
                   />
                   <Input
+                    isRequired
                     label="Telefone"
                     value={telefone}
                     onChange={(e) => setTelefone(e.target.value)}
-                    isRequired
                   />
                 </div>
                 <Input
-                  type="email"
                   label="E-mail"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -210,21 +215,21 @@ export default function TecnicoFormModal({
             >
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
+                  <p className="text-sm font-medium mb-2 block">
                     Especialidades
-                  </label>
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {especialidadesDisponiveis.map((esp) => (
                       <Chip
                         key={esp}
-                        variant={
-                          especialidades.includes(esp) ? "solid" : "bordered"
-                        }
+                        className="cursor-pointer"
                         color={
                           especialidades.includes(esp) ? "primary" : "default"
                         }
+                        variant={
+                          especialidades.includes(esp) ? "solid" : "bordered"
+                        }
                         onClick={() => toggleEspecialidade(esp)}
-                        className="cursor-pointer"
                       >
                         {esp}
                       </Chip>
@@ -237,8 +242,8 @@ export default function TecnicoFormModal({
                   onChange={(e) => setRegistroProfissional(e.target.value)}
                 />
                 <Input
-                  type="date"
                   label="Data de Admissão"
+                  type="date"
                   value={dataAdmissao}
                   onChange={(e) => setDataAdmissao(e.target.value)}
                 />
@@ -256,15 +261,19 @@ export default function TecnicoFormModal({
             >
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
+                  <label
+                    className="text-sm font-medium mb-2 block"
+                    htmlFor="cor-agenda-tecnico"
+                  >
                     Cor da Agenda
                   </label>
                   <div className="flex items-center gap-3">
                     <input
+                      className="w-16 h-16 rounded border-2 border-divider cursor-pointer"
+                      id="cor-agenda-tecnico"
                       type="color"
                       value={corAgenda}
                       onChange={(e) => setCorAgenda(e.target.value)}
-                      className="w-16 h-16 rounded border-2 border-divider cursor-pointer"
                     />
                     <div>
                       <p className="text-sm text-default-600">
@@ -284,7 +293,7 @@ export default function TecnicoFormModal({
           <Button variant="flat" onPress={onClose}>
             Cancelar
           </Button>
-          <Button color="primary" onPress={handleSubmit} isLoading={loading}>
+          <Button color="primary" isLoading={loading} onPress={handleSubmit}>
             {tecnico ? "Atualizar" : "Cadastrar"}
           </Button>
         </ModalFooter>

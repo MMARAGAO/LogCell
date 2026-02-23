@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { useAuthContext } from "@/contexts/AuthContext";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface LoginFormProps {
   onSwitchToCadastro?: () => void;
@@ -26,10 +27,12 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
     // Validações
     if (!formData.email || !formData.senha) {
       setFormError("Preencha todos os campos");
+
       return;
     }
 
     const result = await login(formData);
+
     if (!result.success) {
       setFormError(result.error || "Erro ao fazer login");
     }
@@ -49,31 +52,21 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
 
   return (
     <div className="w-full">
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4"
-        onKeyDown={handleKeyDown}
-      >
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <Input
-          type="email"
-          label="Email"
-          placeholder="seu@email.com"
-          value={formData.email}
-          onChange={(e) => handleChange("email", e.target.value)}
           isRequired
           autoComplete="email"
+          label="Email"
+          placeholder="seu@email.com"
+          type="email"
+          value={formData.email}
           variant="bordered"
+          onChange={(e) => handleChange("email", e.target.value)}
         />
 
         <Input
-          type={showPassword ? "text" : "password"}
-          label="Senha"
-          placeholder="Digite sua senha"
-          value={formData.senha}
-          onChange={(e) => handleChange("senha", e.target.value)}
           isRequired
           autoComplete="current-password"
-          variant="bordered"
           endContent={
             <button
               className="focus:outline-none"
@@ -87,6 +80,12 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
               )}
             </button>
           }
+          label="Senha"
+          placeholder="Digite sua senha"
+          type={showPassword ? "text" : "password"}
+          value={formData.senha}
+          variant="bordered"
+          onChange={(e) => handleChange("senha", e.target.value)}
         />
 
         {(formError || error) && (
@@ -94,10 +93,10 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
         )}
 
         <Button
-          type="submit"
+          className="w-full"
           color="primary"
           isLoading={loading}
-          className="w-full"
+          type="submit"
         >
           Entrar
         </Button>
@@ -106,9 +105,9 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
           <div className="text-center text-sm">
             <span className="text-default-500">Não tem uma conta? </span>
             <button
+              className="text-primary hover:underline"
               type="button"
               onClick={onSwitchToCadastro}
-              className="text-primary hover:underline"
             >
               Cadastre-se
             </button>

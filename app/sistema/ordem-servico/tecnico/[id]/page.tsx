@@ -1,5 +1,7 @@
 "use client";
 
+import type { OrdemServico } from "@/types/ordemServico";
+
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -9,16 +11,11 @@ import { Textarea } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Spinner } from "@heroui/spinner";
 import { Tabs, Tab } from "@heroui/tabs";
-import { useAuthContext } from "@/contexts/AuthContext";
 import { createBrowserClient } from "@supabase/ssr";
-import type { OrdemServico } from "@/types/ordemServico";
-import { useToast } from "@/components/Toast";
-import { useConfirm } from "@/hooks/useConfirm";
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
   ClockIcon,
-  WrenchScrewdriverIcon,
   PhotoIcon,
   TrashIcon,
   XMarkIcon,
@@ -39,6 +36,10 @@ import {
   CheckIcon,
 } from "@heroicons/react/24/outline";
 import Image from "next/image";
+
+import { useAuthContext } from "@/contexts/AuthContext";
+import { useToast } from "@/components/Toast";
+import { useConfirm } from "@/hooks/useConfirm";
 import LaudoTecnico from "@/components/ordem-servico/LaudoTecnico";
 import RegistrarQuebraModal from "@/components/ordem-servico/RegistrarQuebraModal";
 
@@ -97,7 +98,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
   const carregarOrdem = async () => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -113,6 +114,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
       if (data.tecnico_responsavel !== usuario?.id) {
         toast.error("Você não tem acesso a esta OS");
         router.push("/sistema/ordem-servico/tecnico");
+
         return;
       }
 
@@ -131,7 +133,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
   const carregarFotos = async () => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -152,7 +154,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
     setLoadingQuebras(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -178,7 +180,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
             id,
             descricao
           )
-        `
+        `,
         )
         .eq("id_ordem_servico", params.id)
         .order("criado_em", { ascending: false });
@@ -217,7 +219,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
     setLoadingPecas(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -245,15 +247,16 @@ export default function OrdemServicoDetalheTecnicoPage() {
   };
 
   const handleFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = event.target.files;
+
     if (!files || files.length === 0) return;
 
     setUploadingFoto(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -333,12 +336,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
       // Extrair caminho do arquivo da URL
       const urlParts = fotoUrl.split("/ordem-servico-fotos/");
+
       if (urlParts.length > 1) {
         const filePath = urlParts[1].split("?")[0];
 
@@ -368,7 +372,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
     setSalvando(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -399,13 +403,14 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
     if (!observacoes.trim()) {
       toast.error("Adicione observações técnicas antes de concluir");
+
       return;
     }
 
     setSalvando(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -470,7 +475,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
           <p className="text-default-500">Carregando...</p>
         </div>
       </div>
@@ -493,9 +498,9 @@ export default function OrdemServicoDetalheTecnicoPage() {
           <div className="flex items-center gap-4">
             <Button
               isIconOnly
+              aria-label="Voltar"
               variant="light"
               onPress={() => router.back()}
-              aria-label="Voltar"
             >
               <ArrowLeftIcon className="w-5 h-5" />
             </Button>
@@ -519,23 +524,21 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Chip size="lg" variant="flat" color={getStatusColor(ordem.status)}>
+            <Chip color={getStatusColor(ordem.status)} size="lg" variant="flat">
               {getStatusLabel(ordem.status)}
             </Chip>
             {ordem.equipamento_senha && (
               <Chip
-                size="lg"
-                variant="flat"
                 color="warning"
+                size="lg"
                 startContent={<LockClosedIcon className="w-4 h-4" />}
+                variant="flat"
               >
                 {ordem.equipamento_senha}
               </Chip>
             )}
             {ordem.prioridade && ordem.prioridade !== "normal" && (
               <Chip
-                size="lg"
-                variant="dot"
                 color={
                   ordem.prioridade === "urgente"
                     ? "danger"
@@ -543,6 +546,8 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       ? "warning"
                       : "default"
                 }
+                size="lg"
+                variant="dot"
               >
                 {ordem.prioridade === "urgente" ? (
                   <span className="flex items-center gap-1">
@@ -564,29 +569,31 @@ export default function OrdemServicoDetalheTecnicoPage() {
         <div className="flex flex-wrap gap-3">
           {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
             <Chip
-              variant="flat"
               color="success"
               size="md"
               startContent={<CurrencyDollarIcon className="w-4 h-4" />}
+              variant="flat"
             >
               R$ {ordem.valor_orcamento.toFixed(2)}
             </Chip>
           )}
           {ordem.previsao_entrega && (
             <Chip
-              variant="flat"
               color={(() => {
                 const hoje = new Date();
                 const prazo = new Date(ordem.previsao_entrega);
                 const diffDays = Math.ceil(
-                  (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24)
+                  (prazo.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
                 );
+
                 if (diffDays < 0) return "danger";
                 if (diffDays <= 2) return "warning";
+
                 return "primary";
               })()}
               size="md"
               startContent={<CalendarIcon className="w-4 h-4" />}
+              variant="flat"
             >
               {new Date(ordem.previsao_entrega).toLocaleDateString("pt-BR", {
                 day: "2-digit",
@@ -596,10 +603,10 @@ export default function OrdemServicoDetalheTecnicoPage() {
           )}
           {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 && (
             <Chip
-              variant="flat"
               color="default"
               size="md"
               startContent={<ShieldCheckIcon className="w-4 h-4" />}
+              variant="flat"
             >
               {ordem.laudo_garantia_dias}{" "}
               {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
@@ -607,7 +614,6 @@ export default function OrdemServicoDetalheTecnicoPage() {
           )}
           {ordem.tipo_cliente && (
             <Chip
-              variant="flat"
               color={ordem.tipo_cliente === "lojista" ? "primary" : "secondary"}
               size="md"
               startContent={
@@ -617,6 +623,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   <UserIcon className="w-4 h-4" />
                 )
               }
+              variant="flat"
             >
               {ordem.tipo_cliente === "lojista" ? "Lojista" : "Consumidor"}
             </Chip>
@@ -626,17 +633,17 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
       {/* Tabs de Navegação */}
       <Tabs
-        selectedKey={activeTab}
-        onSelectionChange={(key) => setActiveTab(key as string)}
-        color="primary"
-        variant="underlined"
-        size="lg"
         classNames={{
           tabList: "gap-6 w-full relative rounded-none p-0",
           cursor: "w-full bg-primary",
           tab: "max-w-fit px-4 h-12",
           tabContent: "group-data-[selected=true]:text-primary",
         }}
+        color="primary"
+        selectedKey={activeTab}
+        size="lg"
+        variant="underlined"
+        onSelectionChange={(key) => setActiveTab(key as string)}
       >
         {/* Tab 1: Informações e Ações */}
         <Tab
@@ -665,14 +672,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     </p>
                     {ordem.tipo_cliente && (
                       <Chip
-                        size="sm"
+                        className="mt-1"
                         color={
                           ordem.tipo_cliente === "lojista"
                             ? "primary"
                             : "secondary"
                         }
-                        variant="flat"
-                        className="mt-1"
+                        size="sm"
                         startContent={
                           ordem.tipo_cliente === "lojista" ? (
                             <BuildingStorefrontIcon className="w-3 h-3" />
@@ -680,6 +686,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                             <UserIcon className="w-3 h-3" />
                           )
                         }
+                        variant="flat"
                       >
                         {ordem.tipo_cliente === "lojista"
                           ? "Lojista"
@@ -764,7 +771,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                             day: "2-digit",
                             month: "long",
                             year: "numeric",
-                          }
+                          },
                         )}
                       </p>
                       <p className="text-xs text-primary-600 dark:text-primary-500 mt-1">
@@ -773,7 +780,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                           const prazo = new Date(ordem.previsao_entrega);
                           const diffTime = prazo.getTime() - hoje.getTime();
                           const diffDays = Math.ceil(
-                            diffTime / (1000 * 60 * 60 * 24)
+                            diffTime / (1000 * 60 * 60 * 24),
                           );
 
                           if (diffDays < 0) {
@@ -849,12 +856,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
               </CardHeader>
               <CardBody className="space-y-4">
                 <Select
+                  disabled={ordem.status === "concluido"}
                   label="Status da OS"
                   selectedKeys={[novoStatus]}
-                  onChange={(e) => setNovoStatus(e.target.value)}
-                  disabled={ordem.status === "concluido"}
-                  variant="bordered"
                   size="lg"
+                  variant="bordered"
+                  onChange={(e) => setNovoStatus(e.target.value)}
                 >
                   <SelectItem key="em_andamento">Em Andamento</SelectItem>
                   <SelectItem key="em_diagnostico">Em Diagnóstico</SelectItem>
@@ -864,37 +871,37 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 </Select>
 
                 <Textarea
+                  disabled={ordem.status === "concluido"}
                   label="Observações Técnicas"
+                  minRows={6}
                   placeholder="Descreva o diagnóstico, peças necessárias, procedimentos realizados..."
                   value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  minRows={6}
-                  disabled={ordem.status === "concluido"}
                   variant="bordered"
+                  onChange={(e) => setObservacoes(e.target.value)}
                 />
 
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button
-                    color="primary"
-                    onPress={salvarAtualizacao}
-                    isLoading={salvando}
-                    isDisabled={ordem.status === "concluido"}
-                    startContent={<ClockIcon className="w-5 h-5" />}
                     className="flex-1"
+                    color="primary"
+                    isDisabled={ordem.status === "concluido"}
+                    isLoading={salvando}
                     size="lg"
+                    startContent={<ClockIcon className="w-5 h-5" />}
+                    onPress={salvarAtualizacao}
                   >
                     Salvar Atualização
                   </Button>
                   <Button
+                    className="flex-1"
                     color="success"
-                    onPress={concluirOS}
-                    isLoading={salvando}
                     isDisabled={
                       ordem.status === "concluido" || !observacoes.trim()
                     }
-                    startContent={<CheckCircleIcon className="w-5 h-5" />}
-                    className="flex-1"
+                    isLoading={salvando}
                     size="lg"
+                    startContent={<CheckCircleIcon className="w-5 h-5" />}
+                    onPress={concluirOS}
                   >
                     Concluir OS
                   </Button>
@@ -951,20 +958,20 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 <div>
                   <input
                     ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
                     multiple
-                    onChange={handleFileSelect}
+                    accept="image/*"
                     className="hidden"
+                    type="file"
+                    onChange={handleFileSelect}
                   />
                   <Button
+                    className="w-full"
                     color="secondary"
+                    isLoading={uploadingFoto}
+                    size="lg"
+                    startContent={<PhotoIcon className="w-5 h-5" />}
                     variant="flat"
                     onPress={() => fileInputRef.current?.click()}
-                    isLoading={uploadingFoto}
-                    startContent={<PhotoIcon className="w-5 h-5" />}
-                    className="w-full"
-                    size="lg"
                   >
                     {uploadingFoto ? "Enviando..." : "Adicionar Fotos"}
                   </Button>
@@ -978,33 +985,34 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {fotos.map((foto) => (
                       <div key={foto.id} className="relative group">
-                        <div
+                        <button
                           className="aspect-square rounded-xl overflow-hidden bg-default-100 cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-primary"
+                          type="button"
                           onClick={() => setFotoSelecionada(foto.url)}
                         >
                           <Image
-                            src={foto.url}
                             alt="Foto da OS"
-                            width={300}
-                            height={300}
                             className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                            height={300}
+                            src={foto.url}
+                            width={300}
                           />
-                        </div>
+                        </button>
                         {foto.is_principal && (
                           <Chip
-                            size="sm"
-                            color="warning"
                             className="absolute top-2 left-2 shadow-lg"
+                            color="warning"
+                            size="sm"
                           >
                             ⭐ Principal
                           </Chip>
                         )}
                         <Button
                           isIconOnly
-                          size="sm"
-                          color="danger"
-                          variant="solid"
                           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                          color="danger"
+                          size="sm"
+                          variant="solid"
                           onPress={() => removerFoto(foto.id, foto.url)}
                         >
                           <TrashIcon className="w-4 h-4" />
@@ -1051,7 +1059,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
               <CubeIcon className="w-5 h-5" />
               <span>Peças</span>
               {pecas.length > 0 && (
-                <Chip size="sm" variant="flat" color="primary">
+                <Chip color="primary" size="sm" variant="flat">
                   {pecas.length}
                 </Chip>
               )}
@@ -1112,9 +1120,10 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               ids: [peca.id],
                             });
                           }
+
                           return acc;
                         },
-                        []
+                        [],
                       );
 
                       return pecasAgrupadas.map((peca) => (
@@ -1127,12 +1136,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               {/* Tipo de Produto */}
                               <div className="flex items-center gap-2 flex-wrap">
                                 <Chip
-                                  size="sm"
                                   color={
                                     peca.tipo_produto === "estoque"
                                       ? "primary"
                                       : "secondary"
                                   }
+                                  size="sm"
                                   variant="flat"
                                 >
                                   {peca.tipo_produto === "estoque"
@@ -1140,18 +1149,18 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                     : "Avulso/Externo"}
                                 </Chip>
                                 {peca.estoque_reservado && (
-                                  <Chip size="sm" color="warning" variant="dot">
+                                  <Chip color="warning" size="sm" variant="dot">
                                     Reservado
                                   </Chip>
                                 )}
                                 {peca.estoque_baixado && (
                                   <Chip
-                                    size="sm"
                                     color="success"
-                                    variant="dot"
+                                    size="sm"
                                     startContent={
                                       <CheckIcon className="w-3 h-3" />
                                     }
+                                    variant="dot"
                                   >
                                     Baixado
                                   </Chip>
@@ -1195,7 +1204,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                     <p>
                                       Reservado em:{" "}
                                       {new Date(
-                                        peca.data_reserva_estoque
+                                        peca.data_reserva_estoque,
                                       ).toLocaleString("pt-BR", {
                                         day: "2-digit",
                                         month: "2-digit",
@@ -1209,7 +1218,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                     <p>
                                       Baixado em:{" "}
                                       {new Date(
-                                        peca.data_baixa_estoque
+                                        peca.data_baixa_estoque,
                                       ).toLocaleString("pt-BR", {
                                         day: "2-digit",
                                         month: "2-digit",
@@ -1232,18 +1241,18 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               {/* Quebras Associadas */}
                               {(() => {
                                 const quebrasRelacionadas = quebras.filter(
-                                  (q) => q.id_produto === peca.id_produto
+                                  (q) => q.id_produto === peca.id_produto,
                                 );
 
                                 if (quebrasRelacionadas.length > 0) {
                                   const totalQuebrado =
                                     quebrasRelacionadas.reduce(
                                       (sum, q) => sum + q.quantidade,
-                                      0
+                                      0,
                                     );
                                   const totalValor = quebrasRelacionadas.reduce(
                                     (sum, q) => sum + (q.valor_total || 0),
-                                    0
+                                    0,
                                   );
 
                                   return (
@@ -1256,8 +1265,8 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                               Quebras Registradas
                                             </p>
                                             <Chip
-                                              size="sm"
                                               color="danger"
+                                              size="sm"
                                               variant="flat"
                                             >
                                               {quebrasRelacionadas.length}{" "}
@@ -1274,12 +1283,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                                 >
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <Chip
-                                                      size="sm"
                                                       color={
                                                         quebra.aprovado
                                                           ? "success"
                                                           : "warning"
                                                       }
+                                                      size="sm"
                                                       variant="flat"
                                                     >
                                                       {quebra.aprovado
@@ -1310,7 +1319,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                                     <span className="text-default-500">
                                                       Registrado em{" "}
                                                       {new Date(
-                                                        quebra.criado_em
+                                                        quebra.criado_em,
                                                       ).toLocaleString(
                                                         "pt-BR",
                                                         {
@@ -1319,7 +1328,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                                           year: "numeric",
                                                           hour: "2-digit",
                                                           minute: "2-digit",
-                                                        }
+                                                        },
                                                       )}
                                                       {quebra.aprovado_em &&
                                                         ` • Aprovado em ${new Date(quebra.aprovado_em).toLocaleDateString("pt-BR")}`}
@@ -1328,13 +1337,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                                       <span className="font-semibold text-danger">
                                                         R${" "}
                                                         {quebra.valor_total.toFixed(
-                                                          2
+                                                          2,
                                                         )}
                                                       </span>
                                                     )}
                                                   </div>
                                                 </div>
-                                              )
+                                              ),
                                             )}
                                           </div>
 
@@ -1357,6 +1366,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                     </div>
                                   );
                                 }
+
                                 return null;
                               })()}
                             </div>
@@ -1370,7 +1380,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                 <p className="text-lg font-bold text-primary">
                                   R${" "}
                                   {(peca.valor_custo * peca.quantidade).toFixed(
-                                    2
+                                    2,
                                   )}
                                 </p>
                               </div>
@@ -1410,7 +1420,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                 .reduce(
                                   (sum, p) =>
                                     sum + p.valor_custo * p.quantidade,
-                                  0
+                                  0,
                                 )
                                 .toFixed(2)}
                             </p>
@@ -1445,11 +1455,11 @@ export default function OrdemServicoDetalheTecnicoPage() {
               <span>Quebras</span>
               {quebras.length > 0 && (
                 <Chip
-                  size="sm"
-                  variant="flat"
                   color={
                     quebras.some((q) => !q.aprovado) ? "warning" : "default"
                   }
+                  size="sm"
+                  variant="flat"
                 >
                   {quebras.length}
                 </Chip>
@@ -1462,12 +1472,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
             <Card className="shadow-medium">
               <CardBody>
                 <Button
+                  className="w-full"
                   color="danger"
+                  size="lg"
+                  startContent={<ExclamationTriangleIcon className="w-5 h-5" />}
                   variant="flat"
                   onPress={() => setQuebraModal(true)}
-                  startContent={<ExclamationTriangleIcon className="w-5 h-5" />}
-                  className="w-full"
-                  size="lg"
                 >
                   Registrar Quebra/Perda de Peça
                 </Button>
@@ -1519,8 +1529,8 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                   "Produto não identificado"}
                               </span>
                               <Chip
-                                size="sm"
                                 color={quebra.aprovado ? "success" : "warning"}
+                                size="sm"
                                 variant="dot"
                               >
                                 {quebra.aprovado ? "Aprovada" : "Pendente"}
@@ -1551,13 +1561,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                   year: "numeric",
                                   hour: "2-digit",
                                   minute: "2-digit",
-                                }
+                                },
                               )}
                               {quebra.aprovado && quebra.aprovado_em && (
                                 <span className="ml-2">
                                   • Aprovado em{" "}
                                   {new Date(
-                                    quebra.aprovado_em
+                                    quebra.aprovado_em,
                                   ).toLocaleDateString("pt-BR")}
                                 </span>
                               )}
@@ -1570,10 +1580,10 @@ export default function OrdemServicoDetalheTecnicoPage() {
                             </div>
                             {quebra.descontar_tecnico && (
                               <Chip
-                                size="sm"
-                                color="danger"
-                                variant="flat"
                                 className="mt-2"
+                                color="danger"
+                                size="sm"
+                                variant="flat"
                               >
                                 Será Descontado
                               </Chip>
@@ -1623,25 +1633,33 @@ export default function OrdemServicoDetalheTecnicoPage() {
       {fotoSelecionada && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+          role="button"
+          tabIndex={0}
           onClick={() => setFotoSelecionada(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setFotoSelecionada(null);
+            }
+          }}
         >
           <Button
             isIconOnly
-            size="lg"
-            color="danger"
-            variant="solid"
             className="absolute top-4 right-4 z-10 shadow-2xl"
+            color="danger"
+            size="lg"
+            variant="solid"
             onPress={() => setFotoSelecionada(null)}
           >
             <XMarkIcon className="w-6 h-6" />
           </Button>
           <div className="max-w-6xl max-h-[90vh] p-4">
             <Image
-              src={fotoSelecionada}
               alt="Foto ampliada"
-              width={1600}
-              height={1600}
               className="w-full h-full object-contain rounded-xl shadow-2xl"
+              height={1600}
+              src={fotoSelecionada}
+              width={1600}
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -1650,10 +1668,10 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
       {/* Modal de Quebra */}
       <RegistrarQuebraModal
-        isOpen={quebraModal}
-        onClose={() => setQuebraModal(false)}
-        ordemServicoId={ordem.id}
         idLoja={ordem.id_loja}
+        isOpen={quebraModal}
+        ordemServicoId={ordem.id}
+        onClose={() => setQuebraModal(false)}
         onQuebraRegistrada={() => {
           toast.success("Quebra registrada com sucesso!");
           carregarQuebras();

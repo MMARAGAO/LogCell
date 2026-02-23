@@ -1,8 +1,13 @@
 "use client";
 
+import type {
+  RealtimeChannel,
+  RealtimePostgresChangesPayload,
+} from "@supabase/supabase-js";
+
 import { useEffect, useRef, useCallback } from "react";
+
 import { supabase } from "@/lib/supabaseClient";
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 /**
  * Tipo de evento que pode ser monitorado
@@ -68,7 +73,7 @@ export interface UseRealtimeConfig {
 
 /**
  * Hook para monitorar mudanças em tempo real em uma tabela do Supabase
- * 
+ *
  * @example
  * ```tsx
  * // Monitorar vendas da loja 4
@@ -81,7 +86,7 @@ export interface UseRealtimeConfig {
  *   }
  * });
  * ```
- * 
+ *
  * @example
  * ```tsx
  * // Monitorar apenas INSERTs em notificações do usuário
@@ -127,18 +132,19 @@ export function useRealtime(config: UseRealtimeConfig) {
         console.log(`🔔 [REALTIME:${table}]`, message, ...args);
       }
     },
-    [debug, table]
+    [debug, table],
   );
 
   useEffect(() => {
     if (!enabled) {
       log("Realtime desabilitado");
+
       return;
     }
 
     // Nome único do canal
     const channel = channelName || `realtime_${table}_${filter || "all"}`;
-    
+
     log("Conectando...", { event, filter });
 
     // Criar canal
@@ -154,18 +160,21 @@ export function useRealtime(config: UseRealtimeConfig) {
         (payload: RealtimePostgresChangesPayload<any>) => {
           log("Evento recebido:", payload.eventType, payload);
           onEventRef.current?.(payload);
-        }
+        },
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           log("✅ Inscrito com sucesso");
           onSubscribedRef.current?.();
         } else if (status === "CHANNEL_ERROR") {
-          const errorMsg = "Erro ao conectar. Verifique se Realtime está habilitado no Supabase.";
+          const errorMsg =
+            "Erro ao conectar. Verifique se Realtime está habilitado no Supabase.";
+
           log("❌", errorMsg);
           onErrorRef.current?.(errorMsg);
         } else if (status === "TIMED_OUT") {
           const errorMsg = "Timeout ao conectar";
+
           log("⏱️", errorMsg);
           onErrorRef.current?.(errorMsg);
         } else if (status === "CLOSED") {
@@ -200,7 +209,7 @@ export function useRealtime(config: UseRealtimeConfig) {
 
 /**
  * Hook para monitorar mudanças em MÚLTIPLAS tabelas ao mesmo tempo
- * 
+ *
  * @example
  * ```tsx
  * useRealtimeMultiple([
@@ -218,12 +227,94 @@ export function useRealtime(config: UseRealtimeConfig) {
  * ```
  */
 export function useRealtimeMultiple(configs: UseRealtimeConfig[]) {
-  const channels = configs.map((config) => useRealtime(config));
+  const channelsRef = useRef<RealtimeChannel[]>([]);
+
+  useEffect(() => {
+    const canais: RealtimeChannel[] = [];
+
+    configs.forEach((config, index) => {
+      const {
+        table,
+        schema = "public",
+        event = "*",
+        filter,
+        onEvent,
+        onSubscribed,
+        onError,
+        enabled = true,
+        channelName,
+        debug = process.env.NODE_ENV === "development",
+      } = config;
+
+      if (!enabled) return;
+
+      const nomeCanal =
+        channelName || `realtime_${table}_${filter || "all"}_${index}`;
+
+      const log = (message: string, ...args: any[]) => {
+        if (debug) {
+          console.log(`🔔 [REALTIME:${table}]`, message, ...args);
+        }
+      };
+
+      log("Conectando...", { event, filter });
+
+      const channel = supabase
+        .channel(nomeCanal)
+        .on(
+          "postgres_changes" as any,
+          {
+            event,
+            table,
+            ...(filter && { filter }),
+          } as any,
+          (payload: RealtimePostgresChangesPayload<any>) => {
+            log("Evento recebido:", payload.eventType, payload);
+            onEvent(payload);
+          },
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") {
+            log("✅ Inscrito com sucesso");
+            onSubscribed?.();
+          } else if (status === "CHANNEL_ERROR") {
+            const errorMsg =
+              "Erro ao conectar. Verifique se Realtime está habilitado no Supabase.";
+
+            log("❌", errorMsg);
+            onError?.(errorMsg);
+          } else if (status === "TIMED_OUT") {
+            const errorMsg = "Timeout ao conectar";
+
+            log("⏱️", errorMsg);
+            onError?.(errorMsg);
+          } else if (status === "CLOSED") {
+            log("🔌 Canal fechado");
+          } else {
+            log("Status:", status);
+          }
+        });
+
+      canais.push(channel);
+    });
+
+    channelsRef.current = canais;
+
+    return () => {
+      channelsRef.current.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
+    };
+  }, [configs]);
 
   return {
-    channels,
+    channels: channelsRef.current,
     disconnectAll: () => {
-      channels.forEach((ch) => ch.disconnect());
+      channelsRef.current.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
+      channelsRef.current = [];
     },
   };
 }

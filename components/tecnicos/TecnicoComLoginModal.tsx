@@ -14,6 +14,7 @@ import {
   Tab,
 } from "@heroui/react";
 import { UserPlus, Phone, Briefcase, Palette, Lock, Mail } from "lucide-react";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 import { TecnicosService } from "@/services/tecnicosService";
@@ -61,7 +62,7 @@ export default function TecnicoComLoginModal({
   const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [registroProfissional, setRegistroProfissional] = useState("");
   const [dataAdmissao, setDataAdmissao] = useState(
-    new Date().toISOString().split("T")[0]
+    new Date().toISOString().split("T")[0],
   );
   const [corAgenda, setCorAgenda] = useState("#3b82f6");
 
@@ -80,45 +81,53 @@ export default function TecnicoComLoginModal({
 
   const toggleEspecialidade = (esp: string) => {
     setEspecialidades((prev) =>
-      prev.includes(esp) ? prev.filter((e) => e !== esp) : [...prev, esp]
+      prev.includes(esp) ? prev.filter((e) => e !== esp) : [...prev, esp],
     );
   };
 
   const validarFormulario = (): boolean => {
     if (!nome.trim()) {
       toast.error("Nome é obrigatório");
+
       return false;
     }
 
     if (!email.trim()) {
       toast.error("E-mail é obrigatório para login");
+
       return false;
     }
 
     // Validação básica de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!emailRegex.test(email)) {
       toast.error("E-mail inválido");
+
       return false;
     }
 
     if (!telefone.trim()) {
       toast.error("Telefone é obrigatório");
+
       return false;
     }
 
     if (!senha) {
       toast.error("Senha é obrigatória");
+
       return false;
     }
 
     if (senha.length < 6) {
       toast.error("A senha deve ter no mínimo 6 caracteres");
+
       return false;
     }
 
     if (senha !== confirmarSenha) {
       toast.error("As senhas não coincidem");
+
       return false;
     }
 
@@ -143,11 +152,13 @@ export default function TecnicoComLoginModal({
   const handleSubmit = async () => {
     if (!usuario) {
       toast.error("Usuário não autenticado. Faça login novamente.");
+
       return;
     }
 
     if (!usuario.id) {
       toast.error("ID do usuário não encontrado. Faça login novamente.");
+
       return;
     }
 
@@ -179,12 +190,13 @@ export default function TecnicoComLoginModal({
           data_admissao: dataAdmissao || undefined,
           cor_agenda: corAgenda,
         },
-        usuario.id
+        usuario.id,
       );
 
       if (error) {
         console.error("❌ Erro retornado:", error);
         toast.error(error);
+
         return;
       }
 
@@ -204,12 +216,12 @@ export default function TecnicoComLoginModal({
   return (
     <Modal
       isOpen={isOpen}
+      scrollBehavior="inside"
+      size="3xl"
       onClose={() => {
         limparCampos();
         onClose();
       }}
-      size="3xl"
-      scrollBehavior="inside"
     >
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
@@ -237,32 +249,26 @@ export default function TecnicoComLoginModal({
             >
               <div className="space-y-4 py-4">
                 <Input
-                  type="email"
+                  isRequired
+                  description="Este e-mail será usado para fazer login no sistema"
                   label="E-mail"
                   placeholder="tecnico@exemplo.com"
+                  startContent={<Mail className="w-4 h-4 text-default-400" />}
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  isRequired
-                  startContent={<Mail className="w-4 h-4 text-default-400" />}
-                  description="Este e-mail será usado para fazer login no sistema"
                 />
                 <Input
-                  type="password"
+                  isRequired
                   label="Senha"
                   placeholder="Mínimo 6 caracteres"
+                  startContent={<Lock className="w-4 h-4 text-default-400" />}
+                  type="password"
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
-                  isRequired
-                  startContent={<Lock className="w-4 h-4 text-default-400" />}
                 />
                 <Input
-                  type="password"
-                  label="Confirmar Senha"
-                  placeholder="Digite a senha novamente"
-                  value={confirmarSenha}
-                  onChange={(e) => setConfirmarSenha(e.target.value)}
                   isRequired
-                  startContent={<Lock className="w-4 h-4 text-default-400" />}
                   color={
                     confirmarSenha && senha !== confirmarSenha
                       ? "danger"
@@ -273,6 +279,12 @@ export default function TecnicoComLoginModal({
                       ? "As senhas não coincidem"
                       : undefined
                   }
+                  label="Confirmar Senha"
+                  placeholder="Digite a senha novamente"
+                  startContent={<Lock className="w-4 h-4 text-default-400" />}
+                  type="password"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
                 />
               </div>
             </Tab>
@@ -289,11 +301,11 @@ export default function TecnicoComLoginModal({
             >
               <div className="space-y-4 py-4">
                 <Input
+                  isRequired
                   label="Nome Completo"
                   placeholder="Ex: João da Silva"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  isRequired
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <Input
@@ -303,11 +315,11 @@ export default function TecnicoComLoginModal({
                     onChange={(e) => setCpf(e.target.value)}
                   />
                   <Input
+                    isRequired
                     label="Telefone"
                     placeholder="(11) 99999-9999"
                     value={telefone}
                     onChange={(e) => setTelefone(e.target.value)}
-                    isRequired
                   />
                 </div>
               </div>
@@ -325,21 +337,21 @@ export default function TecnicoComLoginModal({
             >
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
+                  <p className="text-sm font-medium mb-2 block">
                     Especialidades
-                  </label>
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {especialidadesDisponiveis.map((esp) => (
                       <Chip
                         key={esp}
-                        variant={
-                          especialidades.includes(esp) ? "solid" : "bordered"
-                        }
+                        className="cursor-pointer"
                         color={
                           especialidades.includes(esp) ? "primary" : "default"
                         }
+                        variant={
+                          especialidades.includes(esp) ? "solid" : "bordered"
+                        }
                         onClick={() => toggleEspecialidade(esp)}
-                        className="cursor-pointer"
                       >
                         {esp}
                       </Chip>
@@ -356,8 +368,8 @@ export default function TecnicoComLoginModal({
                   onChange={(e) => setRegistroProfissional(e.target.value)}
                 />
                 <Input
-                  type="date"
                   label="Data de Admissão"
+                  type="date"
                   value={dataAdmissao}
                   onChange={(e) => setDataAdmissao(e.target.value)}
                 />
@@ -376,15 +388,19 @@ export default function TecnicoComLoginModal({
             >
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
+                  <label
+                    className="text-sm font-medium mb-2 block"
+                    htmlFor="cor-agenda-tecnico-login"
+                  >
                     Cor da Agenda
                   </label>
                   <div className="flex items-center gap-3">
                     <input
+                      className="w-20 h-20 rounded-lg border-2 border-divider cursor-pointer"
+                      id="cor-agenda-tecnico-login"
                       type="color"
                       value={corAgenda}
                       onChange={(e) => setCorAgenda(e.target.value)}
-                      className="w-20 h-20 rounded-lg border-2 border-divider cursor-pointer"
                     />
                     <div className="flex-1">
                       <p className="text-sm text-default-600 mb-1">
@@ -392,8 +408,8 @@ export default function TecnicoComLoginModal({
                         técnico na agenda e relatórios
                       </p>
                       <Chip
-                        style={{ backgroundColor: corAgenda }}
                         className="text-white"
+                        style={{ backgroundColor: corAgenda }}
                       >
                         {nome || "Técnico"} - {corAgenda}
                       </Chip>
@@ -416,10 +432,10 @@ export default function TecnicoComLoginModal({
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
-            isLoading={loading}
             isDisabled={!formularioValido() || loading}
+            isLoading={loading}
             startContent={!loading && <UserPlus className="w-4 h-4" />}
+            onPress={handleSubmit}
           >
             Criar Técnico com Login
           </Button>

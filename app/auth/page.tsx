@@ -1,9 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Logo from "@/components/Logo";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { CadastroForm } from "@/components/auth/CadastroForm";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Card, CardBody } from "@heroui/card";
 import {
@@ -16,22 +13,28 @@ import {
 } from "@heroui/react";
 import { Smartphone } from "lucide-react";
 
+import { CadastroForm } from "@/components/auth/CadastroForm";
+import { LoginForm } from "@/components/auth/LoginForm";
+import Logo from "@/components/Logo";
+
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<"login" | "cadastro">("login");
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [deviceType, setDeviceType] = useState<"ios" | "android" | "other">(
-    "other"
+    "other",
   );
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
     // Verificar se já está instalado
     const standalone = window.matchMedia("(display-mode: standalone)").matches;
+
     setIsStandalone(standalone);
 
     // Detectar tipo de dispositivo
     const userAgent = navigator.userAgent.toLowerCase();
+
     if (/iphone|ipad|ipod/.test(userAgent)) {
       setDeviceType("ios");
     } else if (/android/.test(userAgent)) {
@@ -49,7 +52,7 @@ export default function AuthPage() {
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
-        handleBeforeInstallPrompt
+        handleBeforeInstallPrompt,
       );
     };
   }, []);
@@ -59,6 +62,7 @@ export default function AuthPage() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
+
       console.log(`User response to install prompt: ${outcome}`);
       setDeferredPrompt(null);
     } else {
@@ -77,10 +81,11 @@ export default function AuthPage() {
           </li>
           <li>
             Role para baixo e toque em{" "}
-            <strong>"Adicionar à Tela de Início"</strong>
+            <strong>&quot;Adicionar à Tela de Início&quot;</strong>
           </li>
           <li>
-            Toque em <strong>"Adicionar"</strong> no canto superior direito
+            Toque em <strong>&quot;Adicionar&quot;</strong> no canto superior
+            direito
           </li>
         </ol>
       );
@@ -92,15 +97,16 @@ export default function AuthPage() {
             direito
           </li>
           <li>
-            Selecione <strong>"Adicionar à tela inicial"</strong> ou{" "}
-            <strong>"Instalar app"</strong>
+            Selecione <strong>&quot;Adicionar à tela inicial&quot;</strong> ou{" "}
+            <strong>&quot;Instalar app&quot;</strong>
           </li>
           <li>
-            Confirme tocando em <strong>"Adicionar"</strong>
+            Confirme tocando em <strong>&quot;Adicionar&quot;</strong>
           </li>
         </ol>
       );
     }
+
     return (
       <p className="text-left">
         Use o menu do seu navegador para adicionar este site à tela inicial do
@@ -123,9 +129,9 @@ export default function AuthPage() {
         <div className="fixed top-4 right-4 sm:top-6 sm:right-6 z-10">
           <Button
             isIconOnly
-            variant="flat"
-            color="primary"
             className="shadow-lg"
+            color="primary"
+            variant="flat"
             onPress={handleInstallClick}
           >
             <Smartphone className="w-5 h-5" />
@@ -146,15 +152,15 @@ export default function AuthPage() {
           </div>
 
           <Tabs
-            selectedKey={activeTab}
-            onSelectionChange={(key) =>
-              setActiveTab(key as "login" | "cadastro")
-            }
             className="mb-6 w-full"
             classNames={{
               tabList: "w-full",
               tab: "flex-1",
             }}
+            selectedKey={activeTab}
+            onSelectionChange={(key) =>
+              setActiveTab(key as "login" | "cadastro")
+            }
           >
             <Tab key="login" title="Login">
               <LoginForm onSwitchToCadastro={() => setActiveTab("cadastro")} />

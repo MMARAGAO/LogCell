@@ -8,13 +8,7 @@ import {
   BarcodeFormat,
   DecodeHintType,
 } from "@zxing/library";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "@heroui/modal";
+import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { XMarkIcon, CameraIcon } from "@heroicons/react/24/outline";
 
@@ -69,6 +63,7 @@ export function BarcodeScanner({
         BarcodeFormat.UPC_E,
         BarcodeFormat.ITF,
       ];
+
       hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
       hints.set(DecodeHintType.TRY_HARDER, true);
 
@@ -96,6 +91,7 @@ export function BarcodeScanner({
   const startScanning = () => {
     if (!isScanningRef.current) {
       logToTerminal("startScanning: não está escaneando", "info");
+
       return;
     }
 
@@ -112,6 +108,7 @@ export function BarcodeScanner({
           if (scannerRef.current) {
             // Criar canvas e recortar apenas a área do retângulo
             const canvas = document.createElement("canvas");
+
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext("2d");
@@ -149,6 +146,7 @@ export function BarcodeScanner({
                 scanHeight,
               );
               const scanCanvas = document.createElement("canvas");
+
               scanCanvas.width = scanWidth;
               scanCanvas.height = scanHeight;
               const scanCtx = scanCanvas.getContext("2d");
@@ -179,6 +177,7 @@ export function BarcodeScanner({
                 try {
                   const imageUrl = scanCanvas.toDataURL("image/png");
                   const img = new Image();
+
                   img.src = imageUrl;
 
                   await new Promise((resolve) => {
@@ -189,6 +188,7 @@ export function BarcodeScanner({
                             await scannerRef.current.decodeFromImageElement(
                               img,
                             );
+
                           if (result) {
                             const code = result.getText();
 
@@ -212,6 +212,7 @@ export function BarcodeScanner({
                               isScanningRef.current = false;
                               onClose();
                               resolve(true);
+
                               return;
                             } else {
                               await logToTerminal(
@@ -278,15 +279,12 @@ export function BarcodeScanner({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      size="full"
-      placement="center"
       hideCloseButton
       classNames={{
         base: "bg-black",
         backdrop: "bg-black/90",
       }}
+      isOpen={isOpen}
       motionProps={{
         variants: {
           enter: {
@@ -305,6 +303,9 @@ export function BarcodeScanner({
           },
         },
       }}
+      placement="center"
+      size="full"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex justify-between items-center text-white px-6 py-4 border-b border-white/10 backdrop-blur-md bg-black/30">
@@ -321,9 +322,9 @@ export function BarcodeScanner({
           </div>
           <Button
             isIconOnly
+            className="text-white hover:bg-white/10 transition-colors"
             variant="light"
             onPress={handleClose}
-            className="text-white hover:bg-white/10 transition-colors"
           >
             <XMarkIcon className="w-6 h-6" />
           </Button>
@@ -338,8 +339,8 @@ export function BarcodeScanner({
               <Webcam
                 ref={webcamRef}
                 audio={false}
-                videoConstraints={videoConstraints}
                 className="w-full h-full object-cover"
+                videoConstraints={videoConstraints}
                 onUserMediaError={(err) => {
                   logToTerminal("Erro ao acessar câmera", "error", err);
                   setError(
@@ -437,7 +438,7 @@ export function BarcodeScanner({
         </ModalBody>
       </ModalContent>
 
-      <style jsx global>{`
+      <style global jsx>{`
         @keyframes scanLine {
           0% {
             top: -2%;

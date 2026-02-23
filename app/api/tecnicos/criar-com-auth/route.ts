@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
+  },
 );
 
 export async function POST(request: NextRequest) {
@@ -44,65 +44,79 @@ export async function POST(request: NextRequest) {
     // Validações básicas com mensagens específicas
     if (!nome) {
       console.error("❌ Nome faltando");
+
       return NextResponse.json(
         { error: "Nome é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!email) {
       console.error("❌ Email faltando");
+
       return NextResponse.json(
         { error: "Email é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!senha) {
       console.error("❌ Senha faltando");
+
       return NextResponse.json(
         { error: "Senha é obrigatória" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!telefone) {
       console.error("❌ Telefone faltando");
+
       return NextResponse.json(
         { error: "Telefone é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!criado_por) {
       console.error("❌ criado_por faltando");
+
       return NextResponse.json(
         { error: "Usuário criador não identificado. Faça login novamente." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (senha.length < 6) {
       console.error("❌ Senha muito curta");
+
       return NextResponse.json(
         { error: "Senha deve ter no mínimo 6 caracteres" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.log("✅ Validações OK, verificando disponibilidade...");
 
     // 1. Verificar se email já existe na autenticação (usando listUsers)
-    const { data: { users }, error: emailCheckError } = 
-      await supabaseAdmin.auth.admin.listUsers();
-    
-    const emailJaExiste = users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
-    
+    const {
+      data: { users },
+      error: emailCheckError,
+    } = await supabaseAdmin.auth.admin.listUsers();
+
+    const emailJaExiste = users?.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase(),
+    );
+
     if (emailJaExiste && !emailCheckError) {
       console.error("❌ Email já existe no sistema de autenticação");
+
       return NextResponse.json(
-        { error: "Este email já está cadastrado no sistema. Use outro email ou recupere a senha." },
-        { status: 400 }
+        {
+          error:
+            "Este email já está cadastrado no sistema. Use outro email ou recupere a senha.",
+        },
+        { status: 400 },
       );
     }
 
@@ -115,9 +129,10 @@ export async function POST(request: NextRequest) {
 
     if (emailExiste) {
       console.error("❌ Email já cadastrado na tabela tecnicos");
+
       return NextResponse.json(
         { error: "Este email já está cadastrado" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -131,15 +146,16 @@ export async function POST(request: NextRequest) {
 
       if (cpfExiste) {
         console.error("❌ CPF já cadastrado");
+
         return NextResponse.json(
           { error: "Este CPF já está cadastrado" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
     console.log(
-      "✅ Email e CPF disponíveis, criando usuário de autenticação..."
+      "✅ Email e CPF disponíveis, criando usuário de autenticação...",
     );
 
     // 4. Criar usuário no Supabase Auth usando Admin API
@@ -156,16 +172,17 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error("Erro ao criar usuário de autenticação:", authError);
+
       return NextResponse.json(
         { error: `Erro ao criar autenticação: ${authError.message}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!authUser.user) {
       return NextResponse.json(
         { error: "Usuário de autenticação não foi criado" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -228,13 +245,14 @@ export async function POST(request: NextRequest) {
         tecnico: tecnico,
         message: "Técnico criado com sucesso!",
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error: any) {
     console.error("Erro na API de criar técnico:", error);
+
     return NextResponse.json(
       { error: error.message || "Erro ao criar técnico" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

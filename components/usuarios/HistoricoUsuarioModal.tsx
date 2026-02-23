@@ -11,16 +11,17 @@ import {
 import { Button } from "@heroui/button";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
-import { Usuario } from "@/types";
-import {
-  HistoricoUsuariosService,
-  HistoricoUsuario,
-} from "@/services/historicoUsuariosService";
 import {
   ClockIcon,
   UserIcon,
   ArrowRightIcon,
 } from "@heroicons/react/24/outline";
+
+import { Usuario } from "@/types";
+import {
+  HistoricoUsuariosService,
+  HistoricoUsuario,
+} from "@/services/historicoUsuariosService";
 
 interface HistoricoUsuarioModalProps {
   isOpen: boolean;
@@ -46,8 +47,9 @@ export function HistoricoUsuarioModal({
     try {
       setLoading(true);
       const data = await HistoricoUsuariosService.getHistoricoUsuario(
-        usuario.id
+        usuario.id,
       );
+
       setHistorico(data);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
@@ -68,14 +70,14 @@ export function HistoricoUsuarioModal({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="3xl"
-      scrollBehavior="inside"
       classNames={{
         base: "bg-background",
         backdrop: "bg-black/50",
       }}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="3xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -88,7 +90,7 @@ export function HistoricoUsuarioModal({
         <ModalBody>
           {loading ? (
             <div className="flex justify-center items-center py-8">
-              <Spinner size="lg" label="Carregando histórico..." />
+              <Spinner label="Carregando histórico..." size="lg" />
             </div>
           ) : historico.length === 0 ? (
             <div className="text-center py-8 text-default-400">
@@ -106,18 +108,18 @@ export function HistoricoUsuarioModal({
                     <div className="flex items-center gap-2">
                       <Chip
                         color={HistoricoUsuariosService.getCorOperacao(
-                          item.tipo_operacao
+                          item.tipo_operacao,
                         )}
                         size="sm"
                         variant="flat"
                       >
                         {HistoricoUsuariosService.formatarOperacao(
-                          item.tipo_operacao
+                          item.tipo_operacao,
                         )}
                       </Chip>
                       <span className="font-semibold text-default-700">
                         {HistoricoUsuariosService.formatarNomeCampo(
-                          item.campo_alterado
+                          item.campo_alterado,
                         )}
                       </span>
                     </div>

@@ -19,6 +19,7 @@ export class LojasService {
         // Tabela não existe ou sem permissão
         if (error.code === "42P01" || error.code === "PGRST204") {
           console.warn("Tabela 'lojas' não encontrada ou sem dados");
+
           return [];
         }
         console.error("Erro na query de lojas:", error);
@@ -28,6 +29,7 @@ export class LojasService {
       return data || [];
     } catch (error: any) {
       console.error("Erro ao buscar lojas:", error?.message || error);
+
       return [];
     }
   }
@@ -53,6 +55,7 @@ export class LojasService {
       return data || [];
     } catch (error: any) {
       console.error("Erro ao buscar lojas ativas:", error?.message || error);
+
       return [];
     }
   }
@@ -73,6 +76,7 @@ export class LojasService {
       return data;
     } catch (error) {
       console.error("Erro ao buscar loja:", error);
+
       return null;
     }
   }
@@ -96,6 +100,7 @@ export class LojasService {
       return data;
     } catch (error) {
       console.error("Erro ao buscar loja por CNPJ:", error);
+
       return null;
     }
   }

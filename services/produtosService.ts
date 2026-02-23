@@ -24,7 +24,7 @@ export async function getProdutos(filtros?: {
     // Busca por descrição, modelos ou marca
     if (filtros?.busca) {
       query = query.or(
-        `descricao.ilike.%${filtros.busca}%,modelos.ilike.%${filtros.busca}%,marca.ilike.%${filtros.busca}%`
+        `descricao.ilike.%${filtros.busca}%,modelos.ilike.%${filtros.busca}%,marca.ilike.%${filtros.busca}%`,
       );
     }
 
@@ -57,7 +57,7 @@ export async function getProdutos(filtros?: {
 
 // Buscar produto por ID com detalhes completos
 export async function getProdutoById(
-  id: string
+  id: string,
 ): Promise<ProdutoCompleto | null> {
   try {
     const { data, error } = await supabase
@@ -78,7 +78,7 @@ export async function getProdutoById(
 // Criar novo produto
 export async function criarProduto(
   produto: Omit<Produto, "id" | "criado_em" | "atualizado_em">,
-  usuarioId: string
+  usuarioId: string,
 ): Promise<Produto> {
   try {
     const { data, error } = await supabase
@@ -108,7 +108,7 @@ export async function atualizarProduto(
       "id" | "criado_em" | "atualizado_em" | "criado_por" | "atualizado_por"
     >
   >,
-  usuarioId?: string
+  usuarioId?: string,
 ): Promise<Produto> {
   try {
     // Adicionar atualizado_por se o usuário for fornecido
@@ -151,7 +151,7 @@ export async function deletarProduto(id: string): Promise<void> {
 export async function toggleAtivoProduto(
   id: string,
   ativo: boolean,
-  usuarioId?: string
+  usuarioId?: string,
 ): Promise<Produto> {
   try {
     // Adicionar atualizado_por se o usuário for fornecido
@@ -189,7 +189,7 @@ export async function getEstatisticasProdutos() {
           .from("produtos")
           .select("id", { count: "exact", head: true })
           .eq("ativo", false),
-      ]
+      ],
     );
 
     return {
@@ -207,13 +207,13 @@ export async function getEstatisticasProdutos() {
 export async function getEstatisticasFinanceiras() {
   try {
     console.log(
-      "📊 [getEstatisticasFinanceiras] ========== VERSÃO NOVA COM LOGS =========="
+      "📊 [getEstatisticasFinanceiras] ========== VERSÃO NOVA COM LOGS ==========",
     );
     console.log("📊 [getEstatisticasFinanceiras] Iniciando busca...");
 
     // Buscar TODOS os produtos com paginação
     console.log(
-      "🚀 [getEstatisticasFinanceiras] Carregando TODOS os produtos..."
+      "🚀 [getEstatisticasFinanceiras] Carregando TODOS os produtos...",
     );
     const allProdutos: any[] = [];
     let produtosOffset = 0;
@@ -238,12 +238,12 @@ export async function getEstatisticasFinanceiras() {
     }
 
     console.log(
-      `📦 [getEstatisticasFinanceiras] Produtos carregados: ${allProdutos.length}`
+      `📦 [getEstatisticasFinanceiras] Produtos carregados: ${allProdutos.length}`,
     );
 
     // Buscar TODOS os estoques COM PAGINAÇÃO
     console.log(
-      "🚀 [getEstatisticasFinanceiras] INICIANDO LOOP DE PAGINAÇÃO..."
+      "🚀 [getEstatisticasFinanceiras] INICIANDO LOOP DE PAGINAÇÃO...",
     );
     const allEstoques: any[] = [];
     const pageSize = 1000;
@@ -254,7 +254,7 @@ export async function getEstatisticasFinanceiras() {
     while (hasMore) {
       iteracao++;
       console.log(
-        `🔄 [getEstatisticasFinanceiras] Iteração ${iteracao}: buscando registros ${offset} a ${offset + pageSize - 1}`
+        `🔄 [getEstatisticasFinanceiras] Iteração ${iteracao}: buscando registros ${offset} a ${offset + pageSize - 1}`,
       );
 
       const { data, error } = await supabase
@@ -265,49 +265,51 @@ export async function getEstatisticasFinanceiras() {
       if (error) {
         console.error(
           `❌ [getEstatisticasFinanceiras] Erro na iteração ${iteracao}:`,
-          error
+          error,
         );
         throw error;
       }
 
       console.log(
-        `📥 [getEstatisticasFinanceiras] Iteração ${iteracao}: recebeu ${data?.length || 0} registros`
+        `📥 [getEstatisticasFinanceiras] Iteração ${iteracao}: recebeu ${data?.length || 0} registros`,
       );
 
       if (data && data.length > 0) {
         allEstoques.push(...data);
         console.log(
-          `📦 [getEstatisticasFinanceiras] Total acumulado: ${allEstoques.length} registros`
+          `📦 [getEstatisticasFinanceiras] Total acumulado: ${allEstoques.length} registros`,
         );
         offset += pageSize;
         hasMore = data.length === pageSize;
 
         if (!hasMore) {
           console.log(
-            `⏹️ [getEstatisticasFinanceiras] Última página! Recebeu ${data.length} registros (menos que ${pageSize})`
+            `⏹️ [getEstatisticasFinanceiras] Última página! Recebeu ${data.length} registros (menos que ${pageSize})`,
           );
         }
       } else {
         console.log(
-          `⚠️ [getEstatisticasFinanceiras] Nenhum dado recebido na iteração ${iteracao}`
+          `⚠️ [getEstatisticasFinanceiras] Nenhum dado recebido na iteração ${iteracao}`,
         );
         hasMore = false;
       }
     }
 
     console.log(
-      `✅ [getEstatisticasFinanceiras] Total final de registros de estoque: ${allEstoques.length}`
+      `✅ [getEstatisticasFinanceiras] Total final de registros de estoque: ${allEstoques.length}`,
     );
 
     // Criar mapa de quantidades por produto
     const estoqueMap = new Map<string, number>();
+
     allEstoques.forEach((est) => {
       const atual = estoqueMap.get(est.id_produto) || 0;
+
       estoqueMap.set(est.id_produto, atual + est.quantidade);
     });
 
     console.log(
-      `📊 [getEstatisticasFinanceiras] Produtos com estoque: ${estoqueMap.size}`
+      `📊 [getEstatisticasFinanceiras] Produtos com estoque: ${estoqueMap.size}`,
     );
 
     // Calcular estatísticas

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { getFotosProduto } from "@/services/fotosProdutosService";
 
 /**
@@ -11,6 +12,7 @@ export function useFotosProduto(produtoId: string | null | undefined) {
   useEffect(() => {
     if (!produtoId) {
       setFotos([]);
+
       return;
     }
 
@@ -20,15 +22,18 @@ export function useFotosProduto(produtoId: string | null | undefined) {
       setLoading(true);
       try {
         const fotosData = await getFotosProduto(produtoId);
+
         if (mounted) {
           // Ordenar: foto principal primeiro, depois por data
           const sorted = fotosData.sort((a, b) => {
             if (a.is_principal && !b.is_principal) return -1;
             if (!a.is_principal && b.is_principal) return 1;
+
             return (
               new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime()
             );
           });
+
           setFotos(sorted.map((f) => f.url));
         }
       } catch (error) {

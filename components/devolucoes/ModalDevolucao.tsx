@@ -26,11 +26,12 @@ import {
   Banknote,
   Smartphone,
 } from "lucide-react";
+import { toast } from "sonner";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { VendasService } from "@/services/vendasService";
-import { VendaCompleta, ItemVenda } from "@/types/vendas";
+import { VendaCompleta } from "@/types/vendas";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import { toast } from "sonner";
 
 interface ModalDevolucaoProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export function ModalDevolucao({
   const { temPermissao } = usePermissoes();
   const [itensDevolucao, setItensDevolucao] = useState<ItemDevolucao[]>([]);
   const [tipoReembolso, setTipoReembolso] = useState<"credito" | "sem_credito">(
-    "credito"
+    "credito",
   );
   const [formaPagamento, setFormaPagamento] = useState<string>("dinheiro");
   const [motivo, setMotivo] = useState("");
@@ -78,6 +79,7 @@ export function ModalDevolucao({
           if (!item.id) {
             console.error("❌ Item sem ID:", item);
           }
+
           return {
             item_venda_id: item.id!,
             produto_id: item.produto_id,
@@ -111,6 +113,7 @@ export function ModalDevolucao({
     if (novaQuantidade > maxQuantidade) return;
 
     const novosItens = [...itensDevolucao];
+
     novosItens[index].quantidade_devolver = novaQuantidade;
     novosItens[index].subtotal = novaQuantidade * item.preco_unitario;
     setItensDevolucao(novosItens);
@@ -119,7 +122,7 @@ export function ModalDevolucao({
   const calcularTotal = () => {
     const subtotalItens = itensDevolucao.reduce(
       (total, item) => total + item.subtotal,
-      0
+      0,
     );
 
     // Calcular desconto baseado apenas nos itens sendo devolvidos
@@ -133,25 +136,29 @@ export function ModalDevolucao({
 
   const validarDevolucao = (): boolean => {
     const itensParaDevolver = itensDevolucao.filter(
-      (item) => item.quantidade_devolver > 0
+      (item) => item.quantidade_devolver > 0,
     );
 
     if (itensParaDevolver.length === 0) {
       setErro("Selecione ao menos um item para devolver");
+
       return false;
     }
 
     if (!motivo.trim()) {
       setErro("Informe o motivo da devolução");
+
       return false;
     }
 
     if (!formaPagamento) {
       setErro("Selecione a forma de pagamento");
+
       return false;
     }
 
     setErro("");
+
     return true;
   };
 
@@ -174,7 +181,7 @@ export function ModalDevolucao({
         "📦 Primeiro item - item_venda_id:",
         itensParaDevolver[0]?.item_venda_id,
         "tipo:",
-        typeof itensParaDevolver[0]?.item_venda_id
+        typeof itensParaDevolver[0]?.item_venda_id,
       );
 
       const resultado = await VendasService.processarDevolucao({
@@ -208,7 +215,7 @@ export function ModalDevolucao({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -287,16 +294,16 @@ export function ModalDevolucao({
 
                           <div className="flex items-center gap-3">
                             <Input
-                              type="number"
+                              className="w-32"
                               label="Qtd. Devolver"
+                              max={maxQuantidade}
+                              min={0}
+                              size="sm"
+                              type="number"
                               value={item.quantidade_devolver.toString()}
                               onChange={(e) =>
                                 handleQuantidadeChange(index, e.target.value)
                               }
-                              min={0}
-                              max={maxQuantidade}
-                              className="w-32"
-                              size="sm"
                             />
 
                             {item.quantidade_devolver > 0 && (
@@ -326,7 +333,7 @@ export function ModalDevolucao({
                 {(() => {
                   const subtotalItens = itensDevolucao.reduce(
                     (total, item) => total + item.subtotal,
-                    0
+                    0,
                   );
                   const totalComDesconto = calcularTotal();
                   const descontoAplicado = subtotalItens - totalComDesconto;
@@ -389,19 +396,20 @@ export function ModalDevolucao({
                         !temPermissao("devolucoes.processar_creditos")
                       ) {
                         toast.error(
-                          "Você não tem permissão para gerar créditos"
+                          "Você não tem permissão para gerar créditos",
                         );
+
                         return;
                       }
                       setTipoReembolso(value as "credito" | "sem_credito");
                     }}
                   >
                     <Radio
-                      value="credito"
                       description="O cliente receberá crédito para usar em futuras compras"
                       isDisabled={
                         !temPermissao("devolucoes.processar_creditos")
                       }
+                      value="credito"
                     >
                       <div className="flex items-center gap-2">
                         <CreditCard className="w-4 h-4" />
@@ -409,8 +417,8 @@ export function ModalDevolucao({
                       </div>
                     </Radio>
                     <Radio
-                      value="sem_credito"
                       description="Reembolso direto ao cliente (dinheiro, PIX, etc)"
+                      value="sem_credito"
                     >
                       <div className="flex items-center gap-2">
                         <Wallet className="w-4 h-4" />
@@ -427,9 +435,9 @@ export function ModalDevolucao({
                         Forma de pagamento do reembolso:
                       </p>
                       <RadioGroup
+                        orientation="horizontal"
                         value={formaPagamento}
                         onValueChange={setFormaPagamento}
-                        orientation="horizontal"
                       >
                         <Radio value="dinheiro">
                           <div className="flex items-center gap-1">
@@ -462,13 +470,13 @@ export function ModalDevolucao({
               </Card>
 
               <Textarea
+                isRequired
+                description="Descreva o motivo da devolução"
                 label="Motivo da Devolução"
+                minRows={3}
                 placeholder="Ex: Produto com defeito, insatisfação do cliente, etc."
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                minRows={3}
-                isRequired
-                description="Descreva o motivo da devolução"
               />
             </div>
 
@@ -487,14 +495,14 @@ export function ModalDevolucao({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="flat" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="flat" onPress={onClose}>
             Cancelar
           </Button>
           <Button
             color="danger"
-            onPress={handleProcessar}
             isLoading={loading}
             startContent={!loading && <CheckCircle2 className="w-4 h-4" />}
+            onPress={handleProcessar}
           >
             {loading ? "Processando..." : "Processar Devolução"}
           </Button>

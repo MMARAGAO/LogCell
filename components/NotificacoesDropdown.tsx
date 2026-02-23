@@ -17,8 +17,8 @@ import {
   CheckIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+
 import { useNotificacoes } from "@/hooks/useNotificacoes";
-import type { NotificacaoCompleta } from "@/types";
 
 interface NotificacoesDropdownProps {
   usuarioId: string | undefined;
@@ -38,6 +38,7 @@ function formatarTempoRelativo(data: string): string {
     return `Há ${diffMinutos} minuto${diffMinutos > 1 ? "s" : ""}`;
   if (diffHoras < 24) return `Há ${diffHoras} hora${diffHoras > 1 ? "s" : ""}`;
   if (diffDias < 7) return `Há ${diffDias} dia${diffDias > 1 ? "s" : ""}`;
+
   return dataNotif.toLocaleDateString("pt-BR");
 }
 
@@ -53,7 +54,7 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
   } = useNotificacoes(usuarioId);
 
   const [tabSelecionada, setTabSelecionada] = useState<"todas" | "nao-lidas">(
-    "nao-lidas"
+    "nao-lidas",
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -94,17 +95,17 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
       {/* Botão Mobile - abre modal */}
       <Button
         isIconOnly
-        variant="light"
-        className="relative lg:hidden"
         aria-label="Notificações"
+        className="relative lg:hidden"
+        variant="light"
         onPress={() => setIsModalOpen(true)}
       >
         {countNaoLidas > 0 ? (
           <Badge
-            content={countNaoLidas > 99 ? "99+" : countNaoLidas}
             color="danger"
-            size="sm"
+            content={countNaoLidas > 99 ? "99+" : countNaoLidas}
             placement="top-right"
+            size="sm"
           >
             <BellAlertIcon className="w-6 h-6 text-warning animate-pulse" />
           </Badge>
@@ -118,16 +119,16 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
         <DropdownTrigger>
           <Button
             isIconOnly
-            variant="light"
-            className="relative hidden lg:flex"
             aria-label="Notificações"
+            className="relative hidden lg:flex"
+            variant="light"
           >
             {countNaoLidas > 0 ? (
               <Badge
-                content={countNaoLidas > 99 ? "99+" : countNaoLidas}
                 color="danger"
-                size="sm"
+                content={countNaoLidas > 99 ? "99+" : countNaoLidas}
                 placement="top-right"
+                size="sm"
               >
                 <BellAlertIcon className="w-6 h-6 text-warning animate-pulse" />
               </Badge>
@@ -155,11 +156,11 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
             <DropdownItem
               key="header"
               isReadOnly
-              textValue="Header de notificações"
               className="cursor-default opacity-100"
               classNames={{
                 base: "p-0 gap-0 data-[hover=true]:bg-transparent",
               }}
+              textValue="Header de notificações"
             >
               <div className="px-4 py-2">
                 <div className="flex items-center justify-between mb-3">
@@ -167,10 +168,10 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                   <div className="flex gap-2">
                     {countNaoLidas > 0 && (
                       <Button
-                        size="sm"
-                        variant="flat"
                         color="primary"
+                        size="sm"
                         startContent={<CheckIcon className="w-4 h-4" />}
+                        variant="flat"
                         onPress={marcarTodasComoLidas}
                       >
                         Marcar todas
@@ -178,10 +179,10 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                     )}
                     {notificacoes.length > 0 && (
                       <Button
+                        isIconOnly
+                        color="danger"
                         size="sm"
                         variant="flat"
-                        color="danger"
-                        isIconOnly
                         onPress={limparTodas}
                       >
                         <XMarkIcon className="w-4 h-4" />
@@ -192,12 +193,12 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
 
                 {/* Tabs */}
                 <Tabs
+                  fullWidth
                   selectedKey={tabSelecionada}
+                  size="sm"
                   onSelectionChange={(key) =>
                     setTabSelecionada(key as "todas" | "nao-lidas")
                   }
-                  size="sm"
-                  fullWidth
                 >
                   <Tab
                     key="nao-lidas"
@@ -205,7 +206,7 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                       <div className="flex items-center gap-2">
                         <span>Não Lidas</span>
                         {countNaoLidas > 0 && (
-                          <Chip size="sm" color="danger" variant="flat">
+                          <Chip color="danger" size="sm" variant="flat">
                             {countNaoLidas}
                           </Chip>
                         )}
@@ -231,7 +232,7 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                 textValue="Carregando notificações"
               >
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
                   <p className="text-sm text-default-400 mt-2">Carregando...</p>
                 </div>
               </DropdownItem>
@@ -281,9 +282,9 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
 
                       <div className="flex items-center gap-2">
                         <Chip
+                          color={getCorNotificacao(notificacao.tipo) as any}
                           size="sm"
                           variant="flat"
-                          color={getCorNotificacao(notificacao.tipo) as any}
                         >
                           {notificacao.tipo.replace("_", " ")}
                         </Chip>
@@ -302,14 +303,14 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
 
       {/* Modal - Mobile */}
       <Modal
-        isOpen={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        size="full"
-        scrollBehavior="inside"
         classNames={{
           base: "m-0 sm:m-0",
           wrapper: "items-end sm:items-center",
         }}
+        isOpen={isModalOpen}
+        scrollBehavior="inside"
+        size="full"
+        onOpenChange={setIsModalOpen}
       >
         <ModalContent>
           {(onClose) => (
@@ -323,24 +324,24 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                 <div className="flex gap-2">
                   {countNaoLidas > 0 && (
                     <Button
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      startContent={<CheckIcon className="w-4 h-4" />}
-                      onPress={marcarTodasComoLidas}
                       className="flex-1"
+                      color="primary"
+                      size="sm"
+                      startContent={<CheckIcon className="w-4 h-4" />}
+                      variant="flat"
+                      onPress={marcarTodasComoLidas}
                     >
                       Marcar todas
                     </Button>
                   )}
                   {notificacoes.length > 0 && (
                     <Button
-                      size="sm"
-                      variant="flat"
-                      color="danger"
-                      startContent={<XMarkIcon className="w-4 h-4" />}
-                      onPress={limparTodas}
                       className="flex-1"
+                      color="danger"
+                      size="sm"
+                      startContent={<XMarkIcon className="w-4 h-4" />}
+                      variant="flat"
+                      onPress={limparTodas}
                     >
                       Limpar
                     </Button>
@@ -349,12 +350,12 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
 
                 {/* Tabs */}
                 <Tabs
+                  fullWidth
                   selectedKey={tabSelecionada}
+                  size="md"
                   onSelectionChange={(key) =>
                     setTabSelecionada(key as "todas" | "nao-lidas")
                   }
-                  size="md"
-                  fullWidth
                 >
                   <Tab
                     key="nao-lidas"
@@ -362,7 +363,7 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
                       <div className="flex items-center gap-2">
                         <span>Não Lidas</span>
                         {countNaoLidas > 0 && (
-                          <Chip size="sm" color="danger" variant="flat">
+                          <Chip color="danger" size="sm" variant="flat">
                             {countNaoLidas}
                           </Chip>
                         )}
@@ -376,7 +377,7 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
               <ModalBody className="px-4 pb-4">
                 {loading ? (
                   <div className="text-center py-12">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto" />
                     <p className="text-sm text-default-400 mt-3">
                       Carregando...
                     </p>
@@ -425,11 +426,11 @@ export function NotificacoesDropdown({ usuarioId }: NotificacoesDropdownProps) {
 
                             <div className="flex items-center gap-2 flex-wrap">
                               <Chip
-                                size="sm"
-                                variant="flat"
                                 color={
                                   getCorNotificacao(notificacao.tipo) as any
                                 }
+                                size="sm"
+                                variant="flat"
                               >
                                 {notificacao.tipo.replace("_", " ")}
                               </Chip>

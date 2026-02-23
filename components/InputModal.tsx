@@ -55,7 +55,7 @@ export function InputModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} placement="center">
+    <Modal isOpen={isOpen} placement="center" onClose={handleClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">{title}</ModalHeader>
         <ModalBody>
@@ -64,20 +64,18 @@ export function InputModal({
           )}
           {type === "textarea" ? (
             <Textarea
+              isRequired={isRequired}
+              minRows={3}
+              placeholder={placeholder}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={placeholder}
-              minRows={3}
-              isRequired={isRequired}
-              autoFocus
             />
           ) : (
             <Input
+              isRequired={isRequired}
+              placeholder={placeholder}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder={placeholder}
-              isRequired={isRequired}
-              autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (!isRequired || value.trim())) {
                   handleConfirm();
@@ -92,9 +90,9 @@ export function InputModal({
           </Button>
           <Button
             color="primary"
-            onPress={handleConfirm}
             isDisabled={isRequired && !value.trim()}
             isLoading={isLoading}
+            onPress={handleConfirm}
           >
             {confirmText}
           </Button>

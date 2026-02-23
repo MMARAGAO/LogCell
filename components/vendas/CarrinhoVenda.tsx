@@ -1,5 +1,7 @@
 "use client";
 
+import type { ItemCarrinho } from "@/types/vendas";
+
 import { useState } from "react";
 import {
   Card,
@@ -14,7 +16,6 @@ import {
   Input,
 } from "@heroui/react";
 import { Trash2, Minus, Plus, X, Edit2 } from "lucide-react";
-import type { ItemCarrinho } from "@/types/vendas";
 
 interface CarrinhoVendaProps {
   itens: ItemCarrinho[];
@@ -41,7 +42,7 @@ export function CarrinhoVenda({
     Record<string, number>
   >({});
   const [precosEditando, setPrecosEditando] = useState<Record<string, number>>(
-    {}
+    {},
   );
 
   const formatarMoeda = (valor: number) => {
@@ -56,6 +57,7 @@ export function CarrinhoVenda({
     if (item.desconto.tipo === "valor") {
       return item.desconto.valor;
     }
+
     return (item.subtotal * item.desconto.valor) / 100;
   };
 
@@ -65,6 +67,7 @@ export function CarrinhoVenda({
 
   const handleQuantidadeChange = (produtoId: string, valor: string) => {
     const quantidade = parseInt(valor) || 0;
+
     setQuantidadesEditando({
       ...quantidadesEditando,
       [produtoId]: quantidade,
@@ -73,6 +76,7 @@ export function CarrinhoVenda({
 
   const handlePrecoChange = (produtoId: string, valor: string) => {
     const preco = parseFloat(valor) || 0;
+
     setPrecosEditando({
       ...precosEditando,
       [produtoId]: preco,
@@ -81,19 +85,23 @@ export function CarrinhoVenda({
 
   const handleConfirmarQuantidade = (produtoId: string) => {
     const quantidade = quantidadesEditando[produtoId];
+
     if (quantidade && quantidade > 0) {
       onAtualizarQuantidade(produtoId, quantidade);
     }
     const { [produtoId]: _, ...resto } = quantidadesEditando;
+
     setQuantidadesEditando(resto);
   };
 
   const handleConfirmarPreco = (produtoId: string) => {
     const preco = precosEditando[produtoId];
+
     if (preco && preco > 0 && onAtualizarPreco) {
       onAtualizarPreco(produtoId, preco);
     }
     const { [produtoId]: _, ...resto } = precosEditando;
+
     setPrecosEditando(resto);
   };
 
@@ -125,7 +133,7 @@ export function CarrinhoVenda({
   return (
     <Card>
       <CardBody className="p-0">
-        <Table aria-label="Carrinho de vendas" removeWrapper>
+        <Table removeWrapper aria-label="Carrinho de vendas">
           <TableHeader>
             <TableColumn>PRODUTO</TableColumn>
             <TableColumn>PREÇO UNIT.</TableColumn>
@@ -154,22 +162,22 @@ export function CarrinhoVenda({
                     {editandoPreco ? (
                       <div className="flex items-center gap-2">
                         <Input
-                          type="number"
+                          className="w-28"
                           min="0.01"
-                          step="0.01"
                           size="sm"
+                          startContent={
+                            <span className="text-default-400 text-sm">R$</span>
+                          }
+                          step="0.01"
+                          type="number"
                           value={precosEditando[item.produto_id].toString()}
                           onChange={(e) =>
                             handlePrecoChange(item.produto_id, e.target.value)
                           }
-                          className="w-28"
-                          startContent={
-                            <span className="text-default-400 text-sm">R$</span>
-                          }
                         />
                         <Button
-                          size="sm"
                           color="primary"
+                          size="sm"
                           onClick={() => handleConfirmarPreco(item.produto_id)}
                         >
                           OK
@@ -180,6 +188,7 @@ export function CarrinhoVenda({
                           onClick={() => {
                             const { [item.produto_id]: _, ...resto } =
                               precosEditando;
+
                             setPrecosEditando(resto);
                           }}
                         >
@@ -193,6 +202,7 @@ export function CarrinhoVenda({
                           <Button
                             isIconOnly
                             size="sm"
+                            title="Editar preço"
                             variant="flat"
                             onClick={() =>
                               setPrecosEditando({
@@ -200,7 +210,6 @@ export function CarrinhoVenda({
                                 [item.produto_id]: item.preco_unitario,
                               })
                             }
-                            title="Editar preço"
                           >
                             <Edit2 className="w-3 h-3" />
                           </Button>
@@ -212,23 +221,23 @@ export function CarrinhoVenda({
                     {editandoQuantidade ? (
                       <div className="flex items-center gap-2">
                         <Input
-                          type="number"
+                          className="w-20"
                           min="1"
                           size="sm"
+                          type="number"
                           value={quantidadesEditando[
                             item.produto_id
                           ].toString()}
                           onChange={(e) =>
                             handleQuantidadeChange(
                               item.produto_id,
-                              e.target.value
+                              e.target.value,
                             )
                           }
-                          className="w-20"
                         />
                         <Button
-                          size="sm"
                           color="primary"
+                          size="sm"
                           onClick={() =>
                             handleConfirmarQuantidade(item.produto_id)
                           }
@@ -246,8 +255,9 @@ export function CarrinhoVenda({
                         >
                           <Minus className="w-4 h-4" />
                         </Button>
-                        <span
+                        <button
                           className="min-w-[40px] text-center cursor-pointer hover:text-primary"
+                          type="button"
                           onClick={() =>
                             setQuantidadesEditando({
                               ...quantidadesEditando,
@@ -256,7 +266,7 @@ export function CarrinhoVenda({
                           }
                         >
                           {item.quantidade}
-                        </span>
+                        </button>
                         <Button
                           isIconOnly
                           size="sm"
@@ -284,10 +294,10 @@ export function CarrinhoVenda({
                           {onRemoverDescontoItem && (
                             <Button
                               isIconOnly
+                              className="h-5 w-5 min-w-5"
+                              color="danger"
                               size="sm"
                               variant="light"
-                              color="danger"
-                              className="h-5 w-5 min-w-5"
                               onClick={() =>
                                 onRemoverDescontoItem(item.produto_id)
                               }
@@ -302,8 +312,8 @@ export function CarrinhoVenda({
                   <TableCell>
                     <Button
                       isIconOnly
-                      size="sm"
                       color="danger"
+                      size="sm"
                       variant="light"
                       onClick={() => onRemoverItem(item.produto_id)}
                     >
@@ -332,11 +342,11 @@ export function CarrinhoVenda({
                   {onRemoverDescontoGeral && (
                     <Button
                       isIconOnly
+                      className="h-6 w-6 min-w-6"
+                      color="danger"
                       size="sm"
                       variant="flat"
-                      color="danger"
                       onClick={onRemoverDescontoGeral}
-                      className="h-6 w-6 min-w-6"
                     >
                       <X className="w-4 h-4" />
                     </Button>

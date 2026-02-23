@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
 import { createServerSupabaseClient } from "@/lib/supabase/action";
-import type { LojaFoto } from "@/types";
 
 /**
  * Cadastrar uma foto no banco de dados (após upload)
@@ -39,13 +39,16 @@ export async function cadastrarFoto(dados: {
 
     if (error) {
       console.error("Erro ao cadastrar foto:", error);
+
       return { success: false, error: error.message };
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true, foto };
   } catch (error) {
     console.error("Erro ao cadastrar foto:", error);
+
     return { success: false, error: "Erro inesperado ao cadastrar foto" };
   }
 }
@@ -59,7 +62,7 @@ export async function atualizarFoto(
     legenda?: string;
     ordem?: number;
     is_principal?: boolean;
-  }
+  },
 ) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -90,13 +93,16 @@ export async function atualizarFoto(
 
     if (error) {
       console.error("Erro ao atualizar foto:", error);
+
       return { success: false, error: error.message };
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true, foto };
   } catch (error) {
     console.error("Erro ao atualizar foto:", error);
+
     return { success: false, error: "Erro inesperado ao atualizar foto" };
   }
 }
@@ -112,13 +118,16 @@ export async function deletarFoto(id: number) {
 
     if (error) {
       console.error("Erro ao deletar foto:", error);
+
       return { success: false, error: error.message };
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true };
   } catch (error) {
     console.error("Erro ao deletar foto:", error);
+
     return { success: false, error: "Erro inesperado ao deletar foto" };
   }
 }
@@ -160,17 +169,21 @@ export async function definirFotoPrincipal(id: number) {
           .eq("id", id);
 
         revalidatePath("/sistema/lojas");
+
         return { success: true };
       }
 
       console.error("Erro ao definir foto principal:", error);
+
       return { success: false, error: error.message };
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true };
   } catch (error) {
     console.error("Erro ao definir foto principal:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao definir foto principal",
@@ -194,9 +207,11 @@ export async function reordenarFotos(fotos: { id: number; ordem: number }[]) {
     }
 
     revalidatePath("/sistema/lojas");
+
     return { success: true };
   } catch (error) {
     console.error("Erro ao reordenar fotos:", error);
+
     return { success: false, error: "Erro inesperado ao reordenar fotos" };
   }
 }

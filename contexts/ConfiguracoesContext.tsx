@@ -2,7 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useTheme } from "next-themes";
+
 import { useAuthContext } from "./AuthContext";
+
 import {
   configuracoesService,
   ConfiguracoesUsuario,
@@ -12,7 +14,7 @@ interface ConfiguracoesContextType {
   configuracoes: ConfiguracoesUsuario | null;
   carregando: boolean;
   atualizarConfiguracoes: (
-    novasConfiguracoes: Partial<ConfiguracoesUsuario>
+    novasConfiguracoes: Partial<ConfiguracoesUsuario>,
   ) => Promise<void>;
   resetarConfiguracoes: () => Promise<void>;
   aplicarTema: () => void;
@@ -51,7 +53,7 @@ export function ConfiguracoesProvider({
       "theme-default",
       "theme-purple",
       "theme-green",
-      "theme-orange"
+      "theme-orange",
     );
 
     // Determina o tema HeroUI correto
@@ -107,7 +109,6 @@ export function ConfiguracoesProvider({
       setCarregando(false);
     }
     // Remover carregarConfiguracoes das dependências para evitar loop
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usuario?.id]);
 
   // Aplicar tema de cores SEMPRE que mudar
@@ -115,7 +116,6 @@ export function ConfiguracoesProvider({
     if (configuracoes) {
       aplicarTema();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configuracoes?.tema]); // Reage apenas quando o tema muda
 
   // Reaplicar tema quando modo dark/light mudar
@@ -125,21 +125,22 @@ export function ConfiguracoesProvider({
       const timer = setTimeout(() => {
         aplicarTema();
       }, 50);
+
       return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextTheme]); // Reage quando dark/light mode muda
 
   // NÃO sincronizar dark/light mode - deixar next-themes gerenciar
   // O Context só carrega, não aplica mais o tema dark/light
 
   const atualizarConfiguracoes = async (
-    novasConfiguracoes: Partial<ConfiguracoesUsuario>
+    novasConfiguracoes: Partial<ConfiguracoesUsuario>,
   ) => {
     if (!usuario?.id || !configuracoes) {
       console.warn(
-        "⚠️ Não é possível atualizar: usuário ou configurações não carregadas"
+        "⚠️ Não é possível atualizar: usuário ou configurações não carregadas",
       );
+
       return;
     }
 
@@ -151,7 +152,7 @@ export function ConfiguracoesProvider({
       };
 
       const data = await configuracoesService.salvarConfiguracoes(
-        configuracoesAtualizadas
+        configuracoesAtualizadas,
       );
 
       // Atualiza o estado local com as configurações salvas
@@ -168,6 +169,7 @@ export function ConfiguracoesProvider({
 
     try {
       const data = await configuracoesService.resetarConfiguracoes(usuario.id);
+
       setConfiguracoes(data);
     } catch (error) {
       console.error("Erro ao resetar configurações:", error);
@@ -192,10 +194,12 @@ export function ConfiguracoesProvider({
 
 export function useConfiguracoes() {
   const context = useContext(ConfiguracoesContext);
+
   if (context === undefined) {
     throw new Error(
-      "useConfiguracoes deve ser usado dentro de ConfiguracoesProvider"
+      "useConfiguracoes deve ser usado dentro de ConfiguracoesProvider",
     );
   }
+
   return context;
 }

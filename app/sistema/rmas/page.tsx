@@ -25,19 +25,16 @@ import {
   Eye,
   Package,
   TrendingUp,
-  TrendingDown,
   Clock,
   CheckCircle,
-  Filter,
 } from "lucide-react";
+
 import { useAuth } from "@/contexts/AuthContext";
-import { rmaService } from "@/services/rmaService";
 import FormularioRMA from "@/components/rma/FormularioRMA";
 import DetalhesRMA from "@/components/rma/DetalhesRMA";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import {
   RMA,
-  FiltrosRMA,
   LABELS_TIPO_ORIGEM,
   LABELS_TIPO_RMA,
   LABELS_STATUS_RMA,
@@ -98,6 +95,7 @@ export default function RMAsPage() {
       setPaginaAtual(1);
       carregarDados();
     }, 500);
+
     return () => clearTimeout(timeoutId);
   }, [busca]);
 
@@ -129,7 +127,7 @@ export default function RMAsPage() {
             nome
           )
         `,
-        { count: "exact" }
+        { count: "exact" },
       );
 
       // Filtro de busca dinâmica
@@ -162,6 +160,7 @@ export default function RMAsPage() {
       // Aplicar paginação
       const inicio = (paginaAtual - 1) * itensPorPagina;
       const fim = inicio + itensPorPagina - 1;
+
       query = query.range(inicio, fim).order("criado_em", { ascending: false });
 
       const { data, error, count } = await query;
@@ -223,6 +222,7 @@ export default function RMAsPage() {
         .from("lojas")
         .select("id, nome")
         .order("nome");
+
       setLojas(data || []);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
@@ -367,13 +367,13 @@ export default function RMAsPage() {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 space-y-2">
               <Input
+                isClearable
+                description="Digite palavras-chave separadas por espaço"
                 placeholder="Ex: rma cliente produto (busca inteligente)"
+                startContent={<Search className="w-4 h-4 text-gray-400" />}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                startContent={<Search className="w-4 h-4 text-gray-400" />}
-                isClearable
                 onClear={() => setBusca("")}
-                description="Digite palavras-chave separadas por espaço"
               />
               {totalRegistros > 0 && (
                 <p className="text-xs text-default-500">
@@ -384,10 +384,10 @@ export default function RMAsPage() {
             </div>
 
             <Select
+              className="w-full md:w-64"
               placeholder="Tipo de Origem"
               selectedKeys={filtroTipoOrigem ? [filtroTipoOrigem] : []}
               onChange={(e) => setFiltroTipoOrigem(e.target.value)}
-              className="w-full md:w-64"
             >
               {Object.entries(LABELS_TIPO_ORIGEM).map(([valor, label]) => (
                 <SelectItem key={valor}>{label}</SelectItem>
@@ -395,10 +395,10 @@ export default function RMAsPage() {
             </Select>
 
             <Select
+              className="w-full md:w-64"
               placeholder="Status"
               selectedKeys={filtroStatus ? [filtroStatus] : []}
               onChange={(e) => setFiltroStatus(e.target.value)}
-              className="w-full md:w-64"
             >
               {Object.entries(LABELS_STATUS_RMA).map(([valor, label]) => (
                 <SelectItem key={valor}>{label}</SelectItem>
@@ -471,8 +471,8 @@ export default function RMAsPage() {
                     <TableCell>
                       <Chip
                         color={CORES_STATUS_RMA[rma.status]}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {LABELS_STATUS_RMA[rma.status]}
                       </Chip>
@@ -503,15 +503,15 @@ export default function RMAsPage() {
           {totalPaginas > 1 && (
             <div className="flex justify-center items-center gap-2 pt-4">
               <Pagination
-                total={totalPaginas}
-                page={paginaAtual}
-                onChange={handleMudarPagina}
-                size="sm"
                 showControls
-                color="primary"
                 classNames={{
                   cursor: "bg-primary text-white",
                 }}
+                color="primary"
+                page={paginaAtual}
+                size="sm"
+                total={totalPaginas}
+                onChange={handleMudarPagina}
               />
             </div>
           )}
@@ -528,12 +528,12 @@ export default function RMAsPage() {
       {rmaIdSelecionado && (
         <DetalhesRMA
           isOpen={modalDetalhes}
+          rmaId={rmaIdSelecionado}
+          onAtualizar={carregarDados}
           onClose={() => {
             setModalDetalhes(false);
             setRmaIdSelecionado("");
           }}
-          rmaId={rmaIdSelecionado}
-          onAtualizar={carregarDados}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ import * as React from "react";
 import { HeroUIProvider } from "@heroui/system";
 import { useRouter } from "next/navigation";
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
+
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ConfiguracoesProvider } from "@/contexts/ConfiguracoesContext";
 import { PermissoesRealtimeProvider } from "@/contexts/PermissoesRealtimeContext";

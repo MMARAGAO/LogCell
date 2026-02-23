@@ -41,7 +41,7 @@ export function formatarNumero(valor: number | null | undefined): string {
  */
 export function formatarPorcentagem(
   valor: number | null | undefined,
-  casasDecimais: number = 1
+  casasDecimais: number = 1,
 ): string {
   if (valor === null || valor === undefined || isNaN(valor)) {
     return "0%";
@@ -71,7 +71,7 @@ export function formatarData(data: string | Date | null | undefined): string {
  * @returns String formatada como data e hora brasileira
  */
 export function formatarDataHora(
-  data: string | Date | null | undefined
+  data: string | Date | null | undefined,
 ): string {
   if (!data) return "-";
 

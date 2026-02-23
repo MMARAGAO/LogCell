@@ -1,3 +1,5 @@
+import type { Usuario } from "@/types";
+
 import React from "react";
 import {
   Modal,
@@ -10,7 +12,6 @@ import {
   Autocomplete,
   AutocompleteItem,
 } from "@heroui/react";
-import type { Usuario } from "@/types";
 
 interface TrocaDeVendedorProps {
   isOpen: boolean;
@@ -50,8 +51,9 @@ export const TrocaDeVendedor: React.FC<TrocaDeVendedorProps> = ({
               <span className="font-semibold">
                 {(() => {
                   const vendedor = usuarios.find(
-                    (u) => u.id === vendedorAtualId
+                    (u) => u.id === vendedorAtualId,
                   );
+
                   return vendedor
                     ? `${vendedor.nome} (${vendedor.email})`
                     : "-";
@@ -59,13 +61,13 @@ export const TrocaDeVendedor: React.FC<TrocaDeVendedorProps> = ({
               </span>
             </div>
             <Autocomplete
+              allowsCustomValue={false}
+              className="flex-1"
+              defaultItems={usuarios}
               label="Novo Vendedor"
               placeholder="Selecione o novo vendedor"
               selectedKey={vendedorSelecionado}
               onSelectionChange={(key) => onSelecionarVendedor(key as string)}
-              allowsCustomValue={false}
-              defaultItems={usuarios}
-              className="flex-1"
             >
               {(usuario) => (
                 <AutocompleteItem
@@ -85,14 +87,14 @@ export const TrocaDeVendedor: React.FC<TrocaDeVendedorProps> = ({
         )}
       </ModalBody>
       <ModalFooter>
-        <Button variant="light" onClick={onClose} disabled={salvando}>
+        <Button disabled={salvando} variant="light" onClick={onClose}>
           Cancelar
         </Button>
         <Button
           color="primary"
-          onClick={onConfirmar}
-          isLoading={salvando}
           disabled={!vendedorSelecionado}
+          isLoading={salvando}
+          onClick={onConfirmar}
         >
           Salvar
         </Button>

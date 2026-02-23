@@ -10,6 +10,7 @@ import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
 import { ClockIcon } from "@heroicons/react/24/outline";
+
 import {
   getHistoricoProduto,
   HistoricoProduto,
@@ -41,6 +42,7 @@ export function HistoricoProdutoModal({
     try {
       setLoading(true);
       const data = await getHistoricoProduto(produtoId);
+
       setHistorico(data);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
@@ -62,6 +64,7 @@ export function HistoricoProdutoModal({
       quantidade_minima: "Quantidade Mínima",
       ativo: "Status",
     };
+
     return campos[campo || ""] || campo || "-";
   };
 
@@ -71,6 +74,7 @@ export function HistoricoProdutoModal({
     // Se for um JSON, tenta parsear
     try {
       const obj = JSON.parse(valor);
+
       if (typeof obj === "object") {
         return Object.entries(obj)
           .map(([k, v]) => `${formatarCampo(k)}: ${v || "-"}`)
@@ -98,7 +102,7 @@ export function HistoricoProdutoModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -129,7 +133,7 @@ export function HistoricoProdutoModal({
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Chip size="sm" color="primary" variant="flat">
+                      <Chip color="primary" size="sm" variant="flat">
                         Alteração
                       </Chip>
                       <span className="text-sm font-medium">

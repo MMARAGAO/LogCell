@@ -1,5 +1,7 @@
 "use client";
 
+import type { Cliente } from "@/types/clientesTecnicos";
+
 import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { Button } from "@heroui/button";
@@ -22,8 +24,8 @@ import {
   PowerOff,
   Wallet,
 } from "lucide-react";
+
 import { usePermissoes } from "@/hooks/usePermissoes";
-import type { Cliente } from "@/types/clientesTecnicos";
 
 interface ClienteCardProps {
   cliente: Cliente;
@@ -64,7 +66,7 @@ export default function ClienteCard({
         onPress={() => onEditar(cliente)}
       >
         Editar
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -76,7 +78,7 @@ export default function ClienteCard({
         onPress={() => onVerHistorico(cliente)}
       >
         Ver Histórico de OS
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -88,7 +90,7 @@ export default function ClienteCard({
         onPress={() => onGerenciarCreditos(cliente)}
       >
         Gerenciar Créditos
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -106,7 +108,7 @@ export default function ClienteCard({
         onPress={() => onToggleAtivo(cliente)}
       >
         {cliente.ativo ? "Desativar" : "Ativar"}
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -120,9 +122,10 @@ export default function ClienteCard({
         onPress={() => onDeletar(cliente)}
       >
         Excluir
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
+
   return (
     <Card className="w-full">
       <CardBody className="gap-3">
@@ -142,8 +145,8 @@ export default function ClienteCard({
 
           <div className="flex items-center gap-2">
             <Chip
-              size="sm"
               color={cliente.ativo ? "success" : "danger"}
+              size="sm"
               variant="flat"
             >
               {cliente.ativo ? "Ativo" : "Inativo"}
@@ -172,10 +175,10 @@ export default function ClienteCard({
               <span>{cliente.telefone}</span>
               <Chip
                 as="a"
+                className="cursor-pointer ml-2"
+                color="success"
                 href={`https://wa.me/55${cliente.telefone.replace(/\D/g, "")}`}
                 target="_blank"
-                color="success"
-                className="cursor-pointer ml-2"
                 title="Enviar mensagem no WhatsApp"
               >
                 WhatsApp

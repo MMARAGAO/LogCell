@@ -11,7 +11,6 @@ import { Button } from "@heroui/button";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
 import { useState, useEffect, useRef } from "react";
-import { FotoOrdemServico } from "@/types";
 import {
   PhotoIcon,
   TrashIcon,
@@ -19,6 +18,8 @@ import {
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarSolid } from "@heroicons/react/24/solid";
+
+import { FotoOrdemServico } from "@/types";
 import { CarrosselFotos } from "@/components/CarrosselFotos";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toast";
@@ -78,9 +79,10 @@ export default function GerenciarFotosOSModal({
   };
 
   const handleFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = event.target.files;
+
     if (!files || files.length === 0) return;
 
     setUploading(true);
@@ -92,6 +94,7 @@ export default function GerenciarFotosOSModal({
 
       if (!user) {
         toast.showToast("Usuário não autenticado", "error");
+
         return;
       }
 
@@ -160,6 +163,7 @@ export default function GerenciarFotosOSModal({
 
       // Buscar a foto para deletar do storage
       const foto = fotos.find((f) => f.id === confirmModal.fotoId);
+
       if (foto) {
         // Extrair o caminho do arquivo da URL
         const urlParts = foto.url.split("/");
@@ -200,6 +204,7 @@ export default function GerenciarFotosOSModal({
 
       if (!user) {
         toast.showToast("Usuário não autenticado", "error");
+
         return;
       }
 
@@ -230,9 +235,9 @@ export default function GerenciarFotosOSModal({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
-        size="4xl"
         scrollBehavior="inside"
+        size="4xl"
+        onClose={onClose}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
@@ -247,18 +252,18 @@ export default function GerenciarFotosOSModal({
               <div>
                 <input
                   ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
                   multiple
-                  onChange={handleFileSelect}
+                  accept="image/*"
                   className="hidden"
+                  type="file"
+                  onChange={handleFileSelect}
                 />
                 <Button
                   color="primary"
+                  isDisabled={uploading}
+                  isLoading={uploading}
                   startContent={<PhotoIcon className="w-5 h-5" />}
                   onPress={() => fileInputRef.current?.click()}
-                  isLoading={uploading}
-                  isDisabled={uploading}
                 >
                   {uploading ? "Enviando..." : "Adicionar Fotos"}
                 </Button>
@@ -310,25 +315,26 @@ export default function GerenciarFotosOSModal({
                         className="relative group border-2 border-default-200 rounded-lg overflow-hidden hover:border-primary transition-all"
                       >
                         {/* Imagem */}
-                        <div
+                        <button
                           className="aspect-square bg-default-100 cursor-pointer"
+                          type="button"
                           onClick={() => setFotoSelecionada(foto.url)}
                         >
                           <img
-                            src={foto.url}
                             alt={`Foto ${foto.ordem + 1}`}
                             className="w-full h-full object-cover"
+                            src={foto.url}
                           />
-                        </div>
+                        </button>
 
                         {/* Badge Principal */}
                         {foto.is_principal && (
                           <Chip
-                            size="sm"
-                            color="warning"
-                            variant="solid"
                             className="absolute top-2 left-2"
+                            color="warning"
+                            size="sm"
                             startContent={<StarSolid className="w-3 h-3" />}
+                            variant="solid"
                           >
                             Principal
                           </Chip>
@@ -339,8 +345,8 @@ export default function GerenciarFotosOSModal({
                           {!foto.is_principal && (
                             <Button
                               isIconOnly
-                              size="sm"
                               color="warning"
+                              size="sm"
                               variant="solid"
                               onPress={() => handleSetPrincipal(foto.id)}
                             >
@@ -349,8 +355,8 @@ export default function GerenciarFotosOSModal({
                           )}
                           <Button
                             isIconOnly
-                            size="sm"
                             color="danger"
+                            size="sm"
                             variant="solid"
                             onPress={() => handleDelete(foto.id)}
                           >
@@ -376,7 +382,15 @@ export default function GerenciarFotosOSModal({
       {fotoSelecionada && (
         <div
           className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+          role="button"
+          tabIndex={0}
           onClick={() => setFotoSelecionada(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setFotoSelecionada(null);
+            }
+          }}
         >
           <Button
             isIconOnly
@@ -386,25 +400,31 @@ export default function GerenciarFotosOSModal({
           >
             <XMarkIcon className="w-6 h-6 text-white" />
           </Button>
-          <img
-            src={fotoSelecionada}
-            alt="Foto ampliada"
-            className="max-w-[90%] max-h-[90%] object-contain"
+          <button
+            aria-label="Foto ampliada"
+            className="max-w-[90%] max-h-[90%]"
+            type="button"
             onClick={(e) => e.stopPropagation()}
-          />
+          >
+            <img
+              alt="Foto ampliada"
+              className="max-w-[90%] max-h-[90%] object-contain"
+              src={fotoSelecionada}
+            />
+          </button>
         </div>
       )}
 
       {/* Modal de Confirmação de Exclusão */}
       <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ isOpen: false, fotoId: "" })}
-        onConfirm={confirmarDelete}
-        title="Excluir Foto"
-        message="Tem certeza que deseja excluir esta foto? Esta ação não pode ser desfeita."
-        confirmText="Excluir"
         cancelText="Cancelar"
         confirmColor="danger"
+        confirmText="Excluir"
+        isOpen={confirmModal.isOpen}
+        message="Tem certeza que deseja excluir esta foto? Esta ação não pode ser desfeita."
+        title="Excluir Foto"
+        onClose={() => setConfirmModal({ isOpen: false, fotoId: "" })}
+        onConfirm={confirmarDelete}
       />
 
       {toast.ToastComponent}

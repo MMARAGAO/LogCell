@@ -41,7 +41,7 @@ class RMAService {
           lojas:lojas(id, nome),
           clientes:clientes(id, nome, telefone),
           fornecedores:fornecedores(id, nome, telefone)
-        `
+        `,
         )
         .single();
 
@@ -101,8 +101,10 @@ class RMAService {
     if (error) throw error;
 
     let proximoNumero = 1;
+
     if (data && data.length > 0) {
       const ultimoNumero = data[0].numero_rma.replace(prefixo, "");
+
       proximoNumero = parseInt(ultimoNumero) + 1;
     }
 
@@ -121,7 +123,7 @@ class RMAService {
           lojas:lojas(id, nome),
           clientes:clientes(id, nome, telefone),
           fornecedores:fornecedores(id, nome, telefone)
-        `
+        `,
         )
         .order("criado_em", { ascending: false });
 
@@ -154,15 +156,17 @@ class RMAService {
 
       // Filtro de busca (cliente-side para busca em múltiplos campos)
       let rmas = data as RMA[];
+
       if (filtros?.busca) {
         const termoBusca = filtros.busca.toLowerCase();
+
         rmas = rmas.filter(
           (rma) =>
             rma.numero_rma.toLowerCase().includes(termoBusca) ||
             rma.produtos?.descricao.toLowerCase().includes(termoBusca) ||
             rma.clientes?.nome.toLowerCase().includes(termoBusca) ||
             rma.fornecedores?.nome.toLowerCase().includes(termoBusca) ||
-            rma.motivo.toLowerCase().includes(termoBusca)
+            rma.motivo.toLowerCase().includes(termoBusca),
         );
       }
 
@@ -185,12 +189,13 @@ class RMAService {
           lojas:lojas(id, nome),
           clientes:clientes(id, nome, telefone),
           fornecedores:fornecedores(id, nome, telefone)
-        `
+        `,
         )
         .eq("id", id)
         .single();
 
       if (error) throw error;
+
       return data as RMA;
     } catch (error) {
       console.error("❌ Erro ao buscar RMA:", error);
@@ -203,13 +208,14 @@ class RMAService {
     rmaId: string,
     novoStatus: StatusRMA,
     usuarioId: string,
-    devolverAoEstoque: boolean = false
+    devolverAoEstoque: boolean = false,
   ): Promise<void> {
     try {
       console.log(`🔵 Atualizando status do RMA ${rmaId} para ${novoStatus}`);
 
       // Buscar dados atuais
       const rmaAtual = await this.buscarRMAPorId(rmaId);
+
       if (!rmaAtual) throw new Error("RMA não encontrado");
 
       const statusAnterior = rmaAtual.status;
@@ -272,13 +278,14 @@ class RMAService {
   async atualizarRMA(
     id: string,
     dados: Partial<NovoRMA>,
-    usuarioId: string
+    usuarioId: string,
   ): Promise<void> {
     try {
       console.log("🔵 Atualizando RMA:", id);
 
       // Buscar dados anteriores
       const rmaAnterior = await this.buscarRMAPorId(id);
+
       if (!rmaAnterior) throw new Error("RMA não encontrado");
 
       // Atualizar RMA
@@ -313,18 +320,19 @@ class RMAService {
   async devolverAoEstoque(
     id: string,
     usuarioId: string,
-    motivo?: string
+    motivo?: string,
   ): Promise<void> {
     try {
       console.log("🔵 Devolvendo produto ao estoque:", id);
 
       // Buscar RMA
       const rma = await this.buscarRMAPorId(id);
+
       if (!rma) throw new Error("RMA não encontrado");
 
       if (rma.status === "cancelado") {
         throw new Error(
-          "RMA cancelado não pode ser devolvido (já foi devolvido no cancelamento)"
+          "RMA cancelado não pode ser devolvido (já foi devolvido no cancelamento)",
         );
       }
 
@@ -363,6 +371,7 @@ class RMAService {
 
       // Buscar RMA
       const rma = await this.buscarRMAPorId(id);
+
       if (!rma) throw new Error("RMA não encontrado");
 
       if (rma.status === "cancelado") {
@@ -415,6 +424,7 @@ class RMAService {
 
       // Buscar RMA para verificar status
       const rma = await this.buscarRMAPorId(id);
+
       if (!rma) throw new Error("RMA não encontrado");
 
       if (rma.status !== "cancelado") {
@@ -484,7 +494,7 @@ class RMAService {
             erroEstoque.message?.includes("estoque_lojas_quantidade_check")
           ) {
             throw new Error(
-              `Estoque insuficiente. Disponível: ${quantidadeAtual}, Solicitado: ${params.quantidade}`
+              `Estoque insuficiente. Disponível: ${quantidadeAtual}, Solicitado: ${params.quantidade}`,
             );
           }
           throw erroEstoque;
@@ -579,12 +589,13 @@ class RMAService {
         .select(
           `
           *
-        `
+        `,
         )
         .eq("rma_id", rmaId)
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
+
       return data as HistoricoRMA[];
     } catch (error) {
       console.error("❌ Erro ao buscar histórico:", error);
@@ -596,7 +607,7 @@ class RMAService {
   async uploadFotos(
     rmaId: string,
     arquivos: File[],
-    usuarioId: string
+    usuarioId: string,
   ): Promise<FotoRMA[]> {
     try {
       console.log(`🔵 Fazendo upload de ${arquivos.length} foto(s)`);
@@ -607,7 +618,7 @@ class RMAService {
         // Validar tamanho (5MB)
         if (arquivo.size > 5 * 1024 * 1024) {
           throw new Error(
-            `Arquivo ${arquivo.name} excede o tamanho máximo de 5MB`
+            `Arquivo ${arquivo.name} excede o tamanho máximo de 5MB`,
           );
         }
 
@@ -662,6 +673,7 @@ class RMAService {
       });
 
       console.log("✅ Fotos enviadas com sucesso");
+
       return fotosUpload;
     } catch (error) {
       console.error("❌ Erro ao fazer upload de fotos:", error);
@@ -679,6 +691,7 @@ class RMAService {
         .order("criado_em", { ascending: false });
 
       if (error) throw error;
+
       return data as FotoRMA[];
     } catch (error) {
       console.error("❌ Erro ao buscar fotos:", error);

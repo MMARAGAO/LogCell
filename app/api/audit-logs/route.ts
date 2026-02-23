@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function GET(req: NextRequest) {
@@ -28,14 +28,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (dataInicio) {
-      query = query.gte(
-        "criado_em",
-        new Date(dataInicio).toISOString()
-      );
+      query = query.gte("criado_em", new Date(dataInicio).toISOString());
     }
 
     if (dataFim) {
       const dataFimAjustada = new Date(dataFim);
+
       dataFimAjustada.setHours(23, 59, 59, 999);
       query = query.lte("criado_em", dataFimAjustada.toISOString());
     }
@@ -46,7 +44,7 @@ export async function GET(req: NextRequest) {
         `tabela_nome.ilike.%${busca}%,dados_apagados.cd.${JSON.stringify({
           cliente_nome: busca,
           numero_venda: busca,
-        }).replace(/"/g, '\\"')}`
+        }).replace(/"/g, '\\"')}`,
       );
     }
 
@@ -56,15 +54,17 @@ export async function GET(req: NextRequest) {
     // Aplicar paginação
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
+
     query = query.range(from, to);
 
     const { data, error, count } = await query;
 
     if (error) {
       console.error("Erro ao buscar audit logs:", error);
+
       return NextResponse.json(
         { error: "Erro ao buscar logs" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
 
     // Criar mapa de usuário ID -> nome
     const usuariosMap = new Map(
-      usuarios?.map((u: any) => [u.id, u.nome]) || []
+      usuarios?.map((u: any) => [u.id, u.nome]) || [],
     );
 
     // Formatar dados para resposta
@@ -106,9 +106,10 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("Erro na rota de audit logs:", error);
+
     return NextResponse.json(
       { error: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

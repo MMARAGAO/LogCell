@@ -1,9 +1,10 @@
 "use client";
 
+import type { OrdemServico } from "@/types/ordemServico";
+
 import { useEffect, useState } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
-import { useAuthContext } from "@/contexts/AuthContext";
 import {
   ClipboardDocumentListIcon,
   CheckCircleIcon,
@@ -11,7 +12,8 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
-import type { OrdemServico } from "@/types/ordemServico";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface DashboardStats {
   total: number;
@@ -43,7 +45,7 @@ export default function DashboardTecnico() {
     setLoading(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -63,7 +65,7 @@ export default function DashboardTecnico() {
       const emAndamento =
         ordens?.filter(
           (os: any) =>
-            os.status === "em_andamento" || os.status === "em_diagnostico"
+            os.status === "em_andamento" || os.status === "em_diagnostico",
         ).length || 0;
       const aguardandoPecas =
         ordens?.filter((os: any) => os.status === "aguardando_pecas").length ||
@@ -79,7 +81,7 @@ export default function DashboardTecnico() {
       // Pegar as 5 ordens mais recentes que não estão concluídas
       setOrdensRecentes(
         (ordens?.filter((os: any) => os.status !== "concluida").slice(0, 5) ||
-          []) as OrdemServico[]
+          []) as OrdemServico[],
       );
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -184,6 +186,7 @@ export default function DashboardTecnico() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((card) => {
           const Icon = card.icon;
+
           return (
             <Card key={card.title} className="border-none shadow-md">
               <CardBody className="p-6">
@@ -233,9 +236,9 @@ export default function DashboardTecnico() {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">OS #{ordem.id}</span>
                       <Chip
+                        color={getStatusColor(ordem.status)}
                         size="sm"
                         variant="flat"
-                        color={getStatusColor(ordem.status)}
                       >
                         {getStatusLabel(ordem.status)}
                       </Chip>

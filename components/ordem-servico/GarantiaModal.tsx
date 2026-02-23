@@ -16,28 +16,8 @@ import {
   CardBody,
   Spinner,
 } from "@heroui/react";
-import {
-  User,
-  Phone,
-  Mail,
-  Smartphone,
-  Tag,
-  Wrench,
-  FileText,
-  DollarSign,
-  Calendar,
-  Package,
-  MapPin,
-  Clock,
-  AlertCircle,
-  ShoppingBag,
-  XCircle,
-  Camera,
-  AlertTriangle,
-  CheckCircle,
-  FileCheck,
-  Printer,
-} from "lucide-react";
+import { FileText, AlertCircle, FileCheck, Printer } from "lucide-react";
+
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -79,7 +59,7 @@ export default function GarantiaModal({
     (os?.tipo_garantia as TipoServicoGarantia) || "servico_geral",
   );
   const [diasGarantia, setDiasGarantia] = useState<string>(
-    (os?.dias_garantia || 90).toString(),
+    (os?.dias_garantia ?? 90).toString(),
   );
   const [textoGarantia, setTextoGarantia] =
     useState<TextoGarantiaResponse | null>(null);
@@ -95,7 +75,7 @@ export default function GarantiaModal({
       setTipoGarantia(
         (os.tipo_garantia as TipoServicoGarantia) || "servico_geral",
       );
-      setDiasGarantia((os.dias_garantia || 90).toString());
+      setDiasGarantia((os.dias_garantia ?? 90).toString());
     }
   }, [os]);
 
@@ -121,13 +101,14 @@ export default function GarantiaModal({
       if (error) {
         console.error("Erro ao buscar texto de garantia:", error);
         setTextoGarantia(null);
+
         return;
       }
 
       if (data) {
         setTextoGarantia(data as TextoGarantiaResponse);
         // Se o texto tiver dias de garantia padrão, usar como sugestão
-        if (data.dias_garantia && !os?.dias_garantia) {
+        if (data.dias_garantia !== undefined && os?.dias_garantia == null) {
           setDiasGarantia(data.dias_garantia.toString());
         }
       }
@@ -144,19 +125,27 @@ export default function GarantiaModal({
 
     setLoadingGerar(true);
     try {
+      const diasGarantiaFinal =
+        diasGarantia.trim() === "" ? 90 : Number(diasGarantia);
+
       // Criar objeto OS atualizado com tipo e dias de garantia
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: Number.isNaN(diasGarantiaFinal) ? 90 : diasGarantiaFinal,
       };
+
+      const diasGarantiaNumero = Number.isNaN(diasGarantiaFinal)
+        ? 90
+        : diasGarantiaFinal;
 
       const doc = await gerarGarantiaOS(
         osAtualizada,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        diasGarantiaNumero,
       );
+
       abrirPreviewPDF(doc, `Garantia_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Termo de garantia gerado com sucesso!");
       onClose();
@@ -173,18 +162,26 @@ export default function GarantiaModal({
 
     setLoadingCupom(true);
     try {
+      const diasGarantiaFinal =
+        diasGarantia.trim() === "" ? 90 : Number(diasGarantia);
+
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: Number.isNaN(diasGarantiaFinal) ? 90 : diasGarantiaFinal,
       };
+
+      const diasGarantiaNumero = Number.isNaN(diasGarantiaFinal)
+        ? 90
+        : diasGarantiaFinal;
 
       const cupom = await gerarCupomTermicoGarantia(
         osAtualizada,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        diasGarantiaNumero,
       );
+
       imprimirCupomTermico(cupom);
       toast.success("Cupom térmico de garantia gerado com sucesso!");
       onClose();
@@ -201,18 +198,26 @@ export default function GarantiaModal({
 
     setLoadingCupomPDF(true);
     try {
+      const diasGarantiaFinal =
+        diasGarantia.trim() === "" ? 90 : Number(diasGarantia);
+
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: Number.isNaN(diasGarantiaFinal) ? 90 : diasGarantiaFinal,
       };
+
+      const diasGarantiaNumero = Number.isNaN(diasGarantiaFinal)
+        ? 90
+        : diasGarantiaFinal;
 
       const pdf = await gerarCupomTermicoPDFGarantia(
         osAtualizada,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        diasGarantiaNumero,
       );
+
       abrirPreviewPDF(
         pdf,
         `CupomTermico_Garantia_OS_${os.numero_os || os.id}.pdf`,
@@ -229,7 +234,7 @@ export default function GarantiaModal({
   if (!os) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="2xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -242,14 +247,14 @@ export default function GarantiaModal({
         </ModalHeader>
         <ModalBody className="gap-4">
           \n {/* Info Card */}
-          <Card className="bg-primary-50 border-primary-200 border">
+          <Card className="bg-primary-50 border-primary-200 border dark:bg-primary-900/20 dark:border-primary-700/60">
             <CardBody className="flex flex-row items-start gap-3 p-3">
               <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-primary-800 font-medium">
+                <p className="text-sm text-primary-800 font-medium dark:text-primary-200">
                   Personalize a garantia antes de imprimir
                 </p>
-                <p className="text-xs text-primary-700 mt-1">
+                <p className="text-xs text-primary-700 mt-1 dark:text-primary-300">
                   Escolha o tipo de serviço e ajuste os dias de garantia
                   conforme necessário. As observações técnicas da OS serão
                   incluídas automaticamente.
@@ -260,13 +265,13 @@ export default function GarantiaModal({
           {/* Tipo de Garantia */}
           <div>
             <Select
+              className="max-w-full"
+              description="Selecione o tipo de serviço realizado"
               label="Tipo de Garantia"
               selectedKeys={[tipoGarantia]}
               onChange={(e) => {
                 setTipoGarantia(e.target.value as TipoServicoGarantia);
               }}
-              description="Selecione o tipo de serviço realizado"
-              className="max-w-full"
             >
               {(
                 Object.entries(TIPOS_SERVICO_GARANTIA) as [
@@ -281,15 +286,15 @@ export default function GarantiaModal({
           {/* Dias de Garantia */}
           <div>
             <Input
-              type="number"
+              description="Quantidade de dias que o cliente tem de garantia"
               label="Dias de Garantia"
+              max="999"
+              min="0"
               placeholder="90"
+              startContent={<span className="text-small">📅</span>}
+              type="number"
               value={diasGarantia}
               onValueChange={setDiasGarantia}
-              min="1"
-              max="999"
-              description="Quantidade de dias que o cliente tem de garantia"
-              startContent={<span className="text-small">📅</span>}
             />
           </div>
           {/* Preview do Texto de Garantia */}
@@ -298,7 +303,7 @@ export default function GarantiaModal({
               <Spinner size="sm" />
             </div>
           ) : textoGarantia ? (
-            <Card className="bg-default-50">
+            <Card className="bg-default-50 dark:bg-default-100/10">
               <CardBody className="gap-3">
                 <div>
                   <p className="font-bold text-small">Título da Garantia:</p>
@@ -330,7 +335,7 @@ export default function GarantiaModal({
               </CardBody>
             </Card>
           ) : (
-            <Card className="bg-warning-50 border border-warning">
+            <Card className="bg-warning-50 border border-warning dark:bg-warning-900/20 dark:border-warning-700/60">
               <CardBody className="gap-2">
                 <div className="flex gap-2">
                   <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
@@ -354,27 +359,27 @@ export default function GarantiaModal({
           </Button>
           <Button
             color="secondary"
-            variant="flat"
-            onPress={handleGerarCupomTermicoPDF}
             isLoading={loadingCupomPDF}
             startContent={!loadingCupomPDF && <FileText className="w-4 h-4" />}
+            variant="flat"
+            onPress={handleGerarCupomTermicoPDF}
           >
             Cupom térmico PDF
           </Button>
           <Button
             color="primary"
-            variant="flat"
-            onPress={handleImprimirCupom}
             isLoading={loadingCupom}
             startContent={!loadingCupom && <Printer className="w-4 h-4" />}
+            variant="flat"
+            onPress={handleImprimirCupom}
           >
             Imprimir cupom térmico
           </Button>
           <Button
             color="success"
-            onPress={handleGerarGarantia}
             isLoading={loadingGerar}
             startContent={!loadingGerar && <Printer className="w-4 h-4" />}
+            onPress={handleGerarGarantia}
           >
             Gerar e Imprimir Garantia
           </Button>

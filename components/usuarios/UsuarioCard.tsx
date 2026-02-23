@@ -1,5 +1,7 @@
 "use client";
 
+import type { Usuario } from "@/types";
+
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Avatar } from "@heroui/avatar";
@@ -18,9 +20,9 @@ import {
   CheckCircleIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
+
 import { useFotoPerfilUsuario } from "@/hooks/useFotoPerfilUsuario";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import type { Usuario } from "@/types";
 
 interface UsuarioCardProps {
   usuario: Usuario;
@@ -53,7 +55,7 @@ export function UsuarioCard({
         onPress={() => onPermissoes(usuario)}
       >
         Gerenciar Permissões
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -65,7 +67,7 @@ export function UsuarioCard({
         onPress={() => onHistorico(usuario)}
       >
         Ver Histórico
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -83,7 +85,7 @@ export function UsuarioCard({
         onPress={() => onAlternarStatus(usuario)}
       >
         {usuario.ativo ? "Desativar" : "Ativar"}
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -97,7 +99,7 @@ export function UsuarioCard({
         onPress={() => onExcluir(usuario)}
       >
         Excluir
-      </DropdownItem>
+      </DropdownItem>,
     );
   }
 
@@ -105,12 +107,12 @@ export function UsuarioCard({
     <div className="bg-background rounded-lg border border-divider p-6 hover:shadow-lg transition-shadow">
       <div className="flex flex-col items-center text-center mb-4">
         <Avatar
-          name={usuario.nome}
-          src={fotoUrl || undefined}
-          size="lg"
           showFallback
-          color="primary"
           className="mb-3"
+          color="primary"
+          name={usuario.nome}
+          size="lg"
+          src={fotoUrl || undefined}
         />
         <h3 className="font-semibold text-lg">{usuario.nome}</h3>
         <p className="text-sm text-default-500">{usuario.email}</p>
@@ -133,8 +135,8 @@ export function UsuarioCard({
           <span className="text-default-500">Status:</span>
           <Chip
             color={usuario.ativo ? "success" : "danger"}
-            variant="flat"
             size="sm"
+            variant="flat"
           >
             {usuario.ativo ? "Ativo" : "Inativo"}
           </Chip>
@@ -144,11 +146,11 @@ export function UsuarioCard({
       <div className="flex gap-2 mt-4">
         {temPermissao("usuarios.editar") && (
           <Button
-            size="sm"
-            variant="flat"
-            color="primary"
             className="flex-1"
+            color="primary"
+            size="sm"
             startContent={<PencilIcon className="w-4 h-4" />}
+            variant="flat"
             onPress={() => onEditar(usuario)}
           >
             Editar

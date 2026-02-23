@@ -13,7 +13,8 @@ import { Input } from "@heroui/input";
 import { Checkbox } from "@heroui/checkbox";
 import { Spinner } from "@heroui/spinner";
 import { Chip } from "@heroui/chip";
-import { Search, TruckIcon, Package, X } from "lucide-react";
+import { Search, TruckIcon, Package } from "lucide-react";
+
 import { Produto } from "@/types/index";
 import { Fornecedor } from "@/types/fornecedor";
 import { buscarFornecedores } from "@/services/fornecedorService";
@@ -43,7 +44,7 @@ export default function GerenciarFornecedoresProdutoModal({
     Set<string>
   >(new Set());
   const [fornecedoresIniciais, setFornecedoresIniciais] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -60,16 +61,19 @@ export default function GerenciarFornecedoresProdutoModal({
 
     // Carregar todos os fornecedores
     const { data: fornecedoresData } = await buscarFornecedores(true); // apenas ativos
+
     if (fornecedoresData) {
       setFornecedores(fornecedoresData);
     }
 
     // Carregar fornecedores já associados
     const { data: associacoesData } = await buscarFornecedoresPorProduto(
-      produto.id
+      produto.id,
     );
+
     if (associacoesData) {
       const ids = new Set(associacoesData.map((a) => a.fornecedor_id));
+
       setFornecedoresSelecionados(ids);
       setFornecedoresIniciais(ids);
     }
@@ -80,11 +84,13 @@ export default function GerenciarFornecedoresProdutoModal({
   const handleToggleFornecedor = (fornecedorId: string) => {
     setFornecedoresSelecionados((prev) => {
       const newSet = new Set(prev);
+
       if (newSet.has(fornecedorId)) {
         newSet.delete(fornecedorId);
       } else {
         newSet.add(fornecedorId);
       }
+
       return newSet;
     });
   };
@@ -96,10 +102,10 @@ export default function GerenciarFornecedoresProdutoModal({
 
     // Determinar quais fornecedores adicionar e remover
     const paraAdicionar = Array.from(fornecedoresSelecionados).filter(
-      (id) => !fornecedoresIniciais.has(id)
+      (id) => !fornecedoresIniciais.has(id),
     );
     const paraRemover = Array.from(fornecedoresIniciais).filter(
-      (id) => !fornecedoresSelecionados.has(id)
+      (id) => !fornecedoresSelecionados.has(id),
     );
 
     let erros = 0;
@@ -111,21 +117,25 @@ export default function GerenciarFornecedoresProdutoModal({
         fornecedor_id: fornecedorId,
         ativo: true,
       });
+
       if (error) erros++;
     }
 
     // Remover fornecedores desmarcados
     // Buscar IDs das associações para remover
     const { data: associacoesData } = await buscarFornecedoresPorProduto(
-      produto.id
+      produto.id,
     );
+
     if (associacoesData) {
       for (const fornecedorId of paraRemover) {
         const associacao = associacoesData.find(
-          (a) => a.fornecedor_id === fornecedorId
+          (a) => a.fornecedor_id === fornecedorId,
         );
+
         if (associacao) {
           const { error } = await removerAssociacaoFornecedor(associacao.id);
+
           if (error) erros++;
         }
       }
@@ -149,7 +159,7 @@ export default function GerenciarFornecedoresProdutoModal({
   const fornecedoresFiltrados = fornecedores.filter(
     (f) =>
       f.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.cnpj?.toLowerCase().includes(searchTerm.toLowerCase())
+      f.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const totalSelecionados = fornecedoresSelecionados.size;
@@ -157,9 +167,9 @@ export default function GerenciarFornecedoresProdutoModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
-      size="2xl"
       scrollBehavior="inside"
+      size="2xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -183,11 +193,11 @@ export default function GerenciarFornecedoresProdutoModal({
             <div className="space-y-4">
               {/* Barra de Pesquisa */}
               <Input
+                isClearable
                 placeholder="Buscar por nome ou CNPJ..."
                 startContent={<Search className="w-4 h-4 text-default-400" />}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                isClearable
                 onClear={() => setSearchTerm("")}
               />
 
@@ -226,17 +236,25 @@ export default function GerenciarFornecedoresProdutoModal({
                             : "border-default-200 hover:border-default-300"
                         }
                       `}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleToggleFornecedor(fornecedor.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleToggleFornecedor(fornecedor.id);
+                        }
+                      }}
                     >
                       <div className="flex items-start gap-3">
                         <Checkbox
+                          className="mt-0.5"
                           isSelected={fornecedoresSelecionados.has(
-                            fornecedor.id
+                            fornecedor.id,
                           )}
                           onValueChange={() =>
                             handleToggleFornecedor(fornecedor.id)
                           }
-                          className="mt-0.5"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">
@@ -274,9 +292,9 @@ export default function GerenciarFornecedoresProdutoModal({
           </Button>
           <Button
             color="primary"
-            onPress={handleSalvar}
-            isLoading={salvando}
             isDisabled={loading}
+            isLoading={salvando}
+            onPress={handleSalvar}
           >
             Salvar Alterações
           </Button>

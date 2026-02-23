@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
@@ -44,12 +44,12 @@ import {
   TruckIcon,
   DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import {
   ProdutoFormModal,
-  EstoqueStats,
   EstoqueLojaModal,
   HistoricoEstoqueModal,
   HistoricoProdutoModal,
@@ -138,7 +138,7 @@ function ProdutoCard({
           onPress={() => onEditar(produto)}
         >
           Editar Produto
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -146,24 +146,24 @@ function ProdutoCard({
     items.push(
       <DropdownItem
         key="clonar"
+        color="secondary"
         startContent={<DocumentDuplicateIcon className="w-4 h-4" />}
         onPress={() => onClonar(produto)}
-        color="secondary"
       >
         Clonar Produto
-      </DropdownItem>
+      </DropdownItem>,
     );
 
     // Baixar Relatório (sempre disponível)
     items.push(
       <DropdownItem
         key="relatorio"
+        color="success"
         startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
         onPress={() => onBaixarRelatorio(produto)}
-        color="success"
       >
         Baixar Relatório PDF
-      </DropdownItem>
+      </DropdownItem>,
     );
 
     // Históricos (sempre disponível)
@@ -181,31 +181,31 @@ function ProdutoCard({
         onPress={() => onAbrirHistoricoEstoque(produto)}
       >
         Histórico de Movimentações
-      </DropdownItem>
+      </DropdownItem>,
     );
 
     // Fornecedores (sempre disponível)
     items.push(
       <DropdownItem
         key="fornecedores"
+        color="secondary"
         startContent={<TruckIcon className="w-4 h-4" />}
         onPress={() => onAbrirFornecedores(produto)}
-        color="secondary"
       >
         Gerenciar Fornecedores
-      </DropdownItem>
+      </DropdownItem>,
     );
 
     // Transferir entre lojas
     items.push(
       <DropdownItem
         key="transferir"
+        color="primary"
         startContent={<ArrowPathIcon className="w-4 h-4" />}
         onPress={() => onAbrirTransferencia(produto)}
-        color="primary"
       >
         Transferir entre Lojas
-      </DropdownItem>
+      </DropdownItem>,
     );
 
     // Toggle Ativo (apenas com permissão de editar)
@@ -213,12 +213,12 @@ function ProdutoCard({
       items.push(
         <DropdownItem
           key="toggle-ativo"
+          color={produto.ativo ? "warning" : "success"}
           startContent={<ArrowPathIcon className="w-4 h-4" />}
           onPress={() => onToggleAtivo(produto)}
-          color={produto.ativo ? "warning" : "success"}
         >
           {produto.ativo ? "Desativar Produto" : "Ativar Produto"}
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -227,13 +227,13 @@ function ProdutoCard({
       items.push(
         <DropdownItem
           key="deletar"
-          startContent={<TrashIcon className="w-4 h-4" />}
-          color="danger"
           className="text-danger"
+          color="danger"
+          startContent={<TrashIcon className="w-4 h-4" />}
           onPress={() => onDeletar(produto)}
         >
           Excluir Produto
-        </DropdownItem>
+        </DropdownItem>,
       );
     }
 
@@ -247,16 +247,16 @@ function ProdutoCard({
         {loadingFotos ? (
           <div className="bg-default-100 flex items-center justify-center h-48">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
               <p className="text-xs text-default-400">Carregando...</p>
             </div>
           </div>
         ) : (
           <div className="h-48 overflow-hidden">
             <MiniCarrossel
-              images={fotos}
               alt={produto.descricao}
               aspectRatio="video"
+              images={fotos}
               showControls={fotos.length > 1}
             />
           </div>
@@ -266,8 +266,8 @@ function ProdutoCard({
         <div className="absolute top-2 left-2 z-20">
           <Chip
             color={produto.ativo ? "success" : "danger"}
-            variant="shadow"
             size="sm"
+            variant="shadow"
           >
             {produto.ativo ? "Ativo" : "Inativo"}
           </Chip>
@@ -276,14 +276,14 @@ function ProdutoCard({
         {/* Estoque Total - Badge no canto superior direito */}
         <div className="absolute top-2 right-2 z-20">
           <Chip
-            size="md"
+            className="font-bold"
             color={
               (produto.total_estoque || 0) > (produto.quantidade_minima || 0)
                 ? "primary"
                 : "danger"
             }
+            size="md"
             variant="shadow"
-            className="font-bold"
           >
             {produto.total_estoque || 0} un
           </Chip>
@@ -355,7 +355,6 @@ function ProdutoCard({
           {temVerPrecoCusto && produto.preco_compra && produto.preco_venda && (
             <div className="flex items-center justify-center bg-primary-50 dark:bg-primary-900/20 rounded-md px-2">
               <Chip
-                size="sm"
                 color={
                   ((produto.preco_venda - produto.preco_compra) /
                     produto.preco_compra) *
@@ -369,13 +368,14 @@ function ProdutoCard({
                       ? "warning"
                       : "danger"
                 }
+                size="sm"
                 variant="flat"
               >
                 {formatarPorcentagem(
                   ((produto.preco_venda - produto.preco_compra) /
                     produto.preco_compra) *
                     100,
-                  0
+                  0,
                 )}
               </Chip>
             </div>
@@ -395,10 +395,10 @@ function ProdutoCard({
                     {estoque.loja_nome}
                   </span>
                   <Chip
+                    className="h-4 min-w-[30px] text-[10px]"
+                    color={estoque.quantidade > 0 ? "primary" : "danger"}
                     size="sm"
                     variant="flat"
-                    color={estoque.quantidade > 0 ? "primary" : "danger"}
-                    className="h-4 min-w-[30px] text-[10px]"
                   >
                     {estoque.quantidade}
                   </Chip>
@@ -415,22 +415,22 @@ function ProdutoCard({
         <div className="flex gap-1.5">
           {/* Botão Principal */}
           <Button
-            size="sm"
-            color="primary"
-            variant="solid"
-            startContent={<BuildingStorefrontIcon className="w-4 h-4" />}
-            onPress={() => onAbrirEstoque(produto)}
             className="flex-1 font-semibold"
+            color="primary"
+            size="sm"
+            startContent={<BuildingStorefrontIcon className="w-4 h-4" />}
+            variant="solid"
+            onPress={() => onAbrirEstoque(produto)}
           >
             Estoque
           </Button>
 
           {/* Botão Fotos */}
           <Button
-            size="sm"
-            color="default"
-            variant="flat"
             isIconOnly
+            color="default"
+            size="sm"
+            variant="flat"
             onPress={() => onAbrirFotos(produto)}
           >
             <PhotoIcon className="w-4 h-4" />
@@ -439,7 +439,7 @@ function ProdutoCard({
           {/* Dropdown */}
           <Dropdown>
             <DropdownTrigger>
-              <Button size="sm" variant="flat" isIconOnly>
+              <Button isIconOnly size="sm" variant="flat">
                 <EllipsisVerticalIcon className="w-4 h-4" />
               </Button>
             </DropdownTrigger>
@@ -520,7 +520,7 @@ export default function EstoquePage() {
   const [modalFornecedores, setModalFornecedores] = useState(false);
   const [modalTransferencia, setModalTransferencia] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<Produto | null>(
-    null
+    null,
   );
   const [estoquesLoja, setEstoquesLoja] = useState<any[]>([]);
 
@@ -563,7 +563,7 @@ export default function EstoquePage() {
             estoques: estoquesFiltrados,
             estoque_total: estoquesFiltrados.reduce(
               (sum: number, e: any) => sum + (e.quantidade || 0),
-              0
+              0,
             ),
           };
         });
@@ -583,6 +583,7 @@ export default function EstoquePage() {
         getEstatisticasProdutos(),
         getEstatisticasFinanceiras(),
       ]);
+
       setStats(statsData);
       setStatsFinanceiras(statsFinanceirasData);
     } catch (error) {
@@ -604,6 +605,7 @@ export default function EstoquePage() {
       }
 
       const dados = await getProdutos(filtros);
+
       setProdutos(dados);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
@@ -615,6 +617,7 @@ export default function EstoquePage() {
   const carregarLojas = async () => {
     try {
       const dados = await LojasService.getLojasAtivas();
+
       setLojas(dados);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
@@ -642,6 +645,7 @@ export default function EstoquePage() {
   const handleEditarProduto = async (produto: Partial<Produto>) => {
     if (!temPermissao("estoque.editar")) {
       toast.error("Você não tem permissão para editar produtos");
+
       return;
     }
 
@@ -650,7 +654,7 @@ export default function EstoquePage() {
       const resultado = await atualizarProduto(
         produtoSelecionado.id,
         produto,
-        user.id
+        user.id,
       );
 
       // Recarregar dados
@@ -670,6 +674,7 @@ export default function EstoquePage() {
   const handleDeletar = async (produto: Produto) => {
     if (!temPermissao("estoque.deletar")) {
       toast.error("Você não tem permissão para deletar produtos");
+
       return;
     }
 
@@ -688,7 +693,7 @@ export default function EstoquePage() {
         } catch (error) {
           console.error("Erro ao excluir produto:", error);
           toast.error(
-            "Erro ao excluir produto. Pode haver estoque ou movimentações vinculadas."
+            "Erro ao excluir produto. Pode haver estoque ou movimentações vinculadas.",
           );
         } finally {
           setConfirmModal({ ...confirmModal, isOpen: false });
@@ -701,6 +706,7 @@ export default function EstoquePage() {
     if (!user) return;
 
     const acao = produto.ativo ? "desativar" : "ativar";
+
     setConfirmModal({
       isOpen: true,
       title: `${produto.ativo ? "Desativar" : "Ativar"} Produto`,
@@ -713,7 +719,7 @@ export default function EstoquePage() {
           await carregarDados();
           await carregarProdutosComEstoque();
           toast.success(
-            `Produto ${produto.ativo ? "desativado" : "ativado"} com sucesso!`
+            `Produto ${produto.ativo ? "desativado" : "ativado"} com sucesso!`,
           );
         } catch (error) {
           console.error("Erro ao alterar status:", error);
@@ -732,6 +738,7 @@ export default function EstoquePage() {
   }) => {
     if (!temPermissao("estoque.ajustar")) {
       toast.error("Você não tem permissão para ajustar o estoque");
+
       return;
     }
 
@@ -742,7 +749,7 @@ export default function EstoquePage() {
         data.id_loja,
         data.quantidade,
         user.id,
-        data.observacao
+        data.observacao,
       );
       await carregarProdutos();
       await carregarProdutosComEstoque();
@@ -758,6 +765,7 @@ export default function EstoquePage() {
     // Carregar estoques do produto
     try {
       const estoques = await getEstoqueProduto(produto.id);
+
       setEstoquesLoja(estoques);
     } catch (error) {
       console.error("Erro ao carregar estoques:", error);
@@ -834,7 +842,7 @@ export default function EstoquePage() {
       // Verificar se TODAS as palavras da busca aparecem no texto
       // (não precisa estar em ordem ou consecutivas)
       const todasPalavrasEncontradas = palavrasBusca.every((palavra) =>
-        textoPesquisavel.includes(palavra)
+        textoPesquisavel.includes(palavra),
       );
 
       if (!todasPalavrasEncontradas) return false;
@@ -869,10 +877,10 @@ export default function EstoquePage() {
 
   // Extrair listas únicas para os filtros
   const marcasUnicas = Array.from(
-    new Set(produtosComEstoque.map((p) => p.marca).filter(Boolean))
+    new Set(produtosComEstoque.map((p) => p.marca).filter(Boolean)),
   ).sort();
   const categoriasUnicas = Array.from(
-    new Set(produtosComEstoque.map((p) => p.categoria).filter(Boolean))
+    new Set(produtosComEstoque.map((p) => p.categoria).filter(Boolean)),
   ).sort();
 
   // Transformar em formato esperado pelo Autocomplete
@@ -893,7 +901,7 @@ export default function EstoquePage() {
   const totalPaginas = Math.ceil(produtosFiltrados.length / itensPorPagina);
   const produtosPaginados = produtosFiltrados.slice(
     (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
+    paginaAtual * itensPorPagina,
   );
 
   // Resetar página ao filtrar
@@ -1091,27 +1099,27 @@ export default function EstoquePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Busca */}
             <Input
+              className="lg:col-span-2"
               placeholder="Buscar produtos..."
-              value={busca}
-              onValueChange={setBusca}
               startContent={
                 <MagnifyingGlassIcon className="w-5 h-5 text-default-400" />
               }
+              value={busca}
               variant="bordered"
-              className="lg:col-span-2"
+              onValueChange={setBusca}
             />
 
             {/* Marca */}
             <Autocomplete
-              placeholder="Marca"
+              allowsCustomValue={false}
               aria-label="Filtro de marca"
+              items={marcasItems}
+              placeholder="Marca"
               selectedKey={marcaFiltro}
+              variant="bordered"
               onSelectionChange={(key) => {
                 setMarcaFiltro((key as string) || "todos");
               }}
-              variant="bordered"
-              allowsCustomValue={false}
-              items={marcasItems}
             >
               {(item) => (
                 <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
@@ -1120,15 +1128,15 @@ export default function EstoquePage() {
 
             {/* Categoria */}
             <Autocomplete
-              placeholder="Categoria"
+              allowsCustomValue={false}
               aria-label="Filtro de categoria"
+              items={categoriasItems}
+              placeholder="Categoria"
               selectedKey={categoriaFiltro}
+              variant="bordered"
               onSelectionChange={(key) => {
                 setCategoriaFiltro((key as string) || "todos");
               }}
-              variant="bordered"
-              allowsCustomValue={false}
-              items={categoriasItems}
             >
               {(item) => (
                 <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
@@ -1137,14 +1145,15 @@ export default function EstoquePage() {
 
             {/* Estoque */}
             <Select
-              placeholder="Estoque"
               aria-label="Filtro de nível de estoque"
+              placeholder="Estoque"
               selectedKeys={[estoqueFiltro]}
+              variant="bordered"
               onSelectionChange={(keys) => {
                 const value = Array.from(keys)[0] as string;
+
                 setEstoqueFiltro(value);
               }}
-              variant="bordered"
             >
               <SelectItem key="todos">Todos os Estoques</SelectItem>
               <SelectItem key="baixo">Estoque Baixo</SelectItem>
@@ -1154,17 +1163,18 @@ export default function EstoquePage() {
 
             {/* Status */}
             <Select
-              placeholder="Status"
               aria-label="Filtro de status do produto"
+              placeholder="Status"
               selectedKeys={[statusFiltro]}
+              variant="bordered"
               onSelectionChange={(keys) => {
                 const value = Array.from(keys)[0] as
                   | "todos"
                   | "ativos"
                   | "inativos";
+
                 setStatusFiltro(value);
               }}
-              variant="bordered"
             >
               <SelectItem key="ativos">Ativos</SelectItem>
               <SelectItem key="inativos">Inativos</SelectItem>
@@ -1186,9 +1196,9 @@ export default function EstoquePage() {
                 estoqueFiltro !== "todos" ||
                 statusFiltro !== "ativos") && (
                 <Button
+                  color="warning"
                   size="sm"
                   variant="flat"
-                  color="warning"
                   onPress={() => {
                     setBusca("");
                     setMarcaFiltro("todos");
@@ -1206,12 +1216,12 @@ export default function EstoquePage() {
               {/* Botão Exportar Excel */}
               <Button
                 color="success"
-                variant="flat"
+                isDisabled={produtosFiltrados.length === 0}
                 startContent={<DocumentArrowDownIcon className="w-5 h-5" />}
+                variant="flat"
                 onPress={() =>
                   exportarEstoqueParaExcel(produtosFiltrados, "estoque")
                 }
-                isDisabled={produtosFiltrados.length === 0}
               >
                 Exportar Excel
               </Button>
@@ -1235,11 +1245,11 @@ export default function EstoquePage() {
           {/* Tabs de Visualização */}
           <div className="mt-4">
             <Tabs
+              color="primary"
               selectedKey={visualizacao}
               onSelectionChange={(key) =>
                 setVisualizacao(key as "tabela" | "cards")
               }
-              color="primary"
             >
               <Tab key="cards" title="Cards" />
               <Tab key="tabela" title="Tabela" />
@@ -1263,25 +1273,25 @@ export default function EstoquePage() {
             produtosPaginados.map((produto) => (
               <ProdutoCard
                 key={produto.id}
+                canAdjust={temPermissao("estoque.ajustar")}
+                canDelete={temPermissao("estoque.deletar")}
+                canEdit={temPermissao("estoque.editar")}
                 produto={produto}
+                temVerPrecoCusto={temPermissao("estoque.ver_preco_custo")}
                 onAbrirEstoque={abrirModalEstoque}
+                onAbrirFornecedores={abrirModalFornecedores}
+                onAbrirFotos={abrirModalFotos}
+                onAbrirHistoricoEstoque={abrirModalHistorico}
                 onAbrirHistoricoProduto={(p) => {
                   setProdutoSelecionado(p);
                   setModalHistoricoProduto(true);
                 }}
-                onAbrirHistoricoEstoque={abrirModalHistorico}
-                onAbrirFotos={abrirModalFotos}
-                onAbrirFornecedores={abrirModalFornecedores}
                 onAbrirTransferencia={abrirModalTransferencia}
-                onEditar={abrirModalEditar}
+                onBaixarRelatorio={gerarRelatorioProdutoPDF}
                 onClonar={handleClonarProduto}
                 onDeletar={handleDeletar}
+                onEditar={abrirModalEditar}
                 onToggleAtivo={handleToggleAtivo}
-                onBaixarRelatorio={gerarRelatorioProdutoPDF}
-                canEdit={temPermissao("estoque.editar")}
-                canDelete={temPermissao("estoque.deletar")}
-                canAdjust={temPermissao("estoque.ajustar")}
-                temVerPrecoCusto={temPermissao("estoque.ver_preco_custo")}
               />
             ))
           )}
@@ -1293,8 +1303,8 @@ export default function EstoquePage() {
         <Card className="shadow-sm mb-6">
           <CardBody className="p-0">
             <Table
-              aria-label="Tabela de produtos"
               removeWrapper
+              aria-label="Tabela de produtos"
               classNames={{
                 th: "bg-default-100 text-default-700",
               }}
@@ -1311,10 +1321,10 @@ export default function EstoquePage() {
                 <TableColumn width={50}>AÇÕES</TableColumn>
               </TableHeader>
               <TableBody
-                items={produtosPaginados}
-                isLoading={loading}
-                loadingContent="Carregando..."
                 emptyContent="Nenhum produto encontrado"
+                isLoading={loading}
+                items={produtosPaginados}
+                loadingContent="Carregando..."
               >
                 {(produto) => (
                   <TableRow key={produto.id}>
@@ -1364,9 +1374,9 @@ export default function EstoquePage() {
                     </TableCell>
                     <TableCell>
                       <Chip
+                        color={produto.total_estoque > 0 ? "primary" : "danger"}
                         size="sm"
                         variant="flat"
-                        color={produto.total_estoque > 0 ? "primary" : "danger"}
                       >
                         {produto.total_estoque} un
                       </Chip>
@@ -1378,11 +1388,11 @@ export default function EstoquePage() {
                           {produto.estoques_lojas.map((estoque: any) => (
                             <Chip
                               key={estoque.id_loja}
-                              size="sm"
-                              variant="dot"
                               color={
                                 estoque.quantidade > 0 ? "success" : "danger"
                               }
+                              size="sm"
+                              variant="dot"
                             >
                               {estoque.loja_nome}: {estoque.quantidade}
                             </Chip>
@@ -1395,8 +1405,8 @@ export default function EstoquePage() {
                     <TableCell>
                       <Chip
                         color={produto.ativo ? "success" : "danger"}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {produto.ativo ? "Ativo" : "Inativo"}
                       </Chip>
@@ -1451,11 +1461,11 @@ export default function EstoquePage() {
                           </DropdownItem>
                           <DropdownItem
                             key="clonar"
+                            color="secondary"
                             startContent={
                               <DocumentDuplicateIcon className="w-4 h-4" />
                             }
                             onPress={() => handleClonarProduto(produto)}
-                            color="secondary"
                           >
                             Clonar Produto
                           </DropdownItem>
@@ -1497,12 +1507,12 @@ export default function EstoquePage() {
             </p>
           </div>
           <Pagination
-            total={totalPaginas}
-            page={paginaAtual}
-            onChange={setPaginaAtual}
             showControls
             color="primary"
+            page={paginaAtual}
             size="lg"
+            total={totalPaginas}
+            onChange={setPaginaAtual}
           />
         </div>
       )}
@@ -1510,6 +1520,7 @@ export default function EstoquePage() {
       {/* Modals */}
       <ProdutoFormModal
         isOpen={modalProduto}
+        produto={produtoSelecionado}
         onClose={() => {
           setModalProduto(false);
           setProdutoSelecionado(null);
@@ -1517,68 +1528,67 @@ export default function EstoquePage() {
         onSubmit={
           produtoSelecionado?.id ? handleEditarProduto : handleCriarProduto
         }
-        produto={produtoSelecionado}
       />
 
       {produtoSelecionado && (
         <>
           <EstoqueLojaModal
+            estoques={estoquesLoja}
             isOpen={modalEstoque}
+            lojas={lojas}
+            produtoId={produtoSelecionado.id}
+            produtoNome={produtoSelecionado.descricao}
             onClose={() => {
               setModalEstoque(false);
               setProdutoSelecionado(null);
               setEstoquesLoja([]);
             }}
             onSubmit={handleMovimentarEstoque}
-            produtoId={produtoSelecionado.id}
-            produtoNome={produtoSelecionado.descricao}
-            lojas={lojas}
-            estoques={estoquesLoja}
           />
 
           <HistoricoEstoqueModal
             isOpen={modalHistorico}
+            produtoId={produtoSelecionado.id}
+            produtoNome={produtoSelecionado.descricao}
             onClose={() => {
               setModalHistorico(false);
               setProdutoSelecionado(null);
             }}
-            produtoId={produtoSelecionado.id}
-            produtoNome={produtoSelecionado.descricao}
             onLoadHistorico={getHistoricoProduto}
           />
 
           <HistoricoProdutoModal
             isOpen={modalHistoricoProduto}
+            produtoId={produtoSelecionado?.id || ""}
+            produtoNome={produtoSelecionado?.descricao || ""}
             onClose={() => {
               setModalHistoricoProduto(false);
               setProdutoSelecionado(null);
             }}
-            produtoId={produtoSelecionado?.id || ""}
-            produtoNome={produtoSelecionado?.descricao || ""}
           />
 
           <GerenciarFotosProdutoModal
             isOpen={modalFotos}
+            produtoId={produtoSelecionado.id}
+            produtoNome={produtoSelecionado.descricao}
             onClose={() => {
               setModalFotos(false);
               setProdutoSelecionado(null);
             }}
-            produtoId={produtoSelecionado.id}
-            produtoNome={produtoSelecionado.descricao}
+            onDeleteFoto={deletarFotoProduto}
             onLoadFotos={getFotosProduto}
+            onSetPrincipal={(fotoId: string) =>
+              definirFotoPrincipal(fotoId, produtoSelecionado.id)
+            }
             onUploadFoto={async (file: File, isPrincipal: boolean) => {
               if (!user) return;
               await uploadFotoProduto(
                 produtoSelecionado.id,
                 file,
                 user.id,
-                isPrincipal
+                isPrincipal,
               );
             }}
-            onDeleteFoto={deletarFotoProduto}
-            onSetPrincipal={(fotoId: string) =>
-              definirFotoPrincipal(fotoId, produtoSelecionado.id)
-            }
           />
         </>
       )}
@@ -1587,11 +1597,11 @@ export default function EstoquePage() {
       {produtoSelecionado && (
         <GerenciarFornecedoresProdutoModal
           isOpen={modalFornecedores}
+          produto={produtoSelecionado}
           onClose={() => {
             setModalFornecedores(false);
             setProdutoSelecionado(null);
           }}
-          produto={produtoSelecionado}
         />
       )}
 
@@ -1599,11 +1609,11 @@ export default function EstoquePage() {
       {produtoSelecionado && (
         <TransferenciaModal
           isOpen={modalTransferencia}
+          produto={produtoSelecionado}
           onClose={() => {
             setModalTransferencia(false);
             setProdutoSelecionado(null);
           }}
-          produto={produtoSelecionado}
           onSuccess={() => {
             carregarProdutos();
             setModalTransferencia(false);
@@ -1614,13 +1624,13 @@ export default function EstoquePage() {
 
       {/* Confirm Modal */}
       <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmText="Confirmar"
         cancelText="Cancelar"
         confirmColor={confirmModal.confirmColor}
+        confirmText="Confirmar"
+        isOpen={confirmModal.isOpen}
+        message={confirmModal.message}
+        title={confirmModal.title}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
         onConfirm={confirmModal.onConfirm}
       />
 

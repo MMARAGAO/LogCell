@@ -1,5 +1,6 @@
-import { supabase } from "@/lib/supabaseClient";
 import type { HistoricoLojaComUsuario } from "@/types";
+
+import { supabase } from "@/lib/supabaseClient";
 
 export class HistoricoLojasService {
   /**
@@ -16,8 +17,9 @@ export class HistoricoLojasService {
         // Se a view não existir, retornar array vazio
         if (error.code === "42P01" || error.code === "PGRST204") {
           console.warn(
-            "View vw_historico_lojas não encontrada. Execute o script de configuração."
+            "View vw_historico_lojas não encontrada. Execute o script de configuração.",
           );
+
           return [];
         }
         throw error;
@@ -26,6 +28,7 @@ export class HistoricoLojasService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar histórico:", error);
+
       return [];
     }
   }
@@ -34,7 +37,7 @@ export class HistoricoLojasService {
    * Buscar histórico de uma loja específica
    */
   static async getHistoricoPorLoja(
-    lojaId: number
+    lojaId: number,
   ): Promise<HistoricoLojaComUsuario[]> {
     try {
       const { data, error } = await supabase.rpc("obter_historico_loja", {
@@ -45,8 +48,9 @@ export class HistoricoLojasService {
         // Se a função não existir, retornar array vazio
         if (error.code === "42883" || error.code === "PGRST204") {
           console.warn(
-            "Função obter_historico_loja não encontrada. Execute o script de configuração."
+            "Função obter_historico_loja não encontrada. Execute o script de configuração.",
           );
+
           return [];
         }
         throw error;
@@ -55,6 +59,7 @@ export class HistoricoLojasService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar histórico da loja:", error);
+
       return [];
     }
   }
@@ -73,6 +78,7 @@ export class HistoricoLojasService {
       if (error) {
         if (error.code === "42P01" || error.code === "PGRST204") {
           console.warn("View vw_historico_lojas não encontrada.");
+
           return [];
         }
         throw error;
@@ -81,6 +87,7 @@ export class HistoricoLojasService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar alterações:", error);
+
       return [];
     }
   }
@@ -90,7 +97,7 @@ export class HistoricoLojasService {
    */
   static async getHistoricoPorPeriodo(
     dataInicio: Date,
-    dataFim: Date
+    dataFim: Date,
   ): Promise<HistoricoLojaComUsuario[]> {
     try {
       const { data, error } = await supabase
@@ -103,6 +110,7 @@ export class HistoricoLojasService {
       if (error) {
         if (error.code === "42P01" || error.code === "PGRST204") {
           console.warn("View vw_historico_lojas não encontrada.");
+
           return [];
         }
         throw error;
@@ -111,6 +119,7 @@ export class HistoricoLojasService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar histórico por período:", error);
+
       return [];
     }
   }
@@ -119,7 +128,7 @@ export class HistoricoLojasService {
    * Buscar histórico por usuário
    */
   static async getHistoricoPorUsuario(
-    usuarioEmail: string
+    usuarioEmail: string,
   ): Promise<HistoricoLojaComUsuario[]> {
     try {
       const { data, error } = await supabase
@@ -131,6 +140,7 @@ export class HistoricoLojasService {
       if (error) {
         if (error.code === "42P01" || error.code === "PGRST204") {
           console.warn("View vw_historico_lojas não encontrada.");
+
           return [];
         }
         throw error;
@@ -139,6 +149,7 @@ export class HistoricoLojasService {
       return data || [];
     } catch (error) {
       console.error("Erro ao buscar histórico por usuário:", error);
+
       return [];
     }
   }

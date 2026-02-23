@@ -1,5 +1,7 @@
 "use client";
 
+import type { HistoricoOrdemServico } from "@/types/ordemServico";
+
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -21,9 +23,9 @@ import {
   Clock,
   RefreshCw,
 } from "lucide-react";
+
 import { useToast } from "@/components/Toast";
 import { buscarHistoricoOS } from "@/services/ordemServicoService";
-import type { HistoricoOrdemServico } from "@/types/ordemServico";
 
 interface HistoricoOSModalProps {
   isOpen: boolean;
@@ -49,6 +51,7 @@ export default function HistoricoOSModal({
   const carregarHistorico = async () => {
     setLoading(true);
     const { data, error } = await buscarHistoricoOS(idOrdemServico);
+
     if (data) {
       setHistorico(data);
     } else if (error) {
@@ -95,7 +98,7 @@ export default function HistoricoOSModal({
   };
 
   const getColorByTipo = (
-    tipo: string
+    tipo: string,
   ): "default" | "primary" | "success" | "warning" | "danger" => {
     // Novos tipos de evento
     if (tipo === "foto_adicionada" || tipo === "peca_adicionada")
@@ -151,9 +154,11 @@ export default function HistoricoOSModal({
       // Regex para detectar datas ISO
       const dataISORegex =
         /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
+
       if (dataISORegex.test(valor)) {
         try {
           const date = new Date(valor);
+
           if (!isNaN(date.getTime())) {
             return date.toLocaleString("pt-BR", {
               day: "2-digit",
@@ -178,7 +183,7 @@ export default function HistoricoOSModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -186,12 +191,12 @@ export default function HistoricoOSModal({
             Histórico da Ordem de Serviço
           </div>
           <Button
-            size="sm"
-            variant="light"
             isIconOnly
-            onPress={carregarHistorico}
             isLoading={loading}
+            size="sm"
             title="Recarregar histórico"
+            variant="light"
+            onPress={carregarHistorico}
           >
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -219,9 +224,9 @@ export default function HistoricoOSModal({
                   <div className="flex-shrink-0 relative z-10">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center bg-${getColorByTipo(
-                        item.tipo_evento
+                        item.tipo_evento,
                       )}-100 dark:bg-${getColorByTipo(item.tipo_evento)}-900/30 text-${getColorByTipo(
-                        item.tipo_evento
+                        item.tipo_evento,
                       )}`}
                     >
                       {getIconByTipo(item.tipo_evento)}
@@ -233,10 +238,10 @@ export default function HistoricoOSModal({
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1">
                         <Chip
-                          size="sm"
-                          color={getColorByTipo(item.tipo_evento)}
-                          variant="flat"
                           className="mb-2"
+                          color={getColorByTipo(item.tipo_evento)}
+                          size="sm"
+                          variant="flat"
                         >
                           {item.tipo_evento.replace(/_/g, " ").toUpperCase()}
                         </Chip>
@@ -278,7 +283,7 @@ export default function HistoricoOSModal({
                                     {formatarValor(valor)}
                                   </span>
                                 </div>
-                              )
+                              ),
                             )}
                           </div>
                         </div>

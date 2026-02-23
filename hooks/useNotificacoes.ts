@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { NotificacoesService } from "@/services/notificacoesService";
 import type { NotificacaoCompleta } from "@/types";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+
+import { NotificacoesService } from "@/services/notificacoesService";
 
 export function useNotificacoes(usuarioId: string | undefined) {
   const [notificacoes, setNotificacoes] = useState<NotificacaoCompleta[]>([]);
@@ -18,11 +20,13 @@ export function useNotificacoes(usuarioId: string | undefined) {
       setNaoLidas([]);
       setCountNaoLidas(0);
       setLoading(false);
+
       return;
     }
 
     // Throttle: não carregar se já carregou há menos de 2 segundos
     const agora = Date.now();
+
     if (agora - ultimoCarregamentoRef.current < 2000) {
       return;
     }
@@ -40,10 +44,12 @@ export function useNotificacoes(usuarioId: string | undefined) {
       // Buscar todas as notificações
       const todasNotificacoes =
         await NotificacoesService.obterNotificacoesUsuario(usuarioId, false);
+
       setNotificacoes(todasNotificacoes);
 
       // Filtrar não lidas
       const naoLidasFiltradas = todasNotificacoes.filter((n) => !n.lida);
+
       setNaoLidas(naoLidasFiltradas);
       setCountNaoLidas(naoLidasFiltradas.length);
     } catch (error) {
@@ -80,7 +86,7 @@ export function useNotificacoes(usuarioId: string | undefined) {
         console.error("Erro ao marcar notificação como lida:", error);
       }
     },
-    [usuarioId, carregarNotificacoes]
+    [usuarioId, carregarNotificacoes],
   );
 
   const marcarTodasComoLidas = useCallback(async () => {
@@ -122,7 +128,7 @@ export function useNotificacoes(usuarioId: string | undefined) {
           if (carregarRef.current) {
             carregarRef.current();
           }
-        }
+        },
       );
 
       subscriptionRef.current = subscription;

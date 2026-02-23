@@ -1,6 +1,7 @@
 // Alias e wrapper para clienteService com funções simplificadas
+import { buscarClientes } from "./clienteService";
+
 import { supabase } from "@/lib/supabaseClient";
-import { buscarClientes, criarCliente as criarClienteOriginal } from "./clienteService";
 import { Cliente, ClienteFormData } from "@/types/clientesTecnicos";
 
 export { buscarClientes };
@@ -17,9 +18,11 @@ export async function getClientes(): Promise<Cliente[]> {
       .order("nome", { ascending: true });
 
     if (error) throw error;
+
     return (data || []) as Cliente[];
   } catch (error: any) {
     console.error("Erro ao carregar clientes:", error);
+
     return [];
   }
 }
@@ -27,7 +30,9 @@ export async function getClientes(): Promise<Cliente[]> {
 /**
  * Criar novo cliente (versão simplificada)
  */
-export async function criarCliente(dados: Partial<ClienteFormData>): Promise<Cliente> {
+export async function criarCliente(
+  dados: Partial<ClienteFormData>,
+): Promise<Cliente> {
   try {
     const { data, error } = await supabase
       .from("clientes")
@@ -42,6 +47,7 @@ export async function criarCliente(dados: Partial<ClienteFormData>): Promise<Cli
       .single();
 
     if (error) throw error;
+
     return data as Cliente;
   } catch (error: any) {
     console.error("Erro ao criar cliente:", error);

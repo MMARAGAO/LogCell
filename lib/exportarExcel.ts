@@ -27,6 +27,7 @@ function aplicarEstilosCabecalho(ws: XLSX.WorkSheet, numColunas: number) {
 
   for (let C = range.s.c; C <= range.e.c; ++C) {
     const address = XLSX.utils.encode_col(C) + "1";
+
     if (!ws[address]) continue;
 
     ws[address].s = {
@@ -61,6 +62,7 @@ function aplicarEstilosLinhas(ws: XLSX.WorkSheet) {
 
     for (let C = range.s.c; C <= range.e.c; ++C) {
       const address = XLSX.utils.encode_cell({ r: R, c: C });
+
       if (!ws[address]) continue;
 
       ws[address].s = {
@@ -92,13 +94,13 @@ function formatarValorMonetario(valor: number): string {
 
 export function exportarEstoqueParaExcel(
   produtos: ProdutoEstoque[],
-  nomeArquivo: string = "estoque"
+  nomeArquivo: string = "estoque",
 ) {
   // Coletar todas as lojas únicas e ordená-las
   const lojasUnicas = Array.from(
     new Set(
-      produtos.flatMap((p) => p.estoques_lojas?.map((e) => e.loja_nome) || [])
-    )
+      produtos.flatMap((p) => p.estoques_lojas?.map((e) => e.loja_nome) || []),
+    ),
   ).sort();
 
   // Criar dados formatados para o Excel
@@ -129,8 +131,9 @@ export function exportarEstoqueParaExcel(
     // Adicionar colunas de estoque por loja na ordem correta
     lojasUnicas.forEach((lojaNome) => {
       const estoqueLoja = produto.estoques_lojas?.find(
-        (e) => e.loja_nome === lojaNome
+        (e) => e.loja_nome === lojaNome,
       );
+
       dadosBase[`Estoque - ${lojaNome}`] = estoqueLoja
         ? estoqueLoja.quantidade
         : 0;
@@ -206,8 +209,8 @@ export function exportarEstoqueParaExcel(
       Valor: formatarValorMonetario(
         produtos.reduce(
           (sum, p) => sum + (p.preco_compra || 0) * (p.estoque_total || 0),
-          0
-        )
+          0,
+        ),
       ),
     },
     {
@@ -215,13 +218,14 @@ export function exportarEstoqueParaExcel(
       Valor: formatarValorMonetario(
         produtos.reduce(
           (sum, p) => sum + (p.preco_venda || 0) * (p.estoque_total || 0),
-          0
-        )
+          0,
+        ),
       ),
     },
   ];
 
   const wsResumo = XLSX.utils.json_to_sheet(resumoData);
+
   wsResumo["!cols"] = [
     { wch: 30 }, // Indicador
     { wch: 25 }, // Valor
@@ -234,6 +238,7 @@ export function exportarEstoqueParaExcel(
 
   // Gerar arquivo e fazer download
   const timestamp = new Date().toISOString().split("T")[0];
+
   XLSX.writeFile(wb, `${nomeArquivo}_${timestamp}.xlsx`, {
     bookType: "xlsx",
     cellStyles: true,
@@ -344,6 +349,7 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
   titulosSecoes.forEach((rowIndex) => {
     if (rowIndex >= 0) {
       const address = XLSX.utils.encode_cell({ r: rowIndex, c: 0 });
+
       if (!ws[address]) return;
 
       ws[address].s = {
@@ -369,6 +375,7 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
 
       // Mesclar células do título
       const mergeAddress = XLSX.utils.encode_cell({ r: rowIndex, c: 1 });
+
       if (!ws[mergeAddress]) ws[mergeAddress] = { t: "s", v: "" };
       ws[mergeAddress].s = ws[address].s;
     }
@@ -376,6 +383,7 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
 
   // Aplicar estilos alternados nas outras linhas
   const range = XLSX.utils.decode_range(ws["!ref"] || "A1");
+
   for (let R = range.s.r; R <= range.e.r; ++R) {
     // Pular títulos de seções e linhas vazias
     if (titulosSecoes.includes(R) || !infoGeral[R] || !infoGeral[R][0])
@@ -385,6 +393,7 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
 
     for (let C = 0; C <= 1; ++C) {
       const address = XLSX.utils.encode_cell({ r: R, c: C });
+
       if (!ws[address]) continue;
 
       ws[address].s = {
@@ -417,6 +426,7 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
   // Gerar arquivo e fazer download
   const timestamp = new Date().toISOString().split("T")[0];
   const nomeArquivo = `produto_${produto.descricao.substring(0, 20).replace(/[^a-zA-Z0-9]/g, "_")}_${timestamp}`;
+
   XLSX.writeFile(wb, `${nomeArquivo}.xlsx`, {
     bookType: "xlsx",
     cellStyles: true,

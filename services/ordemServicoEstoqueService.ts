@@ -23,7 +23,7 @@ import { supabase } from "@/lib/supabaseClient";
  */
 export async function buscarHistoricoEstoqueProduto(
   idProduto: string,
-  idLoja?: string
+  idLoja?: string,
 ) {
   try {
     let query = supabase
@@ -46,7 +46,7 @@ export async function buscarHistoricoEstoqueProduto(
         lojas:id_loja (
           nome
         )
-      `
+      `,
       )
       .eq("id_produto", idProduto)
       .order("criado_em", { ascending: false });
@@ -59,12 +59,14 @@ export async function buscarHistoricoEstoqueProduto(
 
     if (error) {
       console.error("Erro ao buscar histórico:", error);
+
       return { data: null, error };
     }
 
     return { data, error: null };
   } catch (error) {
     console.error("Erro ao buscar histórico:", error);
+
     return { data: null, error };
   }
 }
@@ -93,19 +95,21 @@ export async function buscarPecasOS(idOrdemServico: string) {
         lojas:id_loja (
           nome
         )
-      `
+      `,
       )
       .eq("id_ordem_servico", idOrdemServico)
       .order("criado_em", { ascending: true });
 
     if (error) {
       console.error("Erro ao buscar peças da OS:", error);
+
       return { data: null, error };
     }
 
     return { data, error: null };
   } catch (error) {
     console.error("Erro ao buscar peças da OS:", error);
+
     return { data: null, error };
   }
 }

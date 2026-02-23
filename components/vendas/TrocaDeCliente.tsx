@@ -55,6 +55,7 @@ export const TrocaDeCliente: React.FC<TrocaDeClienteProps> = ({
               <span className="font-semibold">
                 {(() => {
                   const cliente = clientes.find((c) => c.id === clienteAtualId);
+
                   return cliente
                     ? `${cliente.nome}${cliente.doc ? ` (${cliente.doc})` : ""}`
                     : "-";
@@ -62,13 +63,13 @@ export const TrocaDeCliente: React.FC<TrocaDeClienteProps> = ({
               </span>
             </div>
             <Autocomplete
+              allowsCustomValue={false}
+              className="flex-1"
+              defaultItems={clientes}
               label="Novo Cliente"
               placeholder="Selecione o novo cliente"
               selectedKey={clienteSelecionado}
               onSelectionChange={(key) => onSelecionarCliente(key as string)}
-              allowsCustomValue={false}
-              defaultItems={clientes}
-              className="flex-1"
             >
               {(cliente) => (
                 <AutocompleteItem
@@ -90,14 +91,14 @@ export const TrocaDeCliente: React.FC<TrocaDeClienteProps> = ({
         )}
       </ModalBody>
       <ModalFooter>
-        <Button variant="light" onClick={onClose} disabled={salvando}>
+        <Button disabled={salvando} variant="light" onClick={onClose}>
           Cancelar
         </Button>
         <Button
           color="primary"
-          onClick={onConfirmar}
-          isLoading={salvando}
           disabled={!clienteSelecionado}
+          isLoading={salvando}
+          onClick={onConfirmar}
         >
           Salvar
         </Button>

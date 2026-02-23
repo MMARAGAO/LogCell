@@ -1,12 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import Logo from "@/components/Logo";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { useFotoPerfil } from "@/hooks/useFotoPerfil";
-import { usePermissoes } from "@/hooks/usePermissoes";
 import {
   HomeIcon,
   CubeIcon,
@@ -44,6 +39,11 @@ import { PackageX } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
 import { Chip } from "@heroui/chip";
 
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { useFotoPerfil } from "@/hooks/useFotoPerfil";
+import { useAuthContext } from "@/contexts/AuthContext";
+import Logo from "@/components/Logo";
+
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -60,7 +60,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const isTecnico = usuario?.tipo_usuario === "tecnico";
 
   // Redirecionar logo baseado em permissões
-  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleLogoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     if (temPermissao("dashboard.visualizar")) {
@@ -216,6 +216,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     if (!item.permissao) return true;
     // Admin vê tudo
     if (isAdmin) return true;
+
     // Verificar permissão específica
     return temPermissao(item.permissao as any);
   });
@@ -224,8 +225,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Overlay para mobile */}
       {isOpen && (
-        <div
+        <button
+          aria-label="Fechar menu"
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden animate-in fade-in duration-200"
+          type="button"
           onClick={onClose}
         />
       )}
@@ -242,10 +245,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Header da Sidebar */}
         <div className="flex items-center justify-between p-6 border-b border-divider/50">
-          <a
-            href="#"
-            onClick={handleLogoClick}
+          <button
             className="flex items-center gap-3 group cursor-pointer"
+            type="button"
+            onClick={handleLogoClick}
           >
             <div className="relative w-14 h-14 flex-shrink-0 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center p-2">
               <Logo className="w-full h-full text-foreground" />
@@ -264,11 +267,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 </div>
               </div>
             </div>
-          </a>
+          </button>
           <button
-            onClick={onClose}
-            className="lg:hidden p-2 hover:bg-default-100 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
             aria-label="Fechar menu"
+            className="lg:hidden p-2 hover:bg-default-100 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+            onClick={onClose}
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
@@ -285,8 +288,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
-                  onClick={onClose}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-xl
                     transition-all duration-200 group
@@ -296,6 +297,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         : "text-foreground hover:bg-default-100 hover:scale-[1.02] active:scale-[0.98]"
                     }
                   `}
+                  href={item.href}
+                  onClick={onClose}
                 >
                   {isActive ? (
                     <IconSolid className="w-5 h-5 shrink-0" />
@@ -321,12 +324,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <div className="flex items-center gap-3">
             <Avatar
               isBordered
+              showFallback
+              className="shrink-0"
               color="primary"
               name={usuario?.nome}
               size="md"
               src={fotoUrl || undefined}
-              showFallback
-              className="shrink-0"
             />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm truncate">{usuario?.nome}</p>
@@ -334,10 +337,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 {usuario?.email}
               </p>
               <Chip
+                className="h-5"
+                color={isTecnico ? "primary" : "success"}
                 size="sm"
                 variant="flat"
-                color={isTecnico ? "primary" : "success"}
-                className="h-5"
               >
                 {isTecnico ? "Técnico" : "Admin"}
               </Chip>

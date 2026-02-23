@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Button } from "@heroui/button";
-import { useTextosGarantia } from "@/hooks/useTextosGarantia";
+
 import { TextoGarantiaView } from "./TextoGarantiaView";
+
+import { useTextosGarantia } from "@/hooks/useTextosGarantia";
 import { TextoGarantia, TIPOS_SERVICO_GARANTIA } from "@/types/garantia";
 
 export const GerenciarTextosGarantia: React.FC = () => {
@@ -12,7 +14,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
   }
@@ -42,16 +44,17 @@ export const GerenciarTextosGarantia: React.FC = () => {
           <h3 className="text-lg font-semibold">Tipos de Garantia</h3>
 
           {textosGarantia.map((texto) => (
-            <div
+            <button
               key={texto.id}
               className={`
-                border rounded-lg p-4 cursor-pointer transition-all
+                border rounded-lg p-4 cursor-pointer transition-all text-left w-full
                 ${
                   textoSelecionado?.id === texto.id
                     ? "border-primary bg-primary-50"
                     : "border-gray-200 hover:border-primary-300"
                 }
               `}
+              type="button"
               onClick={() => setTextoSelecionado(texto)}
             >
               <div className="flex justify-between items-start mb-2">
@@ -87,7 +90,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
                 {texto.clausulas.length} cláusula
                 {texto.clausulas.length !== 1 ? "s" : ""}
               </p>
-            </div>
+            </button>
           ))}
         </div>
 
@@ -107,7 +110,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
                 <p className="text-xs text-gray-500">
                   Atualizado em:{" "}
                   {new Date(textoSelecionado.atualizado_em).toLocaleString(
-                    "pt-BR"
+                    "pt-BR",
                   )}
                 </p>
               </div>

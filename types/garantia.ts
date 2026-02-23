@@ -5,11 +5,11 @@ export interface ClausulaGarantia {
   texto: string;
 }
 
-export type TipoServicoGarantia = 
-  | 'servico_geral'
-  | 'troca_vidro'
-  | 'troca_tampa'
-  | 'venda_aparelho';
+export type TipoServicoGarantia =
+  | "servico_geral"
+  | "troca_vidro"
+  | "troca_tampa"
+  | "venda_aparelho";
 
 export interface TextoGarantia {
   id: number;
@@ -32,8 +32,8 @@ export interface TextoGarantiaResponse {
 
 // Mapeamento de tipos de serviço para descrições
 export const TIPOS_SERVICO_GARANTIA: Record<TipoServicoGarantia, string> = {
-  servico_geral: 'Serviço Geral',
-  troca_vidro: 'Troca de Vidro',
-  troca_tampa: 'Troca de Tampa',
-  venda_aparelho: 'Venda de Aparelho'
+  servico_geral: "Serviço Geral",
+  troca_vidro: "Troca de Vidro",
+  troca_tampa: "Troca de Tampa",
+  venda_aparelho: "Venda de Aparelho",
 };

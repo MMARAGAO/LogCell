@@ -14,6 +14,7 @@ import {
   Divider,
 } from "@heroui/react";
 import { Percent, DollarSign } from "lucide-react";
+
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useToast } from "@/components/Toast";
 
@@ -23,7 +24,7 @@ interface DescontoModalProps {
   onAplicar: (
     tipo: "valor" | "percentual",
     valor: number,
-    motivo: string
+    motivo: string,
   ) => void;
   valorTotal: number;
 }
@@ -46,6 +47,7 @@ export function DescontoModal({
     const carregarDescontoMaximo = async () => {
       if (temPermissao("vendas.aplicar_desconto")) {
         const max = await getDescontoMaximo();
+
         setDescontoMaximo(max);
       }
     };
@@ -66,6 +68,7 @@ export function DescontoModal({
     // Permitir string vazia
     if (novoValor === "") {
       setValor("");
+
       return;
     }
 
@@ -83,6 +86,7 @@ export function DescontoModal({
     // Se for percentual, limitar ao desconto máximo
     if (tipo === "percentual" && valorFormatado > descontoMaximo) {
       setValor(descontoMaximo.toString());
+
       return;
     }
 
@@ -97,6 +101,7 @@ export function DescontoModal({
 
       if (valorFormatado > valorLimite) {
         setValor(valorLimite.toFixed(2));
+
         return;
       }
     }
@@ -104,8 +109,10 @@ export function DescontoModal({
     // Garantir no máximo 2 casas decimais
     if (novoValor.includes(".")) {
       const partes = novoValor.split(".");
+
       if (partes[1] && partes[1].length > 2) {
         setValor(valorFormatado.toFixed(2));
+
         return;
       }
     }
@@ -115,6 +122,7 @@ export function DescontoModal({
 
   const calcularDesconto = () => {
     const valorNumerico = parseFloat(valor);
+
     if (!valorNumerico) return 0;
 
     if (tipo === "valor") {
@@ -128,12 +136,15 @@ export function DescontoModal({
     // Verificar permissão
     if (!temPermissao("vendas.aplicar_desconto")) {
       toast.error("Você não tem permissão para aplicar descontos");
+
       return;
     }
 
     const valorNumerico = parseFloat(valor);
+
     if (!valorNumerico || valorNumerico <= 0) {
       toast.error("Informe um valor válido");
+
       return;
     }
 
@@ -141,33 +152,41 @@ export function DescontoModal({
     if (tipo === "percentual") {
       if (valorNumerico > 100) {
         toast.error("Percentual não pode ser maior que 100%");
+
         return;
       }
 
       if (valorNumerico > descontoMaximo) {
         toast.error(`Seu desconto máximo permitido é ${descontoMaximo}%`);
+
         return;
       }
     } else {
       // Para desconto em valor, calcular percentual equivalente
       const percentualEquivalente = (valorNumerico / valorTotal) * 100;
+
       if (percentualEquivalente > descontoMaximo) {
         const valorMaximoPermitido = (valorTotal * descontoMaximo) / 100;
+
         toast.error(
-          `Desconto máximo permitido: ${descontoMaximo}% (${formatarMoeda(valorMaximoPermitido)})`
+          `Desconto máximo permitido: ${descontoMaximo}% (${formatarMoeda(valorMaximoPermitido)})`,
         );
+
         return;
       }
     }
 
     const valorDesconto = calcularDesconto();
+
     if (valorDesconto > valorTotal) {
       toast.error("Desconto não pode ser maior que o valor total");
+
       return;
     }
 
     if (!motivo.trim()) {
       toast.error("Informe o motivo do desconto");
+
       return;
     }
 
@@ -186,7 +205,7 @@ export function DescontoModal({
   const valorFinal = valorTotal - valorDesconto;
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
+    <Modal isOpen={isOpen} size="md" onClose={handleClose}>
       <ModalContent>
         <ModalHeader>
           <div className="flex items-center gap-2">
@@ -220,13 +239,14 @@ export function DescontoModal({
 
             {/* Valor */}
             <Input
+              description={
+                tipo === "percentual"
+                  ? `Digite o percentual de desconto (máx: ${descontoMaximo}%)`
+                  : "Digite o valor fixo do desconto"
+              }
               label="Valor do Desconto"
-              type="number"
-              step="0.01"
-              min="0"
               max={tipo === "percentual" ? descontoMaximo : valorTotal}
-              value={valor}
-              onChange={(e) => handleValorChange(e.target.value)}
+              min="0"
               startContent={
                 tipo === "percentual" ? (
                   <Percent className="w-4 h-4 text-gray-500" />
@@ -234,19 +254,18 @@ export function DescontoModal({
                   <DollarSign className="w-4 h-4 text-gray-500" />
                 )
               }
-              description={
-                tipo === "percentual"
-                  ? `Digite o percentual de desconto (máx: ${descontoMaximo}%)`
-                  : "Digite o valor fixo do desconto"
-              }
+              step="0.01"
+              type="number"
+              value={valor}
+              onChange={(e) => handleValorChange(e.target.value)}
             />
 
             {/* Motivo */}
             <Input
               label="Motivo do Desconto"
+              placeholder="Ex: Cliente fidelidade, promoção, etc."
               value={motivo}
               onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ex: Cliente fidelidade, promoção, etc."
             />
 
             <Divider />
@@ -286,8 +305,8 @@ export function DescontoModal({
           </Button>
           <Button
             color="success"
-            onClick={handleAplicar}
             isDisabled={!valor || !motivo.trim() || parseFloat(valor) <= 0}
+            onClick={handleAplicar}
           >
             Aplicar Desconto
           </Button>

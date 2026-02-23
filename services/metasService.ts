@@ -26,7 +26,7 @@ export class MetasService {
   private static getSupabase() {
     return createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
   }
 
@@ -35,7 +35,7 @@ export class MetasService {
    */
   static async buscarMetaUsuario(
     usuarioId: string,
-    lojaId?: number
+    lojaId?: number,
   ): Promise<MetaUsuario | null> {
     const supabase = this.getSupabase();
 
@@ -107,6 +107,7 @@ export class MetasService {
     }
 
     console.log("✅ Meta criada:", data);
+
     return data;
   }
 
@@ -115,7 +116,7 @@ export class MetasService {
    */
   static async atualizarMeta(
     id: string,
-    meta: Partial<MetaUsuarioInput>
+    meta: Partial<MetaUsuarioInput>,
   ): Promise<MetaUsuario> {
     const supabase = this.getSupabase();
 
@@ -143,6 +144,7 @@ export class MetasService {
     }
 
     console.log("✅ Meta atualizada:", data);
+
     return data;
   }
 
@@ -157,7 +159,7 @@ export class MetasService {
     // Verificar se já existe meta para este usuário
     const metaExistente = await this.buscarMetaUsuario(
       meta.usuario_id,
-      meta.loja_id
+      meta.loja_id,
     );
 
     if (metaExistente) {
@@ -184,7 +186,10 @@ export class MetasService {
   /**
    * Calcular meta diária baseada na meta mensal
    */
-  static calcularMetaDiaria(metaMensal: number, diasUteis: number = 26): number {
+  static calcularMetaDiaria(
+    metaMensal: number,
+    diasUteis: number = 26,
+  ): number {
     return metaMensal / diasUteis;
   }
 
@@ -193,6 +198,7 @@ export class MetasService {
    */
   static calcularProgresso(valorAtual: number, valorMeta: number): number {
     if (valorMeta === 0) return 0;
+
     return (valorAtual / valorMeta) * 100;
   }
 

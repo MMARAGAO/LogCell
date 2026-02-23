@@ -34,14 +34,11 @@ import {
   ClockIcon,
   PhotoIcon,
 } from "@heroicons/react/24/outline";
+
+import { deletarLoja, alternarStatusLoja } from "./actions";
+
 import { Loja } from "@/types";
 import { LojasService } from "@/services/lojasService";
-import {
-  cadastrarLoja,
-  atualizarLoja,
-  deletarLoja,
-  alternarStatusLoja,
-} from "./actions";
 import {
   LojaFormModal,
   LojasStats,
@@ -87,15 +84,15 @@ function LojaCard({
         {loadingFotos ? (
           <div className="bg-default-100 flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
               <p className="text-sm text-default-400">Carregando fotos...</p>
             </div>
           </div>
         ) : (
           <MiniCarrossel
-            images={fotos}
             alt={loja.nome}
             aspectRatio="video"
+            images={fotos}
             showControls={fotos.length > 1}
           />
         )}
@@ -103,10 +100,10 @@ function LojaCard({
         {/* Badge de Status - Sobreposto no carrossel */}
         <div className="absolute top-3 right-3 z-20">
           <Chip
-            color={loja.ativo ? "success" : "danger"}
-            variant="shadow"
-            size="sm"
             className="font-semibold"
+            color={loja.ativo ? "success" : "danger"}
+            size="sm"
+            variant="shadow"
           >
             {loja.ativo ? "Ativa" : "Inativa"}
           </Chip>
@@ -175,10 +172,10 @@ function LojaCard({
         {actionButtons.map((btn) => (
           <Button
             key={btn.key}
-            size="sm"
-            variant={btn.variant || "flat"}
             color={btn.color}
+            size="sm"
             startContent={btn.icon}
+            variant={btn.variant || "flat"}
             onPress={btn.onClick}
           >
             {btn.label}
@@ -195,10 +192,10 @@ function LojaCard({
               {menuItems.map((item) => (
                 <DropdownItem
                   key={item.key}
-                  startContent={item.icon}
-                  onPress={item.onClick}
                   className={item.className}
                   color={item.color}
+                  startContent={item.icon}
+                  onPress={item.onClick}
                 >
                   {item.label}
                 </DropdownItem>
@@ -262,6 +259,7 @@ export default function LojasPage() {
       if (error) {
         console.error("Erro ao obter usuário:", error);
         setLoading(false);
+
         return;
       }
 
@@ -288,6 +286,7 @@ export default function LojasPage() {
 
     try {
       const data = await LojasService.getTodasLojas();
+
       clearTimeout(timeoutId);
       setLojas(data);
     } catch (error) {
@@ -307,6 +306,7 @@ export default function LojasPage() {
     novasEsteMes: lojas.filter((l) => {
       const criadoEm = new Date(l.criado_em);
       const hoje = new Date();
+
       return (
         criadoEm.getMonth() === hoje.getMonth() &&
         criadoEm.getFullYear() === hoje.getFullYear()
@@ -317,6 +317,7 @@ export default function LojasPage() {
   // Filtra lojas
   const lojasFiltradas = lojas.filter((loja) => {
     const termo = searchTerm.toLowerCase();
+
     return (
       loja.nome.toLowerCase().includes(termo) ||
       loja.cnpj?.toLowerCase().includes(termo) ||
@@ -333,6 +334,7 @@ export default function LojasPage() {
   const handleEditar = (loja: Loja) => {
     if (!temPermissao("lojas.editar")) {
       setErrorMessage("Você não tem permissão para editar lojas");
+
       return;
     }
     setSelectedLoja(loja);
@@ -342,6 +344,7 @@ export default function LojasPage() {
   const handleExcluir = (loja: Loja) => {
     if (!temPermissao("lojas.deletar")) {
       setErrorMessage("Você não tem permissão para deletar lojas");
+
       return;
     }
     setSelectedLoja(loja);
@@ -351,11 +354,13 @@ export default function LojasPage() {
   const handleAlternarStatus = async (loja: Loja) => {
     if (!temPermissao("lojas.editar")) {
       setErrorMessage("Você não tem permissão para alterar o status de lojas");
+
       return;
     }
     setErrorMessage(null);
     try {
       const result = await alternarStatusLoja(loja.id, !loja.ativo, usuarioId);
+
       if (result.success) {
         await carregarLojas();
       } else {
@@ -374,6 +379,7 @@ export default function LojasPage() {
     setErrorMessage(null);
     try {
       const result = await deletarLoja(selectedLoja.id, usuarioId);
+
       if (result.success) {
         await carregarLojas();
         onDeleteClose();
@@ -550,32 +556,32 @@ export default function LojasPage() {
 
       {/* Estatísticas */}
       <LojasStats
-        total={stats.total}
         ativas={stats.ativas}
         inativas={stats.inativas}
         novasEsteMes={stats.novasEsteMes}
+        total={stats.total}
       />
 
       {/* Barra de Busca */}
       <div className="mb-6">
         <Input
-          placeholder="Buscar por nome, CNPJ, cidade ou estado..."
-          value={searchTerm}
-          onValueChange={setSearchTerm}
-          startContent={<MagnifyingGlassIcon className="w-5 h-5" />}
           isClearable
+          placeholder="Buscar por nome, CNPJ, cidade ou estado..."
+          startContent={<MagnifyingGlassIcon className="w-5 h-5" />}
+          value={searchTerm}
           onClear={() => setSearchTerm("")}
+          onValueChange={setSearchTerm}
         />
       </div>
 
       {/* Tabs de Visualização */}
       <div className="mb-6">
         <Tabs
+          color="primary"
           selectedKey={visualizacao}
           onSelectionChange={(key) =>
             setVisualizacao(key as "tabela" | "cards")
           }
-          color="primary"
         >
           <Tab key="cards" title="Cards" />
           <Tab key="tabela" title="Tabela" />
@@ -585,7 +591,7 @@ export default function LojasPage() {
       {/* Loading e Empty State */}
       {loading ? (
         <div className="flex justify-center py-20">
-          <Spinner size="lg" label="Carregando lojas..." />
+          <Spinner label="Carregando lojas..." size="lg" />
         </div>
       ) : lojasFiltradas.length === 0 ? (
         <div className="text-center py-20">
@@ -597,10 +603,10 @@ export default function LojasPage() {
           </p>
           {!searchTerm && (
             <Button
-              color="primary"
               className="mt-4"
-              onPress={handleNovo}
+              color="primary"
               startContent={<PlusIcon className="w-5 h-5" />}
+              onPress={handleNovo}
             >
               Cadastrar Primeira Loja
             </Button>
@@ -614,8 +620,8 @@ export default function LojasPage() {
               {lojasFiltradas.map((loja) => (
                 <LojaCard
                   key={loja.id}
-                  loja={loja}
                   actionButtons={getActionButtons(loja)}
+                  loja={loja}
                   menuItems={getMenuItems(loja)}
                 />
               ))}
@@ -686,8 +692,8 @@ export default function LojasPage() {
                     <TableCell>
                       <Chip
                         color={loja.ativo ? "success" : "danger"}
-                        variant="flat"
                         size="sm"
+                        variant="flat"
                       >
                         {loja.ativo ? "Ativa" : "Inativa"}
                       </Chip>
@@ -708,10 +714,10 @@ export default function LojasPage() {
                           {getMenuItems(loja).map((item) => (
                             <DropdownItem
                               key={item.key}
-                              startContent={item.icon}
-                              onPress={item.onClick}
                               className={item.className}
                               color={item.color}
+                              startContent={item.icon}
+                              onPress={item.onClick}
                             >
                               {item.label}
                             </DropdownItem>
@@ -730,19 +736,19 @@ export default function LojasPage() {
       {/* Modal de Formulário */}
       <LojaFormModal
         isOpen={isFormOpen}
-        onClose={onFormClose}
         loja={selectedLoja}
-        onSuccess={handleFormSuccess}
         usuarioId={usuarioId}
+        onClose={onFormClose}
+        onSuccess={handleFormSuccess}
       />
 
       {/* Modal de Histórico */}
       {historicoLojaId && (
         <HistoricoLojaModal
           isOpen={isHistoricoOpen}
-          onClose={onHistoricoClose}
           lojaId={historicoLojaId}
           lojaNome={historicoLojaNome}
+          onClose={onHistoricoClose}
         />
       )}
 
@@ -750,23 +756,23 @@ export default function LojasPage() {
       {fotosLojaId && (
         <GerenciarFotosLojaModal
           isOpen={isFotosOpen}
-          onClose={onFotosClose}
           lojaId={fotosLojaId}
           lojaNome={fotosLojaNome}
+          onClose={onFotosClose}
         />
       )}
 
       {/* Modal de Confirmação de Exclusão */}
       <ConfirmModal
-        isOpen={isDeleteOpen}
-        onClose={onDeleteClose}
-        onConfirm={confirmarExclusao}
-        title="Confirmar Exclusão"
-        message={`Tem certeza que deseja excluir a loja ${selectedLoja?.nome}? Esta ação desativará a loja no sistema.`}
-        confirmText="Excluir"
         cancelText="Cancelar"
         confirmColor="danger"
+        confirmText="Excluir"
         isLoading={isDeleting}
+        isOpen={isDeleteOpen}
+        message={`Tem certeza que deseja excluir a loja ${selectedLoja?.nome}? Esta ação desativará a loja no sistema.`}
+        title="Confirmar Exclusão"
+        onClose={onDeleteClose}
+        onConfirm={confirmarExclusao}
       />
     </div>
   );

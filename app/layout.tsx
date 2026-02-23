@@ -1,13 +1,11 @@
 import "@/styles/globals.css";
 import { Metadata, Viewport } from "next";
-import { Link } from "@heroui/link";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
 
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
-import Navbar from "@/components/navbar";
 
 export const metadata: Metadata = {
   title: {
@@ -48,28 +46,28 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="en">
       <head>
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link href="/apple-touch-icon.png" rel="apple-touch-icon" />
         <link
-          rel="icon"
-          type="image/png"
-          sizes="192x192"
           href="/icon-192.png"
+          rel="icon"
+          sizes="192x192"
+          type="image/png"
         />
         <link
-          rel="icon"
-          type="image/png"
-          sizes="512x512"
           href="/icon-512.png"
+          rel="icon"
+          sizes="512x512"
+          type="image/png"
         />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="LogCell" />
+        <meta content="yes" name="apple-mobile-web-app-capable" />
+        <meta content="default" name="apple-mobile-web-app-status-bar-style" />
+        <meta content="LogCell" name="apple-mobile-web-app-title" />
       </head>
       <body
         suppressHydrationWarning
         className={clsx(
           "min-h-screen text-foreground bg-background font-sans antialiased",
-          fontSans.variable
+          fontSans.variable,
         )}
       >
         <Providers

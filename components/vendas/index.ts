@@ -7,3 +7,4 @@ export { DescontoModal } from "./DescontoModal";
 export { DevolucaoModal } from "./DevolucaoModal";
 export { HistoricoVendaComponent } from "./HistoricoVendaComponent";
 export { AdicionarPagamentoModal } from "./AdicionarPagamentoModal";
+export { SimuladorTaxaCartao } from "./SimuladorTaxaCartao";

@@ -1,7 +1,8 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { createClient } from "@supabase/supabase-js";
+
+import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { CadastroUsuarioData } from "@/types";
 
 // Cliente com permissões de admin para criar usuários
@@ -13,7 +14,7 @@ const supabaseAdmin = createClient(
       autoRefreshToken: false,
       persistSession: false,
     },
-  }
+  },
 );
 
 /**
@@ -78,6 +79,7 @@ export async function cadastrarUsuario(dados: CadastroUsuarioData) {
 
     if (authError || !authData.user) {
       console.error("Erro ao criar usuário no auth:", authError);
+
       return {
         success: false,
         error: "Erro ao criar conta de autenticação",
@@ -140,6 +142,7 @@ export async function cadastrarUsuario(dados: CadastroUsuarioData) {
     };
   } catch (error) {
     console.error("Erro ao cadastrar usuário:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao cadastrar usuário",
@@ -152,7 +155,7 @@ export async function cadastrarUsuario(dados: CadastroUsuarioData) {
  */
 export async function atualizarUsuario(
   id: string,
-  dados: Partial<Omit<CadastroUsuarioData, "senha">> & { ativo?: boolean }
+  dados: Partial<Omit<CadastroUsuarioData, "senha">> & { ativo?: boolean },
 ) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -175,6 +178,7 @@ export async function atualizarUsuario(
         details: error.details,
         hint: error.hint,
       });
+
       return {
         success: false,
         error: `Erro ao atualizar usuário: ${error.message}`,
@@ -187,6 +191,7 @@ export async function atualizarUsuario(
     };
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao atualizar usuário",
@@ -221,6 +226,7 @@ export async function deletarUsuario(id: string) {
     };
   } catch (error) {
     console.error("Erro ao deletar usuário:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao desativar usuário",
@@ -255,6 +261,7 @@ export async function alternarStatusUsuario(id: string, ativo: boolean) {
     };
   } catch (error) {
     console.error("Erro ao alterar status:", error);
+
     return {
       success: false,
       error: "Erro inesperado ao alterar status do usuário",

@@ -1,5 +1,7 @@
 "use client";
 
+import type { VendaCompleta } from "@/types/vendas";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -16,7 +18,6 @@ import {
   Chip,
 } from "@heroui/react";
 import { Plus, Trash2, Minus, Edit2 } from "lucide-react";
-import type { VendaCompleta } from "@/types/vendas";
 
 interface EditarVendaModalProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export function EditarVendaModal({
       setDataPrevista(
         venda.data_prevista_pagamento
           ? new Date(venda.data_prevista_pagamento).toISOString().split("T")[0]
-          : ""
+          : "",
       );
 
       // Carregar itens existentes
@@ -92,6 +93,7 @@ export function EditarVendaModal({
 
       // Armazenar quantidades originais para cálculo correto de estoque
       const quantOriginais: Record<string, number> = {};
+
       itensExistentes.forEach((item) => {
         if (item.id) {
           quantOriginais[item.id] = item.quantidade;
@@ -117,6 +119,7 @@ export function EditarVendaModal({
       if (error) throw error;
 
       const estoquesMap: Record<string, number> = {};
+
       data?.forEach((item) => {
         estoquesMap[item.id_produto] = item.quantidade;
       });
@@ -137,17 +140,17 @@ export function EditarVendaModal({
   const produtosFiltrados = produtos.filter(
     (p) =>
       p.nome?.toLowerCase().includes(busca.toLowerCase()) ||
-      p.codigo?.toLowerCase().includes(busca.toLowerCase())
+      p.codigo?.toLowerCase().includes(busca.toLowerCase()),
   );
 
   // Produtos paginados
   const produtosPaginados = produtosFiltrados.slice(
     (paginaAtual - 1) * PRODUTOS_POR_PAGINA,
-    paginaAtual * PRODUTOS_POR_PAGINA
+    paginaAtual * PRODUTOS_POR_PAGINA,
   );
 
   const totalPaginas = Math.ceil(
-    produtosFiltrados.length / PRODUTOS_POR_PAGINA
+    produtosFiltrados.length / PRODUTOS_POR_PAGINA,
   );
 
   const calcularTotal = () => {
@@ -155,6 +158,7 @@ export function EditarVendaModal({
       if (item.acao !== "remover") {
         return sum + item.subtotal;
       }
+
       return sum;
     }, 0);
   };
@@ -168,26 +172,29 @@ export function EditarVendaModal({
         (item) =>
           item.produto_id === produtoId &&
           item.id && // Apenas itens que já existiam
-          item.acao !== "remover"
+          item.acao !== "remover",
       )
       .reduce((sum, item) => {
         // Usar quantidade original armazenada, não a quantidade atual
         const quantOriginal = item.id ? quantidadesOriginais[item.id] || 0 : 0;
+
         return sum + quantOriginal;
       }, 0);
 
     // Calcular quanto já foi adicionado de novos itens ou alterações
     const quantidadeJaUsada = itens
       .filter(
-        (item) => item.produto_id === produtoId && item.acao !== "remover"
+        (item) => item.produto_id === produtoId && item.acao !== "remover",
       )
       .reduce((sum, item) => {
         // Para itens existentes, considerar apenas o que ultrapassou a quantidade original
         if (item.id) {
           const quantOriginal = quantidadesOriginais[item.id] || 0;
           const adicional = Math.max(0, item.quantidade - quantOriginal);
+
           return sum + adicional;
         }
+
         // Para novos itens, considerar toda a quantidade
         return sum + item.quantidade;
       }, 0);
@@ -208,8 +215,9 @@ export function EditarVendaModal({
 
     if (quantidade > estoqueDisponivel) {
       alert(
-        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`
+        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`,
       );
+
       return;
     }
 
@@ -250,15 +258,17 @@ export function EditarVendaModal({
         (i, idx) =>
           i.produto_id === item.produto_id &&
           idx !== index && // Não contar o item atual
-          i.acao !== "remover"
+          i.acao !== "remover",
       )
       .reduce((sum, i) => {
         if (i.id) {
           // Para itens existentes, considerar apenas o adicional
           const quantOriginal = quantidadesOriginais[i.id] || 0;
           const adicional = Math.max(0, i.quantidade - quantOriginal);
+
           return sum + adicional;
         }
+
         // Para novos itens, considerar toda a quantidade
         return sum + i.quantidade;
       }, 0);
@@ -269,12 +279,14 @@ export function EditarVendaModal({
 
     if (novaQuantidade > maximoPermitido) {
       alert(
-        `Estoque insuficiente! Máximo permitido: ${maximoPermitido} unidade(s)`
+        `Estoque insuficiente! Máximo permitido: ${maximoPermitido} unidade(s)`,
       );
+
       return;
     }
 
     const novosItens = [...itens];
+
     novosItens[index].quantidade = novaQuantidade;
     novosItens[index].subtotal =
       novosItens[index].preco_unitario * novaQuantidade;
@@ -290,10 +302,12 @@ export function EditarVendaModal({
   const alterarPreco = (index: number, novoPreco: number) => {
     if (novoPreco <= 0) {
       alert("O preço deve ser maior que zero");
+
       return;
     }
 
     const novosItens = [...itens];
+
     novosItens[index].preco_unitario = novoPreco;
     novosItens[index].subtotal = novosItens[index].quantidade * novoPreco;
 
@@ -324,7 +338,7 @@ export function EditarVendaModal({
   const restaurarItem = (index: number) => {
     const novosItens = [...itens];
     const itemOriginal = venda?.itens?.find(
-      (i: any) => i.id === novosItens[index].id
+      (i: any) => i.id === novosItens[index].id,
     );
 
     if (itemOriginal) {
@@ -347,8 +361,10 @@ export function EditarVendaModal({
 
     // Validar que há pelo menos um item ativo
     const itensAtivos = itens.filter((i) => i.acao !== "remover");
+
     if (itensAtivos.length === 0) {
       alert("A venda deve ter pelo menos um item!");
+
       return;
     }
 
@@ -384,9 +400,9 @@ export function EditarVendaModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
-      size="4xl"
       scrollBehavior="inside"
+      size="4xl"
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -409,13 +425,13 @@ export function EditarVendaModal({
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Input
+                    disabled={salvando}
                     placeholder="Buscar produto por nome ou código..."
                     value={busca}
                     onChange={(e) => {
                       setBusca(e.target.value);
                       setPaginaAtual(1); // Reset página ao buscar
                     }}
-                    disabled={salvando}
                   />
                   {busca && produtosFiltrados.length > 0 && (
                     <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-96 overflow-auto">
@@ -433,8 +449,9 @@ export function EditarVendaModal({
 
                       {produtosPaginados.map((produto) => {
                         const estoqueDisponivel = getEstoqueDisponivel(
-                          produto.id
+                          produto.id,
                         );
+
                         return (
                           <button
                             key={produto.id}
@@ -456,15 +473,15 @@ export function EditarVendaModal({
                                 {formatarMoeda(produto.preco_venda)}
                               </p>
                               {estoqueDisponivel === 0 && (
-                                <Chip size="sm" color="danger" variant="flat">
+                                <Chip color="danger" size="sm" variant="flat">
                                   Sem estoque
                                 </Chip>
                               )}
                               {estoqueDisponivel > 0 &&
                                 estoqueDisponivel <= 5 && (
                                   <Chip
-                                    size="sm"
                                     color="warning"
+                                    size="sm"
                                     variant="flat"
                                   >
                                     Baixo
@@ -479,9 +496,9 @@ export function EditarVendaModal({
                       {totalPaginas > 1 && (
                         <div className="sticky bottom-0 bg-gray-50 dark:bg-gray-900 px-4 py-2 border-t flex justify-between items-center">
                           <Button
+                            isDisabled={paginaAtual === 1}
                             size="sm"
                             variant="flat"
-                            isDisabled={paginaAtual === 1}
                             onClick={() => setPaginaAtual((p) => p - 1)}
                           >
                             Anterior
@@ -490,9 +507,9 @@ export function EditarVendaModal({
                             {paginaAtual} / {totalPaginas}
                           </span>
                           <Button
+                            isDisabled={paginaAtual === totalPaginas}
                             size="sm"
                             variant="flat"
-                            isDisabled={paginaAtual === totalPaginas}
                             onClick={() => setPaginaAtual((p) => p + 1)}
                           >
                             Próxima
@@ -504,18 +521,18 @@ export function EditarVendaModal({
                 </div>
                 <div className="flex flex-col gap-1">
                   <Input
-                    type="number"
-                    placeholder="Qtd"
-                    value={String(quantidade)}
-                    onChange={(e) => setQuantidade(Number(e.target.value))}
                     className="w-24"
-                    min={1}
+                    disabled={salvando}
                     max={
                       produtoSelecionado
                         ? getEstoqueDisponivel(produtoSelecionado.id)
                         : undefined
                     }
-                    disabled={salvando}
+                    min={1}
+                    placeholder="Qtd"
+                    type="number"
+                    value={String(quantidade)}
+                    onChange={(e) => setQuantidade(Number(e.target.value))}
                   />
                   {produtoSelecionado && (
                     <p className="text-xs text-gray-500 text-center">
@@ -525,11 +542,11 @@ export function EditarVendaModal({
                 </div>
                 <Button
                   color="primary"
-                  onClick={adicionarItem}
                   isDisabled={
                     !produtoSelecionado || quantidade <= 0 || salvando
                   }
                   startContent={<Plus className="w-4 h-4" />}
+                  onClick={adicionarItem}
                 >
                   Adicionar
                 </Button>
@@ -559,17 +576,17 @@ export function EditarVendaModal({
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{item.produto_nome}</p>
                         {item.acao === "adicionar" && (
-                          <Chip size="sm" color="success" variant="flat">
+                          <Chip color="success" size="sm" variant="flat">
                             Novo
                           </Chip>
                         )}
                         {item.acao === "alterar" && (
-                          <Chip size="sm" color="warning" variant="flat">
+                          <Chip color="warning" size="sm" variant="flat">
                             Alterado
                           </Chip>
                         )}
                         {item.acao === "remover" && (
-                          <Chip size="sm" color="danger" variant="flat">
+                          <Chip color="danger" size="sm" variant="flat">
                             Removido
                           </Chip>
                         )}
@@ -585,12 +602,12 @@ export function EditarVendaModal({
                         <div className="flex items-center gap-2">
                           <Button
                             isIconOnly
+                            isDisabled={item.quantidade <= 1 || salvando}
                             size="sm"
                             variant="flat"
                             onClick={() =>
                               alterarQuantidade(index, item.quantidade - 1)
                             }
-                            isDisabled={item.quantidade <= 1 || salvando}
                           >
                             <Minus className="w-4 h-4" />
                           </Button>
@@ -599,12 +616,12 @@ export function EditarVendaModal({
                           </span>
                           <Button
                             isIconOnly
+                            isDisabled={salvando}
                             size="sm"
                             variant="flat"
                             onClick={() =>
                               alterarQuantidade(index, item.quantidade + 1)
                             }
-                            isDisabled={salvando}
                           >
                             <Plus className="w-4 h-4" />
                           </Button>
@@ -614,27 +631,27 @@ export function EditarVendaModal({
                           {precoEditando === index ? (
                             <div className="flex items-center gap-2">
                               <Input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                size="sm"
-                                value={precoTemporario}
-                                onChange={(e) =>
-                                  setPrecoTemporario(e.target.value)
-                                }
                                 className="w-24"
+                                min="0.01"
+                                size="sm"
                                 startContent={
                                   <span className="text-default-400 text-xs">
                                     R$
                                   </span>
                                 }
-                                autoFocus
+                                step="0.01"
+                                type="number"
+                                value={precoTemporario}
+                                onChange={(e) =>
+                                  setPrecoTemporario(e.target.value)
+                                }
                               />
                               <Button
-                                size="sm"
                                 color="primary"
+                                size="sm"
                                 onClick={() => {
                                   const novoPreco = parseFloat(precoTemporario);
+
                                   if (novoPreco > 0) {
                                     alterarPreco(index, novoPreco);
                                   }
@@ -655,16 +672,16 @@ export function EditarVendaModal({
                               </div>
                               <Button
                                 isIconOnly
+                                isDisabled={salvando}
                                 size="sm"
+                                title="Editar preço"
                                 variant="flat"
                                 onClick={() => {
                                   setPrecoEditando(index);
                                   setPrecoTemporario(
-                                    item.preco_unitario.toString()
+                                    item.preco_unitario.toString(),
                                   );
                                 }}
-                                isDisabled={salvando}
-                                title="Editar preço"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </Button>
@@ -676,22 +693,22 @@ export function EditarVendaModal({
 
                     {item.acao === "remover" ? (
                       <Button
-                        size="sm"
                         color="success"
+                        isDisabled={salvando}
+                        size="sm"
                         variant="flat"
                         onClick={() => restaurarItem(index)}
-                        isDisabled={salvando}
                       >
                         Restaurar
                       </Button>
                     ) : (
                       <Button
                         isIconOnly
-                        size="sm"
                         color="danger"
+                        isDisabled={salvando}
+                        size="sm"
                         variant="flat"
                         onClick={() => removerItem(index)}
-                        isDisabled={salvando}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -721,30 +738,38 @@ export function EditarVendaModal({
           <div className="space-y-4">
             {venda.tipo === "fiada" && (
               <div>
-                <label className="text-sm font-medium mb-2 block">
+                <label
+                  className="text-sm font-medium mb-2 block"
+                  htmlFor="editar-venda-data-prevista"
+                >
                   Data Prevista de Pagamento
                 </label>
                 <Input
+                  disabled={salvando}
+                  id="editar-venda-data-prevista"
+                  placeholder="Selecione a data"
                   type="date"
                   value={dataPrevista}
                   onChange={(e) => setDataPrevista(e.target.value)}
-                  placeholder="Selecione a data"
-                  disabled={salvando}
                 />
               </div>
             )}
 
             <div>
-              <label className="text-sm font-medium mb-2 block">
+              <label
+                className="text-sm font-medium mb-2 block"
+                htmlFor="editar-venda-observacoes"
+              >
                 Observações
               </label>
               <Textarea
+                disabled={salvando}
+                id="editar-venda-observacoes"
+                maxRows={6}
+                minRows={3}
+                placeholder="Adicione observações sobre a venda..."
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                placeholder="Adicione observações sobre a venda..."
-                minRows={3}
-                maxRows={6}
-                disabled={salvando}
               />
             </div>
           </div>
@@ -753,19 +778,19 @@ export function EditarVendaModal({
         <ModalFooter>
           <Button
             color="danger"
+            disabled={salvando}
             variant="flat"
             onPress={handleClose}
-            disabled={salvando}
           >
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
-            isLoading={salvando}
             disabled={
               salvando || itens.filter((i) => i.acao !== "remover").length === 0
             }
+            isLoading={salvando}
+            onPress={handleSubmit}
           >
             Salvar Alterações
           </Button>

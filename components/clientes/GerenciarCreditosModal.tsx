@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Modal,
   ModalContent,
@@ -9,16 +9,15 @@ import {
   ModalFooter,
   Button,
   Input,
-  Select,
-  SelectItem,
   Textarea,
   Divider,
-  Chip,
 } from "@heroui/react";
 import { Wallet, Plus, Minus, AlertCircle, History } from "lucide-react";
+
+import { HistoricoCreditosModal } from "./HistoricoCreditosModal";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
-import { HistoricoCreditosModal } from "./HistoricoCreditosModal";
 
 interface GerenciarCreditosModalProps {
   isOpen: boolean;
@@ -55,22 +54,27 @@ export function GerenciarCreditosModal({
   const handleSubmit = async () => {
     if (!usuario) {
       toast.error("Usuário não autenticado");
+
       return;
     }
 
     const valorNumerico = parseFloat(valor);
+
     if (!valorNumerico || valorNumerico <= 0) {
       toast.error("Informe um valor válido");
+
       return;
     }
 
     if (!motivo.trim()) {
       toast.error("Informe o motivo");
+
       return;
     }
 
     if (tipo === "retirar" && valorNumerico > saldoAtual) {
       toast.error("Valor a retirar não pode ser maior que o saldo disponível");
+
       return;
     }
 
@@ -142,7 +146,7 @@ export function GerenciarCreditosModal({
       }
 
       toast.success(
-        `Crédito ${tipo === "adicionar" ? "adicionado" : "retirado"} com sucesso!`
+        `Crédito ${tipo === "adicionar" ? "adicionado" : "retirado"} com sucesso!`,
       );
 
       // Aguarda para o toast ser visível antes de fechar o modal
@@ -173,7 +177,7 @@ export function GerenciarCreditosModal({
   return (
     <>
       {toast.ToastComponent}
-      <Modal isOpen={isOpen} onClose={handleClose} size="2xl">
+      <Modal isOpen={isOpen} size="2xl" onClose={handleClose}>
         <ModalContent>
           <ModalHeader className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -181,10 +185,10 @@ export function GerenciarCreditosModal({
               <span>Gerenciar Créditos</span>
             </div>
             <Button
-              size="sm"
-              variant="flat"
               color="primary"
+              size="sm"
               startContent={<History className="w-4 h-4" />}
+              variant="flat"
               onPress={() => setModalHistoricoOpen(true)}
             >
               Histórico
@@ -210,8 +214,8 @@ export function GerenciarCreditosModal({
                 <Button
                   className="flex-1"
                   color={tipo === "adicionar" ? "success" : "default"}
-                  variant={tipo === "adicionar" ? "solid" : "bordered"}
                   startContent={<Plus className="w-4 h-4" />}
+                  variant={tipo === "adicionar" ? "solid" : "bordered"}
                   onPress={() => setTipo("adicionar")}
                 >
                   Adicionar Crédito
@@ -219,8 +223,8 @@ export function GerenciarCreditosModal({
                 <Button
                   className="flex-1"
                   color={tipo === "retirar" ? "danger" : "default"}
-                  variant={tipo === "retirar" ? "solid" : "bordered"}
                   startContent={<Minus className="w-4 h-4" />}
+                  variant={tipo === "retirar" ? "solid" : "bordered"}
                   onPress={() => setTipo("retirar")}
                 >
                   Retirar Crédito
@@ -231,23 +235,24 @@ export function GerenciarCreditosModal({
 
               {/* Valor */}
               <Input
-                label="Valor"
-                placeholder="0,00"
-                type="number"
-                step="0.01"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                startContent={<span className="text-default-400">R$</span>}
                 description={
                   tipo === "retirar" && parseFloat(valor) > saldoAtual
                     ? "⚠️ Valor maior que saldo disponível"
                     : null
                 }
+                label="Valor"
+                placeholder="0,00"
+                startContent={<span className="text-default-400">R$</span>}
+                step="0.01"
+                type="number"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
               />
 
               {/* Motivo */}
               <Textarea
                 label="Motivo *"
+                minRows={2}
                 placeholder={
                   tipo === "adicionar"
                     ? "Ex: Bonificação, promoção, cortesia..."
@@ -255,7 +260,6 @@ export function GerenciarCreditosModal({
                 }
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                minRows={2}
               />
 
               <Divider />
@@ -312,13 +316,13 @@ export function GerenciarCreditosModal({
             </Button>
             <Button
               color={tipo === "adicionar" ? "success" : "danger"}
-              onPress={handleSubmit}
-              isLoading={loading}
               isDisabled={
                 !valor ||
                 !motivo ||
                 (tipo === "retirar" && parseFloat(valor) > saldoAtual)
               }
+              isLoading={loading}
+              onPress={handleSubmit}
             >
               {tipo === "adicionar" ? "Adicionar Crédito" : "Retirar Crédito"}
             </Button>
@@ -328,10 +332,10 @@ export function GerenciarCreditosModal({
 
       {/* Modal de Histórico */}
       <HistoricoCreditosModal
-        isOpen={modalHistoricoOpen}
-        onClose={() => setModalHistoricoOpen(false)}
         clienteId={clienteId}
         clienteNome={clienteNome}
+        isOpen={modalHistoricoOpen}
+        onClose={() => setModalHistoricoOpen(false)}
       />
     </>
   );

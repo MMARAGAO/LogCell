@@ -11,25 +11,16 @@ import {
   Input,
   Card,
   CardBody,
-  Checkbox,
   Divider,
-  Spinner,
   Tab,
   Tabs,
   Select,
   SelectItem,
 } from "@heroui/react";
-import {
-  Download,
-  Trash2,
-  Package,
-  AlertCircle,
-  FileText,
-  Clock,
-} from "lucide-react";
+import { Download, FileText } from "lucide-react";
+
 import { OrdemServico } from "@/types/ordemServico";
 import { useToast } from "@/components/Toast";
-import { formatarMoeda } from "@/lib/formatters";
 import {
   gerarOrcamentoOS,
   gerarGarantiaOS,
@@ -74,7 +65,7 @@ export default function ImpressaoOrcamentoModal({
     (os?.tipo_garantia as TipoServicoGarantia) || "servico_geral",
   );
   const [diasGarantia, setDiasGarantia] = useState<string>(
-    (os?.dias_garantia || 90).toString(),
+    (os?.dias_garantia ?? 90).toString(),
   );
   const [loading, setLoading] = useState(false);
   const [loadingCupom, setLoadingCupom] = useState(false);
@@ -101,12 +92,20 @@ export default function ImpressaoOrcamentoModal({
       setTipoGarantia(
         (os.tipo_garantia as TipoServicoGarantia) || "servico_geral",
       );
-      setDiasGarantia((os.dias_garantia || 90).toString());
+      setDiasGarantia((os.dias_garantia ?? 90).toString());
     }
   }, [os]);
 
+  const resolveDiasGarantia = () => {
+    const trimmed = diasGarantia.trim();
+    const valor = trimmed === "" ? 90 : Number(trimmed);
+
+    return Number.isNaN(valor) ? 90 : valor;
+  };
+
   const handleTogglePeca = (index: number) => {
     const novasPecas = [...pecas];
+
     novasPecas[index].utilizada = !novasPecas[index].utilizada;
     setPecas(novasPecas);
   };
@@ -128,7 +127,7 @@ export default function ImpressaoOrcamentoModal({
     try {
       // Salvar garantia se houver função de callback
       if (onSalvarGarantia) {
-        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+        await onSalvarGarantia(tipoGarantia, resolveDiasGarantia());
       }
 
       // Usar peças filtradas (apenas as marcadas como utilizadas)
@@ -137,7 +136,7 @@ export default function ImpressaoOrcamentoModal({
         pecasFiltradas,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        resolveDiasGarantia(),
       );
 
       abrirPreviewPDF(pdf, `Orcamento_OS_${os.numero_os || os.id}.pdf`);
@@ -158,21 +157,21 @@ export default function ImpressaoOrcamentoModal({
     try {
       // Salvar garantia se houver função de callback
       if (onSalvarGarantia) {
-        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+        await onSalvarGarantia(tipoGarantia, resolveDiasGarantia());
       }
 
       // Criar objeto OS atualizado com tipo e dias de garantia
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: resolveDiasGarantia(),
       };
 
       const pdf = await gerarGarantiaOS(
         osAtualizada,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        resolveDiasGarantia(),
       );
 
       abrirPreviewPDF(pdf, `Garantia_OS_${os.numero_os || os.id}.pdf`);
@@ -193,14 +192,14 @@ export default function ImpressaoOrcamentoModal({
     try {
       // Salvar garantia se houver função de callback
       if (onSalvarGarantia) {
-        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+        await onSalvarGarantia(tipoGarantia, resolveDiasGarantia());
       }
 
       // Criar objeto OS atualizado com tipo e dias de garantia
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: resolveDiasGarantia(),
       };
 
       const pdf = await gerarPDFOrdemServico(
@@ -208,7 +207,7 @@ export default function ImpressaoOrcamentoModal({
         pecasFiltradas,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        resolveDiasGarantia(),
       );
 
       abrirPreviewPDF(pdf, `OS_${os.numero_os || os.id}_Completa.pdf`);
@@ -232,6 +231,7 @@ export default function ImpressaoOrcamentoModal({
         pecasFiltradas,
         dadosLoja,
       );
+
       abrirPreviewPDF(pdf, `CupomTermico_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Cupom térmico gerado com sucesso!");
       onClose();
@@ -250,22 +250,23 @@ export default function ImpressaoOrcamentoModal({
     try {
       // Salvar garantia se houver função de callback
       if (onSalvarGarantia) {
-        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+        await onSalvarGarantia(tipoGarantia, resolveDiasGarantia());
       }
 
       // Criar objeto OS atualizado com tipo e dias de garantia
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: resolveDiasGarantia(),
       };
 
       const pdf = await gerarCupomTermicoPDFGarantia(
         osAtualizada,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        resolveDiasGarantia(),
       );
+
       abrirPreviewPDF(
         pdf,
         `CupomTermico_Garantia_OS_${os.numero_os || os.id}.pdf`,
@@ -287,14 +288,14 @@ export default function ImpressaoOrcamentoModal({
     try {
       // Salvar garantia se houver função de callback
       if (onSalvarGarantia) {
-        await onSalvarGarantia(tipoGarantia, parseInt(diasGarantia) || 90);
+        await onSalvarGarantia(tipoGarantia, resolveDiasGarantia());
       }
 
       // Criar objeto OS atualizado com tipo e dias de garantia
       const osAtualizada = {
         ...os,
         tipo_garantia: tipoGarantia,
-        dias_garantia: parseInt(diasGarantia) || 90,
+        dias_garantia: resolveDiasGarantia(),
       };
 
       const pdf = await gerarCupomTermicoPDFOS(
@@ -302,8 +303,9 @@ export default function ImpressaoOrcamentoModal({
         pecasFiltradas,
         dadosLoja,
         tipoGarantia,
-        parseInt(diasGarantia) || 90,
+        resolveDiasGarantia(),
       );
+
       abrirPreviewPDF(pdf, `CupomTermico_OS_${os.numero_os || os.id}.pdf`);
       toast.success("Cupom térmico da OS gerado com sucesso!");
       onClose();
@@ -316,7 +318,7 @@ export default function ImpressaoOrcamentoModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="2xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -337,16 +339,16 @@ export default function ImpressaoOrcamentoModal({
             {/* TAB 1: ORÇAMENTO */}
             <Tab key="orcamento" title="Orçamento">
               <div className="space-y-4 py-4">
-                <Card className="bg-blue-50">
+                <Card className="bg-blue-50 dark:bg-blue-900/20">
                   <CardBody className="text-sm">
-                    <p className="font-semibold text-blue-900">
+                    <p className="font-semibold text-blue-900 dark:text-blue-200">
                       📋 Orçamento de Serviço
                     </p>
-                    <p className="text-blue-800">
+                    <p className="text-blue-800 dark:text-blue-300">
                       O orçamento mostra apenas informações do equipamento,
                       problema e serviço a ser realizado.
                     </p>
-                    <p className="text-blue-800 mt-2">
+                    <p className="text-blue-800 mt-2 dark:text-blue-300">
                       ✓ Peças não aparecem no PDF do orçamento (gerenciamento
                       interno)
                     </p>
@@ -354,10 +356,10 @@ export default function ImpressaoOrcamentoModal({
                 </Card>
 
                 {/* Informações do que será incluído */}
-                <Card className="bg-gray-50">
+                <Card className="bg-gray-50 dark:bg-default-100/10">
                   <CardBody className="space-y-2 text-sm">
                     <p className="font-semibold">📄 O PDF incluirá:</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-700">
+                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
                       <li>Dados da loja (endereço e telefone)</li>
                       <li>Dados do cliente</li>
                       <li>Dados do equipamento</li>
@@ -373,12 +375,12 @@ export default function ImpressaoOrcamentoModal({
             {/* TAB 2: GARANTIA */}
             <Tab key="garantia" title="Garantia">
               <div className="space-y-4 py-4">
-                <Card className="bg-purple-50">
+                <Card className="bg-purple-50 dark:bg-purple-900/20">
                   <CardBody className="text-sm">
-                    <p className="font-semibold text-purple-900">
+                    <p className="font-semibold text-purple-900 dark:text-purple-200">
                       ⚙️ Configuração de Garantia
                     </p>
-                    <p className="text-purple-800">
+                    <p className="text-purple-800 dark:text-purple-300">
                       Customize os dados da garantia antes de imprimir.
                     </p>
                   </CardBody>
@@ -388,10 +390,10 @@ export default function ImpressaoOrcamentoModal({
                 <Select
                   label="Tipo de Garantia"
                   selectedKeys={[tipoGarantia]}
+                  size="sm"
                   onChange={(e) =>
                     setTipoGarantia(e.target.value as TipoServicoGarantia)
                   }
-                  size="sm"
                 >
                   {Object.entries(TIPOS_SERVICO_GARANTIA).map(
                     ([value, label]) => (
@@ -402,21 +404,25 @@ export default function ImpressaoOrcamentoModal({
 
                 {/* Dias de Garantia */}
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold">
+                  <label
+                    className="text-sm font-semibold"
+                    htmlFor="orcamento-dias-garantia"
+                  >
                     Dias de Garantia
                   </label>
                   <Input
-                    type="number"
-                    min="0"
-                    value={diasGarantia}
-                    onChange={(e) => setDiasGarantia(e.target.value)}
-                    placeholder="Ex: 90"
-                    size="sm"
                     endContent={
                       <span className="text-xs text-gray-500">dias</span>
                     }
+                    id="orcamento-dias-garantia"
+                    min="0"
+                    placeholder="Ex: 90"
+                    size="sm"
+                    type="number"
+                    value={diasGarantia}
+                    onChange={(e) => setDiasGarantia(e.target.value)}
                   />
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     ℹ️ Use 0 para garantias sem prazo (ex: tampas)
                   </p>
                 </div>
@@ -429,7 +435,7 @@ export default function ImpressaoOrcamentoModal({
                       <p className="text-sm font-semibold">
                         Dados da Loja no PDF:
                       </p>
-                      <Card className="bg-gray-50">
+                      <Card className="bg-gray-50 dark:bg-default-100/10">
                         <CardBody className="py-2 text-xs space-y-1">
                           {dadosLoja.nome && (
                             <p>
@@ -462,31 +468,31 @@ export default function ImpressaoOrcamentoModal({
             {/* TAB 3: PREVIEW */}
             <Tab key="completo" title="Tudo Junto">
               <div className="space-y-4 py-4">
-                <Card className="bg-green-50">
+                <Card className="bg-green-50 dark:bg-green-900/20">
                   <CardBody className="text-sm">
-                    <p className="font-semibold text-green-900">
+                    <p className="font-semibold text-green-900 dark:text-green-200">
                       📄 Documento Completo
                     </p>
-                    <p className="text-green-800">
+                    <p className="text-green-800 dark:text-green-300">
                       Gera OS com peças, garantia e dados da loja.
                     </p>
                   </CardBody>
                 </Card>
 
-                <Card className="bg-gray-50">
+                <Card className="bg-gray-50 dark:bg-default-100/10">
                   <CardBody className="space-y-3 text-sm">
                     <div>
                       <p className="font-semibold mb-1">
                         Peças ({pecasFiltradas.length}):
                       </p>
                       {pecasFiltradas.length > 0 ? (
-                        <p className="text-gray-700">
+                        <p className="text-gray-700 dark:text-gray-300">
                           {pecasFiltradas
                             .map((p) => p.descricao_peca)
                             .join(", ")}
                         </p>
                       ) : (
-                        <p className="text-gray-500">
+                        <p className="text-gray-500 dark:text-gray-400">
                           Nenhuma peça será incluída
                         </p>
                       )}
@@ -494,7 +500,7 @@ export default function ImpressaoOrcamentoModal({
                     <Divider />
                     <div>
                       <p className="font-semibold mb-1">Garantia:</p>
-                      <p className="text-gray-700">
+                      <p className="text-gray-700 dark:text-gray-300">
                         {tipoGarantia} ({diasGarantia} dias)
                       </p>
                     </div>
@@ -502,7 +508,9 @@ export default function ImpressaoOrcamentoModal({
                     {dadosLoja && (
                       <div>
                         <p className="font-semibold mb-1">Dados da Loja:</p>
-                        <p className="text-gray-700">{dadosLoja.nome}</p>
+                        <p className="text-gray-700 dark:text-gray-300">
+                          {dadosLoja.nome}
+                        </p>
                       </div>
                     )}
                   </CardBody>
@@ -521,17 +529,17 @@ export default function ImpressaoOrcamentoModal({
             <>
               <Button
                 color="primary"
+                isLoading={loading}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarOrcamento}
-                isLoading={loading}
               >
                 Gerar Orçamento
               </Button>
               <Button
                 color="success"
+                isLoading={loadingCupom}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarCupomTermico}
-                isLoading={loadingCupom}
               >
                 Cupom Térmico
               </Button>
@@ -542,17 +550,17 @@ export default function ImpressaoOrcamentoModal({
             <>
               <Button
                 color="primary"
+                isLoading={loading}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarGarantia}
-                isLoading={loading}
               >
                 Gerar Garantia
               </Button>
               <Button
                 color="success"
+                isLoading={loadingCupomGarantia}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarCupomTermicoGarantia}
-                isLoading={loadingCupomGarantia}
               >
                 Cupom Térmico
               </Button>
@@ -563,17 +571,17 @@ export default function ImpressaoOrcamentoModal({
             <>
               <Button
                 color="primary"
+                isLoading={loading}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarCompleto}
-                isLoading={loading}
               >
                 Gerar PDF
               </Button>
               <Button
                 color="success"
+                isLoading={loadingCupomCompleto}
                 startContent={<Download className="w-4 h-4" />}
                 onPress={handleGerarCupomTermicoCompleto}
-                isLoading={loadingCupomCompleto}
               >
                 Cupom Térmico
               </Button>

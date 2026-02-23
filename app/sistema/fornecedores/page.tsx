@@ -36,6 +36,7 @@ import {
   List,
   MoreVertical,
 } from "lucide-react";
+
 import { Fornecedor } from "@/types/fornecedor";
 import {
   buscarFornecedores,
@@ -94,10 +95,12 @@ export default function FornecedoresPage() {
 
       // Carregar produtos para cada fornecedor
       const produtosMap: Record<string, any[]> = {};
+
       for (const fornecedor of data) {
         const { data: produtos } = await buscarProdutosPorFornecedor(
-          fornecedor.id
+          fornecedor.id,
         );
+
         if (produtos) {
           produtosMap[fornecedor.id] = produtos;
         }
@@ -119,12 +122,13 @@ export default function FornecedoresPage() {
     // Filtrar por termo de busca
     if (searchTerm) {
       const termo = searchTerm.toLowerCase();
+
       filtrados = filtrados.filter(
         (f) =>
           f.nome.toLowerCase().includes(termo) ||
           f.cnpj?.toLowerCase().includes(termo) ||
           f.email?.toLowerCase().includes(termo) ||
-          f.cidade?.toLowerCase().includes(termo)
+          f.cidade?.toLowerCase().includes(termo),
       );
     }
 
@@ -203,6 +207,7 @@ export default function FornecedoresPage() {
   const handleEditarFornecedor = (fornecedor: Fornecedor) => {
     if (!temPermissao("fornecedores.editar")) {
       showToast("Você não tem permissão para editar fornecedores", "error");
+
       return;
     }
 
@@ -218,6 +223,7 @@ export default function FornecedoresPage() {
   const handleDeletarFornecedor = (fornecedor: Fornecedor) => {
     if (!temPermissao("fornecedores.deletar")) {
       showToast("Você não tem permissão para deletar fornecedores", "error");
+
       return;
     }
 
@@ -249,12 +255,12 @@ export default function FornecedoresPage() {
     if (error) {
       showToast(
         `Erro ao ${fornecedor.ativo ? "desativar" : "ativar"} fornecedor`,
-        "error"
+        "error",
       );
     } else {
       showToast(
         `Fornecedor ${fornecedor.ativo ? "desativado" : "ativado"} com sucesso`,
-        "success"
+        "success",
       );
       carregarFornecedores();
     }
@@ -302,14 +308,14 @@ export default function FornecedoresPage() {
       <div className="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full md:w-auto">
           <Input
+            isClearable
+            className="w-full md:w-96"
             placeholder="Buscar por nome, CNPJ, email ou cidade..."
             startContent={<Search className="w-4 h-4 text-default-400" />}
             value={searchTerm}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setSearchTerm(e.target.value)
             }
-            className="w-full md:w-96"
-            isClearable
             onClear={() => setSearchTerm("")}
           />
 
@@ -326,16 +332,16 @@ export default function FornecedoresPage() {
           {/* Botões de Visualização */}
           <Button
             isIconOnly
-            variant={visualizacao === "cards" ? "flat" : "light"}
             color={visualizacao === "cards" ? "primary" : "default"}
+            variant={visualizacao === "cards" ? "flat" : "light"}
             onClick={() => setVisualizacao("cards")}
           >
             <LayoutGrid className="w-5 h-5" />
           </Button>
           <Button
             isIconOnly
-            variant={visualizacao === "tabela" ? "flat" : "light"}
             color={visualizacao === "tabela" ? "primary" : "default"}
+            variant={visualizacao === "tabela" ? "flat" : "light"}
             onClick={() => setVisualizacao("tabela")}
           >
             <List className="w-5 h-5" />
@@ -369,10 +375,10 @@ export default function FornecedoresPage() {
             </p>
             {!searchTerm && (
               <Button
-                color="primary"
                 className="mt-4"
-                onClick={handleNovoFornecedor}
+                color="primary"
                 startContent={<Plus className="w-4 h-4" />}
+                onClick={handleNovoFornecedor}
               >
                 Cadastrar Primeiro Fornecedor
               </Button>
@@ -395,8 +401,8 @@ export default function FornecedoresPage() {
                         {fornecedor.nome}
                       </h3>
                       <Chip
-                        size="sm"
                         color={fornecedor.ativo ? "success" : "default"}
+                        size="sm"
                         variant="flat"
                       >
                         {fornecedor.ativo ? "Ativo" : "Inativo"}
@@ -478,15 +484,15 @@ export default function FornecedoresPage() {
                           .map((item: any) => (
                             <Chip
                               key={item.produto.id}
+                              color="primary"
                               size="sm"
                               variant="flat"
-                              color="primary"
                             >
                               {item.produto.descricao}
                             </Chip>
                           ))}
                         {produtosPorFornecedor[fornecedor.id].length > 5 && (
-                          <Chip size="sm" variant="flat" color="default">
+                          <Chip color="default" size="sm" variant="flat">
                             +{produtosPorFornecedor[fornecedor.id].length - 5}
                           </Chip>
                         )}
@@ -499,8 +505,7 @@ export default function FornecedoresPage() {
                   {getMenuItems(fornecedor).map((item) => (
                     <Button
                       key={item.key}
-                      size="sm"
-                      variant="flat"
+                      className={item.className}
                       color={
                         item.color ||
                         (item.key === "produtos"
@@ -511,9 +516,10 @@ export default function FornecedoresPage() {
                               : "success"
                             : "default")
                       }
+                      size="sm"
                       startContent={item.icon}
+                      variant="flat"
                       onClick={item.onClick}
-                      className={item.className}
                     >
                       {item.label}
                     </Button>
@@ -584,8 +590,8 @@ export default function FornecedoresPage() {
                 </TableCell>
                 <TableCell>
                   <Chip
-                    size="sm"
                     color={fornecedor.ativo ? "success" : "default"}
+                    size="sm"
                     variant="flat"
                   >
                     {fornecedor.ativo ? "Ativo" : "Inativo"}
@@ -602,10 +608,10 @@ export default function FornecedoresPage() {
                       {getMenuItems(fornecedor).map((item) => (
                         <DropdownItem
                           key={item.key}
-                          startContent={item.icon}
-                          onClick={item.onClick}
                           className={item.className}
                           color={item.color}
+                          startContent={item.icon}
+                          onClick={item.onClick}
                         >
                           {item.label}
                         </DropdownItem>
@@ -621,26 +627,26 @@ export default function FornecedoresPage() {
 
       {/* Modals */}
       <FornecedorModal
+        fornecedor={fornecedorSelecionado}
         isOpen={modalAberto}
         onClose={() => setModalAberto(false)}
-        fornecedor={fornecedorSelecionado}
         onSave={handleSalvarFornecedor}
       />
 
       <AssociarProdutoModal
+        fornecedor={fornecedorSelecionado}
         isOpen={modalAssociarAberto}
         onClose={() => setModalAssociarAberto(false)}
-        fornecedor={fornecedorSelecionado}
       />
 
       <ConfirmModal
+        cancelText="Cancelar"
+        confirmText="Deletar"
         isOpen={confirmModalAberto}
+        message={`Tem certeza que deseja deletar o fornecedor "${fornecedorParaDeletar?.nome}"? Esta ação não pode ser desfeita.`}
+        title="Confirmar Exclusão"
         onClose={() => setConfirmModalAberto(false)}
         onConfirm={confirmarDelecao}
-        title="Confirmar Exclusão"
-        message={`Tem certeza que deseja deletar o fornecedor "${fornecedorParaDeletar?.nome}"? Esta ação não pode ser desfeita.`}
-        confirmText="Deletar"
-        cancelText="Cancelar"
       />
     </div>
   );

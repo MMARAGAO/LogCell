@@ -9,11 +9,12 @@ import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
 import { useState, useEffect } from "react";
-import { HistoricoEstoqueCompleto } from "@/types";
 import {
   ArrowUpCircleIcon,
   ArrowDownCircleIcon,
 } from "@heroicons/react/24/outline";
+
+import { HistoricoEstoqueCompleto } from "@/types";
 
 interface HistoricoEstoqueModalProps {
   isOpen: boolean;
@@ -43,6 +44,7 @@ export default function HistoricoEstoqueModal({
     setLoading(true);
     try {
       const dados = await onLoadHistorico(produtoId);
+
       setHistorico(dados);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
@@ -58,16 +60,18 @@ export default function HistoricoEstoqueModal({
     )
       return null;
     const alteracao = item.quantidade_nova - item.quantidade_anterior;
+
     if (alteracao > 0) {
       return <ArrowUpCircleIcon className="w-5 h-5 text-success" />;
     } else if (alteracao < 0) {
       return <ArrowDownCircleIcon className="w-5 h-5 text-danger" />;
     }
+
     return null;
   };
 
   const getCorAlteracao = (
-    item: HistoricoEstoqueCompleto
+    item: HistoricoEstoqueCompleto,
   ): "success" | "danger" | "default" => {
     if (
       item.quantidade_anterior === undefined ||
@@ -75,8 +79,10 @@ export default function HistoricoEstoqueModal({
     )
       return "default";
     const alteracao = item.quantidade_nova - item.quantidade_anterior;
+
     if (alteracao > 0) return "success";
     if (alteracao < 0) return "danger";
+
     return "default";
   };
 
@@ -110,13 +116,14 @@ export default function HistoricoEstoqueModal({
       ordem_servico: { label: "Ordem de Serviço", color: "primary" },
       quebra: { label: "Quebra", color: "danger" },
     };
+
     return (
       tipos[tipo || "ajuste"] || { label: tipo || "Ajuste", color: "default" }
     );
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <span>Histórico de Alterações</span>
@@ -146,14 +153,15 @@ export default function HistoricoEstoqueModal({
                           {item.tipo_movimentacao &&
                             (() => {
                               const tipo = getTipoMovimentacao(
-                                item.tipo_movimentacao
+                                item.tipo_movimentacao,
                               );
+
                               return (
                                 <Chip
-                                  color={tipo.color}
-                                  variant="flat"
-                                  size="sm"
                                   className="font-semibold"
+                                  color={tipo.color}
+                                  size="sm"
+                                  variant="flat"
                                 >
                                   {tipo.label}
                                 </Chip>
@@ -166,11 +174,12 @@ export default function HistoricoEstoqueModal({
                             (() => {
                               const alteracao =
                                 item.quantidade_nova - item.quantidade_anterior;
+
                               return alteracao !== 0 ? (
                                 <Chip
                                   color={getCorAlteracao(item)}
-                                  variant="flat"
                                   size="sm"
+                                  variant="flat"
                                 >
                                   {alteracao > 0 ? "+" : ""}
                                   {alteracao}
@@ -218,7 +227,7 @@ export default function HistoricoEstoqueModal({
                         {/* Observação */}
                         {item.observacao && (
                           <p className="text-sm text-default-500 mt-1 italic">
-                            "{item.observacao}"
+                            &quot;{item.observacao}&quot;
                           </p>
                         )}
 

@@ -11,7 +11,6 @@ import {
   Input,
   Card,
   CardBody,
-  CardFooter,
   Divider,
   Chip,
   RadioGroup,
@@ -28,6 +27,7 @@ import {
   Banknote,
   Smartphone,
 } from "lucide-react";
+
 import { useToast } from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -76,7 +76,7 @@ export function TrocarProdutoModal({
   const [quantidadeNovo, setQuantidadeNovo] = useState("1");
   const [busca, setBusca] = useState("");
   const [tipoReembolso, setTipoReembolso] = useState<"credito" | "sem_credito">(
-    "credito"
+    "credito",
   );
   const [formaPagamentoReembolso, setFormaPagamentoReembolso] =
     useState<string>("dinheiro");
@@ -143,7 +143,7 @@ export function TrocarProdutoModal({
               url,
               is_principal
             )
-          `
+          `,
           )
           .eq("estoque.id_loja", lojaId)
           .eq("ativo", true)
@@ -179,7 +179,7 @@ export function TrocarProdutoModal({
             imagem_url: fotoPrincipal,
             codigo_fabricante: produto.codigo_fabricante,
           };
-        }
+        },
       );
 
       console.log("✅ Produtos carregados:", produtosFormatados.length);
@@ -197,10 +197,12 @@ export function TrocarProdutoModal({
       setProdutoNovoId("");
       setProdutoNovo(null);
       setQuantidadeNovo("1");
+
       return;
     }
 
     const produto = produtos.find((p) => p.id === produtoId);
+
     if (produto) {
       // Abrir modal para selecionar quantidade
       setProdutoSelecionadoTemp(produto);
@@ -232,6 +234,7 @@ export function TrocarProdutoModal({
     const valorAtual = produtoAtual.preco_unitario * qtdTroca;
     const valorNovo = produtoNovo.preco_venda * qtdNovo;
     const diferenca = valorNovo - valorAtual;
+
     console.log("💰 Cálculo de diferença:", {
       valorAtual,
       valorNovo,
@@ -241,29 +244,35 @@ export function TrocarProdutoModal({
       produtoAtual: produtoAtual.preco_unitario,
       produtoNovo: produtoNovo.preco_venda,
     });
+
     return diferenca;
   };
 
   const realizarTroca = async () => {
     if (!produtoNovo) {
       toast.error("Selecione o produto para troca");
+
       return;
     }
 
     const qtd = parseInt(quantidadeTroca);
     const qtdNovo = parseInt(quantidadeNovo);
+
     if (qtd <= 0 || qtd > produtoAtual.quantidade) {
       toast.error("Quantidade inválida para troca");
+
       return;
     }
 
     if (qtdNovo <= 0) {
       toast.error("Quantidade do novo produto inválida");
+
       return;
     }
 
     if (qtdNovo > produtoNovo.quantidade_disponivel) {
       toast.error("Quantidade insuficiente em estoque do novo produto");
+
       return;
     }
 
@@ -271,6 +280,7 @@ export function TrocarProdutoModal({
     try {
       console.log("🔄 Iniciando troca de produto...");
       const diferenca = calcularDiferenca();
+
       console.log("💰 Diferença calculada:", diferenca);
 
       // Obter usuário atual
@@ -319,13 +329,13 @@ export function TrocarProdutoModal({
 
       if (errorBuscarEstoque || !estoqueNovo) {
         throw new Error(
-          `Produto "${produtoNovo.descricao}" não encontrado no estoque desta loja`
+          `Produto "${produtoNovo.descricao}" não encontrado no estoque desta loja`,
         );
       }
 
       if (estoqueNovo.quantidade < qtdNovo) {
         throw new Error(
-          `Estoque insuficiente! Disponível: ${estoqueNovo.quantidade} un. Necessário: ${qtdNovo} un.`
+          `Estoque insuficiente! Disponível: ${estoqueNovo.quantidade} un. Necessário: ${qtdNovo} un.`,
         );
       }
 
@@ -338,7 +348,7 @@ export function TrocarProdutoModal({
       if (errorBaixaEstoque) {
         console.error("❌ Erro ao baixar estoque:", errorBaixaEstoque);
         throw new Error(
-          `Erro ao baixar estoque: ${errorBaixaEstoque.message || "Erro desconhecido"}`
+          `Erro ao baixar estoque: ${errorBaixaEstoque.message || "Erro desconhecido"}`,
         );
       }
 
@@ -410,7 +420,7 @@ export function TrocarProdutoModal({
       if (itensVenda) {
         const novoTotal = itensVenda.reduce(
           (sum, item) => sum + item.subtotal,
-          0
+          0,
         );
 
         // Buscar valores atuais da venda
@@ -436,9 +446,10 @@ export function TrocarProdutoModal({
         // Se houver diferença negativa (reembolso), abater do valor pago
         if (diferenca < 0) {
           const valorReembolso = Math.abs(diferenca);
+
           updates.valor_pago = Math.max(
             0,
-            vendaAtual.valor_pago - valorReembolso
+            vendaAtual.valor_pago - valorReembolso,
           );
           // Recalcular saldo devedor
           updates.saldo_devedor = novoTotal - updates.valor_pago;
@@ -548,7 +559,7 @@ export function TrocarProdutoModal({
           console.log("✅ Sangria registrada no caixa!");
         } else {
           console.warn(
-            "⚠️ Nenhum caixa aberto encontrado. Sangria não registrada."
+            "⚠️ Nenhum caixa aberto encontrado. Sangria não registrada.",
           );
         }
       }
@@ -591,6 +602,7 @@ export function TrocarProdutoModal({
 
       // 7. Registrar no histórico da venda
       let descricaoHistorico = `Produto trocado: ${produtoAtual.nome} → ${produtoNovo.descricao} (${qtd}un)`;
+
       if (diferenca > 0) {
         descricaoHistorico += ` - Diferença cobrada: R$ ${diferenca.toFixed(2)}`;
       } else if (diferenca < 0) {
@@ -598,6 +610,7 @@ export function TrocarProdutoModal({
           tipoReembolso === "credito"
             ? "em crédito"
             : `manual (${formaPagamentoReembolso})`;
+
         descricaoHistorico += ` - Reembolso ${formaReembolso}: R$ ${Math.abs(diferenca).toFixed(2)}`;
       }
 
@@ -617,6 +630,7 @@ export function TrocarProdutoModal({
       console.error("❌ Detalhes:", JSON.stringify(error, null, 2));
 
       let mensagemErro = "Erro ao realizar troca";
+
       if (error?.message) {
         mensagemErro = error.message;
       } else if (error?.error_description) {
@@ -674,9 +688,9 @@ export function TrocarProdutoModal({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={handleClose}
-        size="5xl"
         scrollBehavior="inside"
+        size="5xl"
+        onClose={handleClose}
       >
         <ModalContent>
           <ModalHeader className="flex items-center gap-2">
@@ -697,9 +711,9 @@ export function TrocarProdutoModal({
                       {fotoAtual ? (
                         <div className="w-16 h-16 rounded-lg overflow-hidden bg-default-200">
                           <img
-                            src={fotoAtual}
                             alt={produtoAtual.nome}
                             className="w-full h-full object-cover"
+                            src={fotoAtual}
                           />
                         </div>
                       ) : (
@@ -727,16 +741,16 @@ export function TrocarProdutoModal({
                       {produtoAtual.quantidade > 1 && (
                         <div className="pt-2">
                           <Input
-                            label="Quantidade a trocar"
-                            type="number"
-                            min="1"
-                            max={produtoAtual.quantidade}
-                            value={quantidadeTroca}
-                            onValueChange={setQuantidadeTroca}
-                            variant="bordered"
-                            size="sm"
-                            description={`De 1 até ${produtoAtual.quantidade} unidades`}
                             className="max-w-xs"
+                            description={`De 1 até ${produtoAtual.quantidade} unidades`}
+                            label="Quantidade a trocar"
+                            max={produtoAtual.quantidade}
+                            min="1"
+                            size="sm"
+                            type="number"
+                            value={quantidadeTroca}
+                            variant="bordered"
+                            onValueChange={setQuantidadeTroca}
                           />
                         </div>
                       )}
@@ -748,7 +762,7 @@ export function TrocarProdutoModal({
                           {formatarMoeda(produtoAtual.preco_unitario)} ={" "}
                           {formatarMoeda(
                             produtoAtual.preco_unitario *
-                              parseInt(quantidadeTroca || "0")
+                              parseInt(quantidadeTroca || "0"),
                           )}
                         </p>
                       </div>
@@ -774,10 +788,10 @@ export function TrocarProdutoModal({
 
                 <Input
                   placeholder="Buscar produto... (ex: bat i 11)"
-                  value={busca}
-                  onValueChange={setBusca}
-                  variant="bordered"
                   startContent={<Search className="w-4 h-4 text-default-400" />}
+                  value={busca}
+                  variant="bordered"
+                  onValueChange={setBusca}
                 />
 
                 {/* Grid de produtos */}
@@ -799,8 +813,8 @@ export function TrocarProdutoModal({
                     {produtosFiltrados.map((produto) => (
                       <Card
                         key={produto.id}
-                        isPressable
                         isHoverable
+                        isPressable
                         className={`transition-all ${
                           produtoNovoId === produto.id
                             ? "ring-2 ring-primary bg-primary-50 dark:bg-primary-900/20"
@@ -815,9 +829,9 @@ export function TrocarProdutoModal({
                               {produto.imagem_url ? (
                                 <div className="w-20 h-20 rounded-lg overflow-hidden bg-default-100">
                                   <img
-                                    src={produto.imagem_url}
                                     alt={produto.descricao}
                                     className="w-full h-full object-cover"
+                                    src={produto.imagem_url}
                                   />
                                 </div>
                               ) : (
@@ -861,7 +875,7 @@ export function TrocarProdutoModal({
 
                               {/* Categoria */}
                               {produto.categoria && (
-                                <Chip size="sm" variant="flat" className="h-5">
+                                <Chip className="h-5" size="sm" variant="flat">
                                   {produto.categoria}
                                 </Chip>
                               )}
@@ -872,7 +886,7 @@ export function TrocarProdutoModal({
                                   {formatarMoeda(produto.preco_venda)}
                                 </p>
                                 <Chip
-                                  size="sm"
+                                  className="h-5"
                                   color={
                                     produto.quantidade_disponivel > 5
                                       ? "success"
@@ -880,8 +894,8 @@ export function TrocarProdutoModal({
                                         ? "warning"
                                         : "danger"
                                   }
+                                  size="sm"
                                   variant="flat"
-                                  className="h-5"
                                 >
                                   Est: {produto.quantidade_disponivel}
                                 </Chip>
@@ -926,9 +940,9 @@ export function TrocarProdutoModal({
                             {fotoAtual ? (
                               <div className="w-12 h-12 rounded overflow-hidden bg-default-200 flex-shrink-0">
                                 <img
-                                  src={fotoAtual}
                                   alt={produtoAtual.nome}
                                   className="w-full h-full object-cover"
+                                  src={fotoAtual}
                                 />
                               </div>
                             ) : (
@@ -953,7 +967,7 @@ export function TrocarProdutoModal({
                             <p className="text-base font-bold">
                               {formatarMoeda(
                                 produtoAtual.preco_unitario *
-                                  parseInt(quantidadeTroca || "0")
+                                  parseInt(quantidadeTroca || "0"),
                               )}
                             </p>
                           </div>
@@ -968,9 +982,9 @@ export function TrocarProdutoModal({
                             {produtoNovo.imagem_url ? (
                               <div className="w-12 h-12 rounded overflow-hidden bg-default-200 flex-shrink-0">
                                 <img
-                                  src={produtoNovo.imagem_url}
                                   alt={produtoNovo.descricao}
                                   className="w-full h-full object-cover"
+                                  src={produtoNovo.imagem_url}
                                 />
                               </div>
                             ) : (
@@ -995,7 +1009,7 @@ export function TrocarProdutoModal({
                             <p className="text-base font-bold">
                               {formatarMoeda(
                                 produtoNovo.preco_venda *
-                                  parseInt(quantidadeNovo || "0")
+                                  parseInt(quantidadeNovo || "0"),
                               )}
                             </p>
                           </div>
@@ -1050,8 +1064,8 @@ export function TrocarProdutoModal({
                           }
                         >
                           <Radio
-                            value="credito"
                             description="O cliente receberá crédito para usar em futuras compras"
+                            value="credito"
                           >
                             <div className="flex items-center gap-2">
                               <CreditCard className="w-4 h-4" />
@@ -1059,8 +1073,8 @@ export function TrocarProdutoModal({
                             </div>
                           </Radio>
                           <Radio
-                            value="sem_credito"
                             description="Reembolso direto ao cliente (dinheiro, PIX, etc)"
+                            value="sem_credito"
                           >
                             <div className="flex items-center gap-2">
                               <Wallet className="w-4 h-4" />
@@ -1077,9 +1091,9 @@ export function TrocarProdutoModal({
                               Forma de pagamento do reembolso:
                             </p>
                             <RadioGroup
+                              orientation="horizontal"
                               value={formaPagamentoReembolso}
                               onValueChange={setFormaPagamentoReembolso}
-                              orientation="horizontal"
                             >
                               <Radio value="dinheiro">
                                 <div className="flex items-center gap-1">
@@ -1129,10 +1143,10 @@ export function TrocarProdutoModal({
             </Button>
             <Button
               color="primary"
-              onPress={realizarTroca}
-              isLoading={loading}
               isDisabled={!produtoNovo}
+              isLoading={loading}
               startContent={<RefreshCw className="w-4 h-4" />}
+              onPress={realizarTroca}
             >
               Realizar Troca
             </Button>
@@ -1143,8 +1157,8 @@ export function TrocarProdutoModal({
       {/* Modal de Seleção de Quantidade */}
       <Modal
         isOpen={showQuantidadeModal}
-        onClose={cancelarSelecaoProduto}
         size="sm"
+        onClose={cancelarSelecaoProduto}
       >
         <ModalContent>
           <ModalHeader>
@@ -1161,9 +1175,9 @@ export function TrocarProdutoModal({
                   {produtoSelecionadoTemp.imagem_url ? (
                     <div className="w-16 h-16 rounded overflow-hidden bg-default-200 flex-shrink-0">
                       <img
-                        src={produtoSelecionadoTemp.imagem_url}
                         alt={produtoSelecionadoTemp.descricao}
                         className="w-full h-full object-cover"
+                        src={produtoSelecionadoTemp.imagem_url}
                       />
                     </div>
                   ) : (
@@ -1178,7 +1192,7 @@ export function TrocarProdutoModal({
                     <p className="text-sm text-success font-bold">
                       {formatarMoeda(produtoSelecionadoTemp.preco_venda)}
                     </p>
-                    <Chip size="sm" color="default" variant="flat">
+                    <Chip color="default" size="sm" variant="flat">
                       Estoque: {produtoSelecionadoTemp.quantidade_disponivel} un
                     </Chip>
                   </div>
@@ -1186,19 +1200,22 @@ export function TrocarProdutoModal({
 
                 {/* Input de quantidade */}
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold">
+                  <label
+                    className="text-sm font-semibold"
+                    htmlFor="trocar-produto-quantidade"
+                  >
                     Selecione a quantidade:
                   </label>
                   <Input
-                    type="number"
-                    min="1"
-                    max={produtoSelecionadoTemp.quantidade_disponivel}
-                    value={quantidadeTempNovo}
-                    onValueChange={setQuantidadeTempNovo}
-                    variant="bordered"
-                    size="lg"
-                    autoFocus
                     description={`Máximo: ${produtoSelecionadoTemp.quantidade_disponivel} unidades`}
+                    id="trocar-produto-quantidade"
+                    max={produtoSelecionadoTemp.quantidade_disponivel}
+                    min="1"
+                    size="lg"
+                    type="number"
+                    value={quantidadeTempNovo}
+                    variant="bordered"
+                    onValueChange={setQuantidadeTempNovo}
                   />
                 </div>
 
@@ -1209,7 +1226,7 @@ export function TrocarProdutoModal({
                     <p className="text-xl font-bold text-primary">
                       {formatarMoeda(
                         produtoSelecionadoTemp.preco_venda *
-                          parseInt(quantidadeTempNovo || "0")
+                          parseInt(quantidadeTempNovo || "0"),
                       )}
                     </p>
                   </div>
@@ -1227,13 +1244,13 @@ export function TrocarProdutoModal({
             </Button>
             <Button
               color="primary"
-              onPress={confirmarSelecaoProduto}
               isDisabled={
                 !quantidadeTempNovo ||
                 parseInt(quantidadeTempNovo) <= 0 ||
                 parseInt(quantidadeTempNovo) >
                   (produtoSelecionadoTemp?.quantidade_disponivel || 0)
               }
+              onPress={confirmarSelecaoProduto}
             >
               Confirmar
             </Button>

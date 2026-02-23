@@ -1,12 +1,13 @@
 "use client";
 
 import { Card, CardBody, CardHeader } from "@heroui/card";
-import { Textarea, Input } from "@heroui/input";
+import { Textarea } from "@heroui/input";
 import { Button } from "@heroui/button";
 import { useState, useEffect } from "react";
-import { useToast } from "@/components/Toast";
 import { DocumentTextIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
+
+import { useToast } from "@/components/Toast";
 
 interface LaudoTecnicoProps {
   ordemServicoId: string;
@@ -43,14 +44,14 @@ export default function LaudoTecnico({
   const carregarLaudo = async () => {
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
       const { data, error } = await supabase
         .from("ordem_servico")
         .select(
-          "laudo_diagnostico, laudo_causa, laudo_procedimentos, laudo_recomendacoes, laudo_condicao_final"
+          "laudo_diagnostico, laudo_causa, laudo_procedimentos, laudo_recomendacoes, laudo_condicao_final",
         )
         .eq("id", ordemServicoId)
         .single();
@@ -77,7 +78,7 @@ export default function LaudoTecnico({
     setSalvando(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -102,7 +103,7 @@ export default function LaudoTecnico({
     return (
       <Card>
         <CardBody className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </CardBody>
       </Card>
     );
@@ -123,69 +124,69 @@ export default function LaudoTecnico({
 
         {/* Diagnóstico */}
         <Textarea
+          description="O que foi identificado durante a análise do equipamento"
           label="Diagnóstico Técnico"
+          minRows={3}
           placeholder="Descreva o problema identificado e os testes realizados..."
           value={laudo.laudo_diagnostico}
           onChange={(e) =>
             setLaudo({ ...laudo, laudo_diagnostico: e.target.value })
           }
-          minRows={3}
-          description="O que foi identificado durante a análise do equipamento"
         />
 
         {/* Causa */}
         <Textarea
+          description="O que causou o defeito"
           label="Causa do Problema"
+          minRows={2}
           placeholder="Ex: Oxidação dos contatos, queda, mau uso, desgaste natural..."
           value={laudo.laudo_causa}
           onChange={(e) => setLaudo({ ...laudo, laudo_causa: e.target.value })}
-          minRows={2}
-          description="O que causou o defeito"
         />
 
         {/* Procedimentos */}
         <Textarea
+          description="Detalhes da execução do reparo"
           label="Procedimentos Realizados"
+          minRows={4}
           placeholder="Liste todos os procedimentos técnicos executados..."
           value={laudo.laudo_procedimentos}
           onChange={(e) =>
             setLaudo({ ...laudo, laudo_procedimentos: e.target.value })
           }
-          minRows={4}
-          description="Detalhes da execução do reparo"
         />
 
         {/* Condição Final */}
         <Textarea
+          description="Estado do equipamento após o reparo"
           label="Condição Final do Equipamento"
+          minRows={2}
           placeholder="Ex: Funcionando perfeitamente, testado em todas as funções..."
           value={laudo.laudo_condicao_final}
           onChange={(e) =>
             setLaudo({ ...laudo, laudo_condicao_final: e.target.value })
           }
-          minRows={2}
-          description="Estado do equipamento após o reparo"
         />
 
         {/* Recomendações */}
         <Textarea
+          description="Orientações de uso e manutenção preventiva"
           label="Recomendações ao Cliente"
+          minRows={3}
           placeholder="Ex: Evitar contato com água, usar carregador original, manter atualizado..."
           value={laudo.laudo_recomendacoes}
           onChange={(e) =>
             setLaudo({ ...laudo, laudo_recomendacoes: e.target.value })
           }
-          minRows={3}
-          description="Orientações de uso e manutenção preventiva"
         />
 
         {/* Botão Salvar */}
         <Button
+          className="w-full"
           color="success"
-          onPress={salvarLaudo}
           isLoading={salvando}
           startContent={<CheckCircleIcon className="w-4 h-4" />}
-          className="w-full"
+          onPress={salvarLaudo}
         >
           Salvar Laudo Técnico
         </Button>

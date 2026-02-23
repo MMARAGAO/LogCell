@@ -45,7 +45,7 @@ export const configuracoesService = {
         if (error.code === "PGRST116") {
           console.log(
             "⚠️ Configurações não encontradas, criando padrão para:",
-            usuarioId
+            usuarioId,
           );
 
           // Tenta criar configuração padrão
@@ -62,11 +62,13 @@ export const configuracoesService = {
 
           if (erroInsert) {
             console.error("Erro ao criar configurações:", erroInsert);
+
             // Retorna padrão mesmo se falhar
             return novaConfig;
           }
 
           console.log("✅ Configurações criadas com sucesso");
+
           return criada;
         }
         throw error;
@@ -75,6 +77,7 @@ export const configuracoesService = {
       return data;
     } catch (error) {
       console.error("Erro ao buscar configurações:", error);
+
       return {
         ...CONFIGURACOES_PADRAO,
         usuario_id: usuarioId,
@@ -86,7 +89,7 @@ export const configuracoesService = {
    * Salva ou atualiza as configurações do usuário
    */
   async salvarConfiguracoes(
-    configuracoes: ConfiguracoesUsuario
+    configuracoes: ConfiguracoesUsuario,
   ): Promise<ConfiguracoesUsuario> {
     try {
       // Verifica se já existe configuração
@@ -116,6 +119,7 @@ export const configuracoesService = {
           .single();
 
         if (error) throw error;
+
         return data;
       } else {
         // Inserir
@@ -137,6 +141,7 @@ export const configuracoesService = {
           .single();
 
         if (error) throw error;
+
         return data;
       }
     } catch (error) {

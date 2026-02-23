@@ -42,7 +42,7 @@ export async function buscarOrdensServico(filtros?: {
           *,
           ordem_servico_aparelhos_servicos(*)
         )
-      `
+      `,
       )
       .order("numero_os", { ascending: false });
 
@@ -69,6 +69,7 @@ export async function buscarOrdensServico(filtros?: {
     if (filtros?.data_fim) {
       // Adicionar 23:59:59 para incluir todo o dia
       const dataFimCompleta = `${filtros.data_fim}T23:59:59`;
+
       query = query.lte("data_entrada", dataFimCompleta);
     }
 
@@ -123,6 +124,7 @@ export async function buscarOrdensServico(filtros?: {
     return { data: ordensComAparelhos as OrdemServico[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar ordens de serviço:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -142,7 +144,7 @@ export async function buscarOrdemServicoPorId(id: string) {
           *,
           produto:produtos(id, descricao, marca, categoria)
         )
-      `
+      `,
       )
       .eq("id", id)
       .single();
@@ -152,10 +154,12 @@ export async function buscarOrdemServicoPorId(id: string) {
     // Buscar aparelhos desta OS
     const { data: aparelhos, error: erroAparelhos } = await supabase
       .from("ordem_servico_aparelhos")
-      .select(`
+      .select(
+        `
         *,
         ordem_servico_aparelhos_servicos(*)
-      `)
+      `,
+      )
       .eq("id_ordem_servico", id)
       .eq("status", "ativo")
       .order("sequencia", { ascending: true });
@@ -179,11 +183,12 @@ export async function buscarOrdemServicoPorId(id: string) {
         .single();
 
       if (tecnico) {
-        const osComTecnicoEAparelhos = { 
-          ...data, 
+        const osComTecnicoEAparelhos = {
+          ...data,
           tecnico,
-          aparelhos: aparelhosMapeados
+          aparelhos: aparelhosMapeados,
         };
+
         return {
           data: osComTecnicoEAparelhos as OrdemServico,
           error: null,
@@ -193,12 +198,13 @@ export async function buscarOrdemServicoPorId(id: string) {
 
     const osComAparelhos = {
       ...data,
-      aparelhos: aparelhosMapeados
+      aparelhos: aparelhosMapeados,
     };
 
     return { data: osComAparelhos as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar ordem de serviço:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -208,7 +214,7 @@ export async function buscarOrdemServicoPorId(id: string) {
  */
 export async function criarOrdemServico(
   dados: OrdemServicoFormData,
-  userId: string
+  userId: string,
 ) {
   try {
     // Separar aparelhos do restante dos dados
@@ -225,7 +231,7 @@ export async function criarOrdemServico(
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
@@ -274,19 +280,27 @@ export async function criarOrdemServico(
           const aparelhoInserido = aparelhosInseridos[i];
           const aparelhoOriginal = aparelhos[i];
 
-          if (aparelhoOriginal.servicos && aparelhoOriginal.servicos.length > 0) {
-            const servicosParaSalvar = aparelhoOriginal.servicos.map((svc: any) => ({
-              id_aparelho: aparelhoInserido.id,
-              descricao: svc.descricao,
-              valor: svc.valor,
-            }));
+          if (
+            aparelhoOriginal.servicos &&
+            aparelhoOriginal.servicos.length > 0
+          ) {
+            const servicosParaSalvar = aparelhoOriginal.servicos.map(
+              (svc: any) => ({
+                id_aparelho: aparelhoInserido.id,
+                descricao: svc.descricao,
+                valor: svc.valor,
+              }),
+            );
 
             const { error: erroServicos } = await supabase
               .from("ordem_servico_aparelhos_servicos")
               .insert(servicosParaSalvar);
 
             if (erroServicos) {
-              console.error("Erro ao salvar serviços do aparelho:", erroServicos);
+              console.error(
+                "Erro ao salvar serviços do aparelho:",
+                erroServicos,
+              );
               throw erroServicos;
             }
           }
@@ -297,6 +311,7 @@ export async function criarOrdemServico(
     return { data: data as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao criar ordem de serviço:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -307,7 +322,7 @@ export async function criarOrdemServico(
 export async function atualizarOrdemServico(
   id: string,
   dados: Partial<OrdemServicoFormData>,
-  userId: string
+  userId: string,
 ) {
   try {
     // Separar aparelhos do restante dos dados
@@ -324,7 +339,7 @@ export async function atualizarOrdemServico(
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .single();
 
@@ -395,7 +410,10 @@ export async function atualizarOrdemServico(
               .insert(servicosParaSalvar);
 
             if (erroServicos) {
-              console.error("Erro ao salvar serviços do aparelho:", erroServicos);
+              console.error(
+                "Erro ao salvar serviços do aparelho:",
+                erroServicos,
+              );
               throw erroServicos;
             }
           }
@@ -436,7 +454,11 @@ export async function atualizarOrdemServico(
           }
 
           // Inserir serviços do novo aparelho
-          if (novoAparelho && (ap as any).servicos && (ap as any).servicos.length > 0) {
+          if (
+            novoAparelho &&
+            (ap as any).servicos &&
+            (ap as any).servicos.length > 0
+          ) {
             const servicosParaSalvar = (ap as any).servicos.map((svc: any) => ({
               id_aparelho: novoAparelho.id,
               descricao: svc.descricao,
@@ -448,7 +470,10 @@ export async function atualizarOrdemServico(
               .insert(servicosParaSalvar);
 
             if (erroServicos) {
-              console.error("Erro ao salvar serviços do novo aparelho:", erroServicos);
+              console.error(
+                "Erro ao salvar serviços do novo aparelho:",
+                erroServicos,
+              );
               throw erroServicos;
             }
           }
@@ -459,6 +484,7 @@ export async function atualizarOrdemServico(
     return { data: data as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar ordem de serviço:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -469,7 +495,7 @@ export async function atualizarOrdemServico(
 export async function mudarStatusOS(
   id: string,
   novoStatus: StatusOS,
-  userId: string
+  userId: string,
 ) {
   try {
     const dados: any = {
@@ -494,9 +520,11 @@ export async function mudarStatusOS(
       .single();
 
     if (error) throw error;
+
     return { data: data as OrdemServico, error: null };
   } catch (error: any) {
     console.error("Erro ao mudar status da OS:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -535,6 +563,7 @@ export async function cancelarOrdemServico(id: string, userId: string) {
     return result;
   } catch (error: any) {
     console.error("Erro ao cancelar ordem de serviço:", error);
+
     return { error: error.message || "Erro ao cancelar ordem de serviço" };
   }
 }
@@ -545,7 +574,7 @@ export async function cancelarOrdemServico(id: string, userId: string) {
  * - apaga pagamentos vinculados
  * - marca status como "devolvida" e cancela lançamento no caixa
  * - registra histórico com valor a reembolsar ou cria crédito para cliente
- * 
+ *
  * @param id - ID da ordem de serviço
  * @param userId - ID do usuário que está fazendo a devolução
  * @param tipoDevolucao - 'reembolso' ou 'credito'
@@ -553,7 +582,7 @@ export async function cancelarOrdemServico(id: string, userId: string) {
 export async function devolverOrdemServico(
   id: string,
   userId: string,
-  tipoDevolucao: "reembolso" | "credito" = "reembolso"
+  tipoDevolucao: "reembolso" | "credito" = "reembolso",
 ) {
   try {
     // Buscar OS para obter dados do cliente
@@ -575,7 +604,7 @@ export async function devolverOrdemServico(
 
     const totalValor = (pagamentos || []).reduce(
       (sum, pag) => sum + Number(pag.valor || 0),
-      0
+      0,
     );
 
     // Buscar peças e devolver/remoção
@@ -659,12 +688,15 @@ export async function devolverOrdemServico(
     }
 
     // Atualizar status para devolvida e status_devolucao conforme o tipo
-    const statusDevolucao = tipoDevolucao === "credito" ? "devolvida_com_credito" : "devolvida";
+    const statusDevolucao =
+      tipoDevolucao === "credito" ? "devolvida_com_credito" : "devolvida";
     const { error: erroStatus } = await supabase
       .from("ordem_servico")
       .update({ status: "devolvida", status_devolucao: statusDevolucao })
       .eq("id", id);
-    if (erroStatus) throw new Error(erroStatus.message || JSON.stringify(erroStatus));
+
+    if (erroStatus)
+      throw new Error(erroStatus.message || JSON.stringify(erroStatus));
 
     // Cancelar lançamento no caixa vinculado à OS, se existir
     try {
@@ -693,6 +725,7 @@ export async function devolverOrdemServico(
     };
   } catch (error: any) {
     console.error("Erro ao devolver ordem de serviço:", error);
+
     return { data: null, error: error.message || "Erro ao devolver OS" };
   }
 }
@@ -703,7 +736,7 @@ export async function devolverOrdemServico(
 export async function substituirPecaOS(
   idPecaAtual: string,
   novaPeca: OrdemServicoPecaFormData,
-  userId: string
+  userId: string,
 ) {
   try {
     // Garantir que a peça pertença à OS alvo
@@ -719,6 +752,7 @@ export async function substituirPecaOS(
 
     // Remove peça antiga (devolve estoque se aplicável)
     const { error: erroRemocao } = await removerPecaOS(idPecaAtual, userId);
+
     if (erroRemocao) {
       throw new Error(erroRemocao);
     }
@@ -729,7 +763,7 @@ export async function substituirPecaOS(
         ...novaPeca,
         id_ordem_servico: pecaAtual.id_ordem_servico,
       },
-      userId
+      userId,
     );
 
     if (erroAdicionar) {
@@ -739,6 +773,7 @@ export async function substituirPecaOS(
     return { data, error: null };
   } catch (error: any) {
     console.error("Erro ao substituir peça da OS:", error);
+
     return { data: null, error: error.message || "Erro ao substituir peça" };
   }
 }
@@ -762,9 +797,11 @@ export async function deletarOrdemServico(id: string) {
     }
 
     console.log("✅ Ordem de serviço deletada com sucesso!");
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao deletar ordem de serviço:", error);
+
     return { error: error.message || "Erro ao excluir ordem de serviço" };
   }
 }
@@ -784,14 +821,16 @@ export async function buscarPecasOS(idOrdemServico: string) {
         `
         *,
         produto:produtos(id, descricao, marca, categoria, preco_venda)
-      `
+      `,
       )
       .eq("id_ordem_servico", idOrdemServico);
 
     if (error) throw error;
+
     return { data: data as OrdemServicoPeca[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar peças da OS:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -801,7 +840,7 @@ export async function buscarPecasOS(idOrdemServico: string) {
  */
 export async function adicionarPecaOS(
   dados: OrdemServicoPecaFormData,
-  userId: string
+  userId: string,
 ) {
   try {
     // Validações
@@ -843,7 +882,7 @@ export async function adicionarPecaOS(
 
       if (estoqueAtual.quantidade < dados.quantidade) {
         throw new Error(
-          `Estoque insuficiente! Disponível: ${estoqueAtual.quantidade}, Necessário: ${dados.quantidade}`
+          `Estoque insuficiente! Disponível: ${estoqueAtual.quantidade}, Necessário: ${dados.quantidade}`,
         );
       }
 
@@ -909,7 +948,7 @@ export async function adicionarPecaOS(
         `
         *,
         produto:produtos(id, descricao, marca, categoria)
-      `
+      `,
       )
       .single();
 
@@ -918,16 +957,18 @@ export async function adicionarPecaOS(
     // Registrar no histórico da OS
     const tipoProdutoLabel =
       dados.tipo_produto === "estoque" ? "do estoque" : "avulso";
+
     await registrarHistoricoOS(
       dados.id_ordem_servico,
       "adicao_peca",
       `Peça ${tipoProdutoLabel} adicionada: ${descricaoPeca} (${dados.quantidade}x) - R$ ${dados.valor_venda.toFixed(2)}`,
-      userId
+      userId,
     );
 
     return { data: data as OrdemServicoPeca, error: null };
   } catch (error: any) {
     console.error("Erro ao adicionar peça à OS:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1000,12 +1041,13 @@ export async function removerPecaOS(id: string, userId: string) {
       peca.id_ordem_servico,
       "remocao_peca",
       `Peça removida: ${peca.produto?.descricao}`,
-      userId
+      userId,
     );
 
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao remover peça da OS:", error);
+
     return { error: error.message };
   }
 }
@@ -1026,9 +1068,11 @@ export async function buscarHistoricoOS(idOrdemServico: string) {
       .order("criado_em", { ascending: false });
 
     if (error) throw error;
+
     return { data: data as HistoricoOrdemServico[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar histórico da OS:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1040,7 +1084,7 @@ export async function registrarHistoricoOS(
   idOrdemServico: string,
   tipoEvento: string,
   descricao: string,
-  userId: string
+  userId: string,
 ) {
   try {
     // Buscar nome do usuário
@@ -1059,9 +1103,11 @@ export async function registrarHistoricoOS(
     });
 
     if (error) throw error;
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao registrar histórico:", error);
+
     return { error: error.message };
   }
 }
@@ -1080,9 +1126,11 @@ export async function obterEstatisticasOS(idLoja?: number) {
     });
 
     if (error) throw error;
+
     return { data: data[0] as EstatisticasOS, error: null };
   } catch (error: any) {
     console.error("Erro ao obter estatísticas:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1092,7 +1140,7 @@ export async function obterEstatisticasOS(idLoja?: number) {
  */
 export async function buscarOSPorCliente(
   clienteNome?: string,
-  clienteTelefone?: string
+  clienteTelefone?: string,
 ) {
   try {
     let query = supabase
@@ -1101,7 +1149,7 @@ export async function buscarOSPorCliente(
         `
         *,
         loja:lojas!id_loja(id, nome)
-      `
+      `,
       )
       .order("data_entrada", { ascending: false });
 
@@ -1116,9 +1164,11 @@ export async function buscarOSPorCliente(
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data: data as OrdemServico[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar OS por cliente:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1148,7 +1198,7 @@ export async function buscarLancamentosCaixaOS(idLoja?: number) {
           data_entrada,
           data_entrega_cliente
         )
-      `
+      `,
       )
       .order("criado_em", { ascending: false });
 
@@ -1159,9 +1209,11 @@ export async function buscarLancamentosCaixaOS(idLoja?: number) {
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data: data as OrdemServicoCaixa[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar lançamentos do caixa:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1175,7 +1227,7 @@ export async function atualizarLancamentoCaixaOS(
     forma_pagamento?: string;
     parcelas?: number;
     observacoes?: string;
-  }
+  },
 ) {
   try {
     const { data, error } = await supabase
@@ -1186,9 +1238,11 @@ export async function atualizarLancamentoCaixaOS(
       .single();
 
     if (error) throw error;
+
     return { data: data as OrdemServicoCaixa, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar lançamento do caixa:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1224,6 +1278,7 @@ export async function confirmarLancamentoCaixaOS(id: string, userId: string) {
     return { data: data as OrdemServicoCaixa, error: null };
   } catch (error: any) {
     console.error("Erro ao confirmar lançamento do caixa:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -1243,9 +1298,11 @@ export async function cancelarLancamentoCaixaOS(id: string) {
       .single();
 
     if (error) throw error;
+
     return { data: data as OrdemServicoCaixa, error: null };
   } catch (error: any) {
     console.error("Erro ao cancelar lançamento do caixa:", error);
+
     return { data: null, error: error.message };
   }
 }

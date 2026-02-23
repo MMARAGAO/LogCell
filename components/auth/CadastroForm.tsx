@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { cadastrarUsuario } from "@/app/sistema/usuarios/actions";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
+
+import { cadastrarUsuario } from "@/app/sistema/usuarios/actions";
 
 interface CadastroFormProps {
   onSwitchToLogin?: () => void;
@@ -35,31 +36,38 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
     // Validações
     if (!formData.nome || !formData.email || !formData.senha) {
       setError("Nome, email e senha são obrigatórios");
+
       return;
     }
 
     if (formData.senha !== formData.confirmarSenha) {
       setError("As senhas não coincidem");
+
       return;
     }
 
     if (formData.senha.length < 6) {
       setError("A senha deve ter no mínimo 6 caracteres");
+
       return;
     }
 
     // Validação básica de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!emailRegex.test(formData.email)) {
       setError("Email inválido");
+
       return;
     }
 
     // Validação de CPF (se fornecido)
     if (formData.cpf) {
       const cpfLimpo = formData.cpf.replace(/\D/g, "");
+
       if (cpfLimpo.length !== 11) {
         setError("CPF inválido");
+
         return;
       }
     }
@@ -111,6 +119,7 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
 
   const formatCPF = (value: string) => {
     const cpf = value.replace(/\D/g, "");
+
     return cpf
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -119,6 +128,7 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
 
   const formatTelefone = (value: string) => {
     const telefone = value.replace(/\D/g, "");
+
     if (telefone.length <= 10) {
       return telefone
         .replace(/(\d{2})(\d)/, "($1) $2")
@@ -149,10 +159,10 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
               viewBox="0 0 24 24"
             >
               <path
+                d="M5 13l4 4L19 7"
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M5 13l4 4L19 7"
               />
             </svg>
           </div>
@@ -169,66 +179,56 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
 
   return (
     <div className="w-full">
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-4"
-        onKeyDown={handleKeyDown}
-      >
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <Input
-          type="text"
+          isRequired
           label="Nome completo"
           placeholder="Seu nome"
+          type="text"
           value={formData.nome}
-          onChange={(e) => handleChange("nome", e.target.value)}
-          isRequired
           variant="bordered"
+          onChange={(e) => handleChange("nome", e.target.value)}
         />
 
         <Input
-          type="email"
-          label="Email"
-          placeholder="seu@email.com"
-          value={formData.email}
-          onChange={(e) => handleChange("email", e.target.value)}
           isRequired
           autoComplete="email"
+          label="Email"
+          placeholder="seu@email.com"
+          type="email"
+          value={formData.email}
           variant="bordered"
+          onChange={(e) => handleChange("email", e.target.value)}
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            type="text"
             label="Telefone"
+            maxLength={15}
             placeholder="(00) 00000-0000"
+            type="text"
             value={formData.telefone}
+            variant="bordered"
             onChange={(e) =>
               handleChange("telefone", formatTelefone(e.target.value))
             }
-            maxLength={15}
-            variant="bordered"
           />
 
           <Input
-            type="text"
             label="CPF"
-            placeholder="000.000.000-00"
-            value={formData.cpf}
-            onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
             maxLength={14}
+            placeholder="000.000.000-00"
+            type="text"
+            value={formData.cpf}
             variant="bordered"
+            onChange={(e) => handleChange("cpf", formatCPF(e.target.value))}
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            type={showPassword ? "text" : "password"}
-            label="Senha"
-            placeholder="Mínimo 6 caracteres"
-            value={formData.senha}
-            onChange={(e) => handleChange("senha", e.target.value)}
             isRequired
             autoComplete="new-password"
-            variant="bordered"
             endContent={
               <button
                 className="focus:outline-none"
@@ -242,17 +242,17 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
                 )}
               </button>
             }
+            label="Senha"
+            placeholder="Mínimo 6 caracteres"
+            type={showPassword ? "text" : "password"}
+            value={formData.senha}
+            variant="bordered"
+            onChange={(e) => handleChange("senha", e.target.value)}
           />
 
           <Input
-            type={showConfirmPassword ? "text" : "password"}
-            label="Confirmar senha"
-            placeholder="Digite novamente"
-            value={formData.confirmarSenha}
-            onChange={(e) => handleChange("confirmarSenha", e.target.value)}
             isRequired
             autoComplete="new-password"
-            variant="bordered"
             endContent={
               <button
                 className="focus:outline-none"
@@ -266,16 +266,22 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
                 )}
               </button>
             }
+            label="Confirmar senha"
+            placeholder="Digite novamente"
+            type={showConfirmPassword ? "text" : "password"}
+            value={formData.confirmarSenha}
+            variant="bordered"
+            onChange={(e) => handleChange("confirmarSenha", e.target.value)}
           />
         </div>
 
         {error && <div className="text-danger text-sm">{error}</div>}
 
         <Button
-          type="submit"
+          className="w-full"
           color="primary"
           isLoading={loading}
-          className="w-full"
+          type="submit"
         >
           Criar conta
         </Button>
@@ -284,9 +290,9 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
           <div className="text-center text-sm">
             <span className="text-default-500">Já tem uma conta? </span>
             <button
+              className="text-primary hover:underline"
               type="button"
               onClick={onSwitchToLogin}
-              className="text-primary hover:underline"
             >
               Entrar
             </button>

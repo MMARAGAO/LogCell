@@ -9,7 +9,7 @@ const BUCKET_NAME = "fotos-produtos";
 
 // Buscar todas as fotos de um produto
 export async function getFotosProduto(
-  produtoId: string
+  produtoId: string,
 ): Promise<FotoProduto[]> {
   try {
     const { data, error } = await supabase
@@ -29,7 +29,7 @@ export async function getFotosProduto(
 
 // Buscar foto principal de um produto
 export async function getFotoPrincipal(
-  produtoId: string
+  produtoId: string,
 ): Promise<FotoProduto | null> {
   try {
     const { data, error } = await supabase
@@ -56,7 +56,7 @@ export async function uploadFotoProduto(
   produtoId: string,
   file: File,
   usuarioId: string,
-  isPrincipal: boolean = false
+  isPrincipal: boolean = false,
 ): Promise<FotoProduto> {
   try {
     // Gerar nome único para o arquivo
@@ -158,7 +158,7 @@ export async function deletarFotoProduto(fotoId: string): Promise<void> {
 // Definir foto como principal
 export async function definirFotoPrincipal(
   fotoId: string,
-  produtoId: string
+  produtoId: string,
 ): Promise<void> {
   try {
     // Remover flag de principal de todas as fotos do produto
@@ -183,7 +183,7 @@ export async function definirFotoPrincipal(
 // Reordenar fotos
 export async function reordenarFotos(
   produtoId: string,
-  fotosOrdenadas: { id: string; ordem: number }[]
+  fotosOrdenadas: { id: string; ordem: number }[],
 ): Promise<void> {
   try {
     // Atualizar ordem de cada foto
@@ -192,7 +192,7 @@ export async function reordenarFotos(
         .from("fotos_produtos")
         .update({ ordem })
         .eq("id", id)
-        .eq("produto_id", produtoId)
+        .eq("produto_id", produtoId),
     );
 
     await Promise.all(promises);
@@ -204,7 +204,7 @@ export async function reordenarFotos(
 
 // Deletar todas as fotos de um produto
 export async function deletarTodasFotosProduto(
-  produtoId: string
+  produtoId: string,
 ): Promise<void> {
   try {
     // Buscar todas as fotos
@@ -237,13 +237,13 @@ export async function deletarTodasFotosProduto(
 export async function uploadMultiplasFotos(
   produtoId: string,
   files: File[],
-  usuarioId: string
+  usuarioId: string,
 ): Promise<FotoProduto[]> {
   try {
     const fotosUpload = await Promise.all(
       files.map((file, index) =>
-        uploadFotoProduto(produtoId, file, usuarioId, index === 0)
-      )
+        uploadFotoProduto(produtoId, file, usuarioId, index === 0),
+      ),
     );
 
     return fotosUpload;

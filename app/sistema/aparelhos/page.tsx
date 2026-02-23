@@ -39,6 +39,9 @@ import {
   ExclamationTriangleIcon,
   ArrowRightIcon,
   CameraIcon,
+  SparklesIcon,
+  FireIcon,
+  TagIcon,
 } from "@heroicons/react/24/outline";
 import {
   DollarSign,
@@ -49,10 +52,12 @@ import {
   Coins,
   Gauge,
   PiggyBank,
+  PackageX,
+  History,
 } from "lucide-react";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { useToast } from "@/components/Toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { formatarMoeda, formatarData } from "@/lib/formatters";
@@ -65,11 +70,20 @@ import {
 import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { AparelhoFormModal } from "@/components/aparelhos/AparelhoFormModal";
 import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
+import { VendaAparelhoModal } from "@/components/aparelhos/VendaAparelhoModal";
+import { ModalDevolucaoAparelho } from "@/components/aparelhos/ModalDevolucaoAparelho";
+import { HistoricoDevolucoesAparelho } from "@/components/aparelhos/HistoricoDevolucoesAparelho";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import {
   AparelhosDashboardService,
   KpisAparelhos,
 } from "@/services/aparelhosDashboardService";
+import { supabase } from "@/lib/supabaseClient";
+
+interface Loja {
+  id: number;
+  nome: string;
+}
 
 const ESTADOS = [
   { value: "novo", label: "Novo" },
@@ -89,15 +103,19 @@ const STATUS = [
 export default function AparelhosPage() {
   const { usuario } = useAuthContext();
   const { showToast } = useToast();
-  const { lojaId } = useLojaFilter();
-  const { temPermissao } = usePermissoes();
+  const {
+    temPermissao,
+    lojaId,
+    todasLojas,
+    loading: loadingPermissoes,
+  } = usePermissoes();
 
   const [aparelhos, setAparelhos] = useState<Aparelho[]>([]);
   const [fotosAparelhos, setFotosAparelhos] = useState<
     Record<string, FotoAparelho[]>
   >({});
   const [fotoAtualIndex, setFotoAtualIndex] = useState<Record<string, number>>(
-    {}
+    {},
   );
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
@@ -132,33 +150,112 @@ export default function AparelhosPage() {
   const [aparelhoParaReceber, setAparelhoParaReceber] = useState<
     Aparelho | undefined
   >(undefined);
+  const [modalVendaAberto, setModalVendaAberto] = useState(false);
+  const [aparelhoParaVender, setAparelhoParaVender] = useState<
+    Aparelho | undefined
+  >(undefined);
+  const [modalDevolucaoAberto, setModalDevolucaoAberto] = useState(false);
+  const [aparelhoParaDevolucao, setAparelhoParaDevolucao] = useState<
+    Aparelho | undefined
+  >(undefined);
+  const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false);
+  const [aparelhoParaHistorico, setAparelhoParaHistorico] = useState<
+    Aparelho | undefined
+  >(undefined);
   const [scannerAberto, setScannerAberto] = useState(false);
+  const [lojas, setLojas] = useState<Loja[]>([]);
+  const [loadingLojas, setLoadingLojas] = useState(false);
+  const [lojaSelecionada, setLojaSelecionada] = useState<string>("");
 
   // Permissões
   const podeVisualizar = temPermissao("aparelhos.visualizar");
   const podeCriar = temPermissao("aparelhos.criar");
   const podeEditar = temPermissao("aparelhos.editar");
   const podeDeletar = temPermissao("aparelhos.deletar");
+  const podeRegistrarDevolucao = temPermissao("devolucoes.criar");
+  const podeVerHistoricoDevolucao = temPermissao("devolucoes.visualizar");
+  const lojaIdFinal = todasLojas
+    ? lojaSelecionada
+      ? Number(lojaSelecionada)
+      : null
+    : lojaId;
+  const lojaNomeSelecionada =
+    lojas.find((loja) => loja.id === lojaIdFinal)?.nome ||
+    (lojaIdFinal ? `Loja ${lojaIdFinal}` : "");
+
+  useEffect(() => {
+    const carregarLojas = async () => {
+      if (!todasLojas) return;
+      setLoadingLojas(true);
+      try {
+        const { data, error } = await supabase
+          .from("lojas")
+          .select("id, nome")
+          .order("nome");
+
+        if (error) throw error;
+        setLojas(data || []);
+      } catch (error) {
+        console.error("Erro ao carregar lojas:", error);
+        setLojas([]);
+      } finally {
+        setLoadingLojas(false);
+      }
+    };
+
+    carregarLojas();
+  }, [todasLojas]);
+
+  useEffect(() => {
+    if (!todasLojas) return;
+    if (lojaSelecionada) return;
+    if (!lojas.length) return;
+
+    const lojaSalva = localStorage.getItem("aparelhos.lojaSelecionada");
+
+    if (lojaSalva && lojas.some((loja) => loja.id.toString() === lojaSalva)) {
+      setLojaSelecionada(lojaSalva);
+
+      return;
+    }
+
+    if (lojas.length === 1) {
+      setLojaSelecionada(lojas[0].id.toString());
+    }
+  }, [todasLojas, lojas, lojaSelecionada]);
+
+  useEffect(() => {
+    if (!todasLojas) return;
+    if (!lojaSelecionada) return;
+    localStorage.setItem("aparelhos.lojaSelecionada", lojaSelecionada);
+  }, [todasLojas, lojaSelecionada]);
+
+  useEffect(() => {
+    if (!loadingPermissoes && !todasLojas && lojaId) {
+      setLojaSelecionada(lojaId.toString());
+    }
+  }, [loadingPermissoes, todasLojas, lojaId]);
 
   // Carregar aparelhos e produtos
   useEffect(() => {
     if (podeVisualizar) {
       carregarDados();
     }
-  }, [lojaId, podeVisualizar, filtros]);
+  }, [lojaIdFinal, podeVisualizar, filtros]);
 
   useEffect(() => {
     if (podeVisualizar) {
       carregarKpis();
     }
-  }, [lojaId, podeVisualizar]);
+  }, [lojaIdFinal, podeVisualizar]);
 
   async function carregarKpis() {
     try {
       setLoadingKpis(true);
       const k = await AparelhosDashboardService.getKpis({
-        loja_id: lojaId || undefined,
+        loja_id: lojaIdFinal || undefined,
       });
+
       setKpis(k);
     } finally {
       setLoadingKpis(false);
@@ -171,10 +268,11 @@ export default function AparelhosPage() {
 
       const filtrosComLoja: FiltrosAparelhos = {
         ...filtros,
-        loja_id: lojaId || undefined,
+        loja_id: lojaIdFinal || undefined,
       };
 
       const aparelhosData = await getAparelhos(filtrosComLoja);
+
       setAparelhos(aparelhosData);
 
       // Carregar fotos de todos os aparelhos
@@ -185,17 +283,18 @@ export default function AparelhosPage() {
         aparelhosData.map(async (aparelho) => {
           try {
             const fotos = await getFotosAparelho(aparelho.id);
+
             fotosMap[aparelho.id] = fotos;
             indexMap[aparelho.id] = 0;
           } catch (error) {
             console.error(
               `Erro ao carregar fotos do aparelho ${aparelho.id}:`,
-              error
+              error,
             );
             fotosMap[aparelho.id] = [];
             indexMap[aparelho.id] = 0;
           }
-        })
+        }),
       );
 
       setFotosAparelhos(fotosMap);
@@ -211,6 +310,7 @@ export default function AparelhosPage() {
   // Navegar entre fotos do carrossel
   const proximaFoto = (aparelhoId: string) => {
     const fotos = fotosAparelhos[aparelhoId] || [];
+
     if (fotos.length === 0) return;
 
     setFotoAtualIndex((prev) => ({
@@ -221,6 +321,7 @@ export default function AparelhosPage() {
 
   const fotoAnterior = (aparelhoId: string) => {
     const fotos = fotosAparelhos[aparelhoId] || [];
+
     if (fotos.length === 0) return;
 
     setFotoAtualIndex((prev) => ({
@@ -234,6 +335,7 @@ export default function AparelhosPage() {
   const aparelhosFiltrados = aparelhos.filter((aparelho) => {
     if (busca) {
       const buscaLower = busca.toLowerCase();
+
       return (
         aparelho.marca?.toLowerCase().includes(buscaLower) ||
         aparelho.modelo?.toLowerCase().includes(buscaLower) ||
@@ -242,6 +344,7 @@ export default function AparelhosPage() {
         aparelho.cor?.toLowerCase().includes(buscaLower)
       );
     }
+
     return true;
   });
 
@@ -249,16 +352,26 @@ export default function AparelhosPage() {
   const totalPaginas = Math.ceil(aparelhosFiltrados.length / itensPorPagina);
   const aparelhosPaginados = aparelhosFiltrados.slice(
     (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina
+    paginaAtual * itensPorPagina,
   );
 
   // Handlers
   const handleAbrirFormNovo = () => {
+    if (todasLojas && !lojaIdFinal) {
+      showToast("Selecione uma loja antes de cadastrar", "warning");
+
+      return;
+    }
     setAparelhoParaEditar(undefined);
     setModalFormAberto(true);
   };
 
   const handleAbrirFormEditar = (aparelho: Aparelho) => {
+    if (todasLojas && !lojaIdFinal) {
+      showToast("Selecione uma loja antes de editar", "warning");
+
+      return;
+    }
     setAparelhoParaEditar(aparelho);
     setModalFormAberto(true);
   };
@@ -294,27 +407,55 @@ export default function AparelhosPage() {
   const handleAcaoCard = async (key: string, aparelho: Aparelho) => {
     if (key === "editar") {
       handleAbrirFormEditar(aparelho);
+
       return;
     }
     if (key === "deletar") {
       handleAbrirConfirmDelete(aparelho);
+
+      return;
+    }
+    if (key === "vender") {
+      if (todasLojas && !lojaIdFinal) {
+        showToast("Selecione uma loja antes de vender", "warning");
+
+        return;
+      }
+      setAparelhoParaVender(aparelho);
+      setModalVendaAberto(true);
+
       return;
     }
     if (key === "receber_pagamento") {
       setAparelhoParaReceber(aparelho);
       setModalRecebimentoAberto(true);
+
+      return;
+    }
+    if (key === "registrar_devolucao") {
+      setAparelhoParaDevolucao(aparelho);
+      setModalDevolucaoAberto(true);
+
+      return;
+    }
+    if (key === "historico_devolucoes") {
+      setAparelhoParaHistorico(aparelho);
+      setModalHistoricoAberto(true);
+
       return;
     }
     if (key.startsWith("status:")) {
       const novoStatus = key.split(":")[1];
+
       await handleAtualizarStatus(aparelho.id, novoStatus);
+
       return;
     }
   };
 
   const handleAtualizarStatus = async (
     aparelhoId: string,
-    novoStatus: string
+    novoStatus: string,
   ) => {
     if (!usuario) return;
 
@@ -330,11 +471,13 @@ export default function AparelhosPage() {
 
   const getStatusChipColor = (status: string) => {
     const statusObj = STATUS.find((s) => s.value === status);
+
     return statusObj?.color || "default";
   };
 
   const getEstadoLabel = (estado: string) => {
     const estadoObj = ESTADOS.find((e) => e.value === estado);
+
     return estadoObj?.label || estado;
   };
 
@@ -365,15 +508,51 @@ export default function AparelhosPage() {
             </p>
           </div>
         </div>
-        {podeCriar && (
+        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+          {todasLojas ? (
+            <Select
+              className="w-full md:w-56"
+              isDisabled={loadingLojas}
+              label="Loja"
+              placeholder={
+                loadingLojas ? "Carregando lojas..." : "Selecione uma loja"
+              }
+              selectedKeys={lojaSelecionada ? [lojaSelecionada] : []}
+              onChange={(e) => setLojaSelecionada(e.target.value)}
+            >
+              {lojas.map((loja) => (
+                <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
+              ))}
+            </Select>
+          ) : null}
           <Button
             color="primary"
-            startContent={<PlusIcon className="w-5 h-5" />}
-            onPress={handleAbrirFormNovo}
+            startContent={<TrendingUp className="w-5 h-5" />}
+            variant="flat"
+            onPress={() =>
+              (window.location.href = "/sistema/dashboard-aparelhos")
+            }
           >
-            Novo Aparelho
+            Dashboard
           </Button>
-        )}
+          <Button
+            color="secondary"
+            startContent={<DollarSign className="w-5 h-5" />}
+            variant="flat"
+            onPress={() => (window.location.href = "/sistema/caixa-aparelhos")}
+          >
+            Caixa de Aparelhos
+          </Button>
+          {podeCriar && (
+            <Button
+              color="primary"
+              startContent={<PlusIcon className="w-5 h-5" />}
+              onPress={handleAbrirFormNovo}
+            >
+              Novo Aparelho
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* KPIs - Linha 1 */}
@@ -479,57 +658,110 @@ export default function AparelhosPage() {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex gap-2 flex-1">
                 <Input
+                  className="flex-1"
                   placeholder="Buscar por marca, modelo, IMEI, número de série..."
+                  startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
                   value={busca}
                   onValueChange={setBusca}
-                  startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
-                  className="flex-1"
                 />
                 <Button
                   isIconOnly
                   color="primary"
+                  title="Escanear IMEI"
                   variant="flat"
                   onPress={() => setScannerAberto(true)}
-                  title="Escanear IMEI"
                 >
                   <CameraIcon className="w-5 h-5" />
                 </Button>
               </div>
               <Select
+                className="w-full md:w-60"
                 placeholder="Filtrar por estado"
                 selectedKeys={filtros.estado ? [filtros.estado] : []}
+                startContent={<FunnelIcon className="w-4 h-4" />}
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
+
                   setFiltros((prev) => ({
                     ...prev,
                     estado: (value || undefined) as any,
                   }));
                 }}
-                className="w-full md:w-60"
-                startContent={<FunnelIcon className="w-4 h-4" />}
               >
                 {ESTADOS.map((estado) => (
                   <SelectItem key={estado.value}>{estado.label}</SelectItem>
                 ))}
               </Select>
               <Select
+                className="w-full md:w-60"
                 placeholder="Filtrar por status"
                 selectedKeys={filtros.status ? [filtros.status] : []}
+                startContent={<FunnelIcon className="w-4 h-4" />}
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
+
                   setFiltros((prev) => ({
                     ...prev,
                     status: (value || undefined) as any,
                   }));
                 }}
-                className="w-full md:w-60"
-                startContent={<FunnelIcon className="w-4 h-4" />}
               >
                 {STATUS.map((status) => (
                   <SelectItem key={status.value}>{status.label}</SelectItem>
                 ))}
               </Select>
-              {(filtros.estado || filtros.status) && (
+
+              {/* Filtros de Catálogo */}
+              <div className="flex gap-2">
+                <Button
+                  color="danger"
+                  size="sm"
+                  startContent={<TagIcon className="w-4 h-4" />}
+                  variant={filtros.promocao ? "solid" : "bordered"}
+                  onPress={() =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      promocao: filtros.promocao ? undefined : true,
+                    }))
+                  }
+                >
+                  Promoção
+                </Button>
+                <Button
+                  color="success"
+                  size="sm"
+                  startContent={<SparklesIcon className="w-4 h-4" />}
+                  variant={filtros.novidade ? "solid" : "bordered"}
+                  onPress={() =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      novidade: filtros.novidade ? undefined : true,
+                    }))
+                  }
+                >
+                  Novidade
+                </Button>
+                <Button
+                  color="warning"
+                  size="sm"
+                  startContent={<FireIcon className="w-4 h-4" />}
+                  variant={filtros.destaque ? "solid" : "bordered"}
+                  onPress={() =>
+                    setFiltros((prev) => ({
+                      ...prev,
+                      destaque: filtros.destaque ? undefined : true,
+                    }))
+                  }
+                >
+                  Destaque
+                </Button>
+              </div>
+
+              {(filtros.estado ||
+                filtros.status ||
+                filtros.promocao ||
+                filtros.novidade ||
+                filtros.destaque) && (
                 <Button
                   color="default"
                   variant="flat"
@@ -550,20 +782,20 @@ export default function AparelhosPage() {
               </p>
               <div className="flex gap-1 bg-default-100 rounded-lg p-1">
                 <Button
+                  isIconOnly
+                  color={visualizacao === "cards" ? "primary" : "default"}
                   size="sm"
                   variant={visualizacao === "cards" ? "solid" : "light"}
-                  color={visualizacao === "cards" ? "primary" : "default"}
                   onPress={() => setVisualizacao("cards")}
-                  isIconOnly
                 >
                   <Squares2X2Icon className="w-4 h-4" />
                 </Button>
                 <Button
+                  isIconOnly
+                  color={visualizacao === "tabela" ? "primary" : "default"}
                   size="sm"
                   variant={visualizacao === "tabela" ? "solid" : "light"}
-                  color={visualizacao === "tabela" ? "primary" : "default"}
                   onPress={() => setVisualizacao("tabela")}
-                  isIconOnly
                 >
                   <TableCellsIcon className="w-4 h-4" />
                 </Button>
@@ -613,29 +845,68 @@ export default function AparelhosPage() {
                       {fotos.length > 0 ? (
                         <>
                           <img
-                            src={fotoAtual?.url}
                             alt={`${aparelho.marca} ${aparelho.modelo}`}
                             className="w-full h-full object-cover"
+                            src={fotoAtual?.url}
                           />
+
+                          {/* Badges de Catálogo */}
+                          <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                            {aparelho.promocao && (
+                              <Chip
+                                className="font-semibold"
+                                color="danger"
+                                size="sm"
+                                startContent={<TagIcon className="w-3 h-3" />}
+                                variant="solid"
+                              >
+                                PROMOÇÃO
+                              </Chip>
+                            )}
+                            {aparelho.novidade && (
+                              <Chip
+                                className="font-semibold"
+                                color="success"
+                                size="sm"
+                                startContent={
+                                  <SparklesIcon className="w-3 h-3" />
+                                }
+                                variant="solid"
+                              >
+                                NOVO
+                              </Chip>
+                            )}
+                            {aparelho.destaque && (
+                              <Chip
+                                className="font-semibold"
+                                color="warning"
+                                size="sm"
+                                startContent={<FireIcon className="w-3 h-3" />}
+                                variant="solid"
+                              >
+                                DESTAQUE
+                              </Chip>
+                            )}
+                          </div>
 
                           {/* Navegação do carrossel */}
                           {fotos.length > 1 && (
                             <>
                               <button
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   fotoAnterior(aparelho.id);
                                 }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <ChevronLeftIcon className="w-5 h-5" />
                               </button>
                               <button
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   proximaFoto(aparelho.id);
                                 }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <ChevronRightIcon className="w-5 h-5" />
                               </button>
@@ -701,6 +972,43 @@ export default function AparelhosPage() {
                                 >
                                   Editar
                                 </DropdownItem>
+                                {aparelho.status === "disponivel" ? (
+                                  <DropdownItem
+                                    key="vender"
+                                    className="text-success"
+                                    color="success"
+                                    isDisabled={todasLojas && !lojaIdFinal}
+                                    startContent={
+                                      <ShoppingBagIcon className="w-4 h-4" />
+                                    }
+                                    onPress={() =>
+                                      handleAcaoCard("vender", aparelho)
+                                    }
+                                  >
+                                    Vender Aparelho
+                                  </DropdownItem>
+                                ) : null}
+                                {podeRegistrarDevolucao &&
+                                aparelho.status === "vendido" ? (
+                                  <DropdownItem
+                                    key="registrar_devolucao"
+                                    startContent={
+                                      <PackageX className="w-4 h-4" />
+                                    }
+                                  >
+                                    Registrar Devolucao / Troca / Garantia
+                                  </DropdownItem>
+                                ) : null}
+                                {podeVerHistoricoDevolucao ? (
+                                  <DropdownItem
+                                    key="historico_devolucoes"
+                                    startContent={
+                                      <History className="w-4 h-4" />
+                                    }
+                                  >
+                                    Historico de Devolucoes
+                                  </DropdownItem>
+                                ) : null}
                                 <DropdownItem
                                   key="deletar"
                                   className="text-danger"
@@ -731,15 +1039,6 @@ export default function AparelhosPage() {
                                   Marcar como Reservado
                                 </DropdownItem>
                                 <DropdownItem
-                                  key="status:vendido"
-                                  isDisabled={aparelho.status === "vendido"}
-                                  startContent={
-                                    <ShoppingBagIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Marcar como Vendido
-                                </DropdownItem>
-                                <DropdownItem
                                   key="status:defeito"
                                   isDisabled={aparelho.status === "defeito"}
                                   startContent={
@@ -760,10 +1059,10 @@ export default function AparelhosPage() {
                                 {aparelho.status === "vendido" ? (
                                   <DropdownItem
                                     key="receber_pagamento"
+                                    color="success"
                                     startContent={
                                       <DollarSign className="w-4 h-4" />
                                     }
-                                    color="success"
                                   >
                                     Receber Pagamento
                                   </DropdownItem>
@@ -783,12 +1082,12 @@ export default function AparelhosPage() {
                       {(aparelho.armazenamento || aparelho.memoria_ram) && (
                         <div className="flex gap-2 text-xs">
                           {aparelho.armazenamento && (
-                            <Chip size="sm" variant="flat" color="primary">
+                            <Chip color="primary" size="sm" variant="flat">
                               {aparelho.armazenamento}
                             </Chip>
                           )}
                           {aparelho.memoria_ram && (
-                            <Chip size="sm" variant="flat" color="secondary">
+                            <Chip color="secondary" size="sm" variant="flat">
                               {aparelho.memoria_ram}
                             </Chip>
                           )}
@@ -809,8 +1108,8 @@ export default function AparelhosPage() {
                           {getEstadoLabel(aparelho.estado)}
                         </Chip>
                         <Chip
-                          size="sm"
                           color={getStatusChipColor(aparelho.status) as any}
+                          size="sm"
                           variant="flat"
                         >
                           {
@@ -826,6 +1125,29 @@ export default function AparelhosPage() {
                           IMEI: {aparelho.imei}
                         </p>
                       )}
+
+                      {/* Saúde da Bateria */}
+                      {aparelho.saude_bateria !== null &&
+                        aparelho.saude_bateria !== undefined && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-default-500">
+                              Bateria:
+                            </span>
+                            <Chip
+                              color={
+                                aparelho.saude_bateria >= 90
+                                  ? "success"
+                                  : aparelho.saude_bateria >= 70
+                                    ? "warning"
+                                    : "danger"
+                              }
+                              size="sm"
+                              variant="flat"
+                            >
+                              {aparelho.saude_bateria}%
+                            </Chip>
+                          </div>
+                        )}
 
                       {/* Valores */}
                       <div className="pt-2 border-t border-default-200">
@@ -845,23 +1167,23 @@ export default function AparelhosPage() {
                       <div className="flex gap-2 pt-2">
                         {podeEditar && (
                           <Button
-                            size="sm"
+                            className="flex-1"
                             color="primary"
+                            size="sm"
+                            startContent={<PencilIcon className="w-4 h-4" />}
                             variant="flat"
                             onPress={() => handleAbrirFormEditar(aparelho)}
-                            className="flex-1"
-                            startContent={<PencilIcon className="w-4 h-4" />}
                           >
                             Editar
                           </Button>
                         )}
                         {podeDeletar && aparelho.status !== "vendido" && (
                           <Button
-                            size="sm"
+                            isIconOnly
                             color="danger"
+                            size="sm"
                             variant="flat"
                             onPress={() => handleAbrirConfirmDelete(aparelho)}
-                            isIconOnly
                           >
                             <TrashIcon className="w-4 h-4" />
                           </Button>
@@ -885,8 +1207,8 @@ export default function AparelhosPage() {
                   <div className="flex w-full justify-center">
                     <Pagination
                       showControls
-                      total={totalPaginas}
                       page={paginaAtual}
+                      total={totalPaginas}
                       onChange={setPaginaAtual}
                     />
                   </div>
@@ -898,6 +1220,7 @@ export default function AparelhosPage() {
                 <TableColumn>ARMAZENAMENTO</TableColumn>
                 <TableColumn>IMEI</TableColumn>
                 <TableColumn>COR</TableColumn>
+                <TableColumn>BATERIA</TableColumn>
                 <TableColumn>ESTADO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>VALOR VENDA</TableColumn>
@@ -905,14 +1228,31 @@ export default function AparelhosPage() {
                 <TableColumn>AÇÕES</TableColumn>
               </TableHeader>
               <TableBody
-                isLoading={loading}
                 emptyContent="Nenhum aparelho encontrado"
+                isLoading={loading}
               >
                 {aparelhosPaginados.map((aparelho) => (
                   <TableRow key={aparelho.id}>
                     <TableCell>
-                      <div>
-                        <p className="font-medium">{aparelho.marca}</p>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{aparelho.marca}</p>
+                          {aparelho.promocao && (
+                            <Chip color="danger" size="sm" variant="flat">
+                              Promoção
+                            </Chip>
+                          )}
+                          {aparelho.novidade && (
+                            <Chip color="success" size="sm" variant="flat">
+                              Novo
+                            </Chip>
+                          )}
+                          {aparelho.destaque && (
+                            <Chip color="warning" size="sm" variant="flat">
+                              Destaque
+                            </Chip>
+                          )}
+                        </div>
                         <p className="text-xs text-default-500">
                           {aparelho.modelo}
                         </p>
@@ -942,6 +1282,26 @@ export default function AparelhosPage() {
                     </TableCell>
                     <TableCell>{aparelho.cor || "-"}</TableCell>
                     <TableCell>
+                      {aparelho.saude_bateria !== null &&
+                      aparelho.saude_bateria !== undefined ? (
+                        <Chip
+                          color={
+                            aparelho.saude_bateria >= 90
+                              ? "success"
+                              : aparelho.saude_bateria >= 70
+                                ? "warning"
+                                : "danger"
+                          }
+                          size="sm"
+                          variant="flat"
+                        >
+                          {aparelho.saude_bateria}%
+                        </Chip>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Chip size="sm" variant="flat">
                         {getEstadoLabel(aparelho.estado)}
                       </Chip>
@@ -950,10 +1310,10 @@ export default function AparelhosPage() {
                       <Dropdown>
                         <DropdownTrigger>
                           <Chip
-                            size="sm"
-                            color={getStatusChipColor(aparelho.status) as any}
-                            variant="flat"
                             className="cursor-pointer"
+                            color={getStatusChipColor(aparelho.status) as any}
+                            size="sm"
+                            variant="flat"
                           >
                             {STATUS.find((s) => s.value === aparelho.status)
                               ?.label || aparelho.status}
@@ -965,7 +1325,9 @@ export default function AparelhosPage() {
                             handleAtualizarStatus(aparelho.id, key as string)
                           }
                         >
-                          {STATUS.map((status) => (
+                          {STATUS.filter(
+                            (status) => status.value !== "vendido",
+                          ).map((status) => (
                             <DropdownItem key={status.value}>
                               {status.label}
                             </DropdownItem>
@@ -984,21 +1346,56 @@ export default function AparelhosPage() {
                         <DropdownTrigger>
                           <Button
                             isIconOnly
+                            aria-label="Ações"
                             size="sm"
                             variant="light"
-                            aria-label="Ações"
                           >
                             <EllipsisVerticalIcon className="w-5 h-5" />
                           </Button>
                         </DropdownTrigger>
-                        <DropdownMenu aria-label="Ações do aparelho">
+                        <DropdownMenu
+                          aria-label="Ações do aparelho"
+                          onAction={(key) =>
+                            handleAcaoCard(key as string, aparelho)
+                          }
+                        >
                           {podeEditar ? (
                             <DropdownItem
                               key="editar"
                               startContent={<PencilIcon className="w-4 h-4" />}
-                              onPress={() => handleAbrirFormEditar(aparelho)}
                             >
                               Editar
+                            </DropdownItem>
+                          ) : null}
+                          {aparelho.status === "disponivel" ? (
+                            <DropdownItem
+                              key="vender"
+                              className="text-success"
+                              color="success"
+                              isDisabled={todasLojas && !lojaIdFinal}
+                              startContent={
+                                <ShoppingBagIcon className="w-4 h-4" />
+                              }
+                              onPress={() => handleAcaoCard("vender", aparelho)}
+                            >
+                              Vender Aparelho
+                            </DropdownItem>
+                          ) : null}
+                          {podeRegistrarDevolucao &&
+                          aparelho.status === "vendido" ? (
+                            <DropdownItem
+                              key="registrar_devolucao"
+                              startContent={<PackageX className="w-4 h-4" />}
+                            >
+                              Registrar Devolucao / Troca / Garantia
+                            </DropdownItem>
+                          ) : null}
+                          {podeVerHistoricoDevolucao ? (
+                            <DropdownItem
+                              key="historico_devolucoes"
+                              startContent={<History className="w-4 h-4" />}
+                            >
+                              Historico de Devolucoes
                             </DropdownItem>
                           ) : null}
                           {podeDeletar && aparelho.status !== "vendido" ? (
@@ -1007,9 +1404,51 @@ export default function AparelhosPage() {
                               className="text-danger"
                               color="danger"
                               startContent={<TrashIcon className="w-4 h-4" />}
-                              onPress={() => handleAbrirConfirmDelete(aparelho)}
                             >
                               Deletar
+                            </DropdownItem>
+                          ) : null}
+                          <DropdownItem
+                            key="status:disponivel"
+                            isDisabled={aparelho.status === "disponivel"}
+                            startContent={
+                              <CheckCircleIcon className="w-4 h-4" />
+                            }
+                          >
+                            Marcar como Disponivel
+                          </DropdownItem>
+                          <DropdownItem
+                            key="status:reservado"
+                            isDisabled={aparelho.status === "reservado"}
+                            startContent={<ClockIcon className="w-4 h-4" />}
+                          >
+                            Marcar como Reservado
+                          </DropdownItem>
+                          <DropdownItem
+                            key="status:defeito"
+                            isDisabled={aparelho.status === "defeito"}
+                            startContent={
+                              <ExclamationTriangleIcon className="w-4 h-4" />
+                            }
+                          >
+                            Marcar como Defeito
+                          </DropdownItem>
+                          <DropdownItem
+                            key="status:transferido"
+                            isDisabled={aparelho.status === "transferido"}
+                            startContent={
+                              <ArrowRightIcon className="w-4 h-4" />
+                            }
+                          >
+                            Marcar como Transferido
+                          </DropdownItem>
+                          {aparelho.status === "vendido" ? (
+                            <DropdownItem
+                              key="receber_pagamento"
+                              color="success"
+                              startContent={<DollarSign className="w-4 h-4" />}
+                            >
+                              Receber Pagamento
                             </DropdownItem>
                           ) : null}
                         </DropdownMenu>
@@ -1027,10 +1466,10 @@ export default function AparelhosPage() {
       {totalPaginas > 1 && (
         <div className="flex justify-center">
           <Pagination
-            total={totalPaginas}
-            page={paginaAtual}
-            onChange={setPaginaAtual}
             showControls
+            page={paginaAtual}
+            total={totalPaginas}
+            onChange={setPaginaAtual}
           />
         </div>
       )}
@@ -1039,30 +1478,31 @@ export default function AparelhosPage() {
       {modalFormAberto && (
         <AparelhoFormModal
           aparelho={aparelhoParaEditar}
-          lojaId={lojaId || 1}
+          lojaId={lojaIdFinal || 1}
+          lojaNome={lojaNomeSelecionada}
           onClose={handleFecharForm}
         />
       )}
 
       {modalDeleteAberto && aparelhoParaDeletar && (
         <ConfirmModal
+          confirmColor="danger"
+          confirmText="Deletar"
           isOpen={modalDeleteAberto}
+          message={`Tem certeza que deseja deletar o aparelho ${aparelhoParaDeletar.marca} ${aparelhoParaDeletar.modelo} - ${aparelhoParaDeletar.imei || aparelhoParaDeletar.numero_serie}?`}
+          title="Confirmar Exclusão"
           onClose={() => {
             setModalDeleteAberto(false);
             setAparelhoParaDeletar(undefined);
           }}
           onConfirm={handleDeletar}
-          title="Confirmar Exclusão"
-          message={`Tem certeza que deseja deletar o aparelho ${aparelhoParaDeletar.marca} ${aparelhoParaDeletar.modelo} - ${aparelhoParaDeletar.imei || aparelhoParaDeletar.numero_serie}?`}
-          confirmText="Deletar"
-          confirmColor="danger"
         />
       )}
 
       {modalRecebimentoAberto && aparelhoParaReceber && (
         <RecebimentoAparelhoModal
-          isOpen={modalRecebimentoAberto}
           aparelho={aparelhoParaReceber}
+          isOpen={modalRecebimentoAberto}
           onClose={async (sucesso) => {
             setModalRecebimentoAberto(false);
             setAparelhoParaReceber(undefined);
@@ -1074,14 +1514,61 @@ export default function AparelhosPage() {
         />
       )}
 
+      {modalVendaAberto && aparelhoParaVender && (
+        <VendaAparelhoModal
+          aparelho={aparelhoParaVender}
+          isOpen={modalVendaAberto}
+          lojaId={lojaIdFinal || 1}
+          lojaNome={lojaNomeSelecionada}
+          onClose={async (sucesso) => {
+            setModalVendaAberto(false);
+            setAparelhoParaVender(undefined);
+            if (sucesso) {
+              await carregarDados();
+              await carregarKpis();
+            }
+          }}
+        />
+      )}
+
+      {modalDevolucaoAberto && aparelhoParaDevolucao && (
+        <ModalDevolucaoAparelho
+          aparelho={aparelhoParaDevolucao}
+          isOpen={modalDevolucaoAberto}
+          lojaId={lojaIdFinal || 1}
+          lojaNome={lojaNomeSelecionada}
+          onClose={() => {
+            setModalDevolucaoAberto(false);
+            setAparelhoParaDevolucao(undefined);
+          }}
+          onSuccess={async () => {
+            setModalDevolucaoAberto(false);
+            setAparelhoParaDevolucao(undefined);
+            await carregarDados();
+            await carregarKpis();
+          }}
+        />
+      )}
+
+      {modalHistoricoAberto && aparelhoParaHistorico && (
+        <HistoricoDevolucoesAparelho
+          aparelhoId={aparelhoParaHistorico.id}
+          isOpen={modalHistoricoAberto}
+          onClose={() => {
+            setModalHistoricoAberto(false);
+            setAparelhoParaHistorico(undefined);
+          }}
+        />
+      )}
+
       <BarcodeScanner
         isOpen={scannerAberto}
+        title="Escanear IMEI do Aparelho"
         onClose={() => setScannerAberto(false)}
         onScan={(imei) => {
           setBusca(imei);
           setScannerAberto(false);
         }}
-        title="Escanear IMEI do Aparelho"
       />
     </div>
   );

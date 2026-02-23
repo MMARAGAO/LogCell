@@ -1,12 +1,13 @@
 "use client";
 
+import type { Permissao, PerfilUsuario } from "@/types/permissoes";
+
 import { useMemo, useEffect, useState } from "react";
+
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoesRealtime } from "@/contexts/PermissoesRealtimeContext";
 import { supabase } from "@/lib/supabaseClient";
-import type { Permissao, PerfilUsuario } from "@/types/permissoes";
 import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
-import { toast } from "sonner";
 
 export function usePermissoes() {
   const { usuario } = useAuthContext();
@@ -25,6 +26,7 @@ export function usePermissoes() {
     // Verificar se é admin pelo email ou flag específica
     // IMPORTANTE: Se usuário tem loja_id configurado, NÃO é admin global
     const emailsAdmin = ["admin@logcell.com"];
+
     if (usuario.email && emailsAdmin.includes(usuario.email.toLowerCase())) {
       return "admin";
     }
@@ -70,6 +72,7 @@ export function usePermissoes() {
   useEffect(() => {
     if (!usuario?.id) {
       setLoading(false);
+
       return;
     }
 
@@ -180,23 +183,27 @@ export function usePermissoes() {
   // Verificar se tem uma permissão específica
   const temPermissao = (permissao: Permissao): boolean => {
     if (!usuario) return false;
+
     return permissoes.includes(permissao);
   };
 
   // Verificar se tem TODAS as permissões listadas
   const temTodasPermissoes = (permissoesRequeridas: Permissao[]): boolean => {
     if (!usuario) return false;
+
     return permissoesRequeridas.every((p) => permissoes.includes(p));
   };
 
   // Verificar se tem ALGUMA das permissões listadas
   const temAlgumaPermissao = (permissoesRequeridas: Permissao[]): boolean => {
     if (!usuario) return false;
+
     return permissoesRequeridas.some((p) => permissoes.includes(p));
   };
 
   // Verificar se é admin
   const isAdmin = perfil === "admin";
+
   console.log(
     "👤 [PERFIL] Usuário:",
     usuario?.email,
@@ -228,6 +235,7 @@ export function usePermissoes() {
       return data.permissoes.vendas.desconto_maximo;
     } catch (err) {
       console.error("Erro ao buscar desconto máximo:", err);
+
       return perfil === "admin" ? 100 : 0;
     }
   };
@@ -237,6 +245,7 @@ export function usePermissoes() {
     percentualDesconto: number,
   ): Promise<boolean> => {
     const descontoMaximo = await getDescontoMaximo();
+
     return percentualDesconto <= descontoMaximo;
   };
 
@@ -247,6 +256,7 @@ export function usePermissoes() {
     if (perfil === "admin") return true;
     // Se tem acesso a todas as lojas
     if (todasLojas) return true;
+
     // Verificar se é a loja específica do usuário
     return lojaId === lojaIdVerificar;
   };

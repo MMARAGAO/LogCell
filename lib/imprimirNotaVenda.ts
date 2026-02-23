@@ -1,5 +1,7 @@
-import jsPDF from "jspdf";
 import type { VendaCompleta } from "@/types/vendas";
+
+import jsPDF from "jspdf";
+
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 // Função principal que gera o PDF
@@ -28,6 +30,7 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
     doc.setFontSize(fontSize);
     const textWidth = doc.getTextWidth(text);
     const x = (pageWidth - textWidth) / 2;
+
     doc.text(text, x, y);
   };
 
@@ -41,6 +44,7 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
   const rightText = (text: string, y: number, fontSize = 8) => {
     doc.setFontSize(fontSize);
     const textWidth = doc.getTextWidth(text);
+
     // Espaço ainda maior entre texto e valor
     doc.text(text, pageWidth - textWidth - 25, y);
   };
@@ -52,63 +56,66 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 
   // Nome da loja
   centerText(venda.loja?.nome || "LOJA", yPosition, 12);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight + 2;
 
   // Linha separadora
   addLine(yPosition);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
 
   // Informações da venda
   leftText(`VENDA #${venda.numero_venda}`, yPosition, 10);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
 
-  leftText(`Data: ${new Date(venda.criado_em).toLocaleString("pt-BR")}`, yPosition);
-    checkPageBreak();
+  leftText(
+    `Data: ${new Date(venda.criado_em).toLocaleString("pt-BR")}`,
+    yPosition,
+  );
+  checkPageBreak();
   yPosition += lineHeight;
 
   if (venda.cliente) {
-      checkPageBreak();
+    checkPageBreak();
     leftText(`Cliente: ${venda.cliente.nome}`, yPosition);
     yPosition += lineHeight;
     if (venda.cliente.doc) {
-        checkPageBreak();
+      checkPageBreak();
       leftText(`DOC: ${venda.cliente.doc}`, yPosition);
       yPosition += lineHeight;
     }
   }
 
   if (venda.vendedor) {
-      checkPageBreak();
+    checkPageBreak();
     leftText(`Vendedor: ${venda.vendedor.nome}`, yPosition);
     yPosition += lineHeight;
   }
 
   // Linha separadora
   yPosition += 2;
-    checkPageBreak();
+  checkPageBreak();
   addLine(yPosition);
   yPosition += lineHeight;
 
   // Cabeçalho dos itens
   leftText("PRODUTO", yPosition, 9);
   rightText("VALOR", yPosition, 9);
-    checkPageBreak();
-    checkPageBreak();
+  checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
   addLine(yPosition);
   yPosition += lineHeight;
 
   // Itens da venda
   venda.itens?.forEach((item) => {
-      checkPageBreak();
+    checkPageBreak();
     // Nome do produto
     const nomeMaxWidth = 60;
     const nomeProduto = item.produto_nome || "Produto";
     const nomeSplitted = doc.splitTextToSize(nomeProduto, nomeMaxWidth);
-    
+
     nomeSplitted.forEach((linha: string) => {
       checkPageBreak();
       leftText(linha, yPosition, 8);
@@ -116,12 +123,16 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
     });
 
     // Valor, quantidade e subtotal embaixo
-    leftText(`  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)} = ${formatarMoeda(item.subtotal)}`, yPosition, 8);
+    leftText(
+      `  ${item.quantidade}x ${formatarMoeda(item.preco_unitario)} = ${formatarMoeda(item.subtotal)}`,
+      yPosition,
+      8,
+    );
     yPosition += lineHeight;
 
     // Desconto do item, se houver
     if (item.valor_desconto && item.valor_desconto > 0) {
-        checkPageBreak();
+      checkPageBreak();
       leftText(`  Desconto`, yPosition, 8);
       rightText(`-${formatarMoeda(item.valor_desconto)}`, yPosition, 8);
       yPosition += lineHeight;
@@ -137,9 +148,13 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 
   // Totais
   if (venda.valor_desconto && venda.valor_desconto > 0) {
-      checkPageBreak();
+    checkPageBreak();
     leftText("Subtotal:", yPosition, 9);
-    rightText(formatarMoeda(venda.valor_total + venda.valor_desconto), yPosition, 9);
+    rightText(
+      formatarMoeda(venda.valor_total + venda.valor_desconto),
+      yPosition,
+      9,
+    );
     yPosition += lineHeight;
 
     leftText("Desconto:", yPosition, 9);
@@ -151,8 +166,8 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
   leftText("TOTAL:", yPosition, 11);
   rightText(formatarMoeda(venda.valor_total), yPosition, 11);
   doc.setFont("helvetica", "normal");
-    checkPageBreak();
-    checkPageBreak();
+  checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight + 2;
 
   // Linha separadora
@@ -161,13 +176,15 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 
   // Pagamentos
   leftText("PAGAMENTOS:", yPosition, 9);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
 
   const pagamentos = venda.pagamentos || [];
+
   pagamentos.forEach((pag: any) => {
-      checkPageBreak();
+    checkPageBreak();
     const formaPagamento = formatarFormaPagamento(pag.tipo_pagamento);
+
     leftText(`  ${formaPagamento}`, yPosition, 8);
     rightText(formatarMoeda(pag.valor), yPosition, 8);
     yPosition += lineHeight;
@@ -176,15 +193,15 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
   yPosition += 2;
   leftText("Valor Pago:", yPosition, 9);
   rightText(formatarMoeda(venda.valor_pago), yPosition, 9);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
 
   if (venda.saldo_devedor > 0) {
     doc.setFont("helvetica", "bold");
     leftText("Saldo Devedor:", yPosition, 9);
     rightText(formatarMoeda(venda.saldo_devedor), yPosition, 9);
-      checkPageBreak();
-      checkPageBreak();
+    checkPageBreak();
+    checkPageBreak();
     doc.setFont("helvetica", "normal");
     yPosition += lineHeight;
   }
@@ -196,7 +213,7 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 
   // Mensagem final
   centerText("Obrigado pela preferência!", yPosition, 9);
-    checkPageBreak();
+  checkPageBreak();
   yPosition += lineHeight;
   centerText("Volte sempre!", yPosition, 8);
   checkPageBreak();
@@ -208,14 +225,16 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 // Função para salvar PDF
 export function salvarPDFNota(venda: VendaCompleta) {
   const doc = gerarPDFNota(venda);
+
   abrirPreviewPDF(doc, `venda_${venda.numero_venda}.pdf`);
 }
 
 // Função para imprimir PDF
 export function imprimirNotaVenda(venda: VendaCompleta) {
   const doc = gerarPDFNota(venda);
+
   doc.autoPrint();
-  window.open(doc.output('bloburl'), '_blank');
+  window.open(doc.output("bloburl"), "_blank");
 }
 
 function formatarMoeda(valor: number): string {
@@ -235,5 +254,6 @@ function formatarFormaPagamento(forma: string): string {
     boleto: "Boleto",
     credito_cliente: "Crédito do Cliente",
   };
+
   return formas[forma] || forma;
 }

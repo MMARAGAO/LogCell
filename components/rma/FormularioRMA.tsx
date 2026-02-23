@@ -31,6 +31,7 @@ import {
   AlertCircle,
   Trash2,
 } from "lucide-react";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { CarrosselFotos, CarrosselFoto } from "@/components/CarrosselFotos";
@@ -42,7 +43,6 @@ import {
   NovoRMA,
   LABELS_TIPO_ORIGEM,
   LABELS_TIPO_RMA,
-  LABELS_STATUS_RMA,
 } from "@/types/rma";
 
 interface FormularioRMAProps {
@@ -185,7 +185,7 @@ export default function FormularioRMA({
   const carregarProdutosComEstoque = async (
     lojaIdSelecionada: number,
     pagina: number = 1,
-    termoBusca: string = ""
+    termoBusca: string = "",
   ) => {
     setLoadingProdutos(true);
     try {
@@ -214,19 +214,20 @@ export default function FormularioRMA({
               preco_venda,
               codigo_fabricante
             )
-          `
+          `,
           )
           .eq("id_loja", lojaIdSelecionada)
           .gt("quantidade", 0)
           .range(
             paginaBusca * tamanhoPagina,
-            (paginaBusca + 1) * tamanhoPagina - 1
+            (paginaBusca + 1) * tamanhoPagina - 1,
           );
 
         if (error) {
           console.error("Erro ao carregar produtos:", error);
           setProdutos([]);
           setTotalProdutos(0);
+
           return;
         }
 
@@ -273,12 +274,13 @@ export default function FormularioRMA({
             .toLowerCase();
 
           return palavrasBusca.every((palavra) =>
-            textoPesquisavel.includes(palavra)
+            textoPesquisavel.includes(palavra),
           );
         });
       }
 
       const totalFiltrados = produtosComEstoque.length;
+
       setTotalProdutos(totalFiltrados);
 
       // Aplicar paginação
@@ -392,42 +394,53 @@ export default function FormularioRMA({
       case 1:
         if (!lojaId) {
           setErro("Selecione uma loja");
+
           return false;
         }
         if (!tipoOrigem) {
           setErro("Selecione o tipo de origem do RMA");
+
           return false;
         }
         if (tipoOrigem === "cliente" && !clienteId) {
           setErro("Selecione um cliente");
+
           return false;
         }
         if (tipoOrigem === "interno_fornecedor" && !fornecedorId) {
           setErro("Selecione um fornecedor");
+
           return false;
         }
+
         return true;
 
       case 2:
         if (!produtoId) {
           setErro("Selecione um produto");
+
           return false;
         }
         if (quantidade < 1) {
           setErro("A quantidade deve ser maior que zero");
+
           return false;
         }
+
         return true;
 
       case 3:
         if (!tipoRMA) {
           setErro("Selecione o tipo de RMA");
+
           return false;
         }
         if (!motivo.trim()) {
           setErro("Informe o motivo da RMA");
+
           return false;
         }
+
         return true;
 
       case 4:
@@ -458,20 +471,24 @@ export default function FormularioRMA({
       for (const arquivo of arquivos) {
         if (arquivo.size > 5 * 1024 * 1024) {
           setErro(`Arquivo ${arquivo.name} excede 5MB`);
+
           return;
         }
         if (!["image/jpeg", "image/jpg", "image/png"].includes(arquivo.type)) {
           setErro(`Formato do arquivo ${arquivo.name} não suportado`);
+
           return;
         }
       }
 
       const novasFotos = [...fotos, ...arquivos];
+
       setFotos(novasFotos);
 
       // Criar previews das novas fotos
       arquivos.forEach((arquivo, index) => {
         const reader = new FileReader();
+
         reader.onloadend = () => {
           setFotosPreview((prev) => [
             ...prev,
@@ -499,11 +516,13 @@ export default function FormularioRMA({
 
     if (!usuario) {
       setErro("Usuário não autenticado");
+
       return;
     }
 
     if (!lojaId) {
       setErro("Loja não selecionada");
+
       return;
     }
 
@@ -543,11 +562,11 @@ export default function FormularioRMA({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="5xl"
-      scrollBehavior="outside"
       isDismissable={!loading}
+      isOpen={isOpen}
+      scrollBehavior="outside"
+      size="5xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -597,7 +616,7 @@ export default function FormularioRMA({
                 );
               })}
             </div>
-            <Progress value={progresso} color="primary" className="mt-2" />
+            <Progress className="mt-2" color="primary" value={progresso} />
           </div>
 
           {/* Mensagem de Erro */}
@@ -614,14 +633,14 @@ export default function FormularioRMA({
           {etapaAtual === 1 && (
             <div className="space-y-4">
               <Select
+                isRequired
+                description="Loja onde o produto está localizado"
                 label="Loja de Origem"
                 placeholder="Selecione a loja"
                 selectedKeys={lojaId ? [String(lojaId)] : []}
                 onChange={(e) =>
                   setLojaId(e.target.value ? parseInt(e.target.value) : null)
                 }
-                isRequired
-                description="Loja onde o produto está localizado"
               >
                 {lojas.map((loja) => (
                   <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
@@ -629,12 +648,12 @@ export default function FormularioRMA({
               </Select>
 
               <Select
+                isRequired
+                description="Defina se é um RMA interno/fornecedor ou de cliente"
                 label="Tipo de Origem"
                 placeholder="Selecione o tipo"
                 selectedKeys={tipoOrigem ? [tipoOrigem] : []}
                 onChange={(e) => setTipoOrigem(e.target.value as TipoOrigemRMA)}
-                isRequired
-                description="Defina se é um RMA interno/fornecedor ou de cliente"
               >
                 {Object.entries(LABELS_TIPO_ORIGEM).map(([valor, label]) => (
                   <SelectItem key={valor}>{label}</SelectItem>
@@ -643,14 +662,14 @@ export default function FormularioRMA({
 
               {tipoOrigem === "cliente" && (
                 <Autocomplete
+                  isRequired
+                  allowsCustomValue={false}
+                  defaultItems={clientes}
+                  description="Cliente que está devolvendo o produto"
                   label="Cliente"
                   placeholder="Digite para buscar..."
                   selectedKey={clienteId}
                   onSelectionChange={(key) => setClienteId(key as string)}
-                  isRequired
-                  description="Cliente que está devolvendo o produto"
-                  allowsCustomValue={false}
-                  defaultItems={clientes}
                 >
                   {(cliente) => (
                     <AutocompleteItem
@@ -672,11 +691,11 @@ export default function FormularioRMA({
 
               {tipoOrigem === "interno_fornecedor" && (
                 <Select
+                  description="Fornecedor do produto (opcional)"
                   label="Fornecedor"
                   placeholder="Selecione o fornecedor"
                   selectedKeys={fornecedorId ? [fornecedorId] : []}
                   onChange={(e) => setFornecedorId(e.target.value)}
-                  description="Fornecedor do produto (opcional)"
                 >
                   {fornecedores.map((fornecedor) => (
                     <SelectItem key={fornecedor.id}>
@@ -703,14 +722,11 @@ export default function FormularioRMA({
               ) : (
                 <>
                   <Input
-                    type="text"
+                    ref={inputBuscaRef}
+                    isClearable
+                    description={`${totalProdutos} produto(s) encontrado(s) - Digite palavras-chave separadas por espaço`}
                     label="Buscar Produto"
                     placeholder="Ex: bat ip 11 (busca: bateria iphone 11)"
-                    ref={inputBuscaRef}
-                    value={buscaProduto}
-                    onChange={(e) => setBuscaProduto(e.target.value)}
-                    onFocus={() => setManterFoco(true)}
-                    description={`${totalProdutos} produto(s) encontrado(s) - Digite palavras-chave separadas por espaço`}
                     startContent={
                       loadingProdutos ? (
                         <div className="animate-spin">
@@ -720,14 +736,17 @@ export default function FormularioRMA({
                         <Package className="w-4 h-4 text-gray-400" />
                       )
                     }
-                    isClearable
+                    type="text"
+                    value={buscaProduto}
+                    onChange={(e) => setBuscaProduto(e.target.value)}
                     onClear={() => setBuscaProduto("")}
+                    onFocus={() => setManterFoco(true)}
                   />
 
                   <div className="space-y-3">
                     {loadingProdutos ? (
                       <div className="flex justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                       </div>
                     ) : produtos.length === 0 ? (
                       <Card className="bg-gray-50">
@@ -751,8 +770,8 @@ export default function FormularioRMA({
                             return (
                               <Card
                                 key={produto.id}
-                                isPressable
                                 isHoverable
+                                isPressable
                                 className={`cursor-pointer transition-all h-full ${
                                   selecionado
                                     ? "ring-2 ring-primary border-primary bg-primary-50"
@@ -765,9 +784,9 @@ export default function FormularioRMA({
                                   <div className="w-full mb-3">
                                     {produto.foto_url ? (
                                       <img
-                                        src={produto.foto_url}
                                         alt={produto.descricao}
                                         className="w-full h-40 object-cover rounded-lg border-2 border-gray-200"
+                                        src={produto.foto_url}
                                       />
                                     ) : (
                                       <div className="w-full h-40 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
@@ -791,20 +810,20 @@ export default function FormularioRMA({
                                     <div className="flex flex-wrap gap-1">
                                       {produto.marca && (
                                         <Chip
+                                          className="text-xs"
+                                          color="primary"
                                           size="sm"
                                           variant="flat"
-                                          color="primary"
-                                          className="text-xs"
                                         >
                                           {produto.marca}
                                         </Chip>
                                       )}
                                       {produto.categoria && (
                                         <Chip
+                                          className="text-xs"
+                                          color="secondary"
                                           size="sm"
                                           variant="flat"
-                                          color="secondary"
-                                          className="text-xs"
                                         >
                                           {produto.categoria}
                                         </Chip>
@@ -845,21 +864,19 @@ export default function FormularioRMA({
                                     <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                                       {produto.preco_venda ? (
                                         <Chip
+                                          color="success"
                                           size="sm"
                                           variant="flat"
-                                          color="success"
                                         >
                                           <span className="font-bold">
                                             R$ {produto.preco_venda.toFixed(2)}
                                           </span>
                                         </Chip>
                                       ) : (
-                                        <div></div>
+                                        <div />
                                       )}
 
                                       <Chip
-                                        size="sm"
-                                        variant="flat"
                                         color={
                                           estoque > 10
                                             ? "success"
@@ -869,6 +886,8 @@ export default function FormularioRMA({
                                                 ? "danger"
                                                 : "default"
                                         }
+                                        size="sm"
+                                        variant="flat"
                                       >
                                         <span className="font-bold">
                                           {estoque}
@@ -887,15 +906,15 @@ export default function FormularioRMA({
                         {totalPaginas > 1 && (
                           <div className="flex justify-center pt-2">
                             <Pagination
-                              total={totalPaginas}
-                              page={paginaAtual}
-                              onChange={handleMudarPagina}
-                              size="sm"
                               showControls
-                              color="primary"
                               classNames={{
                                 cursor: "bg-primary text-white",
                               }}
+                              color="primary"
+                              page={paginaAtual}
+                              size="sm"
+                              total={totalPaginas}
+                              onChange={handleMudarPagina}
                             />
                           </div>
                         )}
@@ -905,16 +924,16 @@ export default function FormularioRMA({
 
                   {produtoId && (
                     <Input
-                      type="number"
+                      isRequired
+                      description="Quantidade de unidades para RMA"
                       label="Quantidade"
+                      min={1}
                       placeholder="Digite a quantidade"
+                      type="number"
                       value={quantidade.toString()}
                       onChange={(e) =>
                         setQuantidade(parseInt(e.target.value) || 1)
                       }
-                      min={1}
-                      isRequired
-                      description="Quantidade de unidades para RMA"
                     />
                   )}
                 </>
@@ -926,12 +945,12 @@ export default function FormularioRMA({
           {etapaAtual === 3 && (
             <div className="space-y-4">
               <Select
+                isRequired
+                description="Motivo principal do RMA"
                 label="Tipo de RMA"
                 placeholder="Selecione o tipo"
                 selectedKeys={tipoRMA ? [tipoRMA] : []}
                 onChange={(e) => setTipoRMA(e.target.value as TipoRMA)}
-                isRequired
-                description="Motivo principal do RMA"
               >
                 {Object.entries(LABELS_TIPO_RMA).map(([valor, label]) => (
                   <SelectItem key={valor}>{label}</SelectItem>
@@ -939,22 +958,22 @@ export default function FormularioRMA({
               </Select>
 
               <Textarea
+                isRequired
+                description="Explique em detalhes o problema ou motivo"
                 label="Motivo Detalhado"
+                minRows={3}
                 placeholder="Descreva o motivo do RMA..."
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                minRows={3}
-                isRequired
-                description="Explique em detalhes o problema ou motivo"
               />
 
               <Textarea
+                description="Informações adicionais da assistência técnica"
                 label="Observações da Assistência"
+                minRows={2}
                 placeholder="Observações técnicas (opcional)..."
                 value={observacoes}
                 onChange={(e) => setObservacoes(e.target.value)}
-                minRows={2}
-                description="Informações adicionais da assistência técnica"
               />
             </div>
           )}
@@ -965,8 +984,8 @@ export default function FormularioRMA({
               {/* Botão de seleção de fotos */}
               <div className="flex flex-col gap-2">
                 <label
-                  htmlFor="file-upload"
                   className="flex items-center justify-center gap-2 px-4 py-3 bg-primary text-white rounded-lg cursor-pointer hover:bg-primary-600 transition-colors"
+                  htmlFor="file-upload"
                 >
                   <Camera className="w-5 h-5" />
                   <span className="font-semibold">
@@ -976,12 +995,12 @@ export default function FormularioRMA({
                   </span>
                 </label>
                 <input
+                  multiple
+                  accept="image/jpeg,image/jpg,image/png"
+                  className="hidden"
                   id="file-upload"
                   type="file"
-                  accept="image/jpeg,image/jpg,image/png"
-                  multiple
                   onChange={handleFileChange}
-                  className="hidden"
                 />
                 <p className="text-xs text-default-500 text-center">
                   Formatos aceitos: JPG, PNG, JPEG. Máximo: 5MB por foto.
@@ -1000,8 +1019,8 @@ export default function FormularioRMA({
                   <CarrosselFotos
                     fotos={fotosPreview}
                     height="400px"
-                    showThumbnails={true}
                     showLegendas={true}
+                    showThumbnails={true}
                   />
 
                   {/* Lista de fotos com opção de remover */}
@@ -1015,9 +1034,9 @@ export default function FormularioRMA({
                               <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-default-100">
                                 {fotosPreview[index] && (
                                   <img
-                                    src={fotosPreview[index].url}
                                     alt={foto.name}
                                     className="w-full h-full object-cover"
+                                    src={fotosPreview[index].url}
                                   />
                                 )}
                               </div>
@@ -1031,10 +1050,10 @@ export default function FormularioRMA({
                               </div>
                             </div>
                             <Button
-                              size="sm"
-                              color="danger"
-                              variant="flat"
                               isIconOnly
+                              color="danger"
+                              size="sm"
+                              variant="flat"
                               onClick={() => removerFoto(index)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1065,33 +1084,33 @@ export default function FormularioRMA({
         <ModalFooter>
           {etapaAtual > 1 && (
             <Button
+              isDisabled={loading}
+              startContent={<ArrowLeft className="w-4 h-4" />}
               variant="flat"
               onPress={etapaAnterior}
-              startContent={<ArrowLeft className="w-4 h-4" />}
-              isDisabled={loading}
             >
               Voltar
             </Button>
           )}
 
-          <Button variant="flat" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="flat" onPress={onClose}>
             Cancelar
           </Button>
 
           {etapaAtual < ETAPAS.length ? (
             <Button
               color="primary"
-              onPress={proximaEtapa}
               endContent={<ArrowRight className="w-4 h-4" />}
+              onPress={proximaEtapa}
             >
               Próximo
             </Button>
           ) : (
             <Button
               color="success"
-              onPress={handleSubmit}
               isLoading={loading}
               startContent={!loading && <CheckCircle2 className="w-4 h-4" />}
+              onPress={handleSubmit}
             >
               {loading ? "Criando RMA..." : "Criar RMA"}
             </Button>

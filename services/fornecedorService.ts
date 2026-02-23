@@ -31,9 +31,11 @@ export async function buscarFornecedores(apenasAtivos = false) {
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data: data as Fornecedor[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar fornecedores:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -50,9 +52,11 @@ export async function buscarFornecedorPorId(id: string) {
       .single();
 
     if (error) throw error;
+
     return { data: data as Fornecedor, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar fornecedor:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -77,9 +81,11 @@ export async function criarFornecedor(fornecedor: FornecedorFormData) {
       .single();
 
     if (error) throw error;
+
     return { data: data as Fornecedor, error: null };
   } catch (error: any) {
     console.error("Erro ao criar fornecedor:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -89,7 +95,7 @@ export async function criarFornecedor(fornecedor: FornecedorFormData) {
  */
 export async function atualizarFornecedor(
   id: string,
-  fornecedor: Partial<FornecedorFormData>
+  fornecedor: Partial<FornecedorFormData>,
 ) {
   try {
     const {
@@ -107,9 +113,11 @@ export async function atualizarFornecedor(
       .single();
 
     if (error) throw error;
+
     return { data: data as Fornecedor, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar fornecedor:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -122,9 +130,11 @@ export async function deletarFornecedor(id: string) {
     const { error } = await supabase.from("fornecedores").delete().eq("id", id);
 
     if (error) throw error;
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao deletar fornecedor:", error);
+
     return { error: error.message };
   }
 }
@@ -152,7 +162,7 @@ export async function ativarFornecedor(id: string) {
  */
 export async function buscarFornecedoresPorProduto(
   produtoId: string,
-  apenasAtivos = false
+  apenasAtivos = false,
 ) {
   try {
     let query = supabase
@@ -161,7 +171,7 @@ export async function buscarFornecedoresPorProduto(
         `
         *,
         fornecedor:fornecedores(*)
-      `
+      `,
       )
       .eq("produto_id", produtoId);
 
@@ -172,9 +182,11 @@ export async function buscarFornecedoresPorProduto(
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data: data as ProdutoFornecedor[], error: null };
   } catch (error: any) {
     console.error("Erro ao buscar fornecedores do produto:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -184,7 +196,7 @@ export async function buscarFornecedoresPorProduto(
  */
 export async function buscarProdutosPorFornecedor(
   fornecedorId: string,
-  apenasAtivos = false
+  apenasAtivos = false,
 ) {
   try {
     let query = supabase
@@ -193,7 +205,7 @@ export async function buscarProdutosPorFornecedor(
         `
         *,
         produto:produtos(*)
-      `
+      `,
       )
       .eq("fornecedor_id", fornecedorId);
 
@@ -204,9 +216,11 @@ export async function buscarProdutosPorFornecedor(
     const { data, error } = await query;
 
     if (error) throw error;
+
     return { data, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar produtos do fornecedor:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -215,7 +229,7 @@ export async function buscarProdutosPorFornecedor(
  * Associar fornecedor a produto
  */
 export async function associarFornecedorProduto(
-  dados: ProdutoFornecedorFormData
+  dados: ProdutoFornecedorFormData,
 ) {
   try {
     const {
@@ -233,9 +247,11 @@ export async function associarFornecedorProduto(
       .single();
 
     if (error) throw error;
+
     return { data: data as ProdutoFornecedor, error: null };
   } catch (error: any) {
     console.error("Erro ao associar fornecedor ao produto:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -245,7 +261,7 @@ export async function associarFornecedorProduto(
  */
 export async function atualizarAssociacaoFornecedor(
   id: string,
-  dados: Partial<ProdutoFornecedorFormData>
+  dados: Partial<ProdutoFornecedorFormData>,
 ) {
   try {
     const {
@@ -263,9 +279,11 @@ export async function atualizarAssociacaoFornecedor(
       .single();
 
     if (error) throw error;
+
     return { data: data as ProdutoFornecedor, error: null };
   } catch (error: any) {
     console.error("Erro ao atualizar associação:", error);
+
     return { data: null, error: error.message };
   }
 }
@@ -281,9 +299,11 @@ export async function removerAssociacaoFornecedor(id: string) {
       .eq("id", id);
 
     if (error) throw error;
+
     return { error: null };
   } catch (error: any) {
     console.error("Erro ao remover associação:", error);
+
     return { error: error.message };
   }
 }
@@ -307,9 +327,11 @@ export async function buscarHistoricoFornecedor(fornecedorId: string) {
       .order("criado_em", { ascending: false });
 
     if (error) throw error;
+
     return { data, error: null };
   } catch (error: any) {
     console.error("Erro ao buscar histórico do fornecedor:", error);
+
     return { data: null, error: error.message };
   }
 }

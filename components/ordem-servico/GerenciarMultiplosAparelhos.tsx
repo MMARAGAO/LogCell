@@ -23,6 +23,7 @@ import {
   DollarSign,
   AlertCircle,
 } from "lucide-react";
+
 import { OrdemServicoAparelho } from "@/types/ordemServico";
 import {
   adicionarAparelho,
@@ -124,11 +125,13 @@ export default function GerenciarMultiplosAparelhos({
     setLoading(true);
     try {
       const { data } = await buscarAparelhosOS(idOrdemServico);
+
       if (data) {
         setAparelhos(data);
       }
 
       const totaisCalc = await calcularTotaisOS(idOrdemServico);
+
       setTotais(totaisCalc);
     } catch (error) {
       console.error("Erro ao carregar aparelhos:", error);
@@ -208,6 +211,7 @@ export default function GerenciarMultiplosAparelhos({
   const handleSalvarAparelho = async () => {
     if (!formData.equipamento_tipo || !formData.defeito_reclamado) {
       toast.error("Preencha os campos obrigatórios (tipo e defeito)");
+
       return;
     }
 
@@ -217,6 +221,7 @@ export default function GerenciarMultiplosAparelhos({
       if (aparelhoEmEdicao) {
         // Editar existente - não sobrescrever senha se estiver vazia
         const dadosAtualizacao = { ...formData };
+
         if (!dadosAtualizacao.equipamento_senha) {
           // Se a senha está vazia, manter a anterior
           dadosAtualizacao.equipamento_senha =
@@ -282,9 +287,9 @@ export default function GerenciarMultiplosAparelhos({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={onClose}
-        size="4xl"
         scrollBehavior="outside"
+        size="4xl"
+        onClose={onClose}
       >
         <ModalContent>
           <ModalHeader className="flex items-center gap-2">
@@ -348,7 +353,7 @@ export default function GerenciarMultiplosAparelhos({
                     <Card key={aparelho.id}>
                       <CardHeader className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                          <Chip size="sm" color="primary" variant="flat">
+                          <Chip color="primary" size="sm" variant="flat">
                             Aparelho {aparelho.sequencia}
                           </Chip>
                           <span className="font-medium">
@@ -370,9 +375,9 @@ export default function GerenciarMultiplosAparelhos({
                           </Button>
                           <Button
                             isIconOnly
+                            color="danger"
                             size="sm"
                             variant="light"
-                            color="danger"
                             onPress={() => handleRemoverAparelho(aparelho.id)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -428,11 +433,11 @@ export default function GerenciarMultiplosAparelhos({
             {/* Botão Adicionar Novo */}
             {!mostraNovo && (
               <Button
-                startContent={<Plus className="w-4 h-4" />}
-                color="primary"
-                onPress={handleNovoAparelho}
                 fullWidth
+                color="primary"
+                startContent={<Plus className="w-4 h-4" />}
                 variant="flat"
+                onPress={handleNovoAparelho}
               >
                 Adicionar Novo Aparelho
               </Button>
@@ -453,6 +458,9 @@ export default function GerenciarMultiplosAparelhos({
                       <p className="text-sm font-semibold mb-2">Equipamento</p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Input
+                          autoComplete="off"
+                          data-form-type="other"
+                          data-lpignore="true"
                           label="Tipo *"
                           placeholder="Selecione..."
                           value={formData.equipamento_tipo}
@@ -462,11 +470,11 @@ export default function GerenciarMultiplosAparelhos({
                               equipamento_tipo: e.target.value,
                             })
                           }
-                          autoComplete="off"
-                          data-lpignore="true"
-                          data-form-type="other"
                         />
                         <Input
+                          autoComplete="off"
+                          data-form-type="other"
+                          data-lpignore="true"
                           label="Marca"
                           value={formData.equipamento_marca || ""}
                           onChange={(e) =>
@@ -475,11 +483,11 @@ export default function GerenciarMultiplosAparelhos({
                               equipamento_marca: e.target.value,
                             })
                           }
-                          autoComplete="off"
-                          data-lpignore="true"
-                          data-form-type="other"
                         />
                         <Input
+                          autoComplete="off"
+                          data-form-type="other"
+                          data-lpignore="true"
                           label="Modelo"
                           value={formData.equipamento_modelo || ""}
                           onChange={(e) =>
@@ -488,11 +496,11 @@ export default function GerenciarMultiplosAparelhos({
                               equipamento_modelo: e.target.value,
                             })
                           }
-                          autoComplete="off"
-                          data-lpignore="true"
-                          data-form-type="other"
                         />
                         <Input
+                          autoComplete="off"
+                          data-form-type="other"
+                          data-lpignore="true"
                           label="Série / IMEI"
                           value={formData.equipamento_numero_serie || ""}
                           onChange={(e) =>
@@ -501,11 +509,11 @@ export default function GerenciarMultiplosAparelhos({
                               equipamento_numero_serie: e.target.value,
                             })
                           }
-                          autoComplete="off"
-                          data-lpignore="true"
-                          data-form-type="other"
                         />
                         <Input
+                          autoComplete="new-password"
+                          data-form-type="other"
+                          data-lpignore="true"
                           label="Senha/PIN (opcional)"
                           type="password"
                           value={formData.equipamento_senha || ""}
@@ -515,16 +523,16 @@ export default function GerenciarMultiplosAparelhos({
                               equipamento_senha: e.target.value,
                             })
                           }
-                          autoComplete="new-password"
-                          data-lpignore="true"
-                          data-form-type="other"
                         />
                       </div>
                     </div>
 
                     {/* Problema */}
                     <Textarea
+                      autoComplete="off"
+                      data-lpignore="true"
                       label="Problema Relatado *"
+                      minRows={2}
                       placeholder="Descreva o problema"
                       value={formData.defeito_reclamado}
                       onChange={(e) =>
@@ -533,9 +541,6 @@ export default function GerenciarMultiplosAparelhos({
                           defeito_reclamado: e.target.value,
                         })
                       }
-                      minRows={2}
-                      autoComplete="off"
-                      data-lpignore="true"
                     />
 
                     {/* Valores */}
@@ -543,10 +548,11 @@ export default function GerenciarMultiplosAparelhos({
                       <p className="text-sm font-semibold mb-2">Valores</p>
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                         <Input
+                          autoComplete="off"
                           label="Orçamento"
-                          type="number"
-                          step="0.01"
                           startContent={<DollarSign className="w-4 h-4" />}
+                          step="0.01"
+                          type="number"
                           value={(formData.valor_orcamento || 0).toString()}
                           onChange={(e) =>
                             setFormData({
@@ -554,13 +560,13 @@ export default function GerenciarMultiplosAparelhos({
                               valor_orcamento: parseFloat(e.target.value) || 0,
                             })
                           }
-                          autoComplete="off"
                         />
                         <Input
+                          autoComplete="off"
                           label="Desconto"
-                          type="number"
-                          step="0.01"
                           startContent={<DollarSign className="w-4 h-4" />}
+                          step="0.01"
+                          type="number"
                           value={(formData.valor_desconto || 0).toString()}
                           onChange={(e) =>
                             setFormData({
@@ -568,13 +574,13 @@ export default function GerenciarMultiplosAparelhos({
                               valor_desconto: parseFloat(e.target.value) || 0,
                             })
                           }
-                          autoComplete="off"
                         />
                         <Input
+                          autoComplete="off"
                           label="Total"
-                          type="number"
-                          step="0.01"
                           startContent={<DollarSign className="w-4 h-4" />}
+                          step="0.01"
+                          type="number"
                           value={(formData.valor_total || 0).toString()}
                           onChange={(e) =>
                             setFormData({
@@ -582,13 +588,12 @@ export default function GerenciarMultiplosAparelhos({
                               valor_total: parseFloat(e.target.value) || 0,
                             })
                           }
-                          autoComplete="off"
                         />
                         <Input
                           label="Pago"
-                          type="number"
-                          step="0.01"
                           startContent={<DollarSign className="w-4 h-4" />}
+                          step="0.01"
+                          type="number"
                           value={(formData.valor_pago || 0).toString()}
                           onChange={(e) =>
                             setFormData({
@@ -610,8 +615,8 @@ export default function GerenciarMultiplosAparelhos({
                       </Button>
                       <Button
                         color="primary"
-                        onPress={handleSalvarAparelho}
                         isLoading={loading}
+                        onPress={handleSalvarAparelho}
                       >
                         {aparelhoEmEdicao ? "Atualizar" : "Adicionar"}
                       </Button>

@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  VendaCompleta,
+  ItemCarrinho,
+  PagamentoCarrinho,
+} from "@/types/vendas";
+
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -28,14 +34,10 @@ import {
 import {
   ShoppingCart,
   Plus,
-  TrendingUp,
   DollarSign,
-  Package,
   Users,
-  Calendar,
   Search,
   Eye,
-  Check,
   Edit,
   X,
   Trash2,
@@ -49,6 +51,7 @@ import {
   ChevronUp,
   History,
 } from "lucide-react";
+
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
 import { EditarPagamentoVendaModal } from "@/components/vendas/EditarPagamentoVendaModal";
@@ -59,7 +62,6 @@ import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
 import { useToast } from "@/components/Toast";
 import { VendasService } from "@/services/vendasService";
-import { DevolucoesService } from "@/services/devolucoesService";
 import { supabase } from "@/lib/supabaseClient";
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,11 +69,6 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { useRealtime } from "@/hooks/useRealtime";
 import { imprimirNotaVenda } from "@/lib/imprimirNotaVenda";
-import type {
-  VendaCompleta,
-  ItemCarrinho,
-  PagamentoCarrinho,
-} from "@/types/vendas";
 
 interface Estatisticas {
   totalVendas: number;
@@ -148,6 +145,7 @@ export default function VendasPage() {
             .update({ vendedor_id: novoVendedorId })
             .eq("id", vendaParaTrocarVendedor.id),
       );
+
       if (error) throw error;
       toast.success("Vendedor alterado com sucesso!");
       setModalTrocarVendedorOpen(false);
@@ -186,6 +184,7 @@ export default function VendasPage() {
         .from("vendas")
         .update({ cliente_id: novoClienteId })
         .eq("id", vendaParaTrocarCliente.id);
+
       if (error) throw error;
       toast.success("Cliente alterado com sucesso!");
       setModalTrocarClienteOpen(false);
@@ -259,6 +258,7 @@ export default function VendasPage() {
   const getLocalDateString = () => {
     const now = new Date();
     const offsetMs = now.getTimezoneOffset() * 60000;
+
     return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
   };
   const hoje = getLocalDateString();
@@ -409,6 +409,7 @@ export default function VendasPage() {
       console.warn("🔒 Bloqueando acesso às vendas como medida de segurança");
       setVendas([]);
       calcularEstatisticas([]);
+
       return;
     } else {
       console.log(
@@ -418,12 +419,14 @@ export default function VendasPage() {
 
     console.log("📤 Filtros que serão enviados:", filtros);
     const dados = await VendasService.listarVendas(filtros);
+
     console.log("📦 Vendas carregadas:", dados.length, "vendas");
 
     // Log das lojas das vendas carregadas
     const lojasNasVendas = Array.from(
       new Set(dados.map((v) => `${v.loja?.nome} (ID: ${v.loja_id})`)),
     );
+
     console.log("🏪 Lojas presentes nas vendas:", lojasNasVendas);
 
     console.log("🔍 Primeira venda:", dados[0]);
@@ -523,6 +526,7 @@ export default function VendasPage() {
   const carregarClientes = async () => {
     try {
       const todosClientes = await buscarTodosClientesAtivos();
+
       setClientes(todosClientes);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
@@ -600,6 +604,7 @@ export default function VendasPage() {
         .single();
 
       if (error) return 0;
+
       return data?.quantidade || 0;
     } catch (error) {
       return 0;
@@ -613,6 +618,7 @@ export default function VendasPage() {
     const produtosComEstoque = await Promise.all(
       produtos.map(async (p: any) => {
         const estoque = await buscarEstoqueProduto(p.id, lojaId);
+
         return {
           id: p.id,
           nome: p.descricao,
@@ -631,6 +637,7 @@ export default function VendasPage() {
     // Verificar permissão básica de editar
     if (!temPermissao("vendas.editar")) {
       toast.error("Você não tem permissão para editar vendas");
+
       return;
     }
 
@@ -641,6 +648,7 @@ export default function VendasPage() {
       !temPermissao("vendas.editar_pagas")
     ) {
       toast.error("Você não tem permissão para editar vendas totalmente pagas");
+
       return;
     }
 
@@ -766,6 +774,7 @@ export default function VendasPage() {
         await carregarVendas();
         console.log("📋 Lista de vendas recarregada!");
         setVendaSelecionada(null);
+
         return;
       }
 
@@ -867,6 +876,7 @@ export default function VendasPage() {
   const handleAbrirModalPagamento = (venda: VendaCompleta) => {
     if (!temPermissao("vendas.processar_pagamentos")) {
       toast.error("Você não tem permissão para processar pagamentos");
+
       return;
     }
 
@@ -877,6 +887,7 @@ export default function VendasPage() {
   const handleAbrirModalEditarPagamento = (venda: VendaCompleta) => {
     if (!temPermissao("vendas.processar_pagamentos")) {
       toast.error("Você não tem permissão para editar pagamentos");
+
       return;
     }
 
@@ -887,6 +898,7 @@ export default function VendasPage() {
   const handleAbrirDetalhes = async (venda: VendaCompleta) => {
     // Buscar dados completos da venda
     const vendaCompleta = await VendasService.buscarVendaCompleta(venda.id);
+
     setVendaSelecionada(vendaCompleta || venda);
     setModalDetalhesOpen(true);
   };
@@ -898,6 +910,7 @@ export default function VendasPage() {
       const vendaAtualizada = await VendasService.buscarVendaCompleta(
         vendaSelecionada.id,
       );
+
       if (vendaAtualizada) {
         setVendaSelecionada(vendaAtualizada);
       }
@@ -915,6 +928,7 @@ export default function VendasPage() {
 
     if (!temPermissao("vendas.cancelar")) {
       toast.error("Você não tem permissão para cancelar vendas");
+
       return;
     }
 
@@ -965,6 +979,7 @@ export default function VendasPage() {
   const handleExcluirVenda = (venda: VendaCompleta) => {
     if (!temPermissao("vendas.cancelar")) {
       toast.error("Você não tem permissão para excluir vendas");
+
       return;
     }
 
@@ -1151,6 +1166,7 @@ export default function VendasPage() {
 
     // Filtro de forma de pagamento
     let matchFormaPagamento = true;
+
     if (filtroFormaPagamento === "fiada") {
       matchFormaPagamento = venda.tipo === "fiada";
     } else if (filtroFormaPagamento !== "todas") {
@@ -1167,6 +1183,7 @@ export default function VendasPage() {
 
     // Filtro de data
     let matchData = true;
+
     if (filtroDataInicio || filtroDataFim) {
       // Extrair componentes de data para comparação
       const dataVendaObj = new Date(venda.criado_em);
@@ -1189,9 +1206,11 @@ export default function VendasPage() {
 
     // Filtro de vendas vencidas/pendentes (apenas para vendas fiadas)
     let matchVencida = true;
+
     if (filtroVencidas && venda.tipo === "fiada") {
       const hoje = new Date().toISOString().split("T")[0];
       const dataVencimento = venda.data_prevista_pagamento;
+
       matchVencida = Boolean(
         venda.status === "concluida" &&
           venda.saldo_devedor > 0 &&
@@ -1252,12 +1271,14 @@ export default function VendasPage() {
         // Ordem alfabética A-Z pelo nome do cliente
         const nomeA = a.cliente?.nome || "";
         const nomeB = b.cliente?.nome || "";
+
         return nomeA.localeCompare(nomeB, "pt-BR");
 
       case "cliente_za":
         // Ordem alfabética Z-A pelo nome do cliente
         const nomeZA = a.cliente?.nome || "";
         const nomeZB = b.cliente?.nome || "";
+
         return nomeZB.localeCompare(nomeZA, "pt-BR");
 
       case "valor_maior":
@@ -1321,8 +1342,10 @@ export default function VendasPage() {
     (acc, venda) => {
       venda.pagamentos?.forEach((pag) => {
         const tipo = pag.tipo_pagamento;
+
         acc[tipo] = (acc[tipo] || 0) + Number(pag.valor);
       });
+
       return acc;
     },
     {} as { [key: string]: number },
@@ -1370,9 +1393,9 @@ export default function VendasPage() {
             </Button>
           )}
           <Button
-            variant="flat"
             size="lg"
             startContent={<History className="w-5 h-5" />}
+            variant="flat"
             onClick={() => router.push("/sistema/vendas/audit-logs")}
           >
             Logs de Deleção
@@ -1387,16 +1410,15 @@ export default function VendasPage() {
             {/* Linha de busca e botão de filtros */}
             <div className="flex flex-col md:flex-row gap-4">
               <Input
+                className="flex-1"
                 placeholder="Buscar por número ou cliente..."
+                startContent={<Search className="w-4 h-4 text-gray-400" />}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                startContent={<Search className="w-4 h-4 text-gray-400" />}
-                className="flex-1"
               />
               <Button
-                variant="flat"
+                className="w-full md:w-auto"
                 color="primary"
-                startContent={<Filter className="w-4 h-4" />}
                 endContent={
                   mostrarFiltros ? (
                     <ChevronUp className="w-4 h-4" />
@@ -1404,8 +1426,9 @@ export default function VendasPage() {
                     <ChevronDown className="w-4 h-4" />
                   )
                 }
+                startContent={<Filter className="w-4 h-4" />}
+                variant="flat"
                 onClick={() => setMostrarFiltros(!mostrarFiltros)}
-                className="w-full md:w-auto"
               >
                 {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
               </Button>
@@ -1417,10 +1440,10 @@ export default function VendasPage() {
                 {/* Primeira linha de filtros */}
                 <div className="flex flex-col md:flex-row gap-4">
                   <Select
+                    className="w-full md:w-48"
                     label="Status"
                     selectedKeys={[filtroStatus]}
                     onChange={(e) => setFiltroStatus(e.target.value)}
-                    className="w-full md:w-48"
                   >
                     <SelectItem key="todas">Todas</SelectItem>
                     <SelectItem key="em_andamento">Em Andamento</SelectItem>
@@ -1428,10 +1451,10 @@ export default function VendasPage() {
                     <SelectItem key="cancelada">Canceladas</SelectItem>
                   </Select>
                   <Select
+                    className="w-full md:w-48"
                     label="Loja"
                     selectedKeys={[filtroLoja]}
                     onChange={(e) => setFiltroLoja(e.target.value)}
-                    className="w-full md:w-48"
                   >
                     {podeVerTodasLojas
                       ? // Usuário pode ver todas as lojas
@@ -1459,16 +1482,16 @@ export default function VendasPage() {
                   <div className="flex gap-2">
                     <Button
                       isIconOnly
-                      variant={visualizacao === "cards" ? "solid" : "flat"}
                       color={visualizacao === "cards" ? "primary" : "default"}
+                      variant={visualizacao === "cards" ? "solid" : "flat"}
                       onClick={() => setVisualizacao("cards")}
                     >
                       <Grid className="w-4 h-4" />
                     </Button>
                     <Button
                       isIconOnly
-                      variant={visualizacao === "tabela" ? "solid" : "flat"}
                       color={visualizacao === "tabela" ? "primary" : "default"}
+                      variant={visualizacao === "tabela" ? "solid" : "flat"}
                       onClick={() => setVisualizacao("tabela")}
                     >
                       <List className="w-4 h-4" />
@@ -1479,10 +1502,10 @@ export default function VendasPage() {
                 {/* Segunda linha de filtros */}
                 <div className="flex flex-col md:flex-row gap-4">
                   <Select
+                    className="w-full md:w-56"
                     label="Forma de Pagamento"
                     selectedKeys={[filtroFormaPagamento]}
                     onChange={(e) => setFiltroFormaPagamento(e.target.value)}
-                    className="w-full md:w-56"
                   >
                     <SelectItem key="todas">Todas</SelectItem>
                     <SelectItem key="fiada">Fiada</SelectItem>
@@ -1502,10 +1525,10 @@ export default function VendasPage() {
                   </Select>
 
                   <Select
+                    className="w-full md:w-64"
                     label="Cliente"
                     selectedKeys={[filtroCliente]}
                     onChange={(e) => setFiltroCliente(e.target.value)}
-                    className="w-full md:w-64"
                   >
                     {
                       [
@@ -1520,39 +1543,39 @@ export default function VendasPage() {
                   </Select>
 
                   <Input
-                    type="date"
+                    className="w-full md:w-48"
                     label="Data Início"
+                    type="date"
                     value={filtroDataInicio}
                     onChange={(e) => setFiltroDataInicio(e.target.value)}
-                    className="w-full md:w-48"
                   />
 
                   <Input
-                    type="date"
+                    className="w-full md:w-48"
                     label="Data Fim"
+                    type="date"
                     value={filtroDataFim}
                     onChange={(e) => setFiltroDataFim(e.target.value)}
-                    className="w-full md:w-48"
                   />
 
                   <Button
+                    className="whitespace-nowrap"
+                    color="default"
                     size="md"
                     variant="flat"
-                    color="default"
                     onClick={() => {
                       setFiltroDataInicio("");
                       setFiltroDataFim("");
                     }}
-                    className="whitespace-nowrap"
                   >
                     Limpar Datas
                   </Button>
 
                   <Checkbox
-                    isSelected={filtroVencidas}
-                    onValueChange={setFiltroVencidas}
                     color="primary"
+                    isSelected={filtroVencidas}
                     size="md"
+                    onValueChange={setFiltroVencidas}
                   >
                     Apenas Vencidas
                   </Checkbox>
@@ -1561,10 +1584,10 @@ export default function VendasPage() {
                 {/* Terceira linha - Ordenação */}
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                   <Select
+                    className="w-full md:w-64"
                     label="Ordenar por"
                     selectedKeys={[ordenacao]}
                     onChange={(e) => setOrdenacao(e.target.value)}
-                    className="w-full md:w-64"
                   >
                     <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
                     <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
@@ -1584,13 +1607,13 @@ export default function VendasPage() {
                   </Select>
 
                   <Select
+                    className="w-full md:w-40"
                     label="Itens por página"
                     selectedKeys={[itensPorPagina.toString()]}
                     onChange={(e) => {
                       setItensPorPagina(Number(e.target.value));
                       setPaginaAtual(1);
                     }}
-                    className="w-full md:w-40"
                   >
                     <SelectItem key="12">12</SelectItem>
                     <SelectItem key="24">24</SelectItem>
@@ -1631,6 +1654,7 @@ export default function VendasPage() {
                   </p>
                 </div>
                 <Chip
+                  className="font-semibold"
                   color={
                     venda.status === "concluida"
                       ? "success"
@@ -1642,7 +1666,6 @@ export default function VendasPage() {
                   }
                   size="sm"
                   variant="flat"
-                  className="font-semibold"
                 >
                   {venda.status === "concluida"
                     ? "Concluída"
@@ -1682,10 +1705,10 @@ export default function VendasPage() {
                   {venda.tipo === "fiada" && (
                     <div className="pt-2">
                       <Chip
+                        className="font-semibold"
                         color="warning"
                         size="sm"
                         variant="flat"
-                        className="font-semibold"
                       >
                         Venda Fiada
                       </Chip>
@@ -1736,12 +1759,12 @@ export default function VendasPage() {
                       return (
                         <div className="pt-2 border-t">
                           <Chip
+                            className="w-full"
                             color={
                               qtdDevolvida === qtdTotal ? "danger" : "warning"
                             }
                             size="sm"
                             variant="flat"
-                            className="w-full"
                           >
                             {qtdDevolvida === qtdTotal
                               ? `Devolução Total (${qtdDevolvida} ${qtdDevolvida === 1 ? "item" : "itens"})`
@@ -1750,16 +1773,17 @@ export default function VendasPage() {
                         </div>
                       );
                     }
+
                     return null;
                   })()}
                 </div>
 
                 <div className="flex gap-2 mt-4">
                   <Button
-                    size="sm"
-                    variant="flat"
                     className="flex-1"
+                    size="sm"
                     startContent={<Eye className="w-4 h-4" />}
+                    variant="flat"
                     onClick={() => handleAbrirDetalhes(venda)}
                   >
                     Ver Detalhes
@@ -1768,10 +1792,10 @@ export default function VendasPage() {
                   <Dropdown>
                     <DropdownTrigger>
                       <Button
-                        size="sm"
                         isIconOnly
-                        variant="flat"
                         isDisabled={processando}
+                        size="sm"
+                        variant="flat"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </Button>
@@ -1780,9 +1804,9 @@ export default function VendasPage() {
                       {getMenuItems(venda).map((item) => (
                         <DropdownItem
                           key={item.key}
+                          color={item.color}
                           startContent={item.icon}
                           onClick={item.onClick}
-                          color={item.color}
                         >
                           {item.label}
                         </DropdownItem>
@@ -1908,14 +1932,15 @@ export default function VendasPage() {
                             </Chip>
                           );
                         }
+
                         return <span className="text-gray-400">-</span>;
                       })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center gap-2">
                         <Button
-                          size="sm"
                           isIconOnly
+                          size="sm"
                           variant="light"
                           onClick={() => handleAbrirDetalhes(venda)}
                         >
@@ -1924,10 +1949,10 @@ export default function VendasPage() {
                         <Dropdown>
                           <DropdownTrigger>
                             <Button
-                              size="sm"
                               isIconOnly
-                              variant="light"
                               isDisabled={processando}
+                              size="sm"
+                              variant="light"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>
@@ -1936,9 +1961,9 @@ export default function VendasPage() {
                             {getMenuItems(venda).map((item) => (
                               <DropdownItem
                                 key={item.key}
+                                color={item.color}
                                 startContent={item.icon}
                                 onClick={item.onClick}
-                                color={item.color}
                               >
                                 {item.label}
                               </DropdownItem>
@@ -1961,7 +1986,7 @@ export default function VendasPage() {
             <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 mb-2">Nenhuma venda encontrada</p>
             <p className="text-sm text-gray-500">
-              Clique em "Nova Venda" para começar
+              Clique em &quot;Nova Venda&quot; para começar
             </p>
           </CardBody>
         </Card>
@@ -1971,47 +1996,47 @@ export default function VendasPage() {
       {vendasOrdenadas.length > 0 && totalPaginas > 1 && (
         <div className="flex justify-center mt-6">
           <Pagination
-            total={totalPaginas}
-            page={paginaAtual}
-            onChange={setPaginaAtual}
             showControls
             showShadow
             color="primary"
+            page={paginaAtual}
+            total={totalPaginas}
+            onChange={setPaginaAtual}
           />
         </div>
       )}
 
       {/* Modal Nova Venda */}
       <NovaVendaModal
+        clientes={clientes}
+        creditosDisponiveis={0}
         isOpen={modalNovaVendaOpen}
+        lojas={lojas}
+        produtos={produtos}
+        vendaParaEditar={vendaParaEditar}
+        onClienteCriado={carregarClientes}
         onClose={() => {
           setModalNovaVendaOpen(false);
           setVendaParaEditar(null);
         }}
         onConfirmar={handleCriarVenda}
-        clientes={clientes}
-        lojas={lojas}
-        produtos={produtos}
-        creditosDisponiveis={0}
-        vendaParaEditar={vendaParaEditar}
-        onClienteCriado={carregarClientes}
       />
 
       {/* Modal Adicionar Pagamento */}
       {vendaSelecionada && (
         <AdicionarPagamentoModal
+          clienteId={vendaSelecionada.cliente_id}
           isOpen={modalPagamentoOpen}
+          numeroVenda={`V${String(vendaSelecionada.numero_venda).padStart(6, "0")}`}
+          saldoDevedor={vendaSelecionada.saldo_devedor}
+          statusVenda={vendaSelecionada.status}
+          valorPago={vendaSelecionada.valor_pago}
+          valorTotal={vendaSelecionada.valor_total}
+          vendaId={vendaSelecionada.id}
           onClose={() => {
             setModalPagamentoOpen(false);
             setVendaSelecionada(null);
           }}
-          vendaId={vendaSelecionada.id}
-          numeroVenda={`V${String(vendaSelecionada.numero_venda).padStart(6, "0")}`}
-          clienteId={vendaSelecionada.cliente_id}
-          valorTotal={vendaSelecionada.valor_total}
-          valorPago={vendaSelecionada.valor_pago}
-          saldoDevedor={vendaSelecionada.saldo_devedor}
-          statusVenda={vendaSelecionada.status}
           onPagamentoAdicionado={handlePagamentoAdicionado}
         />
       )}
@@ -2020,13 +2045,13 @@ export default function VendasPage() {
       {vendaSelecionada && (
         <EditarPagamentoVendaModal
           isOpen={modalEditarPagamentoOpen}
-          onClose={() => {
-            setModalEditarPagamentoOpen(false);
-            setVendaSelecionada(null);
-          }}
           venda={{
             id: vendaSelecionada.id,
             numero_venda: vendaSelecionada.numero_venda,
+          }}
+          onClose={() => {
+            setModalEditarPagamentoOpen(false);
+            setVendaSelecionada(null);
           }}
           onPagamentoEditado={handlePagamentoAdicionado}
         />
@@ -2035,10 +2060,6 @@ export default function VendasPage() {
       {/* Modal Detalhes da Venda */}
       <DetalhesVendaModal
         isOpen={modalDetalhesOpen}
-        onClose={() => {
-          setModalDetalhesOpen(false);
-          setVendaSelecionada(null);
-        }}
         venda={vendaSelecionada}
         onAtualizarVenda={async () => {
           await carregarVendas();
@@ -2047,38 +2068,40 @@ export default function VendasPage() {
             const vendaAtualizada = await VendasService.buscarVendaCompleta(
               vendaSelecionada.id,
             );
+
             if (vendaAtualizada) {
               setVendaSelecionada(vendaAtualizada);
             }
           }
         }}
+        onClose={() => {
+          setModalDetalhesOpen(false);
+          setVendaSelecionada(null);
+        }}
       />
 
       {/* Modal de Motivo do Cancelamento */}
       <InputModal
+        confirmText="Continuar"
+        isLoading={processando}
         isOpen={modalMotivoOpen}
+        message={`Por que você está cancelando a venda V${String(vendaSelecionada?.numero_venda || 0).padStart(6, "0")}?`}
+        placeholder="Digite o motivo do cancelamento..."
+        title="Cancelar Venda"
+        type="textarea"
         onClose={() => {
           setModalMotivoOpen(false);
           setVendaSelecionada(null);
         }}
         onConfirm={confirmarCancelamento}
-        title="Cancelar Venda"
-        message={`Por que você está cancelando a venda V${String(vendaSelecionada?.numero_venda || 0).padStart(6, "0")}?`}
-        placeholder="Digite o motivo do cancelamento..."
-        confirmText="Continuar"
-        type="textarea"
-        isLoading={processando}
       />
 
       {/* Modal de Confirmação do Cancelamento */}
       <ConfirmModal
+        confirmColor="warning"
+        confirmText="Sim, cancelar venda"
+        isLoading={processando}
         isOpen={modalCancelarOpen}
-        onClose={() => {
-          setModalCancelarOpen(false);
-          setVendaSelecionada(null);
-        }}
-        onConfirm={executarCancelamento}
-        title="Confirmar Cancelamento"
         message={
           <div className="space-y-2">
             <p>
@@ -2108,20 +2131,20 @@ export default function VendasPage() {
             )}
           </div>
         }
-        confirmText="Sim, cancelar venda"
-        confirmColor="warning"
-        isLoading={processando}
+        title="Confirmar Cancelamento"
+        onClose={() => {
+          setModalCancelarOpen(false);
+          setVendaSelecionada(null);
+        }}
+        onConfirm={executarCancelamento}
       />
 
       {/* Modal de Confirmação da Exclusão */}
       <ConfirmModal
+        confirmColor="danger"
+        confirmText="Sim, excluir permanentemente"
+        isLoading={processando}
         isOpen={modalExcluirOpen}
-        onClose={() => {
-          setModalExcluirOpen(false);
-          setVendaSelecionada(null);
-        }}
-        onConfirm={executarExclusao}
-        title="Excluir Venda"
         message={
           <div className="space-y-2">
             <p>
@@ -2137,43 +2160,46 @@ export default function VendasPage() {
             </p>
           </div>
         }
-        confirmText="Sim, excluir permanentemente"
-        confirmColor="danger"
-        isLoading={processando}
+        title="Excluir Venda"
+        onClose={() => {
+          setModalExcluirOpen(false);
+          setVendaSelecionada(null);
+        }}
+        onConfirm={executarExclusao}
       />
 
       {/* Modal Trocar Cliente */}
       <TrocaDeCliente
+        clienteAtualId={vendaParaTrocarCliente?.cliente_id || null}
+        clienteSelecionado={novoClienteId}
+        clientes={clientesAtivos}
         isOpen={modalTrocarClienteOpen}
+        loadingClientes={loadingClientes}
+        salvando={salvandoCliente}
         onClose={() => {
           setModalTrocarClienteOpen(false);
           setVendaParaTrocarCliente(null);
           setNovoClienteId("");
         }}
-        clientes={clientesAtivos}
-        loadingClientes={loadingClientes}
-        clienteSelecionado={novoClienteId}
-        clienteAtualId={vendaParaTrocarCliente?.cliente_id || null}
-        onSelecionarCliente={setNovoClienteId}
         onConfirmar={handleConfirmarTrocaCliente}
-        salvando={salvandoCliente}
+        onSelecionarCliente={setNovoClienteId}
       />
 
       {/* Modal Trocar Vendedor */}
       <TrocaDeVendedor
         isOpen={modalTrocarVendedorOpen}
+        loadingUsuarios={loadingUsuarios}
+        salvando={salvandoVendedor}
+        usuarios={usuariosAtivos}
+        vendedorAtualId={vendaParaTrocarVendedor?.vendedor_id || null}
+        vendedorSelecionado={novoVendedorId}
         onClose={() => {
           setModalTrocarVendedorOpen(false);
           setVendaParaTrocarVendedor(null);
           setNovoVendedorId("");
         }}
-        usuarios={usuariosAtivos}
-        loadingUsuarios={loadingUsuarios}
-        vendedorSelecionado={novoVendedorId}
-        vendedorAtualId={vendaParaTrocarVendedor?.vendedor_id || null}
-        onSelecionarVendedor={setNovoVendedorId}
         onConfirmar={handleConfirmarTrocaVendedor}
-        salvando={salvandoVendedor}
+        onSelecionarVendedor={setNovoVendedorId}
       />
 
       {toast.ToastComponent}

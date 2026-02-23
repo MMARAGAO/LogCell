@@ -19,6 +19,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
 import Image from "next/image";
+
 import { Loja, LojaFoto } from "@/types";
 import { cadastrarLoja, atualizarLoja } from "@/app/sistema/lojas/actions";
 import { LojasFotosService } from "@/services/lojasFotosService";
@@ -101,6 +102,7 @@ export function LojaFormModal({
     setLoadingFotos(true);
     try {
       const data = await LojasFotosService.getFotosPorLoja(lojaId);
+
       setFotos(data);
     } catch (error) {
       console.error("Erro ao carregar fotos:", error);
@@ -112,10 +114,12 @@ export function LojaFormModal({
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     if (!loja) {
       setError("Salve a loja primeiro antes de adicionar fotos");
+
       return;
     }
 
     const files = event.target.files;
+
     if (!files || files.length === 0) return;
 
     setUploading(true);
@@ -128,7 +132,7 @@ export function LojaFormModal({
         // Upload para o Storage
         const { url, error: uploadError } = await LojasFotosService.uploadFoto(
           loja.id,
-          file
+          file,
         );
 
         if (uploadError) {
@@ -171,6 +175,7 @@ export function LojaFormModal({
 
     try {
       const result = await definirFotoPrincipal(foto.id);
+
       if (result.success) {
         await carregarFotos(loja.id);
       } else {
@@ -187,6 +192,7 @@ export function LojaFormModal({
 
     try {
       const result = await deletarFoto(foto.id);
+
       if (result.success) {
         await LojasFotosService.deletarFotoStorage(foto.url);
         await carregarFotos(loja.id);
@@ -206,6 +212,7 @@ export function LojaFormModal({
 
   const formatCNPJ = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 14) {
       return numbers
         .replace(/^(\d{2})(\d)/, "$1.$2")
@@ -213,44 +220,53 @@ export function LojaFormModal({
         .replace(/\.(\d{3})(\d)/, ".$1/$2")
         .replace(/(\d{4})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const formatTelefone = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 11) {
       if (numbers.length <= 10) {
         return numbers
           .replace(/^(\d{2})(\d)/, "($1) $2")
           .replace(/(\d{4})(\d)/, "$1-$2");
       }
+
       return numbers
         .replace(/^(\d{2})(\d)/, "($1) $2")
         .replace(/(\d{5})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const formatCEP = (value: string) => {
     const numbers = value.replace(/\D/g, "");
+
     if (numbers.length <= 8) {
       return numbers.replace(/^(\d{5})(\d)/, "$1-$2");
     }
+
     return value;
   };
 
   const handleCNPJChange = (value: string) => {
     const formatted = formatCNPJ(value);
+
     handleChange("cnpj", formatted);
   };
 
   const handleTelefoneChange = (value: string) => {
     const formatted = formatTelefone(value);
+
     handleChange("telefone", formatted);
   };
 
   const handleCEPChange = (value: string) => {
     const formatted = formatCEP(value);
+
     handleChange("cep", formatted);
   };
 
@@ -260,6 +276,7 @@ export function LojaFormModal({
 
     if (!formData.nome.trim()) {
       setError("Nome da loja é obrigatório");
+
       return;
     }
 
@@ -295,7 +312,7 @@ export function LojaFormModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
       <ModalContent>
         <form onSubmit={handleSubmit}>
           <ModalHeader>{loja ? "Editar Loja" : "Nova Loja"}</ModalHeader>
@@ -324,79 +341,79 @@ export function LojaFormModal({
 
                 {/* Nome */}
                 <Input
+                  isRequired
+                  isDisabled={loading}
                   label="Nome da Loja"
                   placeholder="Ex: Filial Centro"
                   value={formData.nome}
                   onValueChange={(value) => handleChange("nome", value)}
-                  isRequired
-                  isDisabled={loading}
                 />
 
                 {/* CNPJ */}
                 <Input
+                  isDisabled={loading}
                   label="CNPJ"
+                  maxLength={18}
                   placeholder="00.000.000/0000-00"
                   value={formData.cnpj}
                   onValueChange={handleCNPJChange}
-                  maxLength={18}
-                  isDisabled={loading}
                 />
 
                 {/* Telefone e Email */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input
+                    isDisabled={loading}
                     label="Telefone"
+                    maxLength={15}
                     placeholder="(00) 00000-0000"
                     value={formData.telefone}
                     onValueChange={handleTelefoneChange}
-                    maxLength={15}
-                    isDisabled={loading}
                   />
                   <Input
+                    isDisabled={loading}
                     label="Email"
-                    type="email"
                     placeholder="loja@exemplo.com"
+                    type="email"
                     value={formData.email}
                     onValueChange={(value) => handleChange("email", value)}
-                    isDisabled={loading}
                   />
                 </div>
 
                 {/* Endereço */}
                 <Input
+                  isDisabled={loading}
                   label="Endereço"
                   placeholder="Rua, número, complemento"
                   value={formData.endereco}
                   onValueChange={(value) => handleChange("endereco", value)}
-                  isDisabled={loading}
                 />
 
                 {/* Cidade, Estado e CEP */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Input
+                    isDisabled={loading}
                     label="Cidade"
                     placeholder="Ex: São Paulo"
                     value={formData.cidade}
                     onValueChange={(value) => handleChange("cidade", value)}
-                    isDisabled={loading}
                   />
                   <Input
+                    isDisabled={loading}
                     label="Estado"
+                    maxLength={2}
                     placeholder="Ex: SP"
                     value={formData.estado}
                     onValueChange={(value) =>
                       handleChange("estado", value.toUpperCase())
                     }
-                    maxLength={2}
-                    isDisabled={loading}
                   />
                   <Input
+                    isDisabled={loading}
                     label="CEP"
+                    maxLength={9}
                     placeholder="00000-000"
                     value={formData.cep}
                     onValueChange={handleCEPChange}
-                    maxLength={9}
-                    isDisabled={loading}
                   />
                 </div>
               </div>
@@ -413,19 +430,19 @@ export function LojaFormModal({
                       </h3>
                       <input
                         ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
                         multiple
-                        onChange={handleUpload}
+                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="hidden"
+                        type="file"
+                        onChange={handleUpload}
                       />
                       <Button
-                        size="sm"
                         color="primary"
-                        variant="flat"
-                        startContent={<PlusIcon className="w-4 h-4" />}
-                        onPress={() => fileInputRef.current?.click()}
                         isLoading={uploading}
+                        size="sm"
+                        startContent={<PlusIcon className="w-4 h-4" />}
+                        variant="flat"
+                        onPress={() => fileInputRef.current?.click()}
                       >
                         {uploading ? "Enviando..." : "Adicionar Fotos"}
                       </Button>
@@ -441,8 +458,8 @@ export function LojaFormModal({
                             legenda: f.legenda,
                           }))}
                           height="300px"
-                          showThumbnails={true}
                           showLegendas={false}
+                          showThumbnails={true}
                         />
 
                         {/* Lista de fotos */}
@@ -459,23 +476,23 @@ export function LojaFormModal({
                                 className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors"
                               >
                                 <Image
-                                  src={foto.url}
-                                  alt={foto.legenda || "Foto"}
                                   fill
+                                  alt={foto.legenda || "Foto"}
                                   className="object-cover"
+                                  src={foto.url}
                                 />
 
                                 {/* Overlay com ações */}
                                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
                                   <Button
                                     isIconOnly
-                                    size="sm"
                                     color={
                                       foto.is_principal ? "warning" : "default"
                                     }
+                                    size="sm"
+                                    title="Definir como principal"
                                     variant="flat"
                                     onPress={() => handleDefinirPrincipal(foto)}
-                                    title="Definir como principal"
                                   >
                                     {foto.is_principal ? (
                                       <StarIconSolid className="w-4 h-4" />
@@ -485,11 +502,11 @@ export function LojaFormModal({
                                   </Button>
                                   <Button
                                     isIconOnly
-                                    size="sm"
                                     color="danger"
+                                    size="sm"
+                                    title="Deletar"
                                     variant="flat"
                                     onPress={() => handleDeletarFoto(foto)}
-                                    title="Deletar"
                                   >
                                     <XMarkIcon className="w-4 h-4" />
                                   </Button>
@@ -516,7 +533,7 @@ export function LojaFormModal({
                           Nenhuma foto adicionada
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          Clique em "Adicionar Fotos" para começar
+                          Clique em &quot;Adicionar Fotos&quot; para começar
                         </p>
                       </div>
                     )}
@@ -533,10 +550,10 @@ export function LojaFormModal({
           </ModalBody>
 
           <ModalFooter>
-            <Button variant="light" onPress={onClose} isDisabled={loading}>
+            <Button isDisabled={loading} variant="light" onPress={onClose}>
               Cancelar
             </Button>
-            <Button color="primary" type="submit" isLoading={loading}>
+            <Button color="primary" isLoading={loading} type="submit">
               {loja ? "Atualizar" : "Cadastrar"}
             </Button>
           </ModalFooter>

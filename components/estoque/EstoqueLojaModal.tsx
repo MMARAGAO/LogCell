@@ -11,8 +11,9 @@ import { useState, useEffect } from "react";
 import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
 import { Card, CardBody } from "@heroui/card";
-import { useToast } from "@/components/Toast";
 import { PlusIcon, MinusIcon } from "@heroicons/react/24/outline";
+
+import { useToast } from "@/components/Toast";
 
 interface Loja {
   id: number;
@@ -68,6 +69,7 @@ export default function EstoqueLojaModal({
       // Inicializar o estado com todas as lojas
       const inicial = lojas.map((loja) => {
         const estoqueAtual = estoques.find((e) => e.id_loja === loja.id);
+
         return {
           lojaId: loja.id,
           lojaNome: loja.nome,
@@ -76,6 +78,7 @@ export default function EstoqueLojaModal({
           novaQuantidade: estoqueAtual?.quantidade || 0,
         };
       });
+
       setLojasEstoque(inicial);
       setObservacao("");
     }
@@ -86,14 +89,16 @@ export default function EstoqueLojaModal({
       prev.map((loja) => {
         if (loja.lojaId === lojaId) {
           const novoAjuste = isNaN(valor) ? 0 : valor;
+
           return {
             ...loja,
             ajuste: novoAjuste,
             novaQuantidade: loja.quantidadeAtual + novoAjuste,
           };
         }
+
         return loja;
-      })
+      }),
     );
   };
 
@@ -103,6 +108,7 @@ export default function EstoqueLojaModal({
 
     if (lojasComAlteracao.length === 0) {
       toast.warning("Nenhuma alteração foi feita");
+
       return;
     }
 
@@ -117,7 +123,7 @@ export default function EstoqueLojaModal({
         });
       }
       toast.success(
-        `Estoque atualizado em ${lojasComAlteracao.length} loja(s)`
+        `Estoque atualizado em ${lojasComAlteracao.length} loja(s)`,
       );
       onClose();
     } catch (error) {
@@ -132,11 +138,11 @@ export default function EstoqueLojaModal({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="3xl"
-      scrollBehavior="inside"
       isDismissable={!loading}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="3xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -154,10 +160,10 @@ export default function EstoqueLojaModal({
                   <span className="text-sm font-semibold text-primary">
                     Estoque Total Atual:
                   </span>
-                  <Chip color="primary" variant="flat" size="lg">
+                  <Chip color="primary" size="lg" variant="flat">
                     {lojasEstoque.reduce(
                       (acc, loja) => acc + loja.quantidadeAtual,
-                      0
+                      0,
                     )}{" "}
                     unidades
                   </Chip>
@@ -167,10 +173,10 @@ export default function EstoqueLojaModal({
                     <span className="text-sm font-semibold text-success">
                       Novo Total:
                     </span>
-                    <Chip color="success" variant="flat" size="lg">
+                    <Chip color="success" size="lg" variant="flat">
                       {lojasEstoque.reduce(
                         (acc, loja) => acc + loja.novaQuantidade,
-                        0
+                        0,
                       )}{" "}
                       unidades
                     </Chip>
@@ -204,8 +210,8 @@ export default function EstoqueLojaModal({
                           color={
                             loja.quantidadeAtual > 0 ? "success" : "danger"
                           }
-                          variant="flat"
                           size="sm"
+                          variant="flat"
                         >
                           {loja.quantidadeAtual} un
                         </Chip>
@@ -214,26 +220,6 @@ export default function EstoqueLojaModal({
                       {/* Input de Ajuste */}
                       <div className="md:col-span-2">
                         <Input
-                          type="number"
-                          label="Ajuste (+/-)"
-                          placeholder="0"
-                          value={
-                            loja.ajuste === 0 ? "" : loja.ajuste.toString()
-                          }
-                          onValueChange={(value) => {
-                            const numero = parseInt(value) || 0;
-                            handleAjusteChange(loja.lojaId, numero);
-                          }}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          variant="bordered"
-                          size="sm"
-                          startContent={
-                            loja.ajuste > 0 ? (
-                              <PlusIcon className="w-4 h-4 text-success" />
-                            ) : loja.ajuste < 0 ? (
-                              <MinusIcon className="w-4 h-4 text-danger" />
-                            ) : null
-                          }
                           classNames={{
                             input:
                               loja.ajuste > 0
@@ -247,6 +233,27 @@ export default function EstoqueLojaModal({
                               ? `${loja.ajuste > 0 ? "+" : ""}${loja.ajuste} unidade(s)`
                               : undefined
                           }
+                          label="Ajuste (+/-)"
+                          placeholder="0"
+                          size="sm"
+                          startContent={
+                            loja.ajuste > 0 ? (
+                              <PlusIcon className="w-4 h-4 text-success" />
+                            ) : loja.ajuste < 0 ? (
+                              <MinusIcon className="w-4 h-4 text-danger" />
+                            ) : null
+                          }
+                          type="number"
+                          value={
+                            loja.ajuste === 0 ? "" : loja.ajuste.toString()
+                          }
+                          variant="bordered"
+                          onValueChange={(value) => {
+                            const numero = parseInt(value) || 0;
+
+                            handleAjusteChange(loja.lojaId, numero);
+                          }}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
 
@@ -256,6 +263,11 @@ export default function EstoqueLojaModal({
                           Nova Qtd.
                         </span>
                         <Chip
+                          className={
+                            loja.novaQuantidade < 0
+                              ? "bg-danger-100 text-danger"
+                              : ""
+                          }
                           color={
                             loja.novaQuantidade !== loja.quantidadeAtual
                               ? loja.novaQuantidade > loja.quantidadeAtual
@@ -263,13 +275,8 @@ export default function EstoqueLojaModal({
                                 : "warning"
                               : "default"
                           }
-                          variant="flat"
                           size="sm"
-                          className={
-                            loja.novaQuantidade < 0
-                              ? "bg-danger-100 text-danger"
-                              : ""
-                          }
+                          variant="flat"
                         >
                           {loja.novaQuantidade} un
                         </Chip>
@@ -291,13 +298,13 @@ export default function EstoqueLojaModal({
 
             {/* Observação */}
             <Textarea
+              description="Esta observação será aplicada a todas as movimentações"
               label="Observação (opcional)"
+              minRows={2}
               placeholder="Ex: Ajuste de inventário, entrada de nota fiscal, transferência entre lojas..."
               value={observacao}
-              onValueChange={setObservacao}
               variant="bordered"
-              minRows={2}
-              description="Esta observação será aplicada a todas as movimentações"
+              onValueChange={setObservacao}
             />
 
             {/* Resumo de Alterações */}
@@ -339,14 +346,14 @@ export default function EstoqueLojaModal({
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button variant="light" onPress={onClose} isDisabled={loading}>
+          <Button isDisabled={loading} variant="light" onPress={onClose}>
             Cancelar
           </Button>
           <Button
             color="primary"
-            onPress={handleSubmit}
-            isLoading={loading}
             isDisabled={!temAlteracao}
+            isLoading={loading}
+            onPress={handleSubmit}
           >
             {loading
               ? "Atualizando..."

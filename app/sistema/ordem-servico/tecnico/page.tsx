@@ -1,13 +1,14 @@
 "use client";
 
+import type { OrdemServico, OrdemServicoPeca } from "@/types/ordemServico";
+
 import { useEffect, useState } from "react";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Divider } from "@heroui/divider";
-import { useAuthContext } from "@/contexts/AuthContext";
 import {
   MagnifyingGlassIcon,
   ClockIcon,
@@ -20,7 +21,8 @@ import {
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
-import type { OrdemServico, OrdemServicoPeca } from "@/types/ordemServico";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 
 export default function OrdemServicoTecnicoPage() {
@@ -30,7 +32,7 @@ export default function OrdemServicoTecnicoPage() {
   const [osConcluidas, setOsConcluidas] = useState<OrdemServico[]>([]);
   const [osDisponiveis, setOsDisponiveis] = useState<OrdemServico[]>([]);
   const [osPecas, setOsPecas] = useState<Record<string, OrdemServicoPeca[]>>(
-    {}
+    {},
   );
   const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +50,7 @@ export default function OrdemServicoTecnicoPage() {
     setLoading(true);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -99,7 +101,7 @@ export default function OrdemServicoTecnicoPage() {
               descricao,
               codigo_barras
             )
-          `
+          `,
           )
           .in("id_ordem_servico", idsOrdens)
           .eq("estoque_reservado", true);
@@ -107,6 +109,7 @@ export default function OrdemServicoTecnicoPage() {
         if (!erroPecas && pecas) {
           // Agrupar peças por ordem de serviço
           const pecasPorOS: Record<string, OrdemServicoPeca[]> = {};
+
           pecas.forEach((peca) => {
             if (!pecasPorOS[peca.id_ordem_servico]) {
               pecasPorOS[peca.id_ordem_servico] = [];
@@ -129,7 +132,7 @@ export default function OrdemServicoTecnicoPage() {
 
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
     try {
@@ -196,7 +199,7 @@ export default function OrdemServicoTecnicoPage() {
         os.numero_os?.toString().includes(busca) ||
         os.cliente_nome?.toLowerCase().includes(busca.toLowerCase()) ||
         os.equipamento_tipo?.toLowerCase().includes(busca.toLowerCase()) ||
-        os.defeito_reclamado?.toLowerCase().includes(busca.toLowerCase())
+        os.defeito_reclamado?.toLowerCase().includes(busca.toLowerCase()),
     );
   };
 
@@ -269,17 +272,17 @@ export default function OrdemServicoTecnicoPage() {
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <h3 className="font-bold text-lg">OS #{ordem.numero_os}</h3>
                 <Chip
+                  color={getStatusColor(ordem.status)}
                   size="sm"
                   variant="flat"
-                  color={getStatusColor(ordem.status)}
                 >
                   {getStatusLabel(ordem.status)}
                 </Chip>
                 {ordem.prioridade && ordem.prioridade !== "normal" && (
                   <Chip
+                    color={getPrioridadeColor(ordem.prioridade)}
                     size="sm"
                     variant="dot"
-                    color={getPrioridadeColor(ordem.prioridade)}
                   >
                     {getPrioridadeLabel(ordem.prioridade)}
                   </Chip>
@@ -412,12 +415,12 @@ export default function OrdemServicoTecnicoPage() {
           {!isDisponivel && !isConcluida && (
             <div className="mt-4 pt-4 border-t border-divider">
               <Button
-                color="primary"
-                variant="flat"
-                size="sm"
                 fullWidth
                 as="a"
+                color="primary"
                 href={`/sistema/ordem-servico/tecnico/${ordem.id}`}
+                size="sm"
+                variant="flat"
               >
                 Dar Andamento
               </Button>
@@ -427,11 +430,11 @@ export default function OrdemServicoTecnicoPage() {
           {isConcluida && (
             <div className="mt-4 pt-4 border-t border-divider">
               <Chip
-                color="success"
-                variant="flat"
-                size="sm"
                 className="w-full justify-center"
+                color="success"
+                size="sm"
                 startContent={<CheckCircleIcon className="w-4 h-4" />}
+                variant="flat"
               >
                 Serviço Concluído
               </Chip>
@@ -465,27 +468,27 @@ export default function OrdemServicoTecnicoPage() {
 
       {/* Busca */}
       <Input
-        placeholder="Buscar por número, cliente, equipamento..."
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-        startContent={
-          <MagnifyingGlassIcon className="w-5 h-5 text-default-400" />
-        }
         classNames={{
           input: "text-sm",
         }}
+        placeholder="Buscar por número, cliente, equipamento..."
+        startContent={
+          <MagnifyingGlassIcon className="w-5 h-5 text-default-400" />
+        }
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
       />
 
       {/* Tabs */}
       <Tabs
-        selectedKey={selectedTab}
-        onSelectionChange={(key) => setSelectedTab(key as string)}
-        color="primary"
-        variant="underlined"
         classNames={{
           tabList: "gap-6",
           cursor: "w-full",
         }}
+        color="primary"
+        selectedKey={selectedTab}
+        variant="underlined"
+        onSelectionChange={(key) => setSelectedTab(key as string)}
       >
         {/* Tab 1: OSs Disponíveis */}
         <Tab
@@ -516,7 +519,7 @@ export default function OrdemServicoTecnicoPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtrarOrdens(osDisponiveis).map((ordem) => (
-                <OrdemCard key={ordem.id} ordem={ordem} isDisponivel={true} />
+                <OrdemCard key={ordem.id} isDisponivel={true} ordem={ordem} />
               ))}
             </div>
           )}
@@ -529,7 +532,7 @@ export default function OrdemServicoTecnicoPage() {
             <div className="flex items-center gap-2">
               <WrenchScrewdriverIcon className="w-5 h-5" />
               <span>Em Andamento</span>
-              <Chip size="sm" variant="flat" color="primary">
+              <Chip color="primary" size="sm" variant="flat">
                 {minhasOS.length}
               </Chip>
             </div>
@@ -556,8 +559,8 @@ export default function OrdemServicoTecnicoPage() {
               {filtrarOrdens(minhasOS).map((ordem) => (
                 <OrdemCard
                   key={ordem.id}
-                  ordem={ordem}
                   isDisponivel={false}
+                  ordem={ordem}
                   pecas={osPecas[ordem.id]}
                 />
               ))}
@@ -572,7 +575,7 @@ export default function OrdemServicoTecnicoPage() {
             <div className="flex items-center gap-2">
               <DocumentCheckIcon className="w-5 h-5" />
               <span>Finalizadas</span>
-              <Chip size="sm" variant="flat" color="success">
+              <Chip color="success" size="sm" variant="flat">
                 {osConcluidas.length}
               </Chip>
             </div>
@@ -594,7 +597,7 @@ export default function OrdemServicoTecnicoPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtrarOrdens(osConcluidas).map((ordem) => (
-                <OrdemCard key={ordem.id} ordem={ordem} isDisponivel={false} />
+                <OrdemCard key={ordem.id} isDisponivel={false} ordem={ordem} />
               ))}
             </div>
           )}
@@ -612,9 +615,9 @@ export default function OrdemServicoTecnicoPage() {
               <div>
                 <h3 className="font-bold mb-1">💡 Como funciona?</h3>
                 <p className="text-sm text-default-600">
-                  Clique em "Pegar OS" para atribuir a ordem a você. Ela
-                  automaticamente mudará para "Em Andamento" e aparecerá na aba
-                  "Minhas OS".
+                  Clique em &quot;Pegar OS&quot; para atribuir a ordem a você.
+                  Ela automaticamente mudará para &quot;Em Andamento&quot; e
+                  aparecerá na aba &quot;Minhas OS&quot;.
                 </p>
               </div>
             </div>

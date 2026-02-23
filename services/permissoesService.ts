@@ -27,6 +27,7 @@ export class PermissoesService {
       return data;
     } catch (error) {
       console.error("Erro ao buscar permissões:", error);
+
       return null;
     }
   }
@@ -36,7 +37,7 @@ export class PermissoesService {
    */
   static async salvarPermissoes(
     usuarioId: string,
-    permissoes: PermissoesModulos
+    permissoes: PermissoesModulos,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Verifica se já existe
@@ -66,6 +67,7 @@ export class PermissoesService {
       return { success: true };
     } catch (error) {
       console.error("Erro ao salvar permissões:", error);
+
       return {
         success: false,
         error: "Erro ao salvar permissões",
@@ -79,18 +81,21 @@ export class PermissoesService {
   static async verificarPermissao(
     usuarioId: string,
     modulo: keyof PermissoesModulos,
-    acao: string
+    acao: string,
   ): Promise<boolean> {
     try {
       const permissoes = await this.getPermissoes(usuarioId);
+
       if (!permissoes) return false;
 
       const moduloPermissoes = permissoes.permissoes[modulo];
+
       if (!moduloPermissoes) return false;
 
       return (moduloPermissoes as any)[acao] === true;
     } catch (error) {
       console.error("Erro ao verificar permissão:", error);
+
       return false;
     }
   }
@@ -99,7 +104,7 @@ export class PermissoesService {
    * Remove todas as permissões de um usuário
    */
   static async removerPermissoes(
-    usuarioId: string
+    usuarioId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       const { error } = await supabase
@@ -112,6 +117,7 @@ export class PermissoesService {
       return { success: true };
     } catch (error) {
       console.error("Erro ao remover permissões:", error);
+
       return {
         success: false,
         error: "Erro ao remover permissões",

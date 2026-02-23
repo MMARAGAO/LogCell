@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
 import {
   Modal,
   ModalContent,
@@ -12,6 +11,8 @@ import {
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Divider } from "@heroui/divider";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 import { Cliente } from "@/types/clientesTecnicos";
 import { criarCliente } from "@/services/clienteService";
@@ -38,6 +39,7 @@ export function CadastroClienteModal({
   async function handleSubmit() {
     if (!formData.nome) {
       showToast("Nome é obrigatório", "warning");
+
       return;
     }
 
@@ -50,7 +52,7 @@ export function CadastroClienteModal({
           telefone: formData.telefone || undefined,
           email: formData.email || undefined,
         },
-        usuario?.id || ""
+        usuario?.id || "",
       );
 
       if (error || !data) {
@@ -109,7 +111,7 @@ export function CadastroClienteModal({
           <Button color="default" onPress={() => onClose()}>
             Cancelar
           </Button>
-          <Button color="primary" onPress={handleSubmit} isLoading={loading}>
+          <Button color="primary" isLoading={loading} onPress={handleSubmit}>
             Criar Cliente
           </Button>
         </ModalFooter>

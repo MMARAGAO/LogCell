@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { supabase } from "@/lib/supabaseClient";
 
 // Cache global para evitar múltiplas requisições
@@ -17,6 +18,7 @@ export function useFotoPerfilUsuario(usuarioId: string | undefined) {
     if (!usuarioId) {
       setFotoUrl(null);
       setLoading(false);
+
       return;
     }
 
@@ -24,6 +26,7 @@ export function useFotoPerfilUsuario(usuarioId: string | undefined) {
     if (fotoCache.has(usuarioId)) {
       setFotoUrl(fotoCache.get(usuarioId) || null);
       setLoading(false);
+
       return;
     }
 

@@ -1,5 +1,12 @@
 "use client";
 
+import type {
+  ItemCarrinho,
+  PagamentoCarrinho,
+  CreditoCliente,
+  VendaCompleta,
+} from "@/types/vendas";
+
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -22,7 +29,6 @@ import {
 } from "@heroui/react";
 import {
   User,
-  Store,
   ShoppingCart,
   CreditCard,
   CheckCircle,
@@ -30,22 +36,19 @@ import {
   ArrowLeft,
   UserPlus,
 } from "lucide-react";
+
+import ClienteFormModal from "../clientes/ClienteFormModal";
+
 import { ProdutoSearchGrid } from "./ProdutoSearchGrid";
 import { CarrinhoVenda } from "./CarrinhoVenda";
 import { PagamentosPanel } from "./PagamentosPanel";
 import { DescontoModal } from "./DescontoModal";
 import { CreditosClientePanel } from "./CreditosClientePanel";
-import ClienteFormModal from "../clientes/ClienteFormModal";
+
 import { DevolucoesService } from "@/services/devolucoesService";
 import { CaixaService } from "@/services/caixaService";
 import { useToast } from "@/components/Toast";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import type {
-  ItemCarrinho,
-  PagamentoCarrinho,
-  CreditoCliente,
-  VendaCompleta,
-} from "@/types/vendas";
 
 interface NovaVendaModalProps {
   isOpen: boolean;
@@ -145,7 +148,7 @@ export function NovaVendaModal({
 
   // Lojas com caixa aberto
   const [lojasComCaixaAberto, setLojasComCaixaAberto] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [loadingLojas, setLoadingLojas] = useState(false);
 
@@ -171,6 +174,7 @@ export function NovaVendaModal({
 
       for (const loja of lojas) {
         const caixa = await CaixaService.buscarCaixaAberto(loja.id);
+
         if (caixa) {
           lojasAbertas.add(loja.id);
         }
@@ -187,11 +191,11 @@ export function NovaVendaModal({
   // Calculos
   const descontosItens = itensCarrinho.reduce(
     (sum, item) => sum + calcularDescontoItem(item),
-    0
+    0,
   );
   const subtotalItens = itensCarrinho.reduce(
     (sum, item) => sum + item.subtotal,
-    0
+    0,
   );
   const valorTotal = subtotalItens - descontosItens - valorDesconto;
   const valorPago = pagamentos.reduce((sum, pag) => sum + pag.valor, 0);
@@ -235,7 +239,7 @@ export function NovaVendaModal({
           ? new Date(vendaParaEditar.data_prevista_pagamento)
               .toISOString()
               .split("T")[0]
-          : ""
+          : "",
       );
 
       // Carregar itens
@@ -256,6 +260,7 @@ export function NovaVendaModal({
                 }
               : undefined,
         })) || [];
+
       setItensCarrinho(itens);
 
       // Carregar pagamentos
@@ -266,11 +271,13 @@ export function NovaVendaModal({
           data_pagamento: pag.data_pagamento || new Date().toISOString(),
           observacao: pag.observacoes || pag.observacao,
         })) || [];
+
       setPagamentos(pags);
 
       // Carregar desconto da venda
       if (vendaParaEditar.descontos && vendaParaEditar.descontos.length > 0) {
         const desc = vendaParaEditar.descontos[0];
+
         setDescontoInfo({
           tipo: desc.tipo === "percentual" ? "percentual" : "valor",
           valor: desc.valor,
@@ -287,16 +294,17 @@ export function NovaVendaModal({
   useEffect(() => {
     if (!descontoInfo) {
       setValorDesconto(0);
+
       return;
     }
 
     const subtotalItens = itensCarrinho.reduce(
       (sum, item) => sum + item.subtotal,
-      0
+      0,
     );
     const descontosItens = itensCarrinho.reduce(
       (sum, item) => sum + calcularDescontoItem(item),
-      0
+      0,
     );
     const baseCalculo = subtotalItens - descontosItens;
 
@@ -312,6 +320,7 @@ export function NovaVendaModal({
     const carregarCreditos = async () => {
       if (!clienteSelecionado) {
         setCreditosCliente([]);
+
         return;
       }
 
@@ -319,6 +328,7 @@ export function NovaVendaModal({
       try {
         const creditos =
           await DevolucoesService.buscarCreditosCliente(clienteSelecionado);
+
         setCreditosCliente(creditos);
       } catch (error) {
         console.error("Erro ao carregar créditos:", error);
@@ -335,6 +345,7 @@ export function NovaVendaModal({
     const carregarEstoque = async () => {
       if (!lojaSelecionada) {
         setProdutosComEstoque([]);
+
         return;
       }
 
@@ -362,7 +373,7 @@ export function NovaVendaModal({
                 categoria,
                 ativo
               )
-            `
+            `,
             )
             .eq("id_loja", lojaSelecionada)
             .range(page * pageSize, (page + 1) * pageSize - 1);
@@ -380,7 +391,7 @@ export function NovaVendaModal({
             (item: any) =>
               item.produtos &&
               item.produtos.ativo !== false &&
-              item.quantidade > 0
+              item.quantidade > 0,
           )
           .map((item: any) => ({
             id: item.produtos.id,
@@ -462,12 +473,14 @@ export function NovaVendaModal({
       // Consolidar itens duplicados (agrupar por produto_id)
       const itensConsolidados = itensCarrinho.reduce((acc, item) => {
         const existente = acc.find((i) => i.produto_id === item.produto_id);
+
         if (existente) {
           existente.quantidade += item.quantidade;
           existente.subtotal += item.subtotal;
         } else {
           acc.push({ ...item });
         }
+
         return acc;
       }, [] as ItemCarrinho[]);
 
@@ -481,7 +494,7 @@ export function NovaVendaModal({
           pagamentos,
           desconto: descontoInfo,
         },
-        vendaParaEditar?.id
+        vendaParaEditar?.id,
       );
 
       handleClose();
@@ -494,7 +507,7 @@ export function NovaVendaModal({
 
   const adicionarProdutoCarrinho = (produto: any) => {
     const itemExistente = itensCarrinho.find(
-      (i) => i.produto_id === produto.id
+      (i) => i.produto_id === produto.id,
     );
 
     // Valida estoque disponível
@@ -504,8 +517,9 @@ export function NovaVendaModal({
 
     if (novaQuantidade > estoqueDisponivel) {
       toast.error(
-        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`
+        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`,
       );
+
       return;
     }
 
@@ -518,8 +532,8 @@ export function NovaVendaModal({
                 quantidade: item.quantidade + 1,
                 subtotal: (item.quantidade + 1) * item.preco_unitario,
               }
-            : item
-        )
+            : item,
+        ),
       );
     } else {
       const novoItem: ItemCarrinho = {
@@ -531,13 +545,14 @@ export function NovaVendaModal({
         subtotal: produto.preco_venda,
         estoque_disponivel: produto.estoque_disponivel,
       };
+
       setItensCarrinho([...itensCarrinho, novoItem]);
     }
   };
 
   const atualizarQuantidadeItem = (
     produtoId: string,
-    novaQuantidade: number
+    novaQuantidade: number,
   ) => {
     if (novaQuantidade < 1) return;
 
@@ -546,8 +561,9 @@ export function NovaVendaModal({
     // Valida estoque disponível
     if (novaQuantidade > estoqueDisponivel) {
       toast.error(
-        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`
+        `Estoque insuficiente! Disponível: ${estoqueDisponivel} unidade(s)`,
       );
+
       return;
     }
 
@@ -559,14 +575,15 @@ export function NovaVendaModal({
               quantidade: novaQuantidade,
               subtotal: novaQuantidade * item.preco_unitario,
             }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
   const atualizarPrecoItem = (produtoId: string, novoPreco: number) => {
     if (novoPreco <= 0) {
       toast.error("O preço deve ser maior que zero");
+
       return;
     }
 
@@ -578,8 +595,8 @@ export function NovaVendaModal({
               preco_unitario: novoPreco,
               subtotal: item.quantidade * novoPreco,
             }
-          : item
-      )
+          : item,
+      ),
     );
     toast.success("Preço atualizado com sucesso!");
   };
@@ -587,7 +604,7 @@ export function NovaVendaModal({
   const aplicarDescontoItem = (
     produtoId: string,
     tipo: "valor" | "percentual",
-    valor: number
+    valor: number,
   ) => {
     // Limpar desconto geral ao aplicar desconto por item
     if (valorDesconto > 0) {
@@ -603,8 +620,8 @@ export function NovaVendaModal({
               ...item,
               desconto: { tipo, valor },
             }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -616,10 +633,12 @@ export function NovaVendaModal({
   const abrirDescontoGeral = () => {
     // Verificar se há descontos por item
     const temDescontoPorItem = itensCarrinho.some((item) => item.desconto);
+
     if (temDescontoPorItem) {
       toast.warning(
-        "Remova os descontos individuais dos produtos antes de aplicar desconto geral"
+        "Remova os descontos individuais dos produtos antes de aplicar desconto geral",
       );
+
       return;
     }
     setDescontoModalOpen(true);
@@ -633,8 +652,8 @@ export function NovaVendaModal({
               ...item,
               desconto: undefined,
             }
-          : item
-      )
+          : item,
+      ),
     );
   };
 
@@ -650,11 +669,11 @@ export function NovaVendaModal({
     <React.Fragment>
       {toast.ToastComponent}
       <Modal
-        isOpen={isOpen}
-        onClose={handleClose}
-        size="5xl"
-        scrollBehavior="inside"
         isDismissable={false}
+        isOpen={isOpen}
+        scrollBehavior="inside"
+        size="5xl"
+        onClose={handleClose}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-3">
@@ -665,9 +684,9 @@ export function NovaVendaModal({
             {/* Stepper */}
             <div className="w-full">
               <Progress
-                value={(currentStep / 4) * 100}
-                color="primary"
                 className="mb-4"
+                color="primary"
+                value={(currentStep / 4) * 100}
               />
               <div className="flex justify-between">
                 {STEPS.map((step) => {
@@ -715,16 +734,16 @@ export function NovaVendaModal({
 
                 <div className="flex gap-2 items-end">
                   <Autocomplete
+                    allowsCustomValue={false}
+                    className="flex-1"
+                    defaultItems={clientes}
+                    description={`${clientes.length} cliente${clientes.length !== 1 ? "s" : ""} disponível${clientes.length !== 1 ? "eis" : ""} para seleção`}
                     label="Cliente *"
                     placeholder="Busque pelo nome, CPF ou CNPJ"
                     selectedKey={clienteSelecionado}
                     onSelectionChange={(key) =>
                       setClienteSelecionado(key as string)
                     }
-                    allowsCustomValue={false}
-                    defaultItems={clientes}
-                    className="flex-1"
-                    description={`${clientes.length} cliente${clientes.length !== 1 ? "s" : ""} disponível${clientes.length !== 1 ? "eis" : ""} para seleção`}
                   >
                     {(cliente) => (
                       <AutocompleteItem
@@ -744,24 +763,17 @@ export function NovaVendaModal({
                   </Autocomplete>
 
                   <Button
+                    isIconOnly
+                    aria-label="Cadastrar novo cliente"
                     color="primary"
                     variant="flat"
-                    isIconOnly
                     onPress={() => setClienteModalOpen(true)}
-                    aria-label="Cadastrar novo cliente"
                   >
                     <UserPlus className="h-4 w-4" />
                   </Button>
                 </div>
 
                 <Select
-                  label="Loja *"
-                  placeholder="Selecione a loja"
-                  selectedKeys={
-                    lojaSelecionada ? [lojaSelecionada.toString()] : []
-                  }
-                  onChange={(e) => setLojaSelecionada(parseInt(e.target.value))}
-                  isLoading={loadingLojas}
                   description={
                     lojasComCaixaAberto.size === 0
                       ? "Nenhuma loja com caixa aberto"
@@ -770,12 +782,19 @@ export function NovaVendaModal({
                   disabledKeys={lojas
                     .filter((loja) => !lojasComCaixaAberto.has(loja.id))
                     .map((loja) => loja.id.toString())}
+                  isLoading={loadingLojas}
+                  label="Loja *"
+                  placeholder="Selecione a loja"
+                  selectedKeys={
+                    lojaSelecionada ? [lojaSelecionada.toString()] : []
+                  }
+                  onChange={(e) => setLojaSelecionada(parseInt(e.target.value))}
                 >
                   {lojas
                     .filter((loja) =>
                       typeof temAcessoLoja === "function"
                         ? temAcessoLoja(loja.id)
-                        : true
+                        : true,
                     )
                     .map((loja) => (
                       <SelectItem
@@ -785,7 +804,7 @@ export function NovaVendaModal({
                         <div className="flex justify-between items-center">
                           <span>{loja.nome}</span>
                           {!lojasComCaixaAberto.has(loja.id) && (
-                            <Chip size="sm" color="danger" variant="flat">
+                            <Chip color="danger" size="sm" variant="flat">
                               Caixa Fechado
                             </Chip>
                           )}
@@ -807,8 +826,8 @@ export function NovaVendaModal({
 
                 {tipoVenda === "fiada" && (
                   <Input
-                    type="date"
                     label="Data Prevista de Pagamento *"
+                    type="date"
                     value={dataPrevistaPagamento}
                     onChange={(e) => setDataPrevistaPagamento(e.target.value)}
                   />
@@ -831,17 +850,17 @@ export function NovaVendaModal({
                     <h4 className="font-semibold mb-2">Carrinho</h4>
                     <CarrinhoVenda
                       itens={itensCarrinho}
+                      valorDesconto={valorDesconto}
+                      valorTotal={valorTotal}
+                      onAtualizarPreco={atualizarPrecoItem}
+                      onAtualizarQuantidade={atualizarQuantidadeItem}
+                      onRemoverDescontoGeral={removerDescontoGeral}
+                      onRemoverDescontoItem={removerDescontoItem}
                       onRemoverItem={(id) =>
                         setItensCarrinho(
-                          itensCarrinho.filter((i) => i.produto_id !== id)
+                          itensCarrinho.filter((i) => i.produto_id !== id),
                         )
                       }
-                      onAtualizarQuantidade={atualizarQuantidadeItem}
-                      onAtualizarPreco={atualizarPrecoItem}
-                      valorTotal={valorTotal}
-                      valorDesconto={valorDesconto}
-                      onRemoverDescontoItem={removerDescontoItem}
-                      onRemoverDescontoGeral={removerDescontoGeral}
                     />
                   </div>
                 )}
@@ -894,7 +913,7 @@ export function NovaVendaModal({
                             <span className="font-semibold">
                               Créditos do Cliente
                             </span>
-                            <Chip size="sm" color="success" variant="flat">
+                            <Chip color="success" size="sm" variant="flat">
                               {creditosCliente.length}{" "}
                               {creditosCliente.length === 1
                                 ? "crédito"
@@ -913,29 +932,22 @@ export function NovaVendaModal({
                 )}
 
                 <PagamentosPanel
+                  creditosDisponiveis={creditosCliente.reduce(
+                    (sum, c) => sum + c.saldo,
+                    0,
+                  )}
+                  descontoAplicado={descontoInfo}
+                  descontoGeral={valorDesconto}
+                  descontosItens={descontosItens}
+                  itens={itensCarrinho}
                   pagamentos={pagamentos}
+                  saldoDevedor={saldoDevedor}
+                  subtotalItens={subtotalItens}
+                  valorPago={valorPago}
+                  valorTotal={valorTotal}
                   onAdicionarPagamento={(pag) =>
                     setPagamentos([...pagamentos, pag])
                   }
-                  onRemoverPagamento={(idx) =>
-                    setPagamentos(pagamentos.filter((_, i) => i !== idx))
-                  }
-                  onEditarPagamento={(idx, pag) =>
-                    setPagamentos(
-                      pagamentos.map((p, i) => (i === idx ? pag : p))
-                    )
-                  }
-                  valorTotal={valorTotal}
-                  valorPago={valorPago}
-                  saldoDevedor={saldoDevedor}
-                  creditosDisponiveis={creditosCliente.reduce(
-                    (sum, c) => sum + c.saldo,
-                    0
-                  )}
-                  subtotalItens={subtotalItens}
-                  descontosItens={descontosItens}
-                  descontoGeral={valorDesconto}
-                  itens={itensCarrinho}
                   onAplicarDescontoGeral={
                     temPermissao("vendas.aplicar_desconto")
                       ? abrirDescontoGeral
@@ -952,13 +964,13 @@ export function NovaVendaModal({
                           // Limpar descontos individuais se houver
                           if (itensCarrinho.some((item) => item.desconto)) {
                             toast.warning(
-                              "Descontos individuais foram removidos ao aplicar desconto geral"
+                              "Descontos individuais foram removidos ao aplicar desconto geral",
                             );
                             setItensCarrinho(
                               itensCarrinho.map((item) => ({
                                 ...item,
                                 desconto: undefined,
-                              }))
+                              })),
                             );
                           }
                           setDescontoInfo({ tipo, valor, motivo });
@@ -966,7 +978,14 @@ export function NovaVendaModal({
                         }
                       : undefined
                   }
-                  descontoAplicado={descontoInfo}
+                  onEditarPagamento={(idx, pag) =>
+                    setPagamentos(
+                      pagamentos.map((p, i) => (i === idx ? pag : p)),
+                    )
+                  }
+                  onRemoverPagamento={(idx) =>
+                    setPagamentos(pagamentos.filter((_, i) => i !== idx))
+                  }
                 />
 
                 {/* Lista de itens com descontos */}
@@ -992,9 +1011,9 @@ export function NovaVendaModal({
                               </span>
                               <Button
                                 isIconOnly
+                                color="danger"
                                 size="sm"
                                 variant="flat"
-                                color="danger"
                                 onClick={() =>
                                   removerDescontoItem(item.produto_id)
                                 }
@@ -1010,9 +1029,9 @@ export function NovaVendaModal({
                             </span>
                             <Button
                               isIconOnly
+                              color="danger"
                               size="sm"
                               variant="flat"
-                              color="danger"
                               onClick={removerDescontoGeral}
                             >
                               <span className="text-xs">X</span>
@@ -1065,7 +1084,7 @@ export function NovaVendaModal({
                         <p>
                           <strong>Previsão Pagamento:</strong>{" "}
                           {new Date(dataPrevistaPagamento).toLocaleDateString(
-                            "pt-BR"
+                            "pt-BR",
                           )}
                         </p>
                       )}
@@ -1163,9 +1182,9 @@ export function NovaVendaModal({
             </Button>
             {currentStep > 1 && (
               <Button
+                startContent={<ArrowLeft className="w-4 h-4" />}
                 variant="bordered"
                 onClick={handleBack}
-                startContent={<ArrowLeft className="w-4 h-4" />}
               >
                 Voltar
               </Button>
@@ -1173,18 +1192,18 @@ export function NovaVendaModal({
             {currentStep < 4 ? (
               <Button
                 color="primary"
-                onClick={handleNext}
-                isDisabled={!canProceed()}
                 endContent={<ArrowRight className="w-4 h-4" />}
+                isDisabled={!canProceed()}
+                onClick={handleNext}
               >
                 Próximo
               </Button>
             ) : (
               <Button
                 color="success"
-                onClick={handleConfirmar}
                 isLoading={loading}
                 startContent={<CheckCircle className="w-4 h-4" />}
+                onClick={handleConfirmar}
               >
                 {vendaParaEditar ? "Salvar Alterações" : "Finalizar Venda"}
               </Button>
@@ -1195,38 +1214,39 @@ export function NovaVendaModal({
 
       <DescontoModal
         isOpen={descontoModalOpen}
-        onClose={() => setDescontoModalOpen(false)}
+        valorTotal={itensCarrinho.reduce((sum, item) => sum + item.subtotal, 0)}
         onAplicar={(tipo, valor, motivo) => {
           const subtotal = itensCarrinho.reduce(
             (sum, item) => sum + item.subtotal,
-            0
+            0,
           );
           const valorDesc = tipo === "valor" ? valor : (subtotal * valor) / 100;
+
           setValorDesconto(valorDesc);
           setDescontoInfo({ tipo, valor, motivo });
           setDescontoModalOpen(false);
         }}
-        valorTotal={itensCarrinho.reduce((sum, item) => sum + item.subtotal, 0)}
+        onClose={() => setDescontoModalOpen(false)}
       />
 
       {/* Modal de Desconto por Item */}
       {produtoDescontoSelecionado && (
         <DescontoModal
           isOpen={descontoItemModalOpen}
-          onClose={() => {
-            setDescontoItemModalOpen(false);
-            setProdutoDescontoSelecionado(null);
-          }}
+          valorTotal={
+            itensCarrinho.find(
+              (i) => i.produto_id === produtoDescontoSelecionado,
+            )?.subtotal || 0
+          }
           onAplicar={(tipo, valor, motivo) => {
             aplicarDescontoItem(produtoDescontoSelecionado, tipo, valor);
             setDescontoItemModalOpen(false);
             setProdutoDescontoSelecionado(null);
           }}
-          valorTotal={
-            itensCarrinho.find(
-              (i) => i.produto_id === produtoDescontoSelecionado
-            )?.subtotal || 0
-          }
+          onClose={() => {
+            setDescontoItemModalOpen(false);
+            setProdutoDescontoSelecionado(null);
+          }}
         />
       )}
 

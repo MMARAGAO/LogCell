@@ -1,12 +1,15 @@
 "use client";
 
+import type { Tecnico } from "@/types/clientesTecnicos";
+
 import { useState, useEffect } from "react";
 import { Card, CardBody, Input, useDisclosure, Button } from "@heroui/react";
 import { Wrench, Search, Users, UserPlus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import { useSearchParams } from "next/navigation";
 import {
   buscarTecnicos,
   deletarTecnico,
@@ -14,7 +17,6 @@ import {
 } from "@/services/tecnicoService";
 import { TecnicoCard, TecnicoComLoginModal } from "@/components/tecnicos";
 import { ConfirmModal } from "@/components/ConfirmModal";
-import type { Tecnico } from "@/types/clientesTecnicos";
 
 export default function TecnicosPage() {
   const { usuario } = useAuth();
@@ -36,12 +38,12 @@ export default function TecnicosPage() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
-    undefined
+    undefined,
   );
   const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(false);
   const [tecnicoParaDeletar, setTecnicoParaDeletar] = useState<Tecnico | null>(
-    null
+    null,
   );
 
   // Preencher busca vinda da URL
@@ -76,19 +78,21 @@ export default function TecnicosPage() {
 
     if (!temPermissao("tecnicos.editar")) {
       toast.error("Você não tem permissão para alterar o status de técnicos");
+
       return;
     }
 
     const { error } = await toggleTecnicoAtivo(
       tecnico.id,
       !tecnico.ativo,
-      usuario.id
+      usuario.id,
     );
+
     if (error) {
       toast.error(error);
     } else {
       toast.success(
-        `Técnico ${tecnico.ativo ? "desativado" : "ativado"} com sucesso!`
+        `Técnico ${tecnico.ativo ? "desativado" : "ativado"} com sucesso!`,
       );
       carregarTecnicos();
     }
@@ -105,10 +109,12 @@ export default function TecnicosPage() {
     if (!temPermissao("tecnicos.deletar")) {
       toast.error("Você não tem permissão para deletar técnicos");
       onDeleteClose();
+
       return;
     }
 
     const { error } = await deletarTecnico(tecnicoParaDeletar.id);
+
     if (error) {
       toast.error(error);
     } else {
@@ -210,8 +216,8 @@ export default function TecnicosPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card
           isPressable
-          onPress={() => setFiltroAtivo(undefined)}
           className={filtroAtivo === undefined ? "border-2 border-primary" : ""}
+          onPress={() => setFiltroAtivo(undefined)}
         >
           <CardBody className="text-center">
             <p className="text-default-500 text-sm">Total de Técnicos</p>
@@ -220,8 +226,8 @@ export default function TecnicosPage() {
         </Card>
         <Card
           isPressable
-          onPress={() => setFiltroAtivo(true)}
           className={filtroAtivo === true ? "border-2 border-success" : ""}
+          onPress={() => setFiltroAtivo(true)}
         >
           <CardBody className="text-center">
             <p className="text-default-500 text-sm">Ativos</p>
@@ -230,8 +236,8 @@ export default function TecnicosPage() {
         </Card>
         <Card
           isPressable
-          onPress={() => setFiltroAtivo(false)}
           className={filtroAtivo === false ? "border-2 border-danger" : ""}
+          onPress={() => setFiltroAtivo(false)}
         >
           <CardBody className="text-center">
             <p className="text-default-500 text-sm">Inativos</p>
@@ -241,11 +247,11 @@ export default function TecnicosPage() {
       </div>
 
       <Input
+        isClearable
         placeholder="Buscar por nome, telefone ou e-mail..."
+        startContent={<Search className="w-4 h-4" />}
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
-        startContent={<Search className="w-4 h-4" />}
-        isClearable
         onClear={() => setBusca("")}
       />
 
@@ -257,8 +263,8 @@ export default function TecnicosPage() {
           <p className="text-default-500">Nenhum técnico encontrado</p>
           {temPermissao("tecnicos.criar") && (
             <button
-              onClick={onLoginModalOpen}
               className="mt-4 text-primary hover:underline"
+              onClick={onLoginModalOpen}
             >
               Cadastrar primeiro técnico
             </button>
@@ -269,8 +275,8 @@ export default function TecnicosPage() {
           {tecnicos.map((tecnico) => (
             <TecnicoCard
               key={tecnico.id}
-              tecnico={tecnico}
               menuItems={getMenuItems(tecnico)}
+              tecnico={tecnico}
             />
           ))}
         </div>
@@ -284,10 +290,10 @@ export default function TecnicosPage() {
 
       <ConfirmModal
         isOpen={isDeleteOpen}
+        message={`Tem certeza que deseja excluir o técnico ${tecnicoParaDeletar?.nome}?`}
+        title="Excluir Técnico"
         onClose={onDeleteClose}
         onConfirm={handleDelete}
-        title="Excluir Técnico"
-        message={`Tem certeza que deseja excluir o técnico ${tecnicoParaDeletar?.nome}?`}
       />
     </div>
   );

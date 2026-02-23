@@ -1,8 +1,9 @@
 "use client";
 
+import { Spinner } from "@heroui/spinner";
+
 import DashboardPessoal from "@/components/dashboard/DashboardPessoal";
 import { usePermissoes } from "@/hooks/usePermissoes";
-import { Spinner } from "@heroui/spinner";
 
 export default function DashboardPessoalPage() {
   const { loading } = usePermissoes();
@@ -10,7 +11,7 @@ export default function DashboardPessoalPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <Spinner size="lg" label="Carregando..." />
+        <Spinner label="Carregando..." size="lg" />
       </div>
     );
   }

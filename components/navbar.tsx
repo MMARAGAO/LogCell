@@ -1,8 +1,5 @@
 "use client";
 
-import { useAuthContext } from "@/contexts/AuthContext";
-import { usePermissoes } from "@/hooks/usePermissoes";
-import { useFotoPerfil } from "@/hooks/useFotoPerfil";
 import { Button } from "@heroui/button";
 import {
   Navbar as HeroNavbar,
@@ -35,6 +32,10 @@ import {
   Wrench,
   TrendingUp,
 } from "lucide-react";
+
+import { useFotoPerfil } from "@/hooks/useFotoPerfil";
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 interface SearchResult {
   id: string;
@@ -86,6 +87,7 @@ export default function Navbar() {
       venda: "Venda",
       tecnico: "Técnico",
     };
+
     return labels[category];
   };
 
@@ -96,6 +98,7 @@ export default function Navbar() {
     if (!query.trim()) {
       setSearchResults([]);
       setShowResults(false);
+
       return;
     }
 
@@ -105,15 +108,18 @@ export default function Navbar() {
     try {
       console.log("Fazendo fetch para /api/busca");
       const response = await fetch(`/api/busca?q=${encodeURIComponent(query)}`);
+
       console.log("Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
+
         console.error("Erro na resposta:", errorText);
         throw new Error("Erro ao buscar");
       }
 
       const data = await response.json();
+
       console.log("Dados recebidos:", data);
       setSearchResults(data.results || []);
       setSelectedIndex(0);
@@ -130,6 +136,7 @@ export default function Navbar() {
     if (!searchQuery.trim()) {
       setSearchResults([]);
       setShowResults(false);
+
       return;
     }
 
@@ -163,6 +170,7 @@ export default function Navbar() {
     };
 
     document.addEventListener("keydown", handleKeyDown);
+
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showResults]);
 
@@ -173,7 +181,7 @@ export default function Navbar() {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) =>
-        prev < searchResults.length - 1 ? prev + 1 : prev
+        prev < searchResults.length - 1 ? prev + 1 : prev,
       );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -201,6 +209,7 @@ export default function Navbar() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
+
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
@@ -225,9 +234,9 @@ export default function Navbar() {
   return (
     <HeroNavbar
       isBordered
+      className="bg-background/70 backdrop-blur-md"
       isMenuOpen={isMenuOpen}
       onMenuOpenChange={setIsMenuOpen}
-      className="bg-background/70 backdrop-blur-md"
     >
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarMenuToggle
@@ -264,6 +273,13 @@ export default function Navbar() {
                   inputWrapper:
                     "h-10 bg-default-100/50 hover:bg-default-200/50 focus-within:!bg-default-200/50 backdrop-blur-md border-2 border-transparent focus-within:border-primary",
                 }}
+                endContent={
+                  <div className="flex items-center gap-1 text-tiny text-default-400">
+                    <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-default-200/50 font-mono text-[10px]">
+                      <Command className="w-3 h-3" />K
+                    </kbd>
+                  </div>
+                }
                 placeholder="Buscar produtos, clientes, OS... (Ctrl+K)"
                 size="sm"
                 startContent={
@@ -273,18 +289,11 @@ export default function Navbar() {
                     <Search className="w-4 h-4 text-default-400" />
                   )
                 }
-                endContent={
-                  <div className="flex items-center gap-1 text-tiny text-default-400">
-                    <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-default-200/50 font-mono text-[10px]">
-                      <Command className="w-3 h-3" />K
-                    </kbd>
-                  </div>
-                }
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
                 onFocus={() => searchQuery && setShowResults(true)}
+                onKeyDown={handleKeyDown}
               />
 
               {/* Dropdown de resultados */}
@@ -345,9 +354,9 @@ export default function Navbar() {
             <NavbarItem>
               <Button
                 isIconOnly
+                aria-label="Buscar"
                 variant="light"
                 onPress={() => setIsSearchModalOpen(true)}
-                aria-label="Buscar"
               >
                 <Search className="w-5 h-5" />
               </Button>
@@ -359,17 +368,17 @@ export default function Navbar() {
       {isAuthenticated && (
         <NavbarContent className="hidden sm:flex gap-4" justify="center">
           <NavbarItem>
-            <Link href="/estoque" color="foreground">
+            <Link color="foreground" href="/estoque">
               Estoque
             </Link>
           </NavbarItem>
           <NavbarItem>
-            <Link href="/lojas" color="foreground">
+            <Link color="foreground" href="/lojas">
               Lojas
             </Link>
           </NavbarItem>
           <NavbarItem>
-            <Link href="/usuarios" color="foreground">
+            <Link color="foreground" href="/usuarios">
               Usuários
             </Link>
           </NavbarItem>
@@ -382,13 +391,13 @@ export default function Navbar() {
             <DropdownTrigger>
               <Avatar
                 isBordered
+                showFallback
                 as="button"
                 className="transition-transform"
                 color="primary"
                 name={usuario.nome}
                 size="sm"
                 src={fotoUrl || undefined}
-                showFallback
               />
             </DropdownTrigger>
             <DropdownMenu aria-label="Menu do usuário" variant="flat">
@@ -443,22 +452,21 @@ export default function Navbar() {
 
       {/* Modal de busca - Mobile */}
       <Modal
-        isOpen={isSearchModalOpen}
-        onOpenChange={setIsSearchModalOpen}
-        placement="top"
-        size="full"
         hideCloseButton
         classNames={{
           base: "m-0 sm:m-0",
           wrapper: "items-start",
         }}
+        isOpen={isSearchModalOpen}
+        placement="top"
+        size="full"
+        onOpenChange={setIsSearchModalOpen}
       >
         <ModalContent>
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col gap-1 px-4 pt-4 pb-2">
                 <Input
-                  autoFocus
                   classNames={{
                     base: "w-full",
                     mainWrapper: "w-full",

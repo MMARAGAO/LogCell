@@ -4,13 +4,9 @@ import { useState, useRef } from "react";
 import { Button } from "@heroui/button";
 import { Image } from "@heroui/image";
 import { Spinner } from "@heroui/spinner";
-import {
-  PhotoIcon,
-  TrashIcon,
-  StarIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { PhotoIcon, TrashIcon, StarIcon } from "@heroicons/react/24/outline";
 import { StarIcon as StarIconSolid } from "@heroicons/react/24/solid";
+
 import {
   uploadFotoAparelho,
   deletarFotoAparelho,
@@ -41,6 +37,7 @@ export function FotosAparelhoUpload({
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
+
     if (!files || files.length === 0) return;
 
     // Validar todos os arquivos
@@ -49,11 +46,13 @@ export function FotosAparelhoUpload({
 
       if (!file.type.startsWith("image/")) {
         setError("Todos os arquivos devem ser imagens");
+
         return;
       }
 
       if (file.size > 5 * 1024 * 1024) {
         setError(`A imagem ${file.name} excede 5MB`);
+
         return;
       }
     }
@@ -123,10 +122,10 @@ export function FotosAparelhoUpload({
           <h3 className="text-lg font-semibold">Fotos do Aparelho</h3>
           <Button
             color="primary"
+            isDisabled={uploading}
             size="sm"
             startContent={<PhotoIcon className="w-4 h-4" />}
             onPress={() => fileInputRef.current?.click()}
-            isDisabled={uploading}
           >
             Adicionar Fotos
           </Button>
@@ -134,11 +133,11 @@ export function FotosAparelhoUpload({
 
         <input
           ref={fileInputRef}
-          type="file"
-          accept="image/*"
           multiple
-          onChange={handleFileSelect}
+          accept="image/*"
           className="hidden"
+          type="file"
+          onChange={handleFileSelect}
         />
 
         {error && (
@@ -159,7 +158,7 @@ export function FotosAparelhoUpload({
             <PhotoIcon className="w-12 h-12 mx-auto text-default-400 mb-2" />
             <p className="text-default-500">Nenhuma foto adicionada</p>
             <p className="text-xs text-default-400 mt-1">
-              Clique em "Adicionar Fotos" para fazer upload
+              Clique em &quot;Adicionar Fotos&quot; para fazer upload
             </p>
           </div>
         ) : (
@@ -173,10 +172,10 @@ export function FotosAparelhoUpload({
                 }}
               >
                 <Image
-                  src={foto.url}
                   alt="Foto do aparelho"
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  src={foto.url}
                 />
 
                 {foto.is_principal && (
@@ -190,11 +189,11 @@ export function FotosAparelhoUpload({
                   {!foto.is_principal && (
                     <Button
                       isIconOnly
-                      size="sm"
                       color="warning"
+                      size="sm"
+                      title="Definir como principal"
                       variant="flat"
                       onPress={() => handleDefinirPrincipal(foto.id)}
-                      title="Definir como principal"
                     >
                       <StarIcon className="w-4 h-4" />
                     </Button>
@@ -202,15 +201,15 @@ export function FotosAparelhoUpload({
 
                   <Button
                     isIconOnly
-                    size="sm"
                     color="danger"
+                    isDisabled={deletingId === foto.id}
+                    size="sm"
+                    title="Deletar foto"
                     variant="flat"
                     onPress={() => handleDeleteClick(foto.id)}
-                    isDisabled={deletingId === foto.id}
-                    title="Deletar foto"
                   >
                     {deletingId === foto.id ? (
-                      <Spinner size="sm" color="white" />
+                      <Spinner color="white" size="sm" />
                     ) : (
                       <TrashIcon className="w-4 h-4" />
                     )}
@@ -228,17 +227,17 @@ export function FotosAparelhoUpload({
       </div>
 
       <ConfirmModal
+        cancelText="Cancelar"
+        confirmColor="danger"
+        confirmText="Deletar"
         isOpen={showDeleteModal}
+        message="Tem certeza que deseja deletar esta foto? Esta ação não pode ser desfeita."
+        title="Deletar Foto"
         onClose={() => {
           setShowDeleteModal(false);
           setFotoParaDeletar(null);
         }}
         onConfirm={handleDeleteConfirm}
-        title="Deletar Foto"
-        message="Tem certeza que deseja deletar esta foto? Esta ação não pode ser desfeita."
-        confirmText="Deletar"
-        cancelText="Cancelar"
-        confirmColor="danger"
       />
     </>
   );

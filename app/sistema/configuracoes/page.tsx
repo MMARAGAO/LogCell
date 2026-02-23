@@ -9,8 +9,9 @@ import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
 import { useTheme } from "next-themes";
 import { MoonIcon, PaintBrushIcon } from "@heroicons/react/24/outline";
-import { useConfiguracoes } from "@/contexts/ConfiguracoesContext";
 import { useRouter } from "next/navigation";
+
+import { useConfiguracoes } from "@/contexts/ConfiguracoesContext";
 import { useToast } from "@/components/Toast";
 import { usePermissoes } from "@/hooks/usePermissoes";
 
@@ -32,6 +33,7 @@ export default function ConfiguracoesPage() {
     if (configuracoes && !configuracoesCarregadas) {
       // Sincronizar com o tema atual do next-themes (prioridade)
       const temaAtual = theme || "light";
+
       setModoEscuro(temaAtual === "dark");
 
       setTemaLocal(configuracoes.tema);
@@ -43,6 +45,7 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     if (configuracoesCarregadas) {
       const novoTema = modoEscuro ? "dark" : "light";
+
       setTheme(novoTema);
 
       // Forçar persistência no localStorage
@@ -96,7 +99,7 @@ export default function ConfiguracoesPage() {
   if (carregando || loadingPermissoes) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
-        <Spinner size="lg" label="Carregando configurações..." />
+        <Spinner label="Carregando configurações..." size="lg" />
       </div>
     );
   }
@@ -135,23 +138,24 @@ export default function ConfiguracoesPage() {
                 </p>
               </div>
               <Switch
-                isSelected={modoEscuro}
-                onValueChange={setModoEscuro}
                 color="primary"
+                isSelected={modoEscuro}
                 startContent={<MoonIcon className="w-4 h-4" />}
+                onValueChange={setModoEscuro}
               />
             </div>
 
             <Select
+              description="Escolha a cor principal do sistema"
               label="Tema do sistema"
               placeholder="Selecione um tema"
               selectedKeys={new Set([tema])}
+              variant="bordered"
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0] as string;
+
                 setTemaLocal(selected);
               }}
-              variant="bordered"
-              description="Escolha a cor principal do sistema"
             >
               <SelectItem key="default">Padrão (Azul)</SelectItem>
               <SelectItem key="purple">Roxo</SelectItem>
@@ -181,7 +185,7 @@ export default function ConfiguracoesPage() {
                 {/* Exemplo de Card com tema aplicado */}
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse"></div>
+                    <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
                     <span className="text-sm font-medium text-foreground">
                       Tema Ativo:{" "}
                       {tema === "default"
@@ -226,9 +230,9 @@ export default function ConfiguracoesPage() {
                       selecionado.
                     </p>
                     <div className="flex gap-2 mt-2">
-                      <div className="flex-1 h-2 rounded-full bg-primary"></div>
-                      <div className="flex-1 h-2 rounded-full bg-secondary"></div>
-                      <div className="flex-1 h-2 rounded-full bg-success"></div>
+                      <div className="flex-1 h-2 rounded-full bg-primary" />
+                      <div className="flex-1 h-2 rounded-full bg-secondary" />
+                      <div className="flex-1 h-2 rounded-full bg-success" />
                     </div>
                   </CardBody>
                 </Card>
@@ -238,7 +242,7 @@ export default function ConfiguracoesPage() {
                   <span className="text-sm text-foreground">
                     Opção de exemplo
                   </span>
-                  <Switch size="sm" defaultSelected color="primary" />
+                  <Switch defaultSelected color="primary" size="sm" />
                 </div>
               </div>
             </div>

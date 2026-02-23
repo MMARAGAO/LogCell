@@ -1,5 +1,7 @@
 "use client";
 
+import type { Cliente, ClienteFormData } from "@/types/clientesTecnicos";
+
 import { useState, useEffect } from "react";
 import {
   Modal,
@@ -16,26 +18,15 @@ import {
   Tab,
 } from "@heroui/react";
 import { User, Phone, MapPin, FileText } from "lucide-react";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
-import {
-  criarCliente,
-  atualizarCliente,
-  buscarClientePorTelefone,
-} from "@/services/clienteService";
-import type {
-  Cliente,
-  ClienteFormData,
-  ESTADOS_BRASIL,
-} from "@/types/clientesTecnicos";
-import {
-  formatarCPF,
-  formatarCEP,
-  formatarTelefone,
-} from "@/types/clientesTecnicos";
+import { criarCliente, atualizarCliente } from "@/services/clienteService";
+import { formatarCEP, formatarTelefone } from "@/types/clientesTecnicos";
 
 function formatarDoc(valor: string): string {
   const numeros = valor.replace(/\D/g, "");
+
   if (numeros.length <= 11) {
     // CPF
     if (numeros.length === 0) return "";
@@ -44,6 +35,7 @@ function formatarDoc(valor: string): string {
       return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
     if (numeros.length <= 9)
       return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6)}`;
+
     return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9, 11)}`;
   } else {
     // CNPJ
@@ -54,6 +46,7 @@ function formatarDoc(valor: string): string {
       return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5)}`;
     if (numeros.length <= 12)
       return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8)}`;
+
     return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12, 14)}`;
   }
 }
@@ -174,12 +167,13 @@ export default function ClienteFormModal({
     setLoadingCep(true);
     try {
       const response = await fetch(
-        `https://viacep.com.br/ws/${cepNumeros}/json/`
+        `https://viacep.com.br/ws/${cepNumeros}/json/`,
       );
       const data = await response.json();
 
       if (data.erro) {
         toast.error("CEP não encontrado");
+
         return;
       }
 
@@ -197,11 +191,13 @@ export default function ClienteFormModal({
   const handleSubmit = async () => {
     if (!usuario) {
       toast.error("Usuário não autenticado");
+
       return;
     }
 
     if (!nome.trim()) {
       toast.error("Nome é obrigatório");
+
       return;
     }
 
@@ -229,15 +225,19 @@ export default function ClienteFormModal({
     try {
       if (cliente) {
         const { error } = await atualizarCliente(cliente.id, dados, usuario.id);
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Cliente atualizado com sucesso!");
       } else {
         const { error } = await criarCliente(dados, usuario.id);
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Cliente cadastrado com sucesso!");
@@ -253,7 +253,7 @@ export default function ClienteFormModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="3xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-2">
           <User className="w-5 h-5" />
@@ -273,26 +273,26 @@ export default function ClienteFormModal({
             >
               <div className="space-y-4 py-4">
                 <Input
+                  isRequired
                   label="Nome Completo"
                   placeholder="Digite o nome do cliente"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  isRequired
                 />
 
                 <div className="grid grid-cols-2 gap-3">
                   <Input
                     label="CPF ou CNPJ"
+                    maxLength={18}
                     placeholder="Digite o CPF ou CNPJ"
                     value={doc}
                     onChange={(e) => setDoc(formatarDoc(e.target.value))}
-                    maxLength={18}
                   />
                 </div>
 
                 <Input
-                  type="date"
                   label="Data de Nascimento"
+                  type="date"
                   value={dataNascimento}
                   onChange={(e) => setDataNascimento(e.target.value)}
                 />
@@ -311,32 +311,32 @@ export default function ClienteFormModal({
             >
               <div className="space-y-4 py-4">
                 <Input
+                  isRequired
                   label="Telefone Principal"
+                  maxLength={15}
                   placeholder="(00) 00000-0000"
+                  startContent={<Phone className="w-4 h-4 text-default-400" />}
                   value={telefone}
                   onChange={(e) =>
                     setTelefone(formatarTelefone(e.target.value))
                   }
-                  isRequired
-                  maxLength={15}
-                  startContent={<Phone className="w-4 h-4 text-default-400" />}
                 />
 
                 <Input
                   label="Telefone Secundário"
+                  maxLength={15}
                   placeholder="(00) 00000-0000"
+                  startContent={<Phone className="w-4 h-4 text-default-400" />}
                   value={telefoneSecundario}
                   onChange={(e) =>
                     setTelefoneSecundario(formatarTelefone(e.target.value))
                   }
-                  maxLength={15}
-                  startContent={<Phone className="w-4 h-4 text-default-400" />}
                 />
 
                 <Input
-                  type="email"
                   label="E-mail"
                   placeholder="cliente@email.com"
+                  type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -355,18 +355,19 @@ export default function ClienteFormModal({
             >
               <div className="space-y-4 py-4">
                 <Input
+                  disabled={loadingCep}
                   label="CEP"
+                  maxLength={9}
                   placeholder="00000-000"
                   value={cep}
                   onChange={(e) => {
                     const cepFormatado = formatarCEP(e.target.value);
+
                     setCep(cepFormatado);
                     if (cepFormatado.replace(/\D/g, "").length === 8) {
                       buscarCep(cepFormatado);
                     }
                   }}
-                  maxLength={9}
-                  disabled={loadingCep}
                 />
 
                 <Input
@@ -413,6 +414,7 @@ export default function ClienteFormModal({
                     selectedKeys={estado ? [estado] : []}
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0];
+
                       setEstado(selected as string);
                     }}
                   >
@@ -437,10 +439,10 @@ export default function ClienteFormModal({
               <div className="space-y-4 py-4">
                 <Textarea
                   label="Observações"
+                  minRows={6}
                   placeholder="Informações adicionais sobre o cliente..."
                   value={observacoes}
                   onChange={(e) => setObservacoes(e.target.value)}
-                  minRows={6}
                 />
               </div>
             </Tab>
@@ -450,7 +452,7 @@ export default function ClienteFormModal({
           <Button variant="flat" onPress={onClose}>
             Cancelar
           </Button>
-          <Button color="primary" onPress={handleSubmit} isLoading={loading}>
+          <Button color="primary" isLoading={loading} onPress={handleSubmit}>
             {cliente ? "Atualizar" : "Cadastrar"}
           </Button>
         </ModalFooter>

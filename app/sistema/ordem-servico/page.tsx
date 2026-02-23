@@ -1,8 +1,13 @@
 "use client";
 
+import type {
+  OrdemServico,
+  StatusOS,
+  OrdemServicoFormData,
+} from "@/types/ordemServico";
+
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAuthContext } from "@/contexts/AuthContext";
 import { useState } from "react";
 import {
   Button,
@@ -10,7 +15,6 @@ import {
   Select,
   SelectItem,
   Card,
-  CardHeader,
   CardBody,
   Spinner,
   Chip,
@@ -32,16 +36,14 @@ import {
   Search,
   Filter,
   FileText,
-  Clock,
-  CheckCircle,
   Package,
-  AlertCircle,
   LayoutGrid,
   Table as TableIcon,
-  DollarSign,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -51,7 +53,6 @@ import { Permissao } from "@/components/Permissao";
 import { formatarMoeda } from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
 import {
-  OrdemServicoFormModal,
   OrdemServicoWizard,
   OrdemServicoCard,
   OrdemServicoDetalhesModal,
@@ -69,11 +70,6 @@ import {
   cancelarOrdemServico,
   devolverOrdemServico,
 } from "@/services/ordemServicoService";
-import type {
-  OrdemServico,
-  StatusOS,
-  OrdemServicoFormData,
-} from "@/types/ordemServico";
 
 interface FiltrosOrdemServico {
   idLoja?: number;
@@ -121,6 +117,7 @@ export default function OrdemServicoPage() {
   const getLocalDateString = () => {
     const now = new Date();
     const offsetMs = now.getTimezoneOffset() * 60000;
+
     return new Date(now.getTime() - offsetMs).toISOString().split("T")[0];
   };
   const hoje = getLocalDateString();
@@ -154,6 +151,7 @@ export default function OrdemServicoPage() {
     try {
       const { LojasService } = await import("@/services/lojasService");
       const data = await LojasService.getLojasAtivas();
+
       setLojas(data.map((loja) => ({ id: loja.id, nome: loja.nome })));
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
@@ -231,6 +229,18 @@ export default function OrdemServicoPage() {
     filtroDataFim,
   ]);
 
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setPaginaAtual(1);
+  }, [
+    busca,
+    statusFiltro,
+    filtroLoja,
+    filtroDataInicio,
+    filtroDataFim,
+    ordenacao,
+  ]);
+
   // Returns condicionais (devem vir APÓS todos os hooks e funções)
   // Se for técnico, mostrar loading enquanto redireciona
   if (usuarioContext?.tipo_usuario === "tecnico") {
@@ -259,6 +269,7 @@ export default function OrdemServicoPage() {
   const handleNovaOS = () => {
     if (!temPermissao("os.criar")) {
       toast.error("Você não tem permissão para criar ordens de serviço");
+
       return;
     }
     setOsEditando(undefined);
@@ -273,6 +284,7 @@ export default function OrdemServicoPage() {
   const handleEditarOS = (os: OrdemServico) => {
     if (!temPermissao("os.editar")) {
       toast.error("Você não tem permissão para editar ordens de serviço");
+
       return;
     }
     setOsEditando(os);
@@ -285,12 +297,14 @@ export default function OrdemServicoPage() {
     if (!temPermissao("os.deletar")) {
       console.log("❌ Sem permissão para deletar");
       toast.error("Você não tem permissão para excluir ordens de serviço");
+
       return;
     }
 
     // Se estiver ENTREGUE, exigir permissão especial
     if (os.status === "entregue" && !temPermissao("os.deletar_entregue")) {
       toast.error("Você não tem permissão para excluir OSs entregues");
+
       return;
     }
 
@@ -316,6 +330,7 @@ export default function OrdemServicoPage() {
 
       if (!confirmado) {
         console.log("❌ Usuário cancelou");
+
         return;
       }
 
@@ -325,6 +340,7 @@ export default function OrdemServicoPage() {
       if (error) {
         console.error("❌ Erro ao deletar:", error);
         toast.error(error);
+
         return;
       }
 
@@ -340,11 +356,13 @@ export default function OrdemServicoPage() {
   const handleCancelarOS = async (os: OrdemServico) => {
     if (!temPermissao("os.editar")) {
       toast.error("Você não tem permissão para cancelar ordens de serviço");
+
       return;
     }
 
     if (os.status === "cancelado") {
       toast.error("Esta OS já está cancelada");
+
       return;
     }
 
@@ -369,6 +387,7 @@ export default function OrdemServicoPage() {
 
       if (error) {
         toast.error(error);
+
         return;
       }
 
@@ -383,11 +402,13 @@ export default function OrdemServicoPage() {
   const handleDevolverOS = async (os: OrdemServico) => {
     if (!temPermissao("os.editar")) {
       toast.error("Você não tem permissão para devolver ordens de serviço");
+
       return;
     }
 
     if (os.status === "cancelado" || os.status === "devolvida") {
       toast.error("Esta OS já está cancelada ou devolvida");
+
       return;
     }
 
@@ -407,6 +428,7 @@ export default function OrdemServicoPage() {
 
       if (error) {
         toast.error(error);
+
         return;
       }
 
@@ -429,6 +451,7 @@ export default function OrdemServicoPage() {
   const handleGerenciarPecas = (os: OrdemServico) => {
     if (!temPermissao("os.gerenciar_pecas")) {
       toast.error("Você não tem permissão para gerenciar peças");
+
       return;
     }
     setOsSelecionada(os);
@@ -443,6 +466,7 @@ export default function OrdemServicoPage() {
   const handleGerenciarFotos = (os: OrdemServico) => {
     if (!temPermissao("os.gerenciar_fotos")) {
       toast.error("Você não tem permissão para gerenciar fotos");
+
       return;
     }
     setOsSelecionada(os);
@@ -452,6 +476,7 @@ export default function OrdemServicoPage() {
   const handleGerenciarPagamentos = (os: OrdemServico) => {
     if (!temPermissao("os.gerenciar_pagamentos")) {
       toast.error("Você não tem permissão para gerenciar pagamentos");
+
       return;
     }
     setOsSelecionada(os);
@@ -461,6 +486,7 @@ export default function OrdemServicoPage() {
   const handleSubmitOS = async (dados: OrdemServicoFormData) => {
     if (!usuario) {
       toast.error("Usuário não autenticado");
+
       return;
     }
 
@@ -472,16 +498,20 @@ export default function OrdemServicoPage() {
           dados,
           usuario.id,
         );
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Ordem de serviço atualizada com sucesso!");
       } else {
         // Criar nova OS
         const { error } = await criarOrdemServico(dados, usuario.id);
+
         if (error) {
           toast.error(error);
+
           return;
         }
         toast.success("Ordem de serviço criada com sucesso!");
@@ -519,6 +549,7 @@ export default function OrdemServicoPage() {
     // Filtro de data (usando data_entrada)
     if (filtroDataInicio || filtroDataFim) {
       const dataOS = os.data_entrada?.split("T")[0];
+
       if (!dataOS) return false;
 
       if (filtroDataInicio && dataOS < filtroDataInicio) return false;
@@ -560,25 +591,15 @@ export default function OrdemServicoPage() {
   const indiceFim = indiceInicio + itensPorPagina;
   const ordensPaginadas = ordensFiltradas.slice(indiceInicio, indiceFim);
 
-  // Resetar página quando filtros mudarem
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [
-    busca,
-    statusFiltro,
-    filtroLoja,
-    filtroDataInicio,
-    filtroDataFim,
-    ordenacao,
-  ]);
-
   // Calcular resumo de formas de pagamento das OS filtradas
   const resumoPagamentos = ordensFiltradas.reduce(
     (acc, os) => {
       os.pagamentos?.forEach((pag) => {
         const tipo = pag.forma_pagamento;
+
         acc[tipo] = (acc[tipo] || 0) + Number(pag.valor);
       });
+
       return acc;
     },
     {} as { [key: string]: number },
@@ -599,6 +620,7 @@ export default function OrdemServicoPage() {
       cancelado: "danger",
       garantia: "secondary",
     };
+
     return cores[status] || "default";
   };
 
@@ -607,6 +629,7 @@ export default function OrdemServicoPage() {
 
     if (!temPermissao("os.assumir")) {
       toast.error("Você não tem permissão para assumir ordens de serviço");
+
       return;
     }
 
@@ -620,12 +643,14 @@ export default function OrdemServicoPage() {
 
       if (tecnicoError || !tecnico) {
         toast.warning("Você não está cadastrado como técnico no sistema");
+
         return;
       }
 
       // Verificar se já tem técnico responsável diferente
       if (os.tecnico_responsavel && os.tecnico_responsavel !== tecnico.id) {
         toast.warning("Esta OS já está atribuída a outro técnico");
+
         return;
       }
 
@@ -661,6 +686,7 @@ export default function OrdemServicoPage() {
       cancelado: "Cancelado",
       garantia: "Garantia",
     };
+
     return labels[status] || status;
   };
 
@@ -768,6 +794,7 @@ export default function OrdemServicoPage() {
       temPermissao("os.deletar") && os.status === "cancelado";
     const podeExcluirEntregue =
       temPermissao("os.deletar_entregue") && os.status === "entregue";
+
     if (podeExcluirCancelada || podeExcluirEntregue) {
       items.push({
         key: "deletar",
@@ -801,9 +828,9 @@ export default function OrdemServicoPage() {
         <Permissao permissao="os.criar">
           <Button
             color="primary"
+            size="lg"
             startContent={<Plus className="w-4 h-4" />}
             onPress={handleNovaOS}
-            size="lg"
           >
             Nova OS
           </Button>
@@ -817,18 +844,17 @@ export default function OrdemServicoPage() {
             {/* Linha 1: Busca e botões principais */}
             <div className="flex flex-col sm:flex-row gap-3">
               <Input
+                isClearable
+                className="flex-1"
                 placeholder="Buscar por número, cliente, equipamento..."
+                startContent={<Search className="w-4 h-4 text-default-400" />}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                startContent={<Search className="w-4 h-4 text-default-400" />}
-                className="flex-1"
-                isClearable
                 onClear={() => setBusca("")}
               />
 
               <Button
-                variant="flat"
-                startContent={<Filter className="w-4 h-4" />}
+                className="sm:w-auto"
                 endContent={
                   mostrarFiltros ? (
                     <ChevronUp className="w-4 h-4" />
@@ -836,8 +862,9 @@ export default function OrdemServicoPage() {
                     <ChevronDown className="w-4 h-4" />
                   )
                 }
+                startContent={<Filter className="w-4 h-4" />}
+                variant="flat"
                 onPress={() => setMostrarFiltros(!mostrarFiltros)}
-                className="sm:w-auto"
               >
                 {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
               </Button>
@@ -845,16 +872,16 @@ export default function OrdemServicoPage() {
               <ButtonGroup>
                 <Button
                   isIconOnly
-                  variant={modoVisualizacao === "grid" ? "solid" : "flat"}
                   color={modoVisualizacao === "grid" ? "primary" : "default"}
+                  variant={modoVisualizacao === "grid" ? "solid" : "flat"}
                   onPress={() => setModoVisualizacao("grid")}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </Button>
                 <Button
                   isIconOnly
-                  variant={modoVisualizacao === "table" ? "solid" : "flat"}
                   color={modoVisualizacao === "table" ? "primary" : "default"}
+                  variant={modoVisualizacao === "table" ? "solid" : "flat"}
                   onPress={() => setModoVisualizacao("table")}
                 >
                   <TableIcon className="w-4 h-4" />
@@ -869,11 +896,12 @@ export default function OrdemServicoPage() {
                   label="Status"
                   placeholder="Todos os Status"
                   selectedKeys={statusFiltro ? [statusFiltro] : []}
+                  size="sm"
                   onSelectionChange={(keys) => {
                     const selected = Array.from(keys)[0] as StatusOS | "";
+
                     setStatusFiltro(selected);
                   }}
-                  size="sm"
                 >
                   <SelectItem key="">Todos</SelectItem>
                   <SelectItem key="aguardando">Aguardando</SelectItem>
@@ -887,14 +915,14 @@ export default function OrdemServicoPage() {
                 </Select>
 
                 <Select
+                  items={[{ id: 0, nome: "Todas" }, ...lojas]}
                   label="Loja"
                   placeholder="Todas as Lojas"
                   selectedKeys={[filtroLoja]}
+                  size="sm"
                   onSelectionChange={(keys) =>
                     setFiltroLoja(Array.from(keys)[0] as string)
                   }
-                  size="sm"
-                  items={[{ id: 0, nome: "Todas" }, ...lojas]}
                 >
                   {(loja) => (
                     <SelectItem
@@ -906,26 +934,26 @@ export default function OrdemServicoPage() {
                 </Select>
 
                 <Input
-                  type="date"
                   label="Data Início"
+                  size="sm"
+                  type="date"
                   value={filtroDataInicio}
                   onChange={(e) => setFiltroDataInicio(e.target.value)}
-                  size="sm"
                 />
 
                 <Input
-                  type="date"
                   label="Data Fim"
+                  size="sm"
+                  type="date"
                   value={filtroDataFim}
                   onChange={(e) => setFiltroDataFim(e.target.value)}
-                  size="sm"
                 />
 
                 <Button
-                  variant="flat"
+                  className="sm:col-span-2"
                   color="default"
                   size="sm"
-                  className="sm:col-span-2"
+                  variant="flat"
                   onPress={() => {
                     setFiltroDataInicio("");
                     setFiltroDataFim("");
@@ -935,13 +963,13 @@ export default function OrdemServicoPage() {
                 </Button>
 
                 <Select
+                  className="sm:col-span-2"
                   label="Ordenar por"
                   selectedKeys={[ordenacao]}
+                  size="sm"
                   onSelectionChange={(keys) =>
                     setOrdenacao(Array.from(keys)[0] as string)
                   }
-                  size="sm"
-                  className="sm:col-span-2"
                 >
                   <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
                   <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
@@ -961,6 +989,7 @@ export default function OrdemServicoPage() {
 
                 <div className="sm:col-span-2 flex gap-2">
                   <Button
+                    className="flex-1"
                     size="sm"
                     variant="flat"
                     onPress={() => {
@@ -971,7 +1000,6 @@ export default function OrdemServicoPage() {
                       setFiltroDataFim("");
                       setOrdenacao("mais_recentes");
                     }}
-                    className="flex-1"
                   >
                     Limpar Filtros
                   </Button>
@@ -1029,15 +1057,15 @@ export default function OrdemServicoPage() {
             <OrdemServicoCard
               key={os.id}
               os={os}
-              onVisualizar={handleVisualizarOS}
-              onEditar={handleEditarOS}
-              onDeletar={handleDeletarOS}
+              onAssumirOS={handleAssumirOS}
               onCancelar={handleCancelarOS}
-              onGerenciarPecas={handleGerenciarPecas}
-              onVerHistorico={handleVerHistorico}
+              onDeletar={handleDeletarOS}
+              onEditar={handleEditarOS}
               onGerenciarFotos={handleGerenciarFotos}
               onGerenciarPagamentos={handleGerenciarPagamentos}
-              onAssumirOS={handleAssumirOS}
+              onGerenciarPecas={handleGerenciarPecas}
+              onVerHistorico={handleVerHistorico}
+              onVisualizar={handleVisualizarOS}
             />
           ))}
         </div>
@@ -1091,8 +1119,8 @@ export default function OrdemServicoPage() {
                       <div className="flex items-center gap-2">
                         <Chip
                           color={getStatusColor(os.status)}
-                          variant="flat"
                           size="sm"
+                          variant="flat"
                         >
                           {getStatusLabel(os.status)}
                         </Chip>
@@ -1100,7 +1128,7 @@ export default function OrdemServicoPage() {
                           os.caixa.some(
                             (c) => c.status_caixa === "cancelado",
                           ) && (
-                            <Chip color="danger" variant="flat" size="sm">
+                            <Chip color="danger" size="sm" variant="flat">
                               Caixa cancelado
                             </Chip>
                           )}
@@ -1111,9 +1139,9 @@ export default function OrdemServicoPage() {
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           isIconOnly
+                          color="primary"
                           size="sm"
                           variant="light"
-                          color="primary"
                           onPress={() => handleVisualizarOS(os)}
                         >
                           <FileText className="w-4 h-4" />
@@ -1128,12 +1156,12 @@ export default function OrdemServicoPage() {
                             {getMenuItems(os).map((item) => (
                               <DropdownItem
                                 key={item.key}
-                                onPress={item.onPress}
-                                color={item.color}
                                 className={
                                   item.color ? `text-${item.color}` : undefined
                                 }
+                                color={item.color}
                                 description={item.description}
+                                onPress={item.onPress}
                               >
                                 {item.label}
                               </DropdownItem>
@@ -1154,12 +1182,12 @@ export default function OrdemServicoPage() {
       {totalPaginas > 1 && (
         <div className="flex justify-center mt-6">
           <Pagination
-            total={totalPaginas}
-            page={paginaAtual}
-            onChange={setPaginaAtual}
             showControls
             color="primary"
+            page={paginaAtual}
             size="lg"
+            total={totalPaginas}
+            onChange={setPaginaAtual}
           />
         </div>
       )}
@@ -1167,36 +1195,36 @@ export default function OrdemServicoPage() {
       {/* Modal de Criar/Editar OS */}
       <OrdemServicoWizard
         isOpen={modalOpen}
+        lojas={lojas}
+        ordem={osEditando}
         onClose={() => {
           setModalOpen(false);
           setOsEditando(undefined);
         }}
         onSubmit={handleSubmitOS}
-        lojas={lojas}
-        ordem={osEditando}
       />
 
       {/* Modal de Detalhes */}
       <OrdemServicoDetalhesModal
         isOpen={modalDetalhesOpen}
+        os={osSelecionada}
         onClose={() => {
           setModalDetalhesOpen(false);
           setOsSelecionada(null);
         }}
-        os={osSelecionada}
         onOSAtualizada={carregarOrdensServico}
       />
 
       {/* Modal de Adicionar Peças */}
       {osSelecionada && (
         <AdicionarPecaModal
+          idLoja={osSelecionada.id_loja}
+          idOrdemServico={osSelecionada.id}
           isOpen={modalPecasOpen}
           onClose={() => {
             setModalPecasOpen(false);
             setOsSelecionada(null);
           }}
-          idOrdemServico={osSelecionada.id}
-          idLoja={osSelecionada.id_loja}
           onSuccess={() => {
             carregarOrdensServico();
           }}
@@ -1206,12 +1234,12 @@ export default function OrdemServicoPage() {
       {/* Modal de Histórico */}
       {osSelecionada && (
         <HistoricoOSModal
+          idOrdemServico={osSelecionada.id}
           isOpen={modalHistoricoOpen}
           onClose={() => {
             setModalHistoricoOpen(false);
             setOsSelecionada(null);
           }}
-          idOrdemServico={osSelecionada.id}
         />
       )}
 
@@ -1219,12 +1247,12 @@ export default function OrdemServicoPage() {
       {osSelecionada && (
         <GerenciarFotosOSModal
           isOpen={modalFotosOpen}
+          numeroOS={osSelecionada.numero_os}
+          ordemServicoId={osSelecionada.id}
           onClose={() => {
             setModalFotosOpen(false);
             setOsSelecionada(null);
           }}
-          ordemServicoId={osSelecionada.id}
-          numeroOS={osSelecionada.numero_os}
           onFotosAtualizadas={carregarOrdensServico}
         />
       )}
@@ -1232,22 +1260,22 @@ export default function OrdemServicoPage() {
       {/* Modal de Pagamentos */}
       <PagamentoOSModal
         isOpen={modalPagamentosOpen}
+        os={osSelecionada}
         onClose={() => {
           setModalPagamentosOpen(false);
           setOsSelecionada(null);
         }}
-        os={osSelecionada}
         onPagamentoRealizado={carregarOrdensServico}
       />
 
       {/* Modal de Devolução */}
       <DevolverOSModal
         isOpen={modalDevolverOpen}
+        os={osSelecionada}
         onClose={() => {
           setModalDevolverOpen(false);
           setOsSelecionada(null);
         }}
-        os={osSelecionada}
         onConfirm={handleConfirmarDevolucao}
       />
 

@@ -13,7 +13,8 @@ import { Input } from "@heroui/input";
 import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
 import { Search, Trash2, Package, TruckIcon } from "lucide-react";
-import { Fornecedor, ProdutoFornecedor } from "@/types/fornecedor";
+
+import { Fornecedor } from "@/types/fornecedor";
 import { Produto } from "@/types/index";
 import {
   buscarProdutosPorFornecedor,
@@ -57,6 +58,7 @@ export default function AssociarProdutoModal({
 
     // Carregar produtos
     const produtosData = await getProdutos();
+
     if (produtosData) {
       setProdutos(produtosData);
     }
@@ -64,8 +66,9 @@ export default function AssociarProdutoModal({
     // Carregar associações existentes (produtos deste fornecedor)
     const { data: associacoesData } = await buscarProdutosPorFornecedor(
       fornecedor.id,
-      true // apenas ativos
+      true, // apenas ativos
     );
+
     if (associacoesData) {
       setAssociacoes(associacoesData);
     }
@@ -82,7 +85,7 @@ export default function AssociarProdutoModal({
     if (!associacaoParaRemover) return;
 
     const { error } = await removerAssociacaoFornecedor(
-      associacaoParaRemover.id
+      associacaoParaRemover.id,
     );
 
     if (error) {
@@ -98,6 +101,7 @@ export default function AssociarProdutoModal({
 
   const getProdutoInfo = (produtoId: string) => {
     const produto = produtos.find((p) => p.id === produtoId);
+
     return produto;
   };
 
@@ -108,9 +112,11 @@ export default function AssociarProdutoModal({
 
   const associacoesFiltradas = associacoes.filter((a) => {
     const produto = getProdutoInfo(a.produto_id);
+
     if (!produto) return false;
 
     const termo = searchTerm.toLowerCase();
+
     return (
       produto.descricao.toLowerCase().includes(termo) ||
       produto.marca?.toLowerCase().includes(termo) ||
@@ -122,9 +128,9 @@ export default function AssociarProdutoModal({
     <>
       <Modal
         isOpen={isOpen}
-        onClose={handleClose}
-        size="3xl"
         scrollBehavior="inside"
+        size="3xl"
+        onClose={handleClose}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
@@ -149,13 +155,13 @@ export default function AssociarProdutoModal({
                 {/* Barra de Pesquisa */}
                 {associacoes.length > 0 && (
                   <Input
+                    isClearable
                     placeholder="Buscar produto..."
                     startContent={
                       <Search className="w-4 h-4 text-default-400" />
                     }
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    isClearable
                     onClear={() => setSearchTerm("")}
                   />
                 )}
@@ -175,21 +181,23 @@ export default function AssociarProdutoModal({
                       Nenhum produto associado ainda
                     </p>
                     <p className="text-sm text-default-400">
-                      Vá para a tela de Estoque e use a opção "Gerenciar
-                      Fornecedores" para associar produtos a este fornecedor
+                      Vá para a tela de Estoque e use a opção &quot;Gerenciar
+                      Fornecedores&quot; para associar produtos a este
+                      fornecedor
                     </p>
                   </div>
                 ) : associacoesFiltradas.length === 0 ? (
                   <div className="text-center py-8">
                     <Search className="w-12 h-12 mx-auto mb-3 text-default-300" />
                     <p className="text-default-500">
-                      Nenhum produto encontrado com "{searchTerm}"
+                      Nenhum produto encontrado com &quot;{searchTerm}&quot;
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     {associacoesFiltradas.map((associacao) => {
                       const produto = getProdutoInfo(associacao.produto_id);
+
                       if (!produto) return null;
 
                       return (
@@ -205,18 +213,18 @@ export default function AssociarProdutoModal({
                               <div className="flex flex-wrap gap-2 mt-1">
                                 {produto.marca && (
                                   <Chip
+                                    color="primary"
                                     size="sm"
                                     variant="flat"
-                                    color="primary"
                                   >
                                     {produto.marca}
                                   </Chip>
                                 )}
                                 {produto.categoria && (
                                   <Chip
+                                    color="secondary"
                                     size="sm"
                                     variant="flat"
-                                    color="secondary"
                                   >
                                     {produto.categoria}
                                   </Chip>
@@ -229,10 +237,10 @@ export default function AssociarProdutoModal({
                               </div>
                             </div>
                             <Button
-                              size="sm"
-                              color="danger"
-                              variant="light"
                               isIconOnly
+                              color="danger"
+                              size="sm"
+                              variant="light"
                               onClick={() => handleRemover(associacao)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -255,13 +263,13 @@ export default function AssociarProdutoModal({
       </Modal>
 
       <ConfirmModal
+        cancelText="Cancelar"
+        confirmText="Remover"
         isOpen={confirmModalAberto}
+        message="Tem certeza que deseja remover esta associação? O produto não será mais vinculado a este fornecedor."
+        title="Confirmar Remoção"
         onClose={() => setConfirmModalAberto(false)}
         onConfirm={confirmarRemocao}
-        title="Confirmar Remoção"
-        message="Tem certeza que deseja remover esta associação? O produto não será mais vinculado a este fornecedor."
-        confirmText="Remover"
-        cancelText="Cancelar"
       />
     </>
   );

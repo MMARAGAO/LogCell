@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
 import {
-  Caixa,
   CaixaCompleto,
   AbrirCaixaParams,
   FecharCaixaParams,
@@ -39,7 +38,7 @@ export class CaixaService {
           *,
           loja:lojas(id, nome),
           usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome)
-        `
+        `,
         )
         .single();
 
@@ -72,7 +71,7 @@ export class CaixaService {
           loja:lojas(id, nome),
           usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome),
           usuario_fechamento_info:usuarios!caixas_usuario_fechamento_fkey(id, nome)
-        `
+        `,
         )
         .single();
 
@@ -87,7 +86,7 @@ export class CaixaService {
 
   // Buscar caixa aberto de uma loja
   static async buscarCaixaAberto(
-    lojaId: number
+    lojaId: number,
   ): Promise<CaixaCompleto | null> {
     try {
       const { data, error } = await supabase
@@ -97,7 +96,7 @@ export class CaixaService {
           *,
           loja:lojas(id, nome),
           usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome)
-        `
+        `,
         )
         .eq("loja_id", lojaId)
         .eq("status", "aberto")
@@ -108,6 +107,7 @@ export class CaixaService {
       return data as CaixaCompleto | null;
     } catch (error: any) {
       console.error("Erro ao buscar caixa aberto:", error);
+
       return null;
     }
   }
@@ -128,7 +128,7 @@ export class CaixaService {
           loja:lojas(id, nome),
           usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome),
           usuario_fechamento_info:usuarios!caixas_usuario_fechamento_fkey(id, nome)
-        `
+        `,
         )
         .order("data_abertura", { ascending: false });
 
@@ -155,6 +155,7 @@ export class CaixaService {
       return (data as CaixaCompleto[]) || [];
     } catch (error: any) {
       console.error("Erro ao listar caixas:", error);
+
       return [];
     }
   }
@@ -171,7 +172,9 @@ export class CaixaService {
 
       if (erroCaixa) {
         console.error("❌ Erro ao buscar caixa:", erroCaixa);
-        throw new Error(`Erro ao buscar caixa: ${erroCaixa.message || JSON.stringify(erroCaixa)}`);
+        throw new Error(
+          `Erro ao buscar caixa: ${erroCaixa.message || JSON.stringify(erroCaixa)}`,
+        );
       }
 
       console.log("🔍 DEBUG CAIXA - Dados do caixa:", {
@@ -200,31 +203,37 @@ export class CaixaService {
             valor_total,
             status
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
       if (erroPagamentos) {
         console.error("❌ Erro ao buscar pagamentos:", erroPagamentos);
-        throw new Error(`Erro ao buscar pagamentos: ${erroPagamentos.message || JSON.stringify(erroPagamentos)}`);
+        throw new Error(
+          `Erro ao buscar pagamentos: ${erroPagamentos.message || JSON.stringify(erroPagamentos)}`,
+        );
       }
 
       // Filtrar apenas pagamentos de vendas da loja correta (independente do status da venda)
-      const pagamentosLoja = pagamentosVendas?.filter(
-        (pag: any) => pag.venda?.loja_id === caixa.loja_id
-      ) || [];
+      const pagamentosLoja =
+        pagamentosVendas?.filter(
+          (pag: any) => pag.venda?.loja_id === caixa.loja_id,
+        ) || [];
 
       console.log("💰 DEBUG CAIXA - Pagamentos encontrados:", {
         total: pagamentosLoja.length,
-        soma_valores: pagamentosLoja.reduce((sum: number, p: any) => sum + Number(p.valor), 0),
+        soma_valores: pagamentosLoja.reduce(
+          (sum: number, p: any) => sum + Number(p.valor),
+          0,
+        ),
         pagamentos: pagamentosLoja.map((p: any) => ({
           venda_id: p.venda?.id,
           numero_venda: p.venda?.numero_venda,
           valor_pagamento: p.valor,
           tipo_pagamento: p.tipo_pagamento,
-          criado_em: p.criado_em
-        }))
+          criado_em: p.criado_em,
+        })),
       });
 
       // Buscar devoluções do período
@@ -243,14 +252,16 @@ export class CaixaService {
             criado_em,
             valor_total
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
       if (erroDevolucoes) {
         console.error("❌ Erro ao buscar devoluções:", erroDevolucoes);
-        throw new Error(`Erro ao buscar devoluções: ${erroDevolucoes.message || JSON.stringify(erroDevolucoes)}`);
+        throw new Error(
+          `Erro ao buscar devoluções: ${erroDevolucoes.message || JSON.stringify(erroDevolucoes)}`,
+        );
       }
 
       // Filtrar devoluções da loja
@@ -259,8 +270,12 @@ export class CaixaService {
         [];
 
       // Buscar ordens de serviço pagas no período
-      console.log("🔍 Buscando OS do período:", { dataAbertura, dataFechamento, lojaId: caixa.loja_id });
-      
+      console.log("🔍 Buscando OS do período:", {
+        dataAbertura,
+        dataFechamento,
+        lojaId: caixa.loja_id,
+      });
+
       const { data: ordensServico, error: erroOS } = await supabase
         .from("ordem_servico_pagamentos")
         .select(
@@ -270,16 +285,16 @@ export class CaixaService {
           forma_pagamento,
           criado_em,
           ordem_servico:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja, numero_os, cliente_nome)
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento)
         .eq("ordem_servico.id_loja", caixa.loja_id);
 
-      console.log("📊 Resultado busca OS:", { 
-        sucesso: !erroOS, 
+      console.log("📊 Resultado busca OS:", {
+        sucesso: !erroOS,
         totalOS: ordensServico?.length || 0,
-        erro: erroOS 
+        erro: erroOS,
       });
 
       if (erroOS) {
@@ -290,7 +305,9 @@ export class CaixaService {
           hint: erroOS.hint,
           code: erroOS.code,
         });
-        throw new Error(`Erro ao buscar ordens de serviço: ${erroOS.message || erroOS.code || JSON.stringify(erroOS)}`);
+        throw new Error(
+          `Erro ao buscar ordens de serviço: ${erroOS.message || erroOS.code || JSON.stringify(erroOS)}`,
+        );
       }
 
       console.log("💰 DEBUG CAIXA - OS buscadas:", {
@@ -310,7 +327,7 @@ export class CaixaService {
       // Filtrar OS da loja
       const osLoja =
         ordensServico?.filter(
-          (os: any) => os.ordem_servico?.id_loja === caixa.loja_id
+          (os: any) => os.ordem_servico?.id_loja === caixa.loja_id,
         ) || [];
 
       console.log("✅ DEBUG CAIXA - OS filtradas da loja:", {
@@ -355,13 +372,18 @@ export class CaixaService {
         }
       });
 
-      console.log("🔍 DEBUG CAIXA - Vendas devolvidas SEM CRÉDITO no mesmo dia:", {
-        vendas: Array.from(vendasDevolvidasSemCreditoMesmoDia),
-        valores: valorVendasDevolvidasMesmoDia,
-      });
+      console.log(
+        "🔍 DEBUG CAIXA - Vendas devolvidas SEM CRÉDITO no mesmo dia:",
+        {
+          vendas: Array.from(vendasDevolvidasSemCreditoMesmoDia),
+          valores: valorVendasDevolvidasMesmoDia,
+        },
+      );
 
       pagamentosLoja.forEach((pag: any) => {
-        const vendaDevolvida = vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id);
+        const vendaDevolvida = vendasDevolvidasSemCreditoMesmoDia.has(
+          pag.venda?.id,
+        );
         const forma = pag.tipo_pagamento;
         const valor = Number(pag.valor);
 
@@ -370,7 +392,7 @@ export class CaixaService {
           valor,
           forma,
           vendaDevolvida,
-          vai_contar: !vendaDevolvida
+          vai_contar: !vendaDevolvida,
         });
 
         // Se não foi devolvida SEM CRÉDITO no mesmo dia, conta normalmente
@@ -390,7 +412,9 @@ export class CaixaService {
 
       // Contar apenas pagamentos que não são credito_cliente
       const quantidadePagamentosReais = pagamentosLoja.filter(
-        (pag: any) => pag.tipo_pagamento !== "credito_cliente" && !vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id)
+        (pag: any) =>
+          pag.tipo_pagamento !== "credito_cliente" &&
+          !vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id),
       ).length;
 
       // Calcular total de pagamentos de venda que entram no caixa (sem credito_cliente)
@@ -400,37 +424,37 @@ export class CaixaService {
           if (vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id)) return sum;
           // Não contar crédito do cliente
           if (pag.tipo_pagamento === "credito_cliente") return sum;
+
           return sum + Number(pag.valor);
         },
-        0
+        0,
       );
 
       // Calcular total de pagamentos sem crédito (incluindo vendas devolvidas com crédito, apenas para relatório)
-      const totalPagamentosSemCreditoIncluindoDevolvidas = pagamentosLoja.reduce(
-        (sum: number, pag: any) => {
+      const totalPagamentosSemCreditoIncluindoDevolvidas =
+        pagamentosLoja.reduce((sum: number, pag: any) => {
           // Não contar crédito do cliente
           if (pag.tipo_pagamento === "credito_cliente") return sum;
+
           return sum + Number(pag.valor);
-        },
-        0
-      );
+        }, 0);
 
       // Calcular totais de devoluções separados por tipo
       const devolucoesComCredito = devolucoesLoja.filter(
-        (d: any) => d.tipo === "com_credito"
+        (d: any) => d.tipo === "com_credito",
       );
       const devolucoesSemCredito = devolucoesLoja.filter(
-        (d: any) => d.tipo === "sem_credito"
+        (d: any) => d.tipo === "sem_credito",
       );
 
       const totalDevolucoesComCredito = devolucoesComCredito.reduce(
         (sum: number, d: any) => sum + Number(d.valor_total),
-        0
+        0,
       );
 
       const totalDevolucoesSemCredito = devolucoesSemCredito.reduce(
         (sum: number, d: any) => sum + Number(d.valor_total),
-        0
+        0,
       );
 
       const totalDevolucoes =
@@ -440,7 +464,7 @@ export class CaixaService {
 
       const totalOS = osLoja.reduce(
         (sum: number, os: any) => sum + Number(os.valor),
-        0
+        0,
       );
 
       // Buscar sangrias do período
@@ -453,7 +477,9 @@ export class CaixaService {
 
       if (erroSangrias) {
         console.error("❌ Erro ao buscar sangrias:", erroSangrias);
-        throw new Error(`Erro ao buscar sangrias: ${erroSangrias.message || JSON.stringify(erroSangrias)}`);
+        throw new Error(
+          `Erro ao buscar sangrias: ${erroSangrias.message || JSON.stringify(erroSangrias)}`,
+        );
       }
 
       const totalSangrias =
@@ -501,25 +527,31 @@ export class CaixaService {
 
       if (erroQuebras) {
         console.error("❌ Erro ao buscar quebras:", erroQuebras);
-        throw new Error(`Erro ao buscar quebras: ${erroQuebras.message || JSON.stringify(erroQuebras)}`);
+        throw new Error(
+          `Erro ao buscar quebras: ${erroQuebras.message || JSON.stringify(erroQuebras)}`,
+        );
       }
 
       const totalQuebras =
         quebras?.reduce(
           (sum: number, q: any) => sum + Number(q.valor_total || 0),
-          0
+          0,
         ) || 0;
 
       // Buscar OS devolvidas com crédito no período
-      const { data: osDevolvidasCredito, error: erroOsDevolvidasCredito } = await supabase
-        .from("ordem_servico")
-        .select("id, numero_os, cliente_nome, valor_total, criado_em")
-        .eq("id_loja", caixa.loja_id)
-        .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
+      const { data: osDevolvidasCredito, error: erroOsDevolvidasCredito } =
+        await supabase
+          .from("ordem_servico")
+          .select("id, numero_os, cliente_nome, valor_total, criado_em")
+          .eq("id_loja", caixa.loja_id)
+          .gte("criado_em", dataAbertura)
+          .lte("criado_em", dataFechamento);
 
       if (erroOsDevolvidasCredito) {
-        console.error("❌ Erro ao buscar OS devolvidas com crédito:", erroOsDevolvidasCredito);
+        console.error(
+          "❌ Erro ao buscar OS devolvidas com crédito:",
+          erroOsDevolvidasCredito,
+        );
       }
 
       // Buscar devoluções de OS (serviço desfeito) do período
@@ -533,7 +565,7 @@ export class CaixaService {
           valor_total,
           criado_em,
           ordem_servico:ordem_servico(numero_os, cliente_nome, id_loja)
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
@@ -544,25 +576,25 @@ export class CaixaService {
 
       // Filtrar devoluções de OS da loja
       const devolucoesOSLoja = (devolucoesOS || []).filter(
-        (dev: any) => dev.ordem_servico?.id_loja === caixa.loja_id
+        (dev: any) => dev.ordem_servico?.id_loja === caixa.loja_id,
       );
 
       // Separar devoluções de OS por tipo (reembolso vs crédito)
       const devolucoesOSReembolso = devolucoesOSLoja.filter(
-        (dev: any) => dev.tipo_devolucao === "reembolso"
+        (dev: any) => dev.tipo_devolucao === "reembolso",
       );
       const devolucoesOSCredito = devolucoesOSLoja.filter(
-        (dev: any) => dev.tipo_devolucao === "credito"
+        (dev: any) => dev.tipo_devolucao === "credito",
       );
 
       const totalDevolucoesOSReembolso = devolucoesOSReembolso.reduce(
         (sum: number, dev: any) => sum + Number(dev.valor_total),
-        0
+        0,
       );
 
       const totalDevolucoesOSCredito = devolucoesOSCredito.reduce(
         (sum: number, dev: any) => sum + Number(dev.valor_total),
-        0
+        0,
       );
 
       // Saldo esperado considera apenas movimentações de dinheiro físico (quebras NÃO afetam)
@@ -601,7 +633,11 @@ export class CaixaService {
         },
         os_devolvidas_com_credito: {
           quantidade: osDevolvidasCredito?.length || 0,
-          total: osDevolvidasCredito?.reduce((sum: number, os: any) => sum + Number(os.valor_total || 0), 0) || 0,
+          total:
+            osDevolvidasCredito?.reduce(
+              (sum: number, os: any) => sum + Number(os.valor_total || 0),
+              0,
+            ) || 0,
           lista: osDevolvidasCredito || [],
         },
         devolu_os_reembolso: {
@@ -624,7 +660,8 @@ export class CaixaService {
         },
         saldo_inicial: Number(caixa.saldo_inicial),
         total_entradas: totalPagamentosSemCredito + totalOS, // Todos os pagamentos que entram dinheiro (sem credito_cliente) + OS
-        total_saidas: totalDevolucoesDinheiro + totalDevolucoesOSReembolso + totalSangrias, // Devoluções sem crédito + reembolsos de OS + sangrias
+        total_saidas:
+          totalDevolucoesDinheiro + totalDevolucoesOSReembolso + totalSangrias, // Devoluções sem crédito + reembolsos de OS + sangrias
         saldo_esperado: saldoEsperado,
         saldo_informado: caixa.saldo_final
           ? Number(caixa.saldo_final)
@@ -639,7 +676,7 @@ export class CaixaService {
 
   // Buscar movimentações do caixa
   static async buscarMovimentacoes(
-    caixaId: string
+    caixaId: string,
   ): Promise<MovimentacaoCaixa[]> {
     try {
       // Buscar dados do caixa
@@ -672,17 +709,14 @@ export class CaixaService {
             status,
             cliente:clientes(nome)
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
       // Filtrar apenas pagamentos da loja correta (independente do status da venda)
       pagamentosVendas
-        ?.filter(
-          (pag: any) =>
-            pag.venda?.loja_id === caixa.loja_id
-        )
+        ?.filter((pag: any) => pag.venda?.loja_id === caixa.loja_id)
         .forEach((pag: any) => {
           // Não incluir crédito de cliente como movimentação de caixa (não entra dinheiro)
           if (pag.tipo_pagamento === "credito_cliente") return;
@@ -713,7 +747,7 @@ export class CaixaService {
             loja_id,
             cliente:clientes(nome)
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
@@ -747,7 +781,7 @@ export class CaixaService {
             id_loja,
             cliente_nome
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento)
@@ -755,26 +789,28 @@ export class CaixaService {
 
       // Agrupar pagamentos de OS por id_ordem_servico
       const osAgrupadas: { [key: string]: any } = {};
+
       pagamentosOS?.forEach((pag: any) => {
-          const osId = pag.id_ordem_servico;
-          if (!osAgrupadas[osId]) {
-            osAgrupadas[osId] = {
-              tipo: "ordem_servico",
-              descricao: `OS #${pag.ordem_servico?.numero_os} - ${pag.ordem_servico?.cliente_nome}`,
-              valor: 0,
-              data: pag.criado_em,
-              referencia_id: osId,
-              forma_pagamento: pag.forma_pagamento,
-              pagamentos: [],
-              id_loja: pag.ordem_servico?.id_loja, // Adiciona id_loja
-            };
-          }
-          osAgrupadas[osId].valor += Number(pag.valor);
-          osAgrupadas[osId].pagamentos.push({
-            tipo_pagamento: pag.forma_pagamento,
-            valor: Number(pag.valor),
-          });
+        const osId = pag.id_ordem_servico;
+
+        if (!osAgrupadas[osId]) {
+          osAgrupadas[osId] = {
+            tipo: "ordem_servico",
+            descricao: `OS #${pag.ordem_servico?.numero_os} - ${pag.ordem_servico?.cliente_nome}`,
+            valor: 0,
+            data: pag.criado_em,
+            referencia_id: osId,
+            forma_pagamento: pag.forma_pagamento,
+            pagamentos: [],
+            id_loja: pag.ordem_servico?.id_loja, // Adiciona id_loja
+          };
+        }
+        osAgrupadas[osId].valor += Number(pag.valor);
+        osAgrupadas[osId].pagamentos.push({
+          tipo_pagamento: pag.forma_pagamento,
+          valor: Number(pag.valor),
         });
+      });
 
       // Adicionar OS agrupadas às movimentações
       Object.values(osAgrupadas).forEach((os) => {
@@ -792,7 +828,7 @@ export class CaixaService {
           valor_total,
           criado_em,
           produtos:id_produto(descricao)
-        `
+        `,
         )
         .eq("id_loja", caixa.loja_id)
         .gte("criado_em", dataAbertura)
@@ -820,7 +856,7 @@ export class CaixaService {
           venda_id,
           usuario:usuarios!sangrias_caixa_realizado_por_fkey(nome),
           venda:vendas!sangrias_caixa_venda_id_fkey(numero_venda, cliente:clientes(nome))
-        `
+        `,
         )
         .eq("caixa_id", caixa.id)
         .gte("criado_em", dataAbertura)
@@ -846,12 +882,13 @@ export class CaixaService {
 
       // Ordenar por data
       movimentacoes.sort(
-        (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime()
+        (a, b) => new Date(a.data).getTime() - new Date(b.data).getTime(),
       );
 
       return movimentacoes;
     } catch (error: any) {
       console.error("Erro ao buscar movimentações:", error);
+
       return [];
     }
   }
@@ -887,7 +924,7 @@ export class CaixaService {
           `
           *,
           usuario:usuarios!sangrias_caixa_realizado_por_fkey(id, nome)
-        `
+        `,
         )
         .eq("caixa_id", caixaId)
         .order("criado_em", { ascending: false });
@@ -897,6 +934,7 @@ export class CaixaService {
       return data;
     } catch (error: any) {
       console.error("Erro ao buscar sangrias:", error);
+
       return [];
     }
   }
@@ -936,7 +974,7 @@ export class CaixaService {
             status,
             cliente:clientes(id, nome, doc)
           )
-        `
+        `,
         )
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento)
@@ -945,10 +983,10 @@ export class CaixaService {
       if (error) throw error;
 
       // Filtrar apenas pagamentos da loja correta (independente do status da venda)
-      const pagamentosLoja = pagamentosVendas?.filter(
-        (pag: any) =>
-          pag.venda?.loja_id === caixa.loja_id
-      ) || [];
+      const pagamentosLoja =
+        pagamentosVendas?.filter(
+          (pag: any) => pag.venda?.loja_id === caixa.loja_id,
+        ) || [];
 
       // Agrupar pagamentos por forma de pagamento
       const vendasPorFormaPagamento: {
@@ -1000,10 +1038,8 @@ export class CaixaService {
 
       return vendasPorFormaPagamento;
     } catch (error: any) {
-      console.error(
-        "Erro ao buscar vendas detalhadas por pagamento:",
-        error
-      );
+      console.error("Erro ao buscar vendas detalhadas por pagamento:", error);
+
       return {};
     }
   }
