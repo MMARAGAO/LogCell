@@ -1372,27 +1372,47 @@ export default function VendasPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1800px] mx-auto">
+    <div className="p-3 sm:p-4 md:p-6 max-w-[1800px] mx-auto">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold mb-2">Vendas</h1>
-          <p className="text-gray-600">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">Vendas</h1>
+          <p className="text-xs sm:text-sm text-gray-600">
             Gerencie suas vendas e acompanhe o desempenho
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
           {temPermissao("vendas.criar") && (
-            <Button
-              color="primary"
-              size="lg"
-              startContent={<Plus className="w-5 h-5" />}
-              onClick={() => setModalNovaVendaOpen(true)}
-            >
-              Nova Venda
-            </Button>
+            <>
+              <Button
+                className="sm:hidden"
+                color="primary"
+                isIconOnly
+                size="lg"
+                startContent={<Plus className="w-5 h-5" />}
+                onClick={() => setModalNovaVendaOpen(true)}
+              />
+              <Button
+                className="hidden sm:flex"
+                color="primary"
+                size="lg"
+                startContent={<Plus className="w-5 h-5" />}
+                onClick={() => setModalNovaVendaOpen(true)}
+              >
+                Nova Venda
+              </Button>
+            </>
           )}
           <Button
+            className="sm:hidden"
+            isIconOnly
+            size="lg"
+            startContent={<History className="w-5 h-5" />}
+            variant="flat"
+            onClick={() => router.push("/sistema/vendas/audit-logs")}
+          />
+          <Button
+            className="hidden sm:flex"
             size="lg"
             startContent={<History className="w-5 h-5" />}
             variant="flat"

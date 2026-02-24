@@ -56,6 +56,7 @@ export default function TransferenciasPage() {
   const toast = useToast();
   const { usuario } = useAuth();
   const { temPermissao } = usePermissoes();
+  const podeConfirmar = temPermissao("transferencias.confirmar");
   const { lojaId, podeVerTodasLojas } = useLojaFilter();
   const router = useRouter();
 
@@ -336,21 +337,35 @@ export default function TransferenciasPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Gestão de Transferências</h1>
-          <p className="text-default-500 mt-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Gestão de Transferências</h1>
+          <p className="text-xs sm:text-sm text-default-500 mt-1">
             Confirme, cancele ou edite transferências entre lojas
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
           {/* Botão Exportar Excel */}
           <Button
+            className="sm:hidden"
             color="success"
             isDisabled={transferencias.length === 0}
+            isIconOnly
+            size="lg"
+            startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
+            variant="flat"
+            onPress={() =>
+              exportarTransferenciasParaExcel(transferencias, "transferencias")
+            }
+          />
+          <Button
+            className="hidden sm:flex"
+            color="success"
+            isDisabled={transferencias.length === 0}
+            size="lg"
             startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
             variant="flat"
             onPress={() =>
@@ -361,50 +376,61 @@ export default function TransferenciasPage() {
           </Button>
 
           {temPermissao("transferencias.criar") && (
-            <Button
-              color="primary"
-              size="lg"
-              startContent={<PlusIcon className="h-5 w-5" />}
-              onPress={() => router.push("/sistema/transferencias/nova")}
-            >
-              Nova Transferência
-            </Button>
+            <>
+              <Button
+                className="sm:hidden"
+                color="primary"
+                isIconOnly
+                size="lg"
+                startContent={<PlusIcon className="h-5 w-5" />}
+                onPress={() => router.push("/sistema/transferencias/nova")}
+              />
+              <Button
+                className="hidden sm:flex"
+                color="primary"
+                size="lg"
+                startContent={<PlusIcon className="h-5 w-5" />}
+                onPress={() => router.push("/sistema/transferencias/nova")}
+              >
+                Nova Transferência
+              </Button>
+            </>
           )}
         </div>
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-default-900">
+          <CardBody className="text-center py-4">
+            <div className="text-2xl sm:text-3xl font-bold text-default-900">
               {estatisticas.total}
             </div>
-            <div className="text-sm text-default-500">Total</div>
+            <div className="text-xs sm:text-sm text-default-500">Total</div>
           </CardBody>
         </Card>
         <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-warning">
+          <CardBody className="text-center py-4">
+            <div className="text-2xl sm:text-3xl font-bold text-warning">
               {estatisticas.pendentes}
             </div>
-            <div className="text-sm text-default-500">Pendentes</div>
+            <div className="text-xs sm:text-sm text-default-500">Pendentes</div>
           </CardBody>
         </Card>
         <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-success">
+          <CardBody className="text-center py-4">
+            <div className="text-2xl sm:text-3xl font-bold text-success">
               {estatisticas.confirmadas}
             </div>
-            <div className="text-sm text-default-500">Confirmadas</div>
+            <div className="text-xs sm:text-sm text-default-500">Confirmadas</div>
           </CardBody>
         </Card>
         <Card>
-          <CardBody className="text-center">
-            <div className="text-3xl font-bold text-danger">
+          <CardBody className="text-center py-4">
+            <div className="text-2xl sm:text-3xl font-bold text-danger">
               {estatisticas.canceladas}
             </div>
-            <div className="text-sm text-default-500">Canceladas</div>
+            <div className="text-xs sm:text-sm text-default-500">Canceladas</div>
           </CardBody>
         </Card>
       </div>
@@ -459,7 +485,7 @@ export default function TransferenciasPage() {
           {filtroStatus === "pendente" &&
             Object.keys(transferenciasAgrupadas).length > 0 && (
               <>
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-lg sm:text-xl font-semibold">
                   Transferências Agrupadas (Mesmo Dia/Rota)
                 </h2>
                 {Object.entries(transferenciasAgrupadas).map(
@@ -475,21 +501,21 @@ export default function TransferenciasPage() {
                     return (
                       <Card key={chave} className="border-2 border-warning">
                         <CardHeader className="bg-warning/10">
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-3">
-                              <Chip color="warning" variant="solid">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full">
+                              <Chip color="warning" size="sm" variant="solid">
                                 {grupo.length} transferências
                               </Chip>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">
+                              <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
                                   {primeira.loja_origem}
                                 </span>
-                                <ArrowRightIcon className="h-5 w-5" />
-                                <span className="font-semibold">
+                                <ArrowRightIcon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
                                   {primeira.loja_destino}
                                 </span>
                               </div>
-                              <span className="text-sm text-default-500">
+                              <span className="text-xs sm:text-sm text-default-500">
                                 {new Date(
                                   primeira.criado_em,
                                 ).toLocaleDateString("pt-BR")}
@@ -503,6 +529,7 @@ export default function TransferenciasPage() {
                             {grupo.map((transferencia) => (
                               <TransferenciaCard
                                 key={transferencia.id}
+                                podeConfirmar={podeConfirmar}
                                 podeEditar={temPermissao(
                                   "transferencias.editar",
                                 )}
@@ -525,11 +552,12 @@ export default function TransferenciasPage() {
             )}
 
           {/* Todas as Transferências */}
-          <h2 className="text-xl font-semibold">Todas as Transferências</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">Todas as Transferências</h2>
           <div className="grid grid-cols-1 gap-4">
             {transferencias.map((transferencia) => (
               <TransferenciaCard
                 key={transferencia.id}
+                podeConfirmar={podeConfirmar}
                 podeEditar={temPermissao("transferencias.editar")}
                 processando={processando === transferencia.id}
                 transferencia={transferencia}
@@ -546,6 +574,7 @@ export default function TransferenciasPage() {
       {/* Modal de Detalhes */}
       {transferenciaSelecionada && (
         <DetalhesTransferenciaModal
+          podeConfirmar={podeConfirmar}
           podeEditar={temPermissao("transferencias.editar")}
           processando={processando === transferenciaSelecionada.id}
           transferencia={transferenciaSelecionada}
@@ -594,6 +623,7 @@ export default function TransferenciasPage() {
 function TransferenciaCard({
   transferencia,
   processando,
+  podeConfirmar,
   podeEditar,
   onConfirmar,
   onCancelar,
@@ -602,6 +632,7 @@ function TransferenciaCard({
 }: {
   transferencia: TransferenciaCompleta;
   processando: boolean;
+  podeConfirmar: boolean;
   podeEditar: boolean;
   onConfirmar: (t: TransferenciaCompleta) => void;
   onCancelar: (t: TransferenciaCompleta) => void;
@@ -628,23 +659,24 @@ function TransferenciaCard({
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardBody>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 space-y-3">
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+          <div className="flex-1 space-y-3 w-full">
             {/* Cabeçalho */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <Chip
                 color={config.color}
+                size="sm"
                 startContent={<StatusIcon className="h-4 w-4" />}
                 variant="flat"
               >
                 {config.label}
               </Chip>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">
+              <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
                   {transferencia.loja_origem}
                 </span>
-                <ArrowRightIcon className="h-5 w-5 text-default-400" />
-                <span className="font-semibold">
+                <ArrowRightIcon className="h-4 w-4 sm:h-5 sm:w-5 text-default-400 flex-shrink-0" />
+                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
                   {transferencia.loja_destino}
                 </span>
               </div>
@@ -655,7 +687,7 @@ function TransferenciaCard({
             </div>
 
             {/* Informações */}
-            <div className="text-sm text-default-500 space-y-1">
+            <div className="text-xs sm:text-sm text-default-500 space-y-1">
               <div>
                 <span className="font-semibold text-foreground">Saída:</span>{" "}
                 {transferencia.usuario_nome} -{" "}
@@ -715,16 +747,18 @@ function TransferenciaCard({
             </div>
 
             {/* Produtos */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {transferencia.itens.slice(0, 3).map((item) => (
-                <Chip key={item.id} color="primary" size="sm" variant="flat">
-                  {item.produto_descricao}{" "}
-                  {item.produto_marca && `(${item.produto_marca})`} -{" "}
-                  {item.quantidade}un
+                <Chip key={item.id} className="text-xs sm:text-sm" color="primary" size="sm" variant="flat">
+                  <span className="truncate max-w-[200px] sm:max-w-none">
+                    {item.produto_descricao}{" "}
+                    {item.produto_marca && `(${item.produto_marca})`}
+                  </span>{" "}
+                  - {item.quantidade}un
                 </Chip>
               ))}
               {transferencia.itens.length > 3 && (
-                <Chip color="default" size="sm" variant="flat">
+                <Chip className="text-xs sm:text-sm" color="default" size="sm" variant="flat">
                   +{transferencia.itens.length - 3} mais
                 </Chip>
               )}
@@ -732,39 +766,30 @@ function TransferenciaCard({
           </div>
 
           {/* Ações */}
-          <div className="flex flex-col gap-2">
+          <div className="flex lg:flex-col flex-row lg:gap-2 gap-2 w-full lg:w-auto">
             <Button
+              className="flex-1 lg:flex-initial"
               color="default"
               size="sm"
               startContent={<EyeIcon className="h-4 w-4" />}
               variant="flat"
               onPress={() => onVisualizar(transferencia)}
             >
-              Detalhes
+              <span className="hidden sm:inline">Detalhes</span>
+              <span className="sm:hidden">Ver</span>
             </Button>
-
-            {transferencia.status === "pendente" && podeEditar && (
-              <Button
-                color="primary"
-                isDisabled={processando}
-                size="sm"
-                startContent={<PencilSquareIcon className="h-4 w-4" />}
-                variant="flat"
-                onPress={() => onEditar(transferencia)}
-              >
-                Editar
-              </Button>
-            )}
 
             <Dropdown>
               <DropdownTrigger>
                 <Button
+                  className="flex-1 lg:flex-initial"
                   color="success"
                   size="sm"
                   startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
                   variant="flat"
                 >
-                  Relatório
+                  <span className="hidden sm:inline">Relatório</span>
+                  <span className="sm:hidden">PDF</span>
                 </Button>
               </DropdownTrigger>
               <DropdownMenu aria-label="Opções de relatório">
@@ -798,20 +823,52 @@ function TransferenciaCard({
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
+
             {transferencia.status === "pendente" && (
-              <>
-                <Button
-                  color="danger"
-                  isDisabled={processando}
-                  isLoading={processando}
-                  size="sm"
-                  startContent={<XCircleIcon className="h-4 w-4" />}
-                  variant="flat"
-                  onPress={() => onCancelar(transferencia)}
-                >
-                  Cancelar
-                </Button>
-              </>
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button
+                    className="flex-1 lg:flex-initial"
+                    color="primary"
+                    isDisabled={processando}
+                    size="sm"
+                    variant="flat"
+                  >
+                    Ações
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu aria-label="Ações da transferência">
+                  {podeEditar ? (
+                    <DropdownItem
+                      key="editar"
+                      startContent={<PencilSquareIcon className="h-4 w-4" />}
+                      onPress={() => onEditar(transferencia)}
+                    >
+                      Editar Transferência
+                    </DropdownItem>
+                  ) : null}
+                  {podeConfirmar ? (
+                    <DropdownItem
+                      key="confirmar"
+                      className="text-success"
+                      color="success"
+                      startContent={<CheckCircleIcon className="h-4 w-4" />}
+                      onPress={() => onConfirmar(transferencia)}
+                    >
+                      Confirmar Recebimento
+                    </DropdownItem>
+                  ) : null}
+                  <DropdownItem
+                    key="cancelar"
+                    className="text-danger"
+                    color="danger"
+                    startContent={<XCircleIcon className="h-4 w-4" />}
+                    onPress={() => onCancelar(transferencia)}
+                  >
+                    Cancelar Transferência
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
             )}
           </div>
         </div>
@@ -827,6 +884,7 @@ function DetalhesTransferenciaModal({
   onConfirmar,
   onCancelar,
   onEditar,
+  podeConfirmar,
   podeEditar,
   processando,
 }: {
@@ -835,6 +893,7 @@ function DetalhesTransferenciaModal({
   onConfirmar: (t: TransferenciaCompleta) => void;
   onCancelar: (t: TransferenciaCompleta) => void;
   onEditar: (t: TransferenciaCompleta) => void;
+  podeConfirmar: boolean;
   podeEditar: boolean;
   processando: boolean;
 }) {
@@ -852,11 +911,11 @@ function DetalhesTransferenciaModal({
       }}
     >
       <Card
-        className="max-w-3xl w-full m-4"
+        className="max-w-3xl w-full m-2 sm:m-4 max-h-[95vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <CardHeader className="flex justify-between">
-          <h3 className="text-xl font-bold">Detalhes da Transferência</h3>
+        <CardHeader className="flex justify-between sticky top-0 bg-background z-10 border-b">
+          <h3 className="text-lg sm:text-xl font-bold">Detalhes da Transferência</h3>
           <Button size="sm" variant="light" onPress={onClose}>
             ✕
           </Button>
@@ -864,8 +923,8 @@ function DetalhesTransferenciaModal({
         <CardBody className="space-y-4">
           {/* Informações Gerais */}
           <div>
-            <h4 className="font-semibold mb-2">Informações Gerais</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <h4 className="font-semibold mb-2 text-sm sm:text-base">Informações Gerais</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-default-500">Status:</span>{" "}
                 <Chip
@@ -908,18 +967,18 @@ function DetalhesTransferenciaModal({
 
           {/* Histórico / Timeline */}
           <div>
-            <h4 className="font-semibold mb-4">Histórico de Movimentação</h4>
+            <h4 className="font-semibold mb-4 text-sm sm:text-base">Histórico de Movimentação</h4>
             <div className="space-y-4">
               {/* Evento 1: Criação / Saída */}
-              <div className="flex gap-4">
+              <div className="flex gap-2 sm:gap-4">
                 <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
-                    <ArrowRightIcon className="w-4 h-4" />
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
+                    <ArrowRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                   </div>
-                  <div className="w-1 h-12 bg-gray-300 mt-2" />
+                  <div className="w-0.5 sm:w-1 h-12 bg-gray-300 mt-2" />
                 </div>
                 <div className="flex-1 pb-4">
-                  <div className="font-semibold text-sm text-blue-600">
+                  <div className="font-semibold text-xs sm:text-sm text-blue-600">
                     Saída Autorizada
                   </div>
                   <div className="text-xs text-default-500 mt-0.5">
@@ -931,7 +990,7 @@ function DetalhesTransferenciaModal({
                       minute: "2-digit",
                     })}
                   </div>
-                  <div className="text-sm mt-2 bg-blue-50 p-3 rounded-lg">
+                  <div className="text-xs sm:text-sm mt-2 bg-blue-50 p-2 sm:p-3 rounded-lg">
                     <span className="font-medium text-foreground">
                       {transferencia.usuario_nome}
                     </span>
@@ -957,10 +1016,10 @@ function DetalhesTransferenciaModal({
               </div>
 
               {/* Evento 2: Recebimento (Pendente ou Confirmado) */}
-              <div className="flex gap-4">
+              <div className="flex gap-2 sm:gap-4">
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white flex-shrink-0 ${
                       transferencia.status === "confirmada"
                         ? "bg-green-500"
                         : transferencia.status === "cancelada"
@@ -969,11 +1028,11 @@ function DetalhesTransferenciaModal({
                     }`}
                   >
                     {transferencia.status === "confirmada" ? (
-                      <CheckCircleIcon className="w-4 h-4" />
+                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                     ) : transferencia.status === "cancelada" ? (
-                      <XCircleIcon className="w-4 h-4" />
+                      <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                     ) : (
-                      <ClockIcon className="w-4 h-4" />
+                      <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                     )}
                   </div>
                   {transferencia.status === "cancelada" ? (
@@ -984,7 +1043,7 @@ function DetalhesTransferenciaModal({
                 </div>
                 <div className="flex-1 pb-4">
                   <div
-                    className={`font-semibold text-sm ${
+                    className={`font-semibold text-xs sm:text-sm ${
                       transferencia.status === "confirmada"
                         ? "text-green-600"
                         : transferencia.status === "cancelada"
@@ -1012,7 +1071,7 @@ function DetalhesTransferenciaModal({
                           },
                         )}
                       </div>
-                      <div className="text-sm mt-2 bg-green-50 p-3 rounded-lg">
+                      <div className="text-xs sm:text-sm mt-2 bg-green-50 p-2 sm:p-3 rounded-lg">
                         <span className="font-medium text-foreground">
                           {transferencia.confirmado_por_nome}
                         </span>
@@ -1028,11 +1087,13 @@ function DetalhesTransferenciaModal({
                   ) : transferencia.status === "cancelada" ? (
                     <div />
                   ) : (
-                    <div className="text-xs text-yellow-700 mt-2 bg-yellow-50 p-3 rounded-lg">
-                      ⏳ <span className="font-medium">Pendente</span> -
-                      Aguardando confirmação de recebimento em{" "}
-                      <span className="font-medium">
-                        {transferencia.loja_destino}
+                    <div className="text-xs mt-2 bg-yellow-50 p-2 sm:p-3 rounded-lg">
+                      <span className="text-yellow-700">
+                        ⏳ <span className="font-medium">Pendente</span> -
+                        Aguardando confirmação de recebimento em{" "}
+                        <span className="font-medium">
+                          {transferencia.loja_destino}
+                        </span>
                       </span>
                     </div>
                   )}
@@ -1042,14 +1103,14 @@ function DetalhesTransferenciaModal({
               {/* Evento 3: Cancelamento (se aplicável) */}
               {transferencia.status === "cancelada" &&
                 transferencia.cancelado_em && (
-                  <div className="flex gap-4">
+                  <div className="flex gap-2 sm:gap-4">
                     <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center text-white">
-                        <XCircleIcon className="w-4 h-4" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
+                        <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       </div>
                     </div>
                     <div className="flex-1">
-                      <div className="font-semibold text-sm text-red-600">
+                      <div className="font-semibold text-xs sm:text-sm text-red-600">
                         Transferência Cancelada
                       </div>
                       <div className="text-xs text-default-500 mt-0.5">
@@ -1064,7 +1125,7 @@ function DetalhesTransferenciaModal({
                           },
                         )}
                       </div>
-                      <div className="text-sm mt-2 bg-red-50 p-3 rounded-lg">
+                      <div className="text-xs sm:text-sm mt-2 bg-red-50 p-2 sm:p-3 rounded-lg">
                         <span className="font-medium text-foreground">
                           {transferencia.cancelado_por_nome}
                         </span>
@@ -1091,28 +1152,28 @@ function DetalhesTransferenciaModal({
 
           {/* Produtos */}
           <div>
-            <h4 className="font-semibold mb-2">
+            <h4 className="font-semibold mb-2 text-sm sm:text-base">
               Produtos ({transferencia.itens.length})
             </h4>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto">
               {transferencia.itens.map((item) => {
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-3 rounded-lg bg-default-100"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg bg-default-100 gap-2"
                   >
-                    <div className="flex-1">
-                      <div className="font-medium">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm sm:text-base truncate">
                         {item.produto_descricao}
                       </div>
                       {item.produto_marca && (
-                        <div className="text-sm text-default-500">
+                        <div className="text-xs sm:text-sm text-default-500">
                           {item.produto_marca}
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Chip color="primary" variant="flat">
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <Chip color="primary" size="sm" variant="flat">
                         {item.quantidade} un
                       </Chip>
                     </div>
@@ -1126,7 +1187,7 @@ function DetalhesTransferenciaModal({
             <>
               <Divider />
               <div>
-                <h4 className="font-semibold mb-2">Observação</h4>
+                <h4 className="font-semibold mb-2 text-sm sm:text-base">Observação</h4>
                 <p className="text-sm text-default-600">
                   {transferencia.observacao}
                 </p>
@@ -1136,7 +1197,7 @@ function DetalhesTransferenciaModal({
 
           {/* Ações */}
           <Divider />
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-col sm:flex-row gap-2 justify-end">
             <Dropdown>
               <DropdownTrigger>
                 <Button
@@ -1179,34 +1240,57 @@ function DetalhesTransferenciaModal({
               </DropdownMenu>
             </Dropdown>
             {transferencia.status === "pendente" && (
-              <>
-                {podeEditar && (
+              <Dropdown>
+                <DropdownTrigger>
                   <Button
                     color="primary"
-                    isLoading={processando}
-                    startContent={<PencilSquareIcon className="h-5 w-5" />}
+                    isDisabled={processando}
                     variant="flat"
+                  >
+                    Ações
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu aria-label="Ações da transferência">
+                  {podeEditar ? (
+                    <DropdownItem
+                      key="editar"
+                      startContent={<PencilSquareIcon className="h-4 w-4" />}
+                      onPress={() => {
+                        onEditar(transferencia);
+                        onClose();
+                      }}
+                    >
+                      Editar Transferência
+                    </DropdownItem>
+                  ) : null}
+                  {podeConfirmar ? (
+                    <DropdownItem
+                      key="confirmar"
+                      className="text-success"
+                      color="success"
+                      startContent={<CheckCircleIcon className="h-4 w-4" />}
+                      onPress={() => {
+                        onConfirmar(transferencia);
+                        onClose();
+                      }}
+                    >
+                      Confirmar Recebimento
+                    </DropdownItem>
+                  ) : null}
+                  <DropdownItem
+                    key="cancelar"
+                    className="text-danger"
+                    color="danger"
+                    startContent={<XCircleIcon className="h-4 w-4" />}
                     onPress={() => {
-                      onEditar(transferencia);
+                      onCancelar(transferencia);
                       onClose();
                     }}
                   >
-                    Editar Transferência
-                  </Button>
-                )}
-                <Button
-                  color="danger"
-                  isLoading={processando}
-                  startContent={<XCircleIcon className="h-5 w-5" />}
-                  variant="flat"
-                  onPress={() => {
-                    onCancelar(transferencia);
-                    onClose();
-                  }}
-                >
-                  Cancelar Transferência
-                </Button>
-              </>
+                    Cancelar Transferência
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
             )}
           </div>
         </CardBody>

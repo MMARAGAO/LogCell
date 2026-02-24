@@ -1410,29 +1410,51 @@ export default function CaixaPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Controle de Caixa</h1>
-          <p className="text-default-600">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Controle de Caixa</h1>
+          <p className="text-xs sm:text-sm text-default-600">
             Gerencie abertura e fechamento do caixa de cada loja
           </p>
         </div>
-        <Button
-          color="primary"
-          isLoading={loading}
-          variant="flat"
-          onPress={() => {
-            if (abaAtiva === "caixas") {
-              carregarLojas();
-            } else {
-              carregarHistorico();
-            }
-          }}
-        >
-          Atualizar
-        </Button>
+        <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
+          <Button
+            className="sm:hidden"
+            color="primary"
+            isIconOnly
+            isLoading={loading}
+            size="lg"
+            variant="flat"
+            onPress={() => {
+              if (abaAtiva === "caixas") {
+                carregarLojas();
+              } else {
+                carregarHistorico();
+              }
+            }}
+          >
+            <RefreshCw className="w-5 h-5" />
+          </Button>
+          <Button
+            className="hidden sm:flex"
+            color="primary"
+            isLoading={loading}
+            size="lg"
+            startContent={<RefreshCw className="w-5 h-5" />}
+            variant="flat"
+            onPress={() => {
+              if (abaAtiva === "caixas") {
+                carregarLojas();
+              } else {
+                carregarHistorico();
+              }
+            }}
+          >
+            Atualizar
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}

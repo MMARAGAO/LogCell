@@ -33,6 +33,7 @@ interface MetricasPessoais {
   vendasMes: {
     total: number;
     quantidade: number;
+    ticket_medio: number;
   };
   metaMensal: {
     valor: number;
@@ -57,23 +58,6 @@ interface MetricasPessoais {
   }>;
 }
 
-interface AparelhoVendaRow {
-  id: string;
-  marca: string | null;
-  modelo: string | null;
-  valor_venda: number | null;
-  valor_compra: number | null;
-  venda_id: string | null;
-  data_venda: string | null;
-  loja_id: number;
-}
-
-interface VendaResumoRow {
-  id: string;
-  vendedor_id: string | null;
-  numero_venda: number | null;
-}
-
 export default function DashboardPessoal() {
   const { usuario } = useAuthContext();
   const { lojaId, perfil } = usePermissoes();
@@ -85,6 +69,8 @@ export default function DashboardPessoal() {
   useEffect(() => {
     if (usuario) {
       carregarMetricas();
+    } else {
+      console.warn("⚠️ Usuário não encontrado, aguardando...");
     }
   }, [usuario, lojaId]);
 
@@ -99,17 +85,10 @@ export default function DashboardPessoal() {
 
     try {
       // Carregar metas do usuário
-      console.log("🔍 Buscando metas para:", {
-        usuarioId: usuario.id,
-        lojaId: lojaId || undefined,
-      });
-
       const metaUsuario = await MetasService.buscarMetaUsuario(
         usuario.id,
         lojaId || undefined,
       );
-
-      console.log("📊 Meta encontrada:", metaUsuario);
 
       let metaMensalAtual = 10000;
       let diasUteisAtual = 26;
@@ -119,13 +98,7 @@ export default function DashboardPessoal() {
         diasUteisAtual = metaUsuario.dias_uteis_mes;
         setMetaMensal(metaUsuario.meta_mensal_vendas);
         setDiasUteis(metaUsuario.dias_uteis_mes);
-        console.log("✅ Metas carregadas:", {
-          metaMensal: metaUsuario.meta_mensal_vendas,
-          diasUteis: metaUsuario.dias_uteis_mes,
-        });
       } else {
-        // Usar valores padrão se não houver meta cadastrada
-        console.log("⚠️ Nenhuma meta encontrada, usando valores padrão");
         setMetaMensal(10000);
         setDiasUteis(26);
       }
@@ -157,123 +130,124 @@ export default function DashboardPessoal() {
         59,
       );
 
-      const buscarAparelhosVendidos = async (
-        inicioISO: string,
-        fimISO: string,
-        loja: number | null,
-      ): Promise<AparelhoVendaRow[]> => {
-        const pageSize = 1000;
-        let from = 0;
-        let to = pageSize - 1;
-        const resultado: AparelhoVendaRow[] = [];
+      // Buscar vendas do vendedor no mês
+      let queryVendasMes = supabase
+        .from("vendas")
+        .select(`
+          id,
+          numero_venda,
+          valor_total,
+          criado_em,
+          finalizado_em,
+          status
+        `)
+        .eq("vendedor_id", usuario.id)
+        .gte("criado_em", inicioMes.toISOString())
+        .lte("criado_em", fimMes.toISOString())
+        .in("status", ["concluida", "devolvida"]);
 
-        while (true) {
-          let query = supabase
-            .from("aparelhos")
-            .select(
-              "id, marca, modelo, valor_venda, valor_compra, venda_id, data_venda, loja_id",
-            )
-            .eq("status", "vendido")
-            .gte("data_venda", inicioISO)
-            .lte("data_venda", fimISO)
-            .range(from, to);
+      if (lojaId) {
+        queryVendasMes = queryVendasMes.eq("loja_id", lojaId);
+      }
 
-          if (loja) {
-            query = query.eq("loja_id", loja);
-          }
+      const { data: vendasMes, error: erroVendasMes } = await queryVendasMes;
 
-          const { data, error } = await query;
+      if (erroVendasMes) {
+        throw erroVendasMes;
+      }
 
-          if (error) throw error;
+      // Buscar itens de todas as vendas (em lotes)
+      const vendaIds = vendasMes?.map(v => v.id) || [];
+      let itensVendas: any[] = [];
 
-          const batch = (data || []) as AparelhoVendaRow[];
-
-          resultado.push(...batch);
-
-          if (batch.length < pageSize) break;
-          from += pageSize;
-          to += pageSize;
-        }
-
-        return resultado;
-      };
-
-      const buscarVendas = async (
-        vendaIds: string[],
-      ): Promise<VendaResumoRow[]> => {
-        if (!vendaIds.length) return [];
-
-        const batchSize = 50;
-        const resultado: VendaResumoRow[] = [];
-
+      if (vendaIds.length > 0) {
+        const batchSize = 100; // 100 vendas por vez
+        
         for (let i = 0; i < vendaIds.length; i += batchSize) {
           const batch = vendaIds.slice(i, i + batchSize);
-          const { data, error } = await supabase
-            .from("vendas")
-            .select("id, vendedor_id, numero_venda")
+          
+          const { data: itens, error: erroItens } = await supabase
+            .from("itens_venda")
+            .select(`
+              id,
+              venda_id,
+              produto_id,
+              quantidade,
+              preco_unitario,
+              subtotal
+            `)
+            .in("venda_id", batch);
+
+          if (!erroItens && itens) {
+            itensVendas.push(...itens);
+          }
+        }
+      }
+
+      // Buscar produtos para calcular lucro (em lotes para evitar URL muito longa)
+      const produtoIds = Array.from(new Set(itensVendas.map(i => i.produto_id)));
+      let produtos: Map<string, any> = new Map();
+
+      if (produtoIds.length > 0) {
+        const batchSize = 50; // Buscar 50 produtos por vez
+        
+        for (let i = 0; i < produtoIds.length; i += batchSize) {
+          const batch = produtoIds.slice(i, i + batchSize);
+          
+          const { data: produtosData, error: erroProdutos } = await supabase
+            .from("produtos")
+            .select("id, preco_compra, preco_venda")
             .in("id", batch);
 
-          if (error) throw error;
-          resultado.push(...((data || []) as VendaResumoRow[]));
+          if (!erroProdutos && produtosData) {
+            produtosData.forEach(p => produtos.set(p.id, p));
+          }
         }
+      }
 
-        return resultado;
-      };
+      // Calcular lucros
+      let lucroTotalMes = 0;
+      let lucroTotalHoje = 0;
+      let vendasHoje: any[] = [];
 
-      const aparelhosMes = await buscarAparelhosVendidos(
-        inicioMes.toISOString(),
-        fimMes.toISOString(),
-        lojaId || null,
-      );
+      vendasMes?.forEach(venda => {
+        const itensVenda = itensVendas.filter(i => i.venda_id === venda.id);
+        let lucroVenda = 0;
 
-      const vendaIds = Array.from(
-        new Set(aparelhosMes.map((ap) => ap.venda_id).filter(Boolean)),
-      ) as string[];
+        itensVenda.forEach(item => {
+          const produto = produtos.get(item.produto_id);
+          if (produto) {
+            const precoCompra = Number(produto.preco_compra || 0);
+            const precoVenda = Number(item.preco_unitario || 0);
+            const quantidade = Number(item.quantidade || 0);
+            const lucroItem = (precoVenda - precoCompra) * quantidade;
+            lucroVenda += lucroItem;
+          }
+        });
 
-      const vendas = await buscarVendas(vendaIds);
-      const vendaMap = new Map(vendas.map((v) => [v.id, v]));
+        lucroTotalMes += lucroVenda;
 
-      const aparelhosVendedor = aparelhosMes.filter((ap) => {
-        if (!ap.venda_id) return false;
-        const venda = vendaMap.get(ap.venda_id);
-
-        return venda?.vendedor_id === usuario.id;
+        // Verificar se a venda foi hoje
+        const dataVenda = new Date(venda.criado_em);
+        if (dataVenda >= inicioHoje && dataVenda <= fimHoje) {
+          lucroTotalHoje += lucroVenda;
+          vendasHoje.push(venda);
+        }
       });
 
-      const aparelhosHoje = aparelhosVendedor.filter((ap) => {
-        if (!ap.data_venda) return false;
-        const data = new Date(ap.data_venda);
-
-        return data >= inicioHoje && data <= fimHoje;
-      });
-
-      const totalHoje = aparelhosHoje.reduce((sum, ap) => {
-        const valorVenda = Number(ap.valor_venda || 0);
-        const valorCompra = Number(ap.valor_compra || 0);
-
-        return sum + (valorVenda - valorCompra);
-      }, 0);
-
-      const quantidadeHoje = aparelhosHoje.length;
-      const ticketMedio = quantidadeHoje > 0 ? totalHoje / quantidadeHoje : 0;
-
-      const totalMes = aparelhosVendedor.reduce((sum, ap) => {
-        const valorVenda = Number(ap.valor_venda || 0);
-        const valorCompra = Number(ap.valor_compra || 0);
-
-        return sum + (valorVenda - valorCompra);
-      }, 0);
-
-      const quantidadeMes = aparelhosVendedor.length;
+      const quantidadeHoje = vendasHoje.length;
+      const quantidadeMes = vendasMes?.length || 0;
+      const ticketMedio = quantidadeHoje > 0 ? lucroTotalHoje / quantidadeHoje : 0;
+      const ticketMedioMes = quantidadeMes > 0 ? lucroTotalMes / quantidadeMes : 0;
 
       // Calcular meta diária usando os dias úteis configurados
       const metaDiariaValor = metaMensalAtual / diasUteisAtual;
 
       // Progresso das metas
-      const progressoMensal = (totalMes / metaMensalAtual) * 100;
-      const faltandoMensal = Math.max(0, metaMensalAtual - totalMes);
-      const progressoDiario = (totalHoje / metaDiariaValor) * 100;
-      const faltandoDiario = Math.max(0, metaDiariaValor - totalHoje);
+      const progressoMensal = (lucroTotalMes / metaMensalAtual) * 100;
+      const faltandoMensal = Math.max(0, metaMensalAtual - lucroTotalMes);
+      const progressoDiario = (lucroTotalHoje / metaDiariaValor) * 100;
+      const faltandoDiario = Math.max(0, metaDiariaValor - lucroTotalHoje);
 
       // Ordens de serviço (se for técnico)
       let ordensServico = {
@@ -310,37 +284,47 @@ export default function DashboardPessoal() {
         };
       }
 
-      // Últimas 5 vendas (por lucro)
-      const ultimasVendas = aparelhosHoje
+      // Últimas 5 vendas (por data)
+      const ultimasVendasArray = vendasHoje
         .sort((a, b) => {
-          const dataA = a.data_venda ? new Date(a.data_venda).getTime() : 0;
-          const dataB = b.data_venda ? new Date(b.data_venda).getTime() : 0;
-
+          const dataA = new Date(a.criado_em).getTime();
+          const dataB = new Date(b.criado_em).getTime();
           return dataB - dataA;
         })
         .slice(0, 5)
-        .map((ap) => {
-          const venda = ap.venda_id ? vendaMap.get(ap.venda_id) : null;
-          const valorVenda = Number(ap.valor_venda || 0);
-          const valorCompra = Number(ap.valor_compra || 0);
+        .map((venda) => {
+          // Calcular lucro individual da venda
+          const itensVenda = itensVendas.filter(i => i.venda_id === venda.id);
+          let lucroVenda = 0;
+
+          itensVenda.forEach(item => {
+            const produto = produtos.get(item.produto_id);
+            if (produto) {
+              const precoCompra = Number(produto.preco_compra || 0);
+              const precoVenda = Number(item.preco_unitario || 0);
+              const quantidade = Number(item.quantidade || 0);
+              lucroVenda += (precoVenda - precoCompra) * quantidade;
+            }
+          });
 
           return {
-            id: ap.id,
-            numero_venda: Number(venda?.numero_venda || 0),
-            valor_total: valorVenda - valorCompra,
-            criado_em: ap.data_venda || new Date().toISOString(),
+            id: venda.id,
+            numero_venda: Number(venda.numero_venda || 0),
+            valor_total: lucroVenda,
+            criado_em: venda.criado_em,
           };
         });
 
       setMetricas({
         vendasHoje: {
-          total: totalHoje,
+          total: lucroTotalHoje,
           quantidade: quantidadeHoje,
           ticket_medio: ticketMedio,
         },
         vendasMes: {
-          total: totalMes,
+          total: lucroTotalMes,
           quantidade: quantidadeMes,
+          ticket_medio: ticketMedioMes,
         },
         metaMensal: {
           valor: metaMensalAtual,
@@ -353,10 +337,10 @@ export default function DashboardPessoal() {
           faltando: faltandoDiario,
         },
         ordensServico,
-        ultimasVendas,
+        ultimasVendas: ultimasVendasArray,
       });
     } catch (error) {
-      console.error("Erro ao carregar métricas pessoais:", error);
+      console.error("Erro ao carregar métricas:", error);
     } finally {
       setLoading(false);
     }
@@ -454,9 +438,9 @@ export default function DashboardPessoal() {
               </div>
               <div>
                 <p className="text-3xl font-bold text-default-900">
-                  {formatarMoeda(metricas.vendasHoje.ticket_medio)}
+                  {formatarMoeda(metricas.vendasMes.ticket_medio)}
                 </p>
-                <p className="text-sm text-default-500 mt-1">por venda</p>
+                <p className="text-sm text-default-500 mt-1">por venda (média do mês)</p>
               </div>
             </CardBody>
           </Card>
@@ -554,6 +538,7 @@ export default function DashboardPessoal() {
                 </Chip>
               </div>
               <Progress
+                aria-label="Progresso da meta diária"
                 className="h-2"
                 color={
                   metricas.metaDiaria.progresso >= 100
@@ -624,6 +609,7 @@ export default function DashboardPessoal() {
                 </Chip>
               </div>
               <Progress
+                aria-label="Progresso da meta mensal"
                 className="h-2"
                 color={
                   metricas.metaMensal.progresso >= 100
