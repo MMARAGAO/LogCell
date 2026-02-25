@@ -93,6 +93,9 @@ export interface ResumoCaixa {
   ordens_servico: {
     quantidade: number;
     total: number;
+    por_forma_pagamento: {
+      [key: string]: number;
+    };
   };
   os_devolvidas_com_credito?: {
     quantidade: number;

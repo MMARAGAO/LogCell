@@ -87,3 +87,71 @@ export function formatarDataHora(
     minute: "2-digit",
   }).format(dataObj);
 }
+
+/**
+ * Formata um CPF no padrão brasileiro (000.000.000-00)
+ * @param cpf - String com o CPF
+ * @returns String formatada como CPF
+ */
+export function formatarCPF(cpf: string | null | undefined): string {
+  if (!cpf) return "-";
+
+  // Remove caracteres não numéricos
+  const apenasNumeros = cpf.replace(/\D/g, "");
+
+  // Aplica a máscara
+  if (apenasNumeros.length === 11) {
+    return apenasNumeros.replace(
+      /(\d{3})(\d{3})(\d{3})(\d{2})/,
+      "$1.$2.$3-$4",
+    );
+  }
+
+  return cpf;
+}
+
+/**
+ * Formata um telefone no padrão brasileiro
+ * @param telefone - String com o telefone
+ * @returns String formatada como telefone
+ */
+export function formatarTelefone(telefone: string | null | undefined): string {
+  if (!telefone) return "-";
+
+  // Remove caracteres não numéricos
+  const apenasNumeros = telefone.replace(/\D/g, "");
+
+  // Celular com 11 dígitos: (00) 00000-0000
+  if (apenasNumeros.length === 11) {
+    return apenasNumeros.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  }
+
+  // Telefone fixo com 10 dígitos: (00) 0000-0000
+  if (apenasNumeros.length === 10) {
+    return apenasNumeros.replace(/(\d{2})(\d{4})(\d{4})/, "($1) $2-$3");
+  }
+
+  return telefone;
+}
+
+/**
+ * Formata um CNPJ no padrão brasileiro (00.000.000/0000-00)
+ * @param cnpj - String com o CNPJ
+ * @returns String formatada como CNPJ
+ */
+export function formatarCNPJ(cnpj: string | null | undefined): string {
+  if (!cnpj) return "-";
+
+  // Remove caracteres não numéricos
+  const apenasNumeros = cnpj.replace(/\D/g, "");
+
+  // Aplica a máscara
+  if (apenasNumeros.length === 14) {
+    return apenasNumeros.replace(
+      /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,
+      "$1.$2.$3/$4-$5",
+    );
+  }
+
+  return cnpj;
+}

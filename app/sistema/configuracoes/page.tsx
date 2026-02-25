@@ -84,22 +84,23 @@ export default function ConfiguracoesPage() {
     }
   }, [tema, configuracoesCarregadas, configuracoes, atualizarConfiguracoes]);
 
+  // Verificar loading primeiro
+  if (carregando || loadingPermissoes) {
+    return (
+      <div className="flex items-center justify-center h-[70vh]">
+        <Spinner label="Carregando configurações..." size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de administrador
-  if (!loadingPermissoes && !temPermissao("configuracoes.gerenciar")) {
+  if (!temPermissao("configuracoes.gerenciar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
         <p className="text-default-500">
           Apenas administradores podem acessar as configurações do sistema.
         </p>
-      </div>
-    );
-  }
-
-  if (carregando || loadingPermissoes) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <Spinner label="Carregando configurações..." size="lg" />
       </div>
     );
   }

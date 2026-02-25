@@ -1351,22 +1351,23 @@ export default function VendasPage() {
     {} as { [key: string]: number },
   );
 
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de visualizar
-  if (!loadingPermissoes && !temPermissao("vendas.visualizar")) {
+  if (!temPermissao("vendas.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
         <p className="text-default-500">
           Você não tem permissão para visualizar vendas.
         </p>
-      </div>
-    );
-  }
-
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner size="lg" />
       </div>
     );
   }

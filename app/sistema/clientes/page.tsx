@@ -2,7 +2,7 @@
 
 import type { Cliente } from "@/types/clientesTecnicos";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Button,
   Input,
@@ -10,8 +10,42 @@ import {
   CardBody,
   Spinner,
   Pagination,
+  Select,
+  SelectItem,
+  Chip,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  ButtonGroup,
 } from "@heroui/react";
-import { Plus, Search, Users, UserCheck, UserX } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Users,
+  UserCheck,
+  UserX,
+  LayoutGrid,
+  List,
+  Filter,
+  Download,
+  SortAsc,
+  SortDesc,
+  MoreVertical,
+  Edit,
+  Trash2,
+  DollarSign,
+  Clock,
+  Phone,
+  Mail,
+  MapPin,
+} from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +63,7 @@ import {
   deletarCliente,
   toggleClienteAtivo,
 } from "@/services/clienteService";
+import { formatarTelefone, formatarCPF } from "@/lib/formatters";
 
 // Hook para debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -95,6 +130,14 @@ export default function ClientesPage() {
     ativos: 0,
     inativos: 0,
   });
+
+  // Visualização e ordenação
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [sortBy, setSortBy] = useState<"nome" | "criado_em" | "ultima_compra">(
+    "nome",
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Preencher busca vinda da URL
   useEffect(() => {
@@ -275,6 +318,32 @@ export default function ClientesPage() {
     setPage(1);
   }, [buscaDebounced, filtroAtivo]);
 
+  // Ordenar clientes
+  const clientesOrdenados = useMemo(() => {
+    const sorted = [...clientes].sort((a, b) => {
+      let compareValue = 0;
+
+      switch (sortBy) {
+        case "nome":
+          compareValue = a.nome.localeCompare(b.nome);
+          break;
+        case "criado_em":
+          compareValue =
+            new Date(a.criado_em || 0).getTime() -
+            new Date(b.criado_em || 0).getTime();
+          break;
+        case "ultima_compra":
+          // Ordenar por última compra (se tiver esse campo)
+          compareValue = 0; // Implementar quando tiver o campo
+          break;
+      }
+
+      return sortOrder === "asc" ? compareValue : -compareValue;
+    });
+
+    return sorted;
+  }, [clientes, sortBy, sortOrder]);
+
   // Verificar estados de loading primeiro
   if (!usuario || loadingPermissoes) {
     return (
@@ -375,24 +444,150 @@ export default function ClientesPage() {
         </Card>
       </div>
 
-      {/* Busca */}
+      {/* Busca e Filtros */}
       <Card>
         <CardBody>
-          <Input
-            isClearable
-            description={
-              busca !== buscaDebounced
-                ? "Aguardando digitação..."
-                : totalClientes > 0
-                  ? `${totalClientes} cliente${totalClientes !== 1 ? "s" : ""} encontrado${totalClientes !== 1 ? "s" : ""}`
-                  : undefined
-            }
-            placeholder="Buscar por nome, telefone, CPF ou email..."
-            startContent={<Search className="w-4 h-4 text-default-400" />}
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            onClear={() => setBusca("")}
-          />
+          <div className="flex flex-col gap-4">
+            {/* Primeira linha: Busca e controles */}
+            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-start">
+              {/* Campo de busca */}
+              <div className="flex-1">
+                <Input
+                  isClearable
+                  classNames={{
+                    base: "w-full",
+                    mainWrapper: "h-full",
+                    input: "text-small",
+                    inputWrapper:
+                      "h-full font-normal text-default-500 bg-default-400/20 dark:bg-default-500/20",
+                  }}
+                  placeholder="Buscar por nome, telefone, CPF ou email..."
+                  size="lg"
+                  startContent={
+                    <Search className="w-4 h-4 text-default-400 pointer-events-none flex-shrink-0" />
+                  }
+                  type="search"
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  onClear={() => setBusca("")}
+                />
+                {(busca !== buscaDebounced || totalClientes > 0) && (
+                  <p className="text-xs text-default-400 mt-1 ml-1">
+                    {busca !== buscaDebounced ? (
+                      "Aguardando digitação..."
+                    ) : totalClientes > 0 ? (
+                      <>
+                        {totalClientes} cliente
+                        {totalClientes !== 1 ? "s" : ""} encontrado
+                        {totalClientes !== 1 ? "s" : ""}
+                      </>
+                    ) : null}
+                  </p>
+                )}
+              </div>
+
+              {/* Controles */}
+              <div className="flex gap-2 flex-shrink-0">
+                <Button
+                  className="min-w-[120px]"
+                  color={showFilters ? "primary" : "default"}
+                  size="lg"
+                  startContent={<Filter className="w-4 h-4" />}
+                  variant={showFilters ? "solid" : "flat"}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
+                  Filtros
+                </Button>
+                <ButtonGroup size="lg">
+                  <Button
+                    isIconOnly
+                    color={viewMode === "cards" ? "primary" : "default"}
+                    variant={viewMode === "cards" ? "solid" : "flat"}
+                    onPress={() => setViewMode("cards")}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    color={viewMode === "table" ? "primary" : "default"}
+                    variant={viewMode === "table" ? "solid" : "flat"}
+                    onPress={() => setViewMode("table")}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </ButtonGroup>
+              </div>
+            </div>
+
+            {/* Filtros expandidos */}
+            {showFilters && (
+              <div className="pt-4 border-t border-divider">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <Select
+                    label="Ordenar por"
+                    labelPlacement="outside-left"
+                    classNames={{
+                      base: "items-center",
+                      label: "min-w-[100px]",
+                    }}
+                    selectedKeys={[sortBy]}
+                    onChange={(e) =>
+                      setSortBy(
+                        e.target.value as
+                          | "nome"
+                          | "criado_em"
+                          | "ultima_compra",
+                      )
+                    }
+                  >
+                    <SelectItem key="nome">Nome</SelectItem>
+                    <SelectItem key="criado_em">Data de Cadastro</SelectItem>
+                    <SelectItem key="ultima_compra">Última Compra</SelectItem>
+                  </Select>
+
+                  <Select
+                    label="Ordem"
+                    labelPlacement="outside-left"
+                    classNames={{
+                      base: "items-center",
+                      label: "min-w-[60px]",
+                    }}
+                    selectedKeys={[sortOrder]}
+                    onChange={(e) =>
+                      setSortOrder(e.target.value as "asc" | "desc")
+                    }
+                  >
+                    <SelectItem
+                      key="asc"
+                      startContent={<SortAsc className="w-4 h-4" />}
+                    >
+                      Crescente
+                    </SelectItem>
+                    <SelectItem
+                      key="desc"
+                      startContent={<SortDesc className="w-4 h-4" />}
+                    >
+                      Decrescente
+                    </SelectItem>
+                  </Select>
+
+                  <div className="md:col-span-2 lg:col-span-2 flex justify-end">
+                    <Button
+                      color="primary"
+                      size="lg"
+                      startContent={<Download className="w-4 h-4" />}
+                      variant="flat"
+                      onPress={() => {
+                        toast.success("Funcionalidade em desenvolvimento");
+                      }}
+                    >
+                      Exportar Lista
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </CardBody>
       </Card>
 
@@ -430,20 +625,160 @@ export default function ClientesPage() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {clientes.map((cliente) => (
-              <ClienteCard
-                key={cliente.id}
-                cliente={cliente}
-                creditosDisponiveis={creditosPorCliente[cliente.id] || 0}
-                onDeletar={handleDeletarCliente}
-                onEditar={handleEditarCliente}
-                onGerenciarCreditos={handleGerenciarCreditos}
-                onToggleAtivo={handleToggleAtivo}
-                onVerHistorico={handleVerHistorico}
-              />
-            ))}
-          </div>
+          {viewMode === "cards" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {clientesOrdenados.map((cliente) => (
+                <ClienteCard
+                  key={cliente.id}
+                  cliente={cliente}
+                  creditosDisponiveis={creditosPorCliente[cliente.id] || 0}
+                  onDeletar={handleDeletarCliente}
+                  onEditar={handleEditarCliente}
+                  onGerenciarCreditos={handleGerenciarCreditos}
+                  onToggleAtivo={handleToggleAtivo}
+                  onVerHistorico={handleVerHistorico}
+                />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardBody className="p-0">
+                <Table
+                  aria-label="Tabela de clientes"
+                  classNames={{
+                    wrapper: "shadow-none",
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn>CLIENTE</TableColumn>
+                    <TableColumn>CONTATO</TableColumn>
+                    <TableColumn>ENDEREÇO</TableColumn>
+                    <TableColumn>STATUS</TableColumn>
+                    <TableColumn>CRÉDITOS</TableColumn>
+                    <TableColumn align="center">AÇÕES</TableColumn>
+                  </TableHeader>
+                  <TableBody>
+                    {clientesOrdenados.map((cliente) => (
+                      <TableRow key={cliente.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <p className="font-semibold">{cliente.nome}</p>
+                            {cliente.doc && (
+                              <p className="text-sm text-default-500">
+                                CPF: {formatarCPF(cliente.doc)}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            {cliente.telefone && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Phone className="w-3 h-3 text-default-400" />
+                                <span>
+                                  {formatarTelefone(cliente.telefone)}
+                                </span>
+                              </div>
+                            )}
+                            {cliente.email && (
+                              <div className="flex items-center gap-1 text-sm">
+                                <Mail className="w-3 h-3 text-default-400" />
+                                <span className="truncate max-w-[200px]">
+                                  {cliente.email}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-start gap-1 text-sm max-w-[250px]">
+                            <MapPin className="w-3 h-3 text-default-400 mt-0.5 flex-shrink-0" />
+                            <span className="line-clamp-2">
+                              {(cliente.logradouro &&
+                                `${cliente.logradouro}${cliente.numero ? `, ${cliente.numero}` : ""}${cliente.complemento ? ` - ${cliente.complemento}` : ""}`) ||
+                                "-"}
+                              {cliente.cidade && `, ${cliente.cidade}`}
+                              {cliente.estado && ` - ${cliente.estado}`}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            color={cliente.ativo ? "success" : "danger"}
+                            size="sm"
+                            variant="flat"
+                          >
+                            {cliente.ativo ? "Ativo" : "Inativo"}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="w-3 h-3 text-success" />
+                            <span className="text-sm font-semibold text-success">
+                              {creditosPorCliente[cliente.id] || 0}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <Dropdown>
+                              <DropdownTrigger>
+                                <Button isIconOnly size="sm" variant="light">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownTrigger>
+                              <DropdownMenu aria-label="Ações do cliente">
+                                <DropdownItem
+                                  key="edit"
+                                  startContent={<Edit className="w-4 h-4" />}
+                                  onPress={() => handleEditarCliente(cliente)}
+                                >
+                                  Editar
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="credits"
+                                  startContent={
+                                    <DollarSign className="w-4 h-4" />
+                                  }
+                                  onPress={() =>
+                                    handleGerenciarCreditos(cliente)
+                                  }
+                                >
+                                  Gerenciar Créditos
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="history"
+                                  startContent={<Clock className="w-4 h-4" />}
+                                  onPress={() => handleVerHistorico(cliente)}
+                                >
+                                  Ver Histórico
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="toggle"
+                                  onPress={() => handleToggleAtivo(cliente)}
+                                >
+                                  {cliente.ativo ? "Desativar" : "Ativar"}
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="delete"
+                                  className="text-danger"
+                                  color="danger"
+                                  startContent={<Trash2 className="w-4 h-4" />}
+                                  onPress={() => handleDeletarCliente(cliente)}
+                                >
+                                  Excluir
+                                </DropdownItem>
+                              </DropdownMenu>
+                            </Dropdown>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Paginação */}
           {totalPages > 1 && (

@@ -128,14 +128,6 @@ export default function DevolucoesPage() {
 
       setTemMaisVendas(temMais);
       setPaginaServidor(pagina);
-
-      // Carregar automaticamente próxima página se houver mais vendas
-      if (temMais && vendasCarregadas.length === limite) {
-        // Aguardar um pouco para não sobrecarregar
-        setTimeout(() => {
-          carregarVendas(pagina + 1, true);
-        }, 100);
-      }
     } catch (error) {
       console.error("Erro ao carregar vendas:", error);
     } finally {
@@ -298,22 +290,23 @@ export default function DevolucoesPage() {
     setPaginaAtual(1);
   }, [busca]);
 
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de visualizar
-  if (!loadingPermissoes && !temPermissao("devolucoes.visualizar")) {
+  if (!temPermissao("devolucoes.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
         <p className="text-default-500">
           Você não tem permissão para visualizar devoluções.
         </p>
-      </div>
-    );
-  }
-
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Spinner size="lg" />
       </div>
     );
   }

@@ -506,7 +506,16 @@ export default function LojasPage() {
     return items.filter((item) => item.show);
   };
 
-  if (!loadingPermissoes && !temPermissao("lojas.visualizar")) {
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-[calc(100vh-200px)]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!temPermissao("lojas.visualizar")) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
         <div className="text-center">
@@ -515,14 +524,6 @@ export default function LojasPage() {
             Você não tem permissão para visualizar as lojas.
           </p>
         </div>
-      </div>
-    );
-  }
-
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-200px)]">
-        <Spinner size="lg" />
       </div>
     );
   }

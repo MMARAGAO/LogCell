@@ -258,21 +258,22 @@ export default function RMAsPage() {
   };
 
   // Verificar permissão de visualizar
-  if (!loadingPermissoes && !temPermissao("rma.visualizar")) {
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!temPermissao("rma.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
         <p className="text-default-500">
           Você não tem permissão para visualizar RMAs.
         </p>
-      </div>
-    );
-  }
-
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Spinner size="lg" />
       </div>
     );
   }

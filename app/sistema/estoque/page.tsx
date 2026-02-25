@@ -17,6 +17,7 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Pagination } from "@heroui/pagination";
+import { Spinner } from "@heroui/spinner";
 import { Tabs, Tab } from "@heroui/tabs";
 import {
   Dropdown,
@@ -909,22 +910,23 @@ export default function EstoquePage() {
     setPaginaAtual(1);
   }, [busca, statusFiltro, marcaFiltro, categoriaFiltro, estoqueFiltro]);
 
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de visualizar
-  if (!loadingPermissoes && !temPermissao("estoque.visualizar")) {
+  if (!temPermissao("estoque.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
         <p className="text-default-500">
           Você não tem permissão para visualizar o estoque.
         </p>
-      </div>
-    );
-  }
-
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div>Carregando...</div>
       </div>
     );
   }

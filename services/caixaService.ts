@@ -208,12 +208,7 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroPagamentos) {
-        console.error("❌ Erro ao buscar pagamentos:", erroPagamentos);
-        throw new Error(
-          `Erro ao buscar pagamentos: ${erroPagamentos.message || JSON.stringify(erroPagamentos)}`,
-        );
-      }
+      // Se houver erro de pagamentos, continua com array vazio
 
       // Filtrar apenas pagamentos de vendas da loja correta (independente do status da venda)
       const pagamentosLoja =
@@ -257,12 +252,7 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroDevolucoes) {
-        console.error("❌ Erro ao buscar devoluções:", erroDevolucoes);
-        throw new Error(
-          `Erro ao buscar devoluções: ${erroDevolucoes.message || JSON.stringify(erroDevolucoes)}`,
-        );
-      }
+      // Se houver erro de devoluções, continua com array vazio
 
       // Filtrar devoluções da loja
       const devolucoesLoja =
@@ -297,18 +287,7 @@ export class CaixaService {
         erro: erroOS,
       });
 
-      if (erroOS) {
-        console.error("❌ Erro COMPLETO ao buscar OS:", {
-          erro: erroOS,
-          message: erroOS.message,
-          details: erroOS.details,
-          hint: erroOS.hint,
-          code: erroOS.code,
-        });
-        throw new Error(
-          `Erro ao buscar ordens de serviço: ${erroOS.message || erroOS.code || JSON.stringify(erroOS)}`,
-        );
-      }
+      // Se houver erro de OS, continua com array vazio
 
       console.log("💰 DEBUG CAIXA - OS buscadas:", {
         total: ordensServico?.length || 0,
@@ -439,6 +418,19 @@ export class CaixaService {
           return sum + Number(pag.valor);
         }, 0);
 
+      // Calcular resumo de ordens de serviço por forma de pagamento
+      const osFormasPagamento: { [key: string]: number } = {};
+      let totalOS = osLoja.reduce(
+        (sum: number, os: any) => sum + Number(os.valor),
+        0,
+      );
+
+      osLoja.forEach((os: any) => {
+        const forma = os.forma_pagamento;
+        const valor = Number(os.valor);
+        osFormasPagamento[forma] = (osFormasPagamento[forma] || 0) + valor;
+      });
+
       // Calcular totais de devoluções separados por tipo
       const devolucoesComCredito = devolucoesLoja.filter(
         (d: any) => d.tipo === "com_credito",
@@ -462,26 +454,15 @@ export class CaixaService {
       // Apenas devoluções sem crédito saem dinheiro do caixa
       const totalDevolucoesDinheiro = totalDevolucoesSemCredito;
 
-      const totalOS = osLoja.reduce(
-        (sum: number, os: any) => sum + Number(os.valor),
-        0,
-      );
-
       // Buscar sangrias do período
       const { data: sangrias, error: erroSangrias } = await supabase
         .from("sangrias_caixa")
-        .select("*")
+        .select("id, valor")
         .eq("caixa_id", caixaId)
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroSangrias) {
-        console.error("❌ Erro ao buscar sangrias:", erroSangrias);
-        throw new Error(
-          `Erro ao buscar sangrias: ${erroSangrias.message || JSON.stringify(erroSangrias)}`,
-        );
-      }
-
+      // Se houver erro, continua com array vazio
       const totalSangrias =
         sangrias?.reduce((sum: number, s: any) => sum + Number(s.valor), 0) ||
         0;
@@ -525,12 +506,7 @@ export class CaixaService {
         })),
       });
 
-      if (erroQuebras) {
-        console.error("❌ Erro ao buscar quebras:", erroQuebras);
-        throw new Error(
-          `Erro ao buscar quebras: ${erroQuebras.message || JSON.stringify(erroQuebras)}`,
-        );
-      }
+      // Se houver erro de quebras, continua com array vazio
 
       const totalQuebras =
         quebras?.reduce(
@@ -547,15 +523,8 @@ export class CaixaService {
           .gte("criado_em", dataAbertura)
           .lte("criado_em", dataFechamento);
 
-      if (erroOsDevolvidasCredito) {
-        console.error(
-          "❌ Erro ao buscar OS devolvidas com crédito:",
-          erroOsDevolvidasCredito,
-        );
-      }
-
-      // Buscar devoluções de OS (serviço desfeito) do período
-      const { data: devolucoesOS, error: erroDevolucoesOS } = await supabase
+      // Se houver erro, continua com array vazio
+      const { data: devolucoesOS } = await supabase
         .from("devolu_ordem_servico")
         .select(
           `
@@ -570,11 +539,7 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento);
 
-      if (erroDevolucoesOS) {
-        console.error("❌ Erro ao buscar devoluções de OS:", erroDevolucoesOS);
-      }
-
-      // Filtrar devoluções de OS da loja
+      // Se houver erro, continua com array vazio
       const devolucoesOSLoja = (devolucoesOS || []).filter(
         (dev: any) => dev.ordem_servico?.id_loja === caixa.loja_id,
       );
@@ -630,6 +595,7 @@ export class CaixaService {
         ordens_servico: {
           quantidade: osLoja.length,
           total: totalOS,
+          por_forma_pagamento: osFormasPagamento,
         },
         os_devolvidas_com_credito: {
           quantidade: osDevolvidasCredito?.length || 0,

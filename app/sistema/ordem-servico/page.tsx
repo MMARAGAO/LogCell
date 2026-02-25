@@ -254,8 +254,17 @@ export default function OrdemServicoPage() {
     );
   }
 
+  // Verificar loading primeiro
+  if (loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de visualizar ordens de serviço
-  if (!loadingPermissoes && !temPermissao("os.visualizar")) {
+  if (!temPermissao("os.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>

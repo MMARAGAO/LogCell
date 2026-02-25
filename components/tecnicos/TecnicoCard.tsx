@@ -22,6 +22,8 @@ import {
   Briefcase,
 } from "lucide-react";
 
+import { formatarTelefone } from "@/lib/formatters";
+
 interface TecnicoCardProps {
   tecnico: Tecnico;
   menuItems: Array<{
@@ -48,17 +50,19 @@ export default function TecnicoCard({ tecnico, menuItems }: TecnicoCardProps) {
     <Card className="border-none shadow-sm hover:shadow-md transition-shadow">
       <CardBody className="p-4">
         <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
-              style={{ backgroundColor: tecnico.cor_agenda }}
-            >
-              {tecnico.nome.charAt(0).toUpperCase()}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex-shrink-0">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+                style={{ backgroundColor: tecnico.cor_agenda }}
+              >
+                {tecnico.nome.charAt(0).toUpperCase()}
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold">{tecnico.nome}</h3>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold truncate">{tecnico.nome}</h3>
               {tecnico.registro_profissional && (
-                <p className="text-xs text-default-500">
+                <p className="text-xs text-default-500 truncate">
                   Reg: {tecnico.registro_profissional}
                 </p>
               )}
@@ -98,7 +102,7 @@ export default function TecnicoCard({ tecnico, menuItems }: TecnicoCardProps) {
           {tecnico.telefone && (
             <div className="flex items-center gap-2 text-sm">
               <Phone className="w-4 h-4 text-default-400" />
-              <span>{tecnico.telefone}</span>
+              <span>{formatarTelefone(tecnico.telefone)}</span>
             </div>
           )}
           {tecnico.email && (

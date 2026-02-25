@@ -26,6 +26,7 @@ import {
   Tab,
 } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
+import { Spinner } from "@heroui/spinner";
 import {
   DollarSign,
   TrendingUp,
@@ -1389,8 +1390,17 @@ export default function CaixaPage() {
     toast.success("PDF aberto em nova aba!");
   };
 
+  // Verificar loading primeiro
+  if (loading || loadingPermissoes) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
   // Verificar permissão de visualizar
-  if (!loadingPermissoes && !temPermissao("caixa.visualizar")) {
+  if (!temPermissao("caixa.visualizar")) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
@@ -1401,20 +1411,14 @@ export default function CaixaPage() {
     );
   }
 
-  if (loading || loadingPermissoes) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div>Carregando...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Controle de Caixa</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+            Controle de Caixa
+          </h1>
           <p className="text-xs sm:text-sm text-default-600">
             Gerencie abertura e fechamento do caixa de cada loja
           </p>
@@ -2132,6 +2136,40 @@ export default function CaixaPage() {
                           </div>
                         ),
                       )}
+                    </div>
+                  </CardBody>
+                </Card>
+
+                {/* Ordens de Serviço */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Wrench className="w-5 h-5" />
+                      <span className="font-bold">
+                        Ordens de Serviço ({resumo.ordens_servico.quantidade})
+                      </span>
+                      <span className="text-success font-bold ml-auto">
+                        {formatarMoeda(resumo.ordens_servico.total)}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardBody>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {Object.entries(
+                        resumo.ordens_servico.por_forma_pagamento,
+                      ).map(([forma, valor]) => (
+                        <div
+                          key={forma}
+                          className="bg-default-100 p-3 rounded border border-default-200"
+                        >
+                          <p className="text-xs text-default-600 capitalize">
+                            {forma.replace("_", " ")}
+                          </p>
+                          <p className="font-bold">
+                            {formatarMoeda(valor as number)}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   </CardBody>
                 </Card>

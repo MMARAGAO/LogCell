@@ -165,6 +165,15 @@ export default function FinanceiroPage() {
   const podeCustos = temPermissao("financeiro.custos");
   const podeRelatorios = temPermissao("financeiro.relatorios");
 
+  // Verificar loading primeiro
+  if (loadingPermissoes) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Spinner />
+      </div>
+    );
+  }
+
   // Verificação de acesso
   if (!podeVisualizar) {
     return (
@@ -176,14 +185,6 @@ export default function FinanceiroPage() {
             </p>
           </CardBody>
         </Card>
-      </div>
-    );
-  }
-
-  if (loadingPermissoes) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner />
       </div>
     );
   }
