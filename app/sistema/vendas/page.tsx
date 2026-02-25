@@ -1377,7 +1377,9 @@ export default function VendasPage() {
       {/* Header */}
       <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">Vendas</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
+            Vendas
+          </h1>
           <p className="text-xs sm:text-sm text-gray-600">
             Gerencie suas vendas e acompanhe o desempenho
           </p>
