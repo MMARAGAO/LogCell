@@ -589,7 +589,9 @@ export default function AparelhosPage() {
               <CardHeader className="flex gap-3 items-center">
                 <Wallet className="w-5 h-5 text-success" />
                 <div className="flex flex-col">
-                  <p className="text-small text-default-500">Recebimentos (Hoje)</p>
+                  <p className="text-small text-default-500">
+                    Recebimentos (Hoje)
+                  </p>
                   <h3 className="text-2xl font-bold">
                     {formatarMoeda(kpis.recebimentosHoje)}
                   </h3>
@@ -635,7 +637,9 @@ export default function AparelhosPage() {
               <CardHeader className="flex gap-3 items-center">
                 <Coins className="w-5 h-5 text-amber-600" />
                 <div className="flex flex-col">
-                  <p className="text-small text-default-500">Valor Vendido (Mês)</p>
+                  <p className="text-small text-default-500">
+                    Valor Vendido (Mês)
+                  </p>
                   <h3 className="text-2xl font-bold">
                     {formatarMoeda(kpis.valorVendidoMes)}
                   </h3>
@@ -646,7 +650,9 @@ export default function AparelhosPage() {
               <CardHeader className="flex gap-3 items-center">
                 <Gauge className="w-5 h-5 text-purple-600" />
                 <div className="flex flex-col">
-                  <p className="text-small text-default-500">Ticket Médio (Mês)</p>
+                  <p className="text-small text-default-500">
+                    Ticket Médio (Mês)
+                  </p>
                   <h3 className="text-2xl font-bold">
                     {formatarMoeda(kpis.ticketMedioMes)}
                   </h3>

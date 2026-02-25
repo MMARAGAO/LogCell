@@ -344,25 +344,25 @@ export default function FinanceiroPage() {
               }
             })
             .map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.key;
+              const Icon = item.icon;
+              const isActive = activeTab === item.key;
 
-            return (
-              <button
-                key={item.key}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
-                  isActive
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-default-200 bg-default-100 text-default-700 hover:border-default-300"
-                }`}
-                type="button"
-                onClick={() => setActiveTab(item.key)}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={item.key}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-default-200 bg-default-100 text-default-700 hover:border-default-300"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveTab(item.key)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
         </div>
 
         <div className="mt-4">
