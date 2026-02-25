@@ -18,6 +18,7 @@ import {
   ArrowUturnLeftIcon,
   CurrencyDollarIcon,
   DevicePhoneMobileIcon,
+  DocumentChartBarIcon,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -34,6 +35,7 @@ import {
   ArrowUturnLeftIcon as ArrowUturnLeftIconSolid,
   CurrencyDollarIcon as CurrencyDollarIconSolid,
   DevicePhoneMobileIcon as DevicePhoneMobileIconSolid,
+  DocumentChartBarIcon as DocumentChartBarIconSolid,
 } from "@heroicons/react/24/solid";
 import { PackageX } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
@@ -157,6 +159,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: CurrencyDollarIcon,
       iconSolid: CurrencyDollarIconSolid,
       permissao: "caixa.visualizar" as const,
+    },
+    {
+      name: "Financeiro",
+      href: "/sistema/financeiro",
+      icon: DocumentChartBarIcon,
+      iconSolid: DocumentChartBarIconSolid,
+      permissao: "financeiro.visualizar" as const,
     },
     {
       name: "RMAs",

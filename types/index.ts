@@ -140,6 +140,11 @@ export interface PermissoesModulos {
     editar: boolean;
     deletar: boolean;
     alterar_status: boolean;
+    receber: boolean;
+    vender: boolean;
+    gerenciar_fotos: boolean;
+    ver_relatorios: boolean;
+    ver_dashboard: boolean;
   };
   rma?: {
     visualizar: boolean;
@@ -158,6 +163,18 @@ export interface PermissoesModulos {
     abrir: boolean;
     fechar: boolean;
     visualizar_movimentacoes: boolean;
+  };
+  financeiro?: {
+    visualizar: boolean;
+    folha: boolean;
+    contas_lojas: boolean;
+    vales: boolean;
+    retiradas: boolean;
+    fornecedores: boolean;
+    impostos: boolean;
+    funcionarios: boolean;
+    custos: boolean;
+    relatorios: boolean;
   };
   configuracoes?: {
     gerenciar: boolean;

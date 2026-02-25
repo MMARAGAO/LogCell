@@ -114,6 +114,11 @@ export type Permissao =
   | "aparelhos.editar"
   | "aparelhos.deletar"
   | "aparelhos.alterar_status"
+  | "aparelhos.receber"
+  | "aparelhos.vender"
+  | "aparelhos.gerenciar_fotos"
+  | "aparelhos.ver_relatorios"
+  | "aparelhos.ver_dashboard"
   // Transferências
   | "transferencias.visualizar"
   | "transferencias.criar"
@@ -122,6 +127,17 @@ export type Permissao =
   | "transferencias.confirmar"
   | "transferencias.aprovar"
   | "transferencias.cancelar"
+  // Financeiro
+  | "financeiro.visualizar"
+  | "financeiro.folha"
+  | "financeiro.contas_lojas"
+  | "financeiro.vales"
+  | "financeiro.retiradas"
+  | "financeiro.fornecedores"
+  | "financeiro.impostos"
+  | "financeiro.funcionarios"
+  | "financeiro.custos"
+  | "financeiro.relatorios"
   // Configurações
   | "configuracoes.gerenciar";
 
@@ -226,6 +242,11 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "aparelhos.editar",
     "aparelhos.deletar",
     "aparelhos.alterar_status",
+    "aparelhos.receber",
+    "aparelhos.vender",
+    "aparelhos.gerenciar_fotos",
+    "aparelhos.ver_relatorios",
+    "aparelhos.ver_dashboard",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",
@@ -233,6 +254,16 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "transferencias.confirmar",
     "transferencias.aprovar",
     "transferencias.cancelar",
+    "financeiro.visualizar",
+    "financeiro.folha",
+    "financeiro.contas_lojas",
+    "financeiro.vales",
+    "financeiro.retiradas",
+    "financeiro.fornecedores",
+    "financeiro.impostos",
+    "financeiro.funcionarios",
+    "financeiro.custos",
+    "financeiro.relatorios",
     "configuracoes.gerenciar",
   ],
 
@@ -316,11 +347,26 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "aparelhos.criar",
     "aparelhos.editar",
     "aparelhos.alterar_status",
+    "aparelhos.receber",
+    "aparelhos.vender",
+    "aparelhos.gerenciar_fotos",
+    "aparelhos.ver_relatorios",
+    "aparelhos.ver_dashboard",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",
     "transferencias.confirmar",
     "transferencias.aprovar",
+    "financeiro.visualizar",
+    "financeiro.folha",
+    "financeiro.contas_lojas",
+    "financeiro.vales",
+    "financeiro.retiradas",
+    "financeiro.fornecedores",
+    "financeiro.impostos",
+    "financeiro.funcionarios",
+    "financeiro.custos",
+    "financeiro.relatorios",
   ],
 
   vendedor: [

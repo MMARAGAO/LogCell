@@ -1193,6 +1193,46 @@ export function PermissoesModal({
                   >
                     Alterar Status
                   </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.receber}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "receber")
+                    }
+                  >
+                    Receber
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.vender}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "vender")
+                    }
+                  >
+                    Vender
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.gerenciar_fotos}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "gerenciar_fotos")
+                    }
+                  >
+                    Gerenciar Fotos
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.ver_relatorios}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "ver_relatorios")
+                    }
+                  >
+                    Ver Relatórios
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.aparelhos?.ver_dashboard}
+                    onValueChange={() =>
+                      handleTogglePermissao("aparelhos", "ver_dashboard")
+                    }
+                  >
+                    Ver Dashboard (KPIs)
+                  </Checkbox>
                 </div>
               </div>
 
@@ -1364,6 +1404,112 @@ export function PermissoesModal({
                     }
                   >
                     Visualizar Movimentações
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
+              {/* Módulo: Financeiro */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Financeiro</h3>
+                    <Chip color="warning" size="sm" variant="flat">
+                      Gestão Financeira
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    isSelected={todosMarcados("financeiro")}
+                    size="sm"
+                    onValueChange={(checked) =>
+                      handleToggleTodos("financeiro", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.folha}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "folha")
+                    }
+                  >
+                    Folha Salarial
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.contas_lojas}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "contas_lojas")
+                    }
+                  >
+                    Contas das Lojas
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.vales}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "vales")
+                    }
+                  >
+                    Vales de Funcionários
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.retiradas}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "retiradas")
+                    }
+                  >
+                    Retiradas Pessoais
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.fornecedores}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "fornecedores")
+                    }
+                  >
+                    Contas Fornecedores
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.impostos}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "impostos")
+                    }
+                  >
+                    Impostos e Tributos
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.funcionarios}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "funcionarios")
+                    }
+                  >
+                    Gestão de Funcionários
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.custos}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "custos")
+                    }
+                  >
+                    Centro de Custos
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.financeiro?.relatorios}
+                    onValueChange={() =>
+                      handleTogglePermissao("financeiro", "relatorios")
+                    }
+                  >
+                    Relatórios Gerenciais
                   </Checkbox>
                 </div>
               </div>

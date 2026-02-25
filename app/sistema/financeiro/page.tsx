@@ -8,8 +8,10 @@ import {
   Spinner,
   Tab,
   Tabs,
+  CardBody,
 } from "@heroui/react";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { useEffect, useState } from "react";
 import { getResumoFinanceiro } from "@/services/financeiroService";
 import { LojasService } from "@/services/lojasService";
@@ -43,6 +45,7 @@ import {
 export default function FinanceiroPage() {
   const { error } = useNotificacao();
   const { lojaId: defaultLojaId } = useLojaFilter();
+  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
   const [lojaId, setLojaId] = useState<number | null>(0); // 0 = todas as lojas
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loadingLojas, setLoadingLojas] = useState(false);
@@ -149,6 +152,41 @@ export default function FinanceiroPage() {
     { key: "custos", label: "Centro de Custos", icon: TagIcon },
     { key: "relatorios", label: "Relatórios Gerenciais", icon: ChartBarIcon },
   ];
+
+  // Verificar permissões
+  const podeVisualizar = temPermissao("financeiro.visualizar");
+  const podeFolha = temPermissao("financeiro.folha");
+  const podeContasLojas = temPermissao("financeiro.contas_lojas");
+  const podeVales = temPermissao("financeiro.vales");
+  const podeRetiradas = temPermissao("financeiro.retiradas");
+  const podeFornecedores = temPermissao("financeiro.fornecedores");
+  const podeImpostos = temPermissao("financeiro.impostos");
+  const podeFuncionarios = temPermissao("financeiro.funcionarios");
+  const podeCustos = temPermissao("financeiro.custos");
+  const podeRelatorios = temPermissao("financeiro.relatorios");
+
+  // Verificação de acesso
+  if (!podeVisualizar) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card className="p-6">
+          <CardBody>
+            <p className="text-danger">
+              Você não tem permissão para acessar o módulo financeiro.
+            </p>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loadingPermissoes) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Spinner />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -279,7 +317,33 @@ export default function FinanceiroPage() {
       {/* Menu e Conteudo */}
       <div className="rounded-xl border border-default-200 bg-default-50 p-3">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {menuItems.map((item) => {
+          {menuItems
+            .filter((item) => {
+              // Filtrar por permissão
+              switch (item.key) {
+                case "folha":
+                  return podeFolha;
+                case "contas-lojas":
+                  return podeContasLojas;
+                case "vales":
+                  return podeVales;
+                case "retiradas":
+                  return podeRetiradas;
+                case "fornecedores":
+                  return podeFornecedores;
+                case "impostos":
+                  return podeImpostos;
+                case "funcionarios":
+                  return podeFuncionarios;
+                case "custos":
+                  return podeCustos;
+                case "relatorios":
+                  return podeRelatorios;
+                default:
+                  return true;
+              }
+            })
+            .map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.key;
 
@@ -313,157 +377,175 @@ export default function FinanceiroPage() {
             variant="solid"
             onSelectionChange={(key) => setActiveTab(String(key))}
           >
-            <Tab
-              key="folha"
-              title={
-                <div className="flex items-center gap-2">
-                  <ClipboardDocumentListIcon className="h-4 w-4" />
-                  <span>Folha Salarial</span>
-                </div>
-              }
-            >
-              <FolhaSalarialPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="contas-lojas"
-              title={
-                <div className="flex items-center gap-2">
-                  <BuildingStorefrontIcon className="h-4 w-4" />
-                  <span>Contas das Lojas</span>
-                </div>
-              }
-            >
-              <ContasLojaPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="vales"
-              title={
-                <div className="flex items-center gap-2">
-                  <CreditCardIcon className="h-4 w-4" />
-                  <span>Vales de Funcionários</span>
-                </div>
-              }
-            >
-              <ValesPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="retiradas"
-              title={
-                <div className="flex items-center gap-2">
-                  <BanknotesIcon className="h-4 w-4" />
-                  <span>Retiradas Pessoais</span>
-                </div>
-              }
-            >
-              <RetiradasPessoaisPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="fornecedores"
-              title={
-                <div className="flex items-center gap-2">
-                  <BuildingOfficeIcon className="h-4 w-4" />
-                  <span>Contas Fornecedores</span>
-                </div>
-              }
-            >
-              <ContasFornecedorPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="impostos"
-              title={
-                <div className="flex items-center gap-2">
-                  <BuildingLibraryIcon className="h-4 w-4" />
-                  <span>Impostos e Tributos</span>
-                </div>
-              }
-            >
-              <ImpostosPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
-                mes={mes}
-              />
-            </Tab>
-
-            <Tab
-              key="funcionarios"
-              title={
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="h-4 w-4" />
-                  <span>Gestão de Funcionários</span>
-                </div>
-              }
-            >
-              <GestaoFuncionariosPanel />
-            </Tab>
-
-            <Tab
-              key="custos"
-              title={
-                <div className="flex items-center gap-2">
-                  <TagIcon className="h-4 w-4" />
-                  <span>Centro de Custos</span>
-                </div>
-              }
-            >
-              <CentroCustosPanel
-                ano={ano}
-                dataFim={dataFim}
-                dataInicio={dataInicio}
-                lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
-                lojaNome={
-                  lojaId && lojaId > 0
-                    ? lojas.find((l) => l.id === lojaId)?.nome
-                    : "Todas as Lojas"
+            {podeFolha && (
+              <Tab
+                key="folha"
+                title={
+                  <div className="flex items-center gap-2">
+                    <ClipboardDocumentListIcon className="h-4 w-4" />
+                    <span>Folha Salarial</span>
+                  </div>
                 }
-                mes={mes}
-              />
-            </Tab>
+              >
+                <FolhaSalarialPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
+                  mes={mes}
+                />
+              </Tab>
+            )}
 
-            <Tab
-              key="relatorios"
-              title={
-                <div className="flex items-center gap-2">
-                  <ChartBarIcon className="h-4 w-4" />
-                  <span>Relatórios Gerenciais</span>
-                </div>
-              }
-            >
-              <RelatoriosPanel />
-            </Tab>
+            {podeContasLojas && (
+              <Tab
+                key="contas-lojas"
+                title={
+                  <div className="flex items-center gap-2">
+                    <BuildingStorefrontIcon className="h-4 w-4" />
+                    <span>Contas das Lojas</span>
+                  </div>
+                }
+              >
+                <ContasLojaPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeVales && (
+              <Tab
+                key="vales"
+                title={
+                  <div className="flex items-center gap-2">
+                    <CreditCardIcon className="h-4 w-4" />
+                    <span>Vales de Funcionários</span>
+                  </div>
+                }
+              >
+                <ValesPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeRetiradas && (
+              <Tab
+                key="retiradas"
+                title={
+                  <div className="flex items-center gap-2">
+                    <BanknotesIcon className="h-4 w-4" />
+                    <span>Retiradas Pessoais</span>
+                  </div>
+                }
+              >
+                <RetiradasPessoaisPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeFornecedores && (
+              <Tab
+                key="fornecedores"
+                title={
+                  <div className="flex items-center gap-2">
+                    <BuildingOfficeIcon className="h-4 w-4" />
+                    <span>Contas Fornecedores</span>
+                  </div>
+                }
+              >
+                <ContasFornecedorPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeImpostos && (
+              <Tab
+                key="impostos"
+                title={
+                  <div className="flex items-center gap-2">
+                    <BuildingLibraryIcon className="h-4 w-4" />
+                    <span>Impostos e Tributos</span>
+                  </div>
+                }
+              >
+                <ImpostosPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeFuncionarios && (
+              <Tab
+                key="funcionarios"
+                title={
+                  <div className="flex items-center gap-2">
+                    <UsersIcon className="h-4 w-4" />
+                    <span>Gestão de Funcionários</span>
+                  </div>
+                }
+              >
+                <GestaoFuncionariosPanel />
+              </Tab>
+            )}
+
+            {podeCustos && (
+              <Tab
+                key="custos"
+                title={
+                  <div className="flex items-center gap-2">
+                    <TagIcon className="h-4 w-4" />
+                    <span>Centro de Custos</span>
+                  </div>
+                }
+              >
+                <CentroCustosPanel
+                  ano={ano}
+                  dataFim={dataFim}
+                  dataInicio={dataInicio}
+                  lojaId={lojaId && lojaId > 0 ? lojaId : undefined}
+                  lojaNome={
+                    lojaId && lojaId > 0
+                      ? lojas.find((l) => l.id === lojaId)?.nome
+                      : "Todas as Lojas"
+                  }
+                  mes={mes}
+                />
+              </Tab>
+            )}
+
+            {podeRelatorios && (
+              <Tab
+                key="relatorios"
+                title={
+                  <div className="flex items-center gap-2">
+                    <ChartBarIcon className="h-4 w-4" />
+                    <span>Relatórios Gerenciais</span>
+                  </div>
+                }
+              >
+                <RelatoriosPanel />
+              </Tab>
+            )}
           </Tabs>
         </div>
       </div>

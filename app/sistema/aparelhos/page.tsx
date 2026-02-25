@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Pagination } from "@heroui/pagination";
+import { Spinner } from "@heroui/spinner";
 import {
   Dropdown,
   DropdownTrigger,
@@ -172,6 +173,12 @@ export default function AparelhosPage() {
   const podeCriar = temPermissao("aparelhos.criar");
   const podeEditar = temPermissao("aparelhos.editar");
   const podeDeletar = temPermissao("aparelhos.deletar");
+  const podeAlterarStatus = temPermissao("aparelhos.alterar_status");
+  const podeReceber = temPermissao("aparelhos.receber");
+  const podeVender = temPermissao("aparelhos.vender");
+  const podeGerenciarFotos = temPermissao("aparelhos.gerenciar_fotos");
+  const podeVerRelatorios = temPermissao("aparelhos.ver_relatorios");
+  const podeVerDashboard = temPermissao("aparelhos.ver_dashboard");
   const podeRegistrarDevolucao = temPermissao("devolucoes.criar");
   const podeVerHistoricoDevolucao = temPermissao("devolucoes.visualizar");
   const lojaIdFinal = todasLojas
@@ -244,10 +251,10 @@ export default function AparelhosPage() {
   }, [lojaIdFinal, podeVisualizar, filtros]);
 
   useEffect(() => {
-    if (podeVisualizar) {
+    if (podeVisualizar && podeVerDashboard) {
       carregarKpis();
     }
-  }, [lojaIdFinal, podeVisualizar]);
+  }, [lojaIdFinal, podeVisualizar, podeVerDashboard]);
 
   async function carregarKpis() {
     try {
@@ -495,6 +502,14 @@ export default function AparelhosPage() {
     );
   }
 
+  if (loadingPermissoes) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Spinner />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -556,100 +571,104 @@ export default function AparelhosPage() {
       </div>
 
       {/* KPIs - Linha 1 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <ShoppingBag className="w-5 h-5 text-primary" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">
-                Vendas de Aparelhos (Hoje)
-              </p>
-              <h3 className="text-2xl font-bold">{kpis.vendasHoje}</h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <Wallet className="w-5 h-5 text-success" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">Recebimentos (Hoje)</p>
-              <h3 className="text-2xl font-bold">
-                {formatarMoeda(kpis.recebimentosHoje)}
-              </h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <DollarSign className="w-5 h-5 text-warning" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">A Receber</p>
-              <h3 className="text-2xl font-bold">
-                {formatarMoeda(kpis.aReceber)}
-              </h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <TrendingUp className="w-5 h-5 text-secondary" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">Vendas (Mês)</p>
-              <h3 className="text-2xl font-bold">{kpis.vendasMes}</h3>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
+      {podeVerDashboard && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <ShoppingBag className="w-5 h-5 text-primary" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">
+                    Vendas de Aparelhos (Hoje)
+                  </p>
+                  <h3 className="text-2xl font-bold">{kpis.vendasHoje}</h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <Wallet className="w-5 h-5 text-success" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">Recebimentos (Hoje)</p>
+                  <h3 className="text-2xl font-bold">
+                    {formatarMoeda(kpis.recebimentosHoje)}
+                  </h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <DollarSign className="w-5 h-5 text-warning" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">A Receber</p>
+                  <h3 className="text-2xl font-bold">
+                    {formatarMoeda(kpis.aReceber)}
+                  </h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <TrendingUp className="w-5 h-5 text-secondary" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">Vendas (Mês)</p>
+                  <h3 className="text-2xl font-bold">{kpis.vendasMes}</h3>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
 
-      {/* KPIs - Linha 2 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <Box className="w-5 h-5 text-default-700" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">
-                Aparelhos Disponíveis
-              </p>
-              <h3 className="text-2xl font-bold">{kpis.disponiveis}</h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <Coins className="w-5 h-5 text-amber-600" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">Valor Vendido (Mês)</p>
-              <h3 className="text-2xl font-bold">
-                {formatarMoeda(kpis.valorVendidoMes)}
-              </h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <Gauge className="w-5 h-5 text-purple-600" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">Ticket Médio (Mês)</p>
-              <h3 className="text-2xl font-bold">
-                {formatarMoeda(kpis.ticketMedioMes)}
-              </h3>
-            </div>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="flex gap-3 items-center">
-            <PiggyBank className="w-5 h-5 text-emerald-600" />
-            <div className="flex flex-col">
-              <p className="text-small text-default-500">
-                Lucro Estimado (Mês)
-              </p>
-              <h3 className="text-2xl font-bold">
-                {formatarMoeda(kpis.lucroEstimadoMes)}
-              </h3>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
+          {/* KPIs - Linha 2 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <Box className="w-5 h-5 text-default-700" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">
+                    Aparelhos Disponíveis
+                  </p>
+                  <h3 className="text-2xl font-bold">{kpis.disponiveis}</h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <Coins className="w-5 h-5 text-amber-600" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">Valor Vendido (Mês)</p>
+                  <h3 className="text-2xl font-bold">
+                    {formatarMoeda(kpis.valorVendidoMes)}
+                  </h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <Gauge className="w-5 h-5 text-purple-600" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">Ticket Médio (Mês)</p>
+                  <h3 className="text-2xl font-bold">
+                    {formatarMoeda(kpis.ticketMedioMes)}
+                  </h3>
+                </div>
+              </CardHeader>
+            </Card>
+            <Card>
+              <CardHeader className="flex gap-3 items-center">
+                <PiggyBank className="w-5 h-5 text-emerald-600" />
+                <div className="flex flex-col">
+                  <p className="text-small text-default-500">
+                    Lucro Estimado (Mês)
+                  </p>
+                  <h3 className="text-2xl font-bold">
+                    {formatarMoeda(kpis.lucroEstimadoMes)}
+                  </h3>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Filtros e Busca */}
       <Card>
