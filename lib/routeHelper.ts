@@ -13,11 +13,6 @@ const routes: RouteConfig[] = [
     permissao: "dashboard.visualizar",
   },
   {
-    name: "Minhas Ordens",
-    href: "/sistema/ordem-servico/tecnico",
-    permissao: "os.visualizar",
-  },
-  {
     name: "Estoque",
     href: "/sistema/estoque",
     permissao: "estoque.visualizar",

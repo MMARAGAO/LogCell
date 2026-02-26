@@ -44,6 +44,7 @@ import { Chip } from "@heroui/chip";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useFotoPerfil } from "@/hooks/useFotoPerfil";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { getPrimeiraRotaDisponivel } from "@/lib/routeHelper";
 import Logo from "@/components/Logo";
 
 interface SidebarProps {
@@ -56,7 +57,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const router = useRouter();
   const { usuario } = useAuthContext();
   const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
-  const { temPermissao, isAdmin } = usePermissoes();
+  const { temPermissao, isAdmin, permissoes, loading } = usePermissoes();
 
   // Determinar se é técnico
   const isTecnico = usuario?.tipo_usuario === "tecnico";
@@ -65,12 +66,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    if (loading) return;
     if (isTecnico) {
       router.push("/sistema/ordem-servico/tecnico");
-    } else if (temPermissao("dashboard.visualizar")) {
-      router.push("/sistema/dashboard");
     } else {
-      router.push("/sistema/dashboard-pessoal");
+      const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, false);
+
+      router.push(primeiraRota);
     }
     onClose();
   };
