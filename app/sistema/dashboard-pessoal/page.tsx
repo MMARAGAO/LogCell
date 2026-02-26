@@ -14,7 +14,10 @@ export default function DashboardPessoalPage() {
   useEffect(() => {
     if (!loading) {
       // Bloquear acesso de técnicos
-      if (perfil === "tecnico" || !temPermissao("dashboard_pessoal.visualizar")) {
+      if (
+        perfil === "tecnico" ||
+        !temPermissao("dashboard_pessoal.visualizar")
+      ) {
         router.push("/sistema/ordem-servico/tecnico");
       }
     }
