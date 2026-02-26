@@ -71,6 +71,9 @@ export function usePermissoes() {
   // Buscar permissões customizadas do banco de dados em tempo real
   useEffect(() => {
     if (!usuario?.id) {
+      setPermissoesCustomizadas(null);
+      setLojaId(null);
+      setTodasLojas(false);
       setLoading(false);
 
       return;
@@ -79,6 +82,10 @@ export function usePermissoes() {
     let isCancelled = false;
 
     const carregarPermissoes = async () => {
+      if (!isCancelled) {
+        setLoading(true);
+      }
+
       try {
         console.log(
           "🔄 [PERMISSÕES] Recarregando do banco (versão:",

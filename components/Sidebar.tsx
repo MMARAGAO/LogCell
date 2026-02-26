@@ -55,9 +55,10 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { usuario } = useAuthContext();
+  const { usuario, loading: authLoading } = useAuthContext();
   const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
   const { temPermissao, isAdmin, permissoes, loading } = usePermissoes();
+  const menuLoading = authLoading || loading || !usuario;
 
   // Determinar se é técnico
   const isTecnico = usuario?.tipo_usuario === "tecnico";
@@ -66,11 +67,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (loading) return;
+    if (menuLoading) return;
     if (isTecnico) {
       router.push("/sistema/ordem-servico/tecnico");
     } else {
-      const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, false);
+      const primeiraRota = getPrimeiraRotaDisponivel(
+        permissoes,
+        isAdmin,
+        false,
+      );
 
       router.push(primeiraRota);
     }
@@ -108,6 +113,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       href: "/sistema/dashboard-pessoal",
       icon: UserCircleIcon,
       iconSolid: UserCircleIconSolid,
+      permissao: "dashboard_pessoal.visualizar" as const,
     },
     {
       name: "Estoque",
@@ -211,15 +217,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   // Selecionar menu baseado no tipo de usuário e filtrar por permissões
   const menuItemsBase = isTecnico ? menuItemsTecnico : menuItemsAdmin;
-  const menuItems = menuItemsBase.filter((item) => {
-    // Se não tem permissão definida, mostrar sempre (como Dashboard)
-    if (!item.permissao) return true;
-    // Admin vê tudo
-    if (isAdmin) return true;
+  const menuItems = menuLoading
+    ? []
+    : menuItemsBase.filter((item) => {
+        if (!item.permissao) return true;
+        if (isAdmin) return true;
 
-    // Verificar permissão específica
-    return temPermissao(item.permissao as any);
-  });
+        return temPermissao(item.permissao as any);
+      });
 
   return (
     <>

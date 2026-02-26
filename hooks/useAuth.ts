@@ -148,7 +148,11 @@ export function useAuth() {
         const isTecnico = usuario.tipo_usuario === "tecnico";
 
         // Redirecionar para primeira rota disponível
-        const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, isTecnico);
+        const primeiraRota = getPrimeiraRotaDisponivel(
+          permissoes,
+          isAdmin,
+          isTecnico,
+        );
 
         router.push(primeiraRota);
 

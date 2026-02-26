@@ -524,12 +524,12 @@ export default function ClientesPage() {
               <div className="pt-4 border-t border-divider">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <Select
-                    label="Ordenar por"
-                    labelPlacement="outside-left"
                     classNames={{
                       base: "items-center",
                       label: "min-w-[100px]",
                     }}
+                    label="Ordenar por"
+                    labelPlacement="outside-left"
                     selectedKeys={[sortBy]}
                     onChange={(e) =>
                       setSortBy(
@@ -546,12 +546,12 @@ export default function ClientesPage() {
                   </Select>
 
                   <Select
-                    label="Ordem"
-                    labelPlacement="outside-left"
                     classNames={{
                       base: "items-center",
                       label: "min-w-[60px]",
                     }}
+                    label="Ordem"
+                    labelPlacement="outside-left"
                     selectedKeys={[sortOrder]}
                     onChange={(e) =>
                       setSortOrder(e.target.value as "asc" | "desc")

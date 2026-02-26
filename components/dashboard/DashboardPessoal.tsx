@@ -144,7 +144,8 @@ export default function DashboardPessoal() {
 
         let queryPagamentos = supabase
           .from("pagamentos_venda")
-          .select(`
+          .select(
+            `
             id,
             venda_id,
             valor,
@@ -156,7 +157,8 @@ export default function DashboardPessoal() {
               vendedor_id,
               loja_id
             )
-          `)
+          `,
+          )
           .eq("venda.vendedor_id", usuario.id)
           .or(
             `and(data_pagamento.gte.${inicioMes.toISOString()},data_pagamento.lte.${fimMes.toISOString()}),and(data_pagamento.is.null,criado_em.gte.${inicioMes.toISOString()},criado_em.lte.${fimMes.toISOString()})`,
@@ -293,6 +295,7 @@ export default function DashboardPessoal() {
         .sort((a, b) => {
           const dataA = new Date(a.criado_em).getTime();
           const dataB = new Date(b.criado_em).getTime();
+
           return dataB - dataA;
         })
         .slice(0, 5);
@@ -422,7 +425,9 @@ export default function DashboardPessoal() {
                 <p className="text-3xl font-bold text-default-900">
                   {formatarMoeda(metricas.vendasMes.ticket_medio)}
                 </p>
-                <p className="text-sm text-default-500 mt-1">por venda recebida no mês</p>
+                <p className="text-sm text-default-500 mt-1">
+                  por venda recebida no mês
+                </p>
               </div>
             </CardBody>
           </Card>
@@ -488,7 +493,8 @@ export default function DashboardPessoal() {
             <div className="flex flex-col">
               <p className="text-lg font-bold">Meta Diária</p>
               <p className="text-sm text-default-500">
-                {formatarMoeda(metricas.metaDiaria.valor)} de recebimento por dia
+                {formatarMoeda(metricas.metaDiaria.valor)} de recebimento por
+                dia
               </p>
             </div>
           </CardHeader>
@@ -748,4 +754,3 @@ export default function DashboardPessoal() {
     </div>
   );
 }
-

@@ -341,7 +341,9 @@ export default function TransferenciasPage() {
       {/* Cabeçalho */}
       <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Gestão de Transferências</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+            Gestão de Transferências
+          </h1>
           <p className="text-xs sm:text-sm text-default-500 mt-1">
             Confirme, cancele ou edite transferências entre lojas
           </p>
@@ -350,10 +352,10 @@ export default function TransferenciasPage() {
         <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
           {/* Botão Exportar Excel */}
           <Button
+            isIconOnly
             className="sm:hidden"
             color="success"
             isDisabled={transferencias.length === 0}
-            isIconOnly
             size="lg"
             startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
             variant="flat"
@@ -378,9 +380,9 @@ export default function TransferenciasPage() {
           {temPermissao("transferencias.criar") && (
             <>
               <Button
+                isIconOnly
                 className="sm:hidden"
                 color="primary"
-                isIconOnly
                 size="lg"
                 startContent={<PlusIcon className="h-5 w-5" />}
                 onPress={() => router.push("/sistema/transferencias/nova")}
@@ -422,7 +424,9 @@ export default function TransferenciasPage() {
             <div className="text-2xl sm:text-3xl font-bold text-success">
               {estatisticas.confirmadas}
             </div>
-            <div className="text-xs sm:text-sm text-default-500">Confirmadas</div>
+            <div className="text-xs sm:text-sm text-default-500">
+              Confirmadas
+            </div>
           </CardBody>
         </Card>
         <Card>
@@ -430,7 +434,9 @@ export default function TransferenciasPage() {
             <div className="text-2xl sm:text-3xl font-bold text-danger">
               {estatisticas.canceladas}
             </div>
-            <div className="text-xs sm:text-sm text-default-500">Canceladas</div>
+            <div className="text-xs sm:text-sm text-default-500">
+              Canceladas
+            </div>
           </CardBody>
         </Card>
       </div>
@@ -552,7 +558,9 @@ export default function TransferenciasPage() {
             )}
 
           {/* Todas as Transferências */}
-          <h2 className="text-lg sm:text-xl font-semibold">Todas as Transferências</h2>
+          <h2 className="text-lg sm:text-xl font-semibold">
+            Todas as Transferências
+          </h2>
           <div className="grid grid-cols-1 gap-4">
             {transferencias.map((transferencia) => (
               <TransferenciaCard
@@ -749,7 +757,13 @@ function TransferenciaCard({
             {/* Produtos */}
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {transferencia.itens.slice(0, 3).map((item) => (
-                <Chip key={item.id} className="text-xs sm:text-sm" color="primary" size="sm" variant="flat">
+                <Chip
+                  key={item.id}
+                  className="text-xs sm:text-sm"
+                  color="primary"
+                  size="sm"
+                  variant="flat"
+                >
                   <span className="truncate max-w-[200px] sm:max-w-none">
                     {item.produto_descricao}{" "}
                     {item.produto_marca && `(${item.produto_marca})`}
@@ -758,7 +772,12 @@ function TransferenciaCard({
                 </Chip>
               ))}
               {transferencia.itens.length > 3 && (
-                <Chip className="text-xs sm:text-sm" color="default" size="sm" variant="flat">
+                <Chip
+                  className="text-xs sm:text-sm"
+                  color="default"
+                  size="sm"
+                  variant="flat"
+                >
                   +{transferencia.itens.length - 3} mais
                 </Chip>
               )}
@@ -915,7 +934,9 @@ function DetalhesTransferenciaModal({
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="flex justify-between sticky top-0 bg-background z-10 border-b">
-          <h3 className="text-lg sm:text-xl font-bold">Detalhes da Transferência</h3>
+          <h3 className="text-lg sm:text-xl font-bold">
+            Detalhes da Transferência
+          </h3>
           <Button size="sm" variant="light" onPress={onClose}>
             ✕
           </Button>
@@ -923,7 +944,9 @@ function DetalhesTransferenciaModal({
         <CardBody className="space-y-4">
           {/* Informações Gerais */}
           <div>
-            <h4 className="font-semibold mb-2 text-sm sm:text-base">Informações Gerais</h4>
+            <h4 className="font-semibold mb-2 text-sm sm:text-base">
+              Informações Gerais
+            </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="text-default-500">Status:</span>{" "}
@@ -967,7 +990,9 @@ function DetalhesTransferenciaModal({
 
           {/* Histórico / Timeline */}
           <div>
-            <h4 className="font-semibold mb-4 text-sm sm:text-base">Histórico de Movimentação</h4>
+            <h4 className="font-semibold mb-4 text-sm sm:text-base">
+              Histórico de Movimentação
+            </h4>
             <div className="space-y-4">
               {/* Evento 1: Criação / Saída */}
               <div className="flex gap-2 sm:gap-4">
@@ -1187,7 +1212,9 @@ function DetalhesTransferenciaModal({
             <>
               <Divider />
               <div>
-                <h4 className="font-semibold mb-2 text-sm sm:text-base">Observação</h4>
+                <h4 className="font-semibold mb-2 text-sm sm:text-base">
+                  Observação
+                </h4>
                 <p className="text-sm text-default-600">
                   {transferencia.observacao}
                 </p>

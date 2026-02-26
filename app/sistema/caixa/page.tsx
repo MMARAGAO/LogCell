@@ -1425,9 +1425,9 @@ export default function CaixaPage() {
         </div>
         <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <Button
+            isIconOnly
             className="sm:hidden"
             color="primary"
-            isIconOnly
             isLoading={loading}
             size="lg"
             variant="flat"

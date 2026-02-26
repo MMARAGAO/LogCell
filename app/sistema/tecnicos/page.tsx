@@ -42,7 +42,6 @@ import {
   Trash2,
   Phone,
   Mail,
-  MapPin,
   Briefcase,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -434,12 +433,12 @@ export default function TecnicosPage() {
               <div className="pt-4 border-t border-divider">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <Select
-                    label="Ordenar por"
-                    labelPlacement="outside-left"
                     classNames={{
                       base: "items-center",
                       label: "min-w-[100px]",
                     }}
+                    label="Ordenar por"
+                    labelPlacement="outside-left"
                     selectedKeys={[sortBy]}
                     onChange={(e) =>
                       setSortBy(e.target.value as "nome" | "criado_em")
@@ -450,12 +449,12 @@ export default function TecnicosPage() {
                   </Select>
 
                   <Select
-                    label="Ordem"
-                    labelPlacement="outside-left"
                     classNames={{
                       base: "items-center",
                       label: "min-w-[60px]",
                     }}
+                    label="Ordem"
+                    labelPlacement="outside-left"
                     selectedKeys={[sortOrder]}
                     onChange={(e) =>
                       setSortOrder(e.target.value as "asc" | "desc")
@@ -527,8 +526,8 @@ export default function TecnicosPage() {
             <div className="flex justify-center">
               <Pagination
                 showControls
-                total={totalPages}
                 page={page}
+                total={totalPages}
                 onChange={setPage}
               />
             </div>
@@ -639,8 +638,8 @@ export default function TecnicosPage() {
             <div className="flex justify-center">
               <Pagination
                 showControls
-                total={totalPages}
                 page={page}
+                total={totalPages}
                 onChange={setPage}
               />
             </div>

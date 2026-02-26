@@ -101,10 +101,7 @@ export function formatarCPF(cpf: string | null | undefined): string {
 
   // Aplica a máscara
   if (apenasNumeros.length === 11) {
-    return apenasNumeros.replace(
-      /(\d{3})(\d{3})(\d{3})(\d{2})/,
-      "$1.$2.$3-$4",
-    );
+    return apenasNumeros.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   }
 
   return cpf;

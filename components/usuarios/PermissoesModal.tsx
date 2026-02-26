@@ -22,6 +22,7 @@ import {
   getPermissoes,
   salvarPermissoes,
 } from "@/app/sistema/usuarios/actions/permissoes";
+import { salvarMetaUsuario } from "@/app/sistema/usuarios/actions/metas";
 
 interface PermissoesModalProps {
   isOpen: boolean;
@@ -50,7 +51,6 @@ export function PermissoesModal({
 
   // Estados para metas do usuário
   const [metaMensalVendas, setMetaMensalVendas] = useState("10000");
-  const [metaMensalOS, setMetaMensalOS] = useState("0");
   const [diasUteis, setDiasUteis] = useState("26");
 
   useEffect(() => {
@@ -130,7 +130,6 @@ export function PermissoesModal({
                 setMetaMensalVendas(
                   metas.meta_mensal_vendas?.toString() || "10000",
                 );
-                setMetaMensalOS(metas.meta_mensal_os?.toString() || "0");
                 setDiasUteis(metas.dias_uteis_mes?.toString() || "26");
               }
             } catch (metaError) {
@@ -271,14 +270,26 @@ export function PermissoesModal({
         // Salvar metas do usuário
         if (usuarioId) {
           try {
-            await MetasService.salvarMeta({
-              usuario_id: usuarioId,
-              loja_id: todasLojas ? undefined : lojaSelecionada || undefined,
-              meta_mensal_vendas: parseFloat(metaMensalVendas || "0"),
-              meta_mensal_os: parseInt(metaMensalOS || "0"),
-              dias_uteis_mes: parseInt(diasUteis || "26"),
-            });
-            console.log("✅ Metas salvas com sucesso!");
+            const dashboardPessoalHabilitado =
+              !!permissoes.dashboard_pessoal?.visualizar ||
+              !!permissoes.dashboard_pessoal?.definir_metas ||
+              !!permissoes.dashboard_pessoal?.visualizar_metas_outros;
+
+            if (dashboardPessoalHabilitado) {
+              const metaResult = await salvarMetaUsuario({
+                usuario_id: usuarioId,
+                loja_id: todasLojas ? null : (lojaSelecionada ?? null),
+                meta_mensal_vendas: parseFloat(metaMensalVendas || "0"),
+                meta_mensal_os: 0,
+                dias_uteis_mes: parseInt(diasUteis || "26", 10),
+              });
+
+              if (!metaResult.success) {
+                console.error("❌ Erro ao salvar metas:", metaResult.error);
+              } else {
+                console.log("✅ Metas salvas com sucesso!");
+              }
+            }
           } catch (metaError) {
             console.error("❌ Erro ao salvar metas:", metaError);
             // Não bloquear o salvamento de permissões por erro nas metas
@@ -1644,7 +1655,7 @@ export function PermissoesModal({
                   <h4 className="text-sm font-semibold mb-3 text-default-700">
                     Configuração de Metas Mensais
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       description="Valor em reais que o usuário deve atingir por mês"
                       label="Meta Mensal de Vendas (R$)"
@@ -1662,18 +1673,6 @@ export function PermissoesModal({
                       type="number"
                       value={metaMensalVendas}
                       onValueChange={setMetaMensalVendas}
-                    />
-
-                    <Input
-                      description="Quantidade de OS a concluir (para técnicos)"
-                      label="Meta Mensal de OS"
-                      min="0"
-                      placeholder="0"
-                      size="sm"
-                      step="1"
-                      type="number"
-                      value={metaMensalOS}
-                      onValueChange={setMetaMensalOS}
                     />
 
                     <Input

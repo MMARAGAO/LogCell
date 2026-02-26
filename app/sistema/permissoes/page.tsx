@@ -16,7 +16,6 @@ import {
   TableBody,
   TableRow,
   TableCell,
-  Divider,
   Spinner,
 } from "@heroui/react";
 import { Shield, User, Edit, Search } from "lucide-react";
@@ -24,7 +23,6 @@ import { Shield, User, Edit, Search } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/Toast";
 import { PermissoesModal } from "@/components/usuarios/PermissoesModal";
-import { PERMISSOES_POR_PERFIL } from "@/types/permissoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
 
 interface Usuario {
@@ -247,9 +245,9 @@ export default function GerenciarPermissoesPage() {
       {usuarioSelecionado && (
         <PermissoesModal
           isOpen={modalAberto}
-          onClose={fecharModal}
           usuarioId={usuarioSelecionado.id}
           usuarioNome={usuarioSelecionado.nome}
+          onClose={fecharModal}
           onSuccess={fecharModal}
         />
       )}

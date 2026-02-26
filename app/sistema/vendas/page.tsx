@@ -1388,9 +1388,9 @@ export default function VendasPage() {
           {temPermissao("vendas.criar") && (
             <>
               <Button
+                isIconOnly
                 className="sm:hidden"
                 color="primary"
-                isIconOnly
                 size="lg"
                 startContent={<Plus className="w-5 h-5" />}
                 onClick={() => setModalNovaVendaOpen(true)}
@@ -1407,8 +1407,8 @@ export default function VendasPage() {
             </>
           )}
           <Button
-            className="sm:hidden"
             isIconOnly
+            className="sm:hidden"
             size="lg"
             startContent={<History className="w-5 h-5" />}
             variant="flat"

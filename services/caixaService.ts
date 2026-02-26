@@ -428,6 +428,7 @@ export class CaixaService {
       osLoja.forEach((os: any) => {
         const forma = os.forma_pagamento;
         const valor = Number(os.valor);
+
         osFormasPagamento[forma] = (osFormasPagamento[forma] || 0) + valor;
       });
 

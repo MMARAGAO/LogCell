@@ -9,7 +9,8 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { getPrimeiraRotaDisponivel } from "@/lib/routeHelper";
 
 export default function DashboardPessoalPage() {
-  const { loading, temPermissao, perfil, permissoes, isAdmin } = usePermissoes();
+  const { loading, temPermissao, perfil, permissoes, isAdmin } =
+    usePermissoes();
   const router = useRouter();
 
   useEffect(() => {
@@ -21,7 +22,11 @@ export default function DashboardPessoalPage() {
       }
 
       if (!temPermissao("dashboard_pessoal.visualizar")) {
-        const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, false);
+        const primeiraRota = getPrimeiraRotaDisponivel(
+          permissoes,
+          isAdmin,
+          false,
+        );
 
         router.push(primeiraRota);
       }
