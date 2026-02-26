@@ -24,6 +24,21 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { MetasService } from "@/services/metasService";
 
+const TIMEZONE_DASHBOARD = "America/Sao_Paulo";
+
+const getDateKeyInTimezone = (value: string | Date) => {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE_DASHBOARD,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+};
+
 interface MetricasPessoais {
   vendasHoje: {
     total: number;
@@ -105,19 +120,7 @@ export default function DashboardPessoal() {
       const hoje = new Date();
 
       // Início e fim do dia de hoje
-      const inicioHoje = new Date(
-        hoje.getFullYear(),
-        hoje.getMonth(),
-        hoje.getDate(),
-      );
-      const fimHoje = new Date(
-        hoje.getFullYear(),
-        hoje.getMonth(),
-        hoje.getDate(),
-        23,
-        59,
-        59,
-      );
+      const chaveHoje = getDateKeyInTimezone(hoje);
 
       // Início e fim do mês atual
       const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -130,124 +133,125 @@ export default function DashboardPessoal() {
         59,
       );
 
-      // Buscar vendas do vendedor no mês
-      let queryVendasMes = supabase
-        .from("vendas")
-        .select(`
-          id,
-          numero_venda,
-          valor_total,
-          criado_em,
-          finalizado_em,
-          status
-        `)
-        .eq("vendedor_id", usuario.id)
-        .gte("criado_em", inicioMes.toISOString())
-        .lte("criado_em", fimMes.toISOString())
-        .in("status", ["concluida", "devolvida"]);
+      // Buscar pagamentos recebidos (com paginacao para nao truncar)
+      const tamanhoPagina = 1000;
+      let pagina = 0;
+      let pagamentosMes: any[] = [];
 
-      if (lojaId) {
-        queryVendasMes = queryVendasMes.eq("loja_id", lojaId);
-      }
+      while (true) {
+        const inicio = pagina * tamanhoPagina;
+        const fim = inicio + tamanhoPagina - 1;
 
-      const { data: vendasMes, error: erroVendasMes } = await queryVendasMes;
-
-      if (erroVendasMes) {
-        throw erroVendasMes;
-      }
-
-      // Buscar itens de todas as vendas (em lotes)
-      const vendaIds = vendasMes?.map(v => v.id) || [];
-      let itensVendas: any[] = [];
-
-      if (vendaIds.length > 0) {
-        const batchSize = 100; // 100 vendas por vez
-        
-        for (let i = 0; i < vendaIds.length; i += batchSize) {
-          const batch = vendaIds.slice(i, i + batchSize);
-          
-          const { data: itens, error: erroItens } = await supabase
-            .from("itens_venda")
-            .select(`
+        let queryPagamentos = supabase
+          .from("pagamentos_venda")
+          .select(`
+            id,
+            venda_id,
+            valor,
+            data_pagamento,
+            criado_em,
+            venda:vendas!inner(
               id,
-              venda_id,
-              produto_id,
-              quantidade,
-              preco_unitario,
-              subtotal
-            `)
-            .in("venda_id", batch);
+              numero_venda,
+              vendedor_id,
+              loja_id
+            )
+          `)
+          .eq("venda.vendedor_id", usuario.id)
+          .or(
+            `and(data_pagamento.gte.${inicioMes.toISOString()},data_pagamento.lte.${fimMes.toISOString()}),and(data_pagamento.is.null,criado_em.gte.${inicioMes.toISOString()},criado_em.lte.${fimMes.toISOString()})`,
+          )
+          .order("criado_em", { ascending: false })
+          .range(inicio, fim);
 
-          if (!erroItens && itens) {
-            itensVendas.push(...itens);
-          }
+        if (lojaId) {
+          queryPagamentos = queryPagamentos.eq("venda.loja_id", lojaId);
         }
+
+        const { data, error } = await queryPagamentos;
+
+        if (error) {
+          throw error;
+        }
+
+        const lote = data || [];
+
+        pagamentosMes = [...pagamentosMes, ...lote];
+
+        if (lote.length < tamanhoPagina) {
+          break;
+        }
+
+        pagina += 1;
       }
 
-      // Buscar produtos para calcular lucro (em lotes para evitar URL muito longa)
-      const produtoIds = Array.from(new Set(itensVendas.map(i => i.produto_id)));
-      let produtos: Map<string, any> = new Map();
-
-      if (produtoIds.length > 0) {
-        const batchSize = 50; // Buscar 50 produtos por vez
-        
-        for (let i = 0; i < produtoIds.length; i += batchSize) {
-          const batch = produtoIds.slice(i, i + batchSize);
-          
-          const { data: produtosData, error: erroProdutos } = await supabase
-            .from("produtos")
-            .select("id, preco_compra, preco_venda")
-            .in("id", batch);
-
-          if (!erroProdutos && produtosData) {
-            produtosData.forEach(p => produtos.set(p.id, p));
-          }
+      const chaveMesAtual = chaveHoje.slice(0, 7);
+      let totalRecebidoHoje = 0;
+      let totalRecebidoMes = 0;
+      const vendasMesSet = new Set<string>();
+      const vendasHojeMap = new Map<
+        string,
+        {
+          id: string;
+          numero_venda: number;
+          valor_total: number;
+          criado_em: string;
         }
-      }
+      >();
 
-      // Calcular lucros
-      let lucroTotalMes = 0;
-      let lucroTotalHoje = 0;
-      let vendasHoje: any[] = [];
+      pagamentosMes.forEach((pagamento) => {
+        const dataReferencia = pagamento.data_pagamento || pagamento.criado_em;
+        const dataHoraPagamento = pagamento.criado_em || dataReferencia;
 
-      vendasMes?.forEach(venda => {
-        const itensVenda = itensVendas.filter(i => i.venda_id === venda.id);
-        let lucroVenda = 0;
+        if (!dataReferencia || !pagamento.venda_id) return;
 
-        itensVenda.forEach(item => {
-          const produto = produtos.get(item.produto_id);
-          if (produto) {
-            const precoCompra = Number(produto.preco_compra || 0);
-            const precoVenda = Number(item.preco_unitario || 0);
-            const quantidade = Number(item.quantidade || 0);
-            const lucroItem = (precoVenda - precoCompra) * quantidade;
-            lucroVenda += lucroItem;
+        const chaveData = getDateKeyInTimezone(dataReferencia);
+        const valorPagamento = Number(pagamento.valor || 0);
+        const vendaId = String(pagamento.venda_id);
+
+        if (chaveData.startsWith(chaveMesAtual)) {
+          totalRecebidoMes += valorPagamento;
+          vendasMesSet.add(vendaId);
+        }
+
+        if (chaveData === chaveHoje) {
+          totalRecebidoHoje += valorPagamento;
+          const existente = vendasHojeMap.get(vendaId);
+          const numeroVenda = Number(pagamento.venda?.numero_venda || 0);
+
+          if (!existente) {
+            vendasHojeMap.set(vendaId, {
+              id: vendaId,
+              numero_venda: numeroVenda,
+              valor_total: valorPagamento,
+              criado_em: dataHoraPagamento,
+            });
+          } else {
+            const dataExistente = new Date(existente.criado_em).getTime();
+            const dataAtual = new Date(dataHoraPagamento).getTime();
+
+            existente.valor_total += valorPagamento;
+            if (dataAtual > dataExistente) {
+              existente.criado_em = dataHoraPagamento;
+            }
           }
-        });
-
-        lucroTotalMes += lucroVenda;
-
-        // Verificar se a venda foi hoje
-        const dataVenda = new Date(venda.criado_em);
-        if (dataVenda >= inicioHoje && dataVenda <= fimHoje) {
-          lucroTotalHoje += lucroVenda;
-          vendasHoje.push(venda);
         }
       });
 
-      const quantidadeHoje = vendasHoje.length;
-      const quantidadeMes = vendasMes?.length || 0;
-      const ticketMedio = quantidadeHoje > 0 ? lucroTotalHoje / quantidadeHoje : 0;
-      const ticketMedioMes = quantidadeMes > 0 ? lucroTotalMes / quantidadeMes : 0;
-
+      const quantidadeHoje = vendasHojeMap.size;
+      const quantidadeMes = vendasMesSet.size;
+      const ticketMedio =
+        quantidadeHoje > 0 ? totalRecebidoHoje / quantidadeHoje : 0;
+      const ticketMedioMes =
+        quantidadeMes > 0 ? totalRecebidoMes / quantidadeMes : 0;
       // Calcular meta diária usando os dias úteis configurados
       const metaDiariaValor = metaMensalAtual / diasUteisAtual;
 
       // Progresso das metas
-      const progressoMensal = (lucroTotalMes / metaMensalAtual) * 100;
-      const faltandoMensal = Math.max(0, metaMensalAtual - lucroTotalMes);
-      const progressoDiario = (lucroTotalHoje / metaDiariaValor) * 100;
-      const faltandoDiario = Math.max(0, metaDiariaValor - lucroTotalHoje);
+      const progressoMensal = (totalRecebidoMes / metaMensalAtual) * 100;
+      const faltandoMensal = Math.max(0, metaMensalAtual - totalRecebidoMes);
+      const progressoDiario = (totalRecebidoHoje / metaDiariaValor) * 100;
+      const faltandoDiario = Math.max(0, metaDiariaValor - totalRecebidoHoje);
 
       // Ordens de serviço (se for técnico)
       let ordensServico = {
@@ -285,44 +289,22 @@ export default function DashboardPessoal() {
       }
 
       // Últimas 5 vendas (por data)
-      const ultimasVendasArray = vendasHoje
+      const ultimasVendasArray = Array.from(vendasHojeMap.values())
         .sort((a, b) => {
           const dataA = new Date(a.criado_em).getTime();
           const dataB = new Date(b.criado_em).getTime();
           return dataB - dataA;
         })
-        .slice(0, 5)
-        .map((venda) => {
-          // Calcular lucro individual da venda
-          const itensVenda = itensVendas.filter(i => i.venda_id === venda.id);
-          let lucroVenda = 0;
-
-          itensVenda.forEach(item => {
-            const produto = produtos.get(item.produto_id);
-            if (produto) {
-              const precoCompra = Number(produto.preco_compra || 0);
-              const precoVenda = Number(item.preco_unitario || 0);
-              const quantidade = Number(item.quantidade || 0);
-              lucroVenda += (precoVenda - precoCompra) * quantidade;
-            }
-          });
-
-          return {
-            id: venda.id,
-            numero_venda: Number(venda.numero_venda || 0),
-            valor_total: lucroVenda,
-            criado_em: venda.criado_em,
-          };
-        });
+        .slice(0, 5);
 
       setMetricas({
         vendasHoje: {
-          total: lucroTotalHoje,
+          total: totalRecebidoHoje,
           quantidade: quantidadeHoje,
           ticket_medio: ticketMedio,
         },
         vendasMes: {
-          total: lucroTotalMes,
+          total: totalRecebidoMes,
           quantidade: quantidadeMes,
           ticket_medio: ticketMedioMes,
         },
@@ -409,7 +391,7 @@ export default function DashboardPessoal() {
                   <ShoppingCart className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Lucro Hoje
+                  Recebido Hoje
                 </span>
               </div>
               <div>
@@ -433,14 +415,14 @@ export default function DashboardPessoal() {
                   <DollarSign className="w-5 h-5 text-success-600 dark:text-success-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Lucro Médio
+                  Ticket Médio
                 </span>
               </div>
               <div>
                 <p className="text-3xl font-bold text-default-900">
                   {formatarMoeda(metricas.vendasMes.ticket_medio)}
                 </p>
-                <p className="text-sm text-default-500 mt-1">por venda (média do mês)</p>
+                <p className="text-sm text-default-500 mt-1">por venda recebida no mês</p>
               </div>
             </CardBody>
           </Card>
@@ -455,7 +437,7 @@ export default function DashboardPessoal() {
                   <TrendingUp className="w-5 h-5 text-warning-600 dark:text-warning-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Lucro do Mês
+                  Recebido no Mês
                 </span>
               </div>
               <div>
@@ -479,7 +461,7 @@ export default function DashboardPessoal() {
                   <Target className="w-5 h-5 text-secondary-600 dark:text-secondary-400" />
                 </div>
                 <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">
-                  Meta de Lucro
+                  Meta de Recebimento
                 </span>
               </div>
               <div>
@@ -506,7 +488,7 @@ export default function DashboardPessoal() {
             <div className="flex flex-col">
               <p className="text-lg font-bold">Meta Diária</p>
               <p className="text-sm text-default-500">
-                {formatarMoeda(metricas.metaDiaria.valor)} de lucro por dia
+                {formatarMoeda(metricas.metaDiaria.valor)} de recebimento por dia
               </p>
             </div>
           </CardHeader>
@@ -577,7 +559,7 @@ export default function DashboardPessoal() {
             <div className="flex flex-col">
               <p className="text-lg font-bold">Meta Mensal</p>
               <p className="text-sm text-default-500">
-                {formatarMoeda(metricas.metaMensal.valor)} de lucro no mês
+                {formatarMoeda(metricas.metaMensal.valor)} de recebimento no mês
               </p>
             </div>
           </CardHeader>
@@ -704,7 +686,7 @@ export default function DashboardPessoal() {
                 <ShoppingCart className="w-5 h-5 text-primary-600 dark:text-primary-400" />
               </div>
               <h3 className="text-xl font-bold">
-                Últimas Vendas de Hoje (Lucro)
+                Últimas Vendas de Hoje (Recebido)
               </h3>
             </CardHeader>
             <Divider />
@@ -766,3 +748,4 @@ export default function DashboardPessoal() {
     </div>
   );
 }
+

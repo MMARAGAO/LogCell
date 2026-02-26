@@ -37,7 +37,6 @@ export default function DevolucoesPage() {
   const [buscandoVenda, setBuscandoVenda] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 10;
-  const [paginaServidor, setPaginaServidor] = useState(0);
   const [temMaisVendas, setTemMaisVendas] = useState(true);
   const [totalVendas, setTotalVendas] = useState(0);
   const [vendaSelecionada, setVendaSelecionada] =
@@ -64,16 +63,11 @@ export default function DevolucoesPage() {
     return () => clearTimeout(timer);
   }, [busca]);
 
-  const carregarVendas = async (pagina = 0, acumular = false) => {
+  const carregarVendas = async () => {
     try {
       setLoading(true);
-      const limite = 1000; // Limite máximo do Supabase
-      const inicio = pagina * limite;
-
-      let query = supabase
-        .from("vendas")
-        .select(
-          `
+      const limite = 1000;
+      const selectVendas = `
           *,
           cliente:clientes(id, nome, doc:doc, telefone),
           loja:lojas(id, nome),
@@ -97,37 +91,52 @@ export default function DevolucoesPage() {
             *,
             itens:itens_devolucao(*)
           )
-        `,
-          { count: "exact" },
-        )
-        .in("status", ["concluida", "devolvida"])
-        .gt("valor_pago", 0) // Apenas vendas que já foram pagas
-        .order("criado_em", { ascending: false })
-        .range(inicio, inicio + limite - 1);
+        `;
 
-      // Aplicar filtro de loja se usuário não tiver acesso a todas
-      if (lojaId !== null && !podeVerTodasLojas) {
-        query = query.eq("loja_id", lojaId);
-        console.log(`🏪 Filtrando devoluções da loja ${lojaId}`);
+      let pagina = 0;
+      let totalRegistros = 0;
+      const vendasAcumuladas: VendaCompleta[] = [];
+
+      while (true) {
+        const inicio = pagina * limite;
+
+        let query = supabase
+          .from("vendas")
+          .select(selectVendas, pagina === 0 ? { count: "exact" } : undefined)
+          .in("status", ["concluida", "devolvida"])
+          .gt("valor_pago", 0)
+          .order("criado_em", { ascending: false })
+          .range(inicio, inicio + limite - 1);
+
+        if (lojaId !== null && !podeVerTodasLojas) {
+          query = query.eq("loja_id", lojaId);
+        }
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        const lote = (data || []) as VendaCompleta[];
+
+        if (pagina === 0) {
+          totalRegistros = count || 0;
+        }
+
+        vendasAcumuladas.push(...lote);
+
+        if (
+          lote.length < limite ||
+          (totalRegistros > 0 && vendasAcumuladas.length >= totalRegistros)
+        ) {
+          break;
+        }
+
+        pagina += 1;
       }
 
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-
-      const vendasCarregadas = data as VendaCompleta[];
-
-      if (acumular) {
-        setVendas((prev) => [...prev, ...vendasCarregadas]);
-      } else {
-        setVendas(vendasCarregadas);
-      }
-
-      setTotalVendas(count || 0);
-      const temMais = (count || 0) > inicio + limite;
-
-      setTemMaisVendas(temMais);
-      setPaginaServidor(pagina);
+      setVendas(vendasAcumuladas);
+      setTotalVendas(totalRegistros);
+      setTemMaisVendas(vendasAcumuladas.length < totalRegistros);
     } catch (error) {
       console.error("Erro ao carregar vendas:", error);
     } finally {
