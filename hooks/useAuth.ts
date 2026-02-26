@@ -144,8 +144,11 @@ export function useAuth() {
           );
         }
 
+        // Verificar se é técnico
+        const isTecnico = usuario.tipo_usuario === "tecnico";
+
         // Redirecionar para primeira rota disponível
-        const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin);
+        const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, isTecnico);
 
         router.push(primeiraRota);
 

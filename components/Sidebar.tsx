@@ -65,7 +65,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (temPermissao("dashboard.visualizar")) {
+    if (isTecnico) {
+      router.push("/sistema/ordem-servico/tecnico");
+    } else if (temPermissao("dashboard.visualizar")) {
       router.push("/sistema/dashboard");
     } else {
       router.push("/sistema/dashboard-pessoal");
@@ -75,19 +77,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   // Menu para TÉCNICOS (acesso restrito)
   const menuItemsTecnico = [
-    {
-      name: "Dashboard",
-      href: "/sistema/dashboard",
-      icon: HomeIcon,
-      iconSolid: HomeIconSolid,
-      permissao: "dashboard.visualizar" as const,
-    },
-    {
-      name: "Meu Dashboard",
-      href: "/sistema/dashboard-pessoal",
-      icon: UserCircleIcon,
-      iconSolid: UserCircleIconSolid,
-    },
     {
       name: "Minhas Ordens",
       href: "/sistema/ordem-servico/tecnico",

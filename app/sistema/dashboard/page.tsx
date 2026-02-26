@@ -5,6 +5,7 @@ import type { DadosDashboard } from "@/types/dashboard";
 import { useEffect, useMemo, useState } from "react";
 import { Select, SelectItem } from "@heroui/react";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import {
   FaDollarSign,
   FaShoppingCart,
@@ -80,6 +81,7 @@ const CORES_GRAFICOS = [
 
 export default function DashboardPage() {
   const { theme } = useTheme();
+  const router = useRouter();
   const hojeISO = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   // Calcular primeiro dia do mês atual
@@ -94,7 +96,14 @@ export default function DashboardPage() {
   const [dados, setDados] = useState<DadosDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { temPermissao, loading: permissoesLoading } = usePermissoes();
+  const { temPermissao, perfil, loading: permissoesLoading } = usePermissoes();
+
+  // Redirecionar técnicos para suas ordens de serviço
+  useEffect(() => {
+    if (!permissoesLoading && perfil === "tecnico") {
+      router.push("/sistema/ordem-servico/tecnico");
+    }
+  }, [permissoesLoading, perfil, router]);
 
   // filtros - começar do primeiro dia do mês
   const [dataInicio, setDataInicio] = useState<string>(primeiroDiaDoMes);
@@ -196,7 +205,7 @@ export default function DashboardPage() {
             <p className="text-default-500">Carregando...</p>
           </div>
         </div>
-      ) : !temPermissao("dashboard.visualizar") ? (
+      ) : perfil === "tecnico" || !temPermissao("dashboard.visualizar") ? (
         <div className="rounded-xl border border-danger/30 bg-danger/5 text-danger px-6 py-4 flex items-center gap-3">
           <FaExclamationTriangle className="text-lg flex-shrink-0" />
           <div>

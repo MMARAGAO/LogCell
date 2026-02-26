@@ -67,14 +67,19 @@ const routes: RouteConfig[] = [
  * Obtém a primeira rota que o usuário tem permissão de acessar
  * @param permissoes Array de permissões do usuário
  * @param isAdmin Se o usuário é admin (tem acesso total)
+ * @param isTecnico Se o usuário é técnico
  * @returns Caminho da primeira rota disponível
  */
 export function getPrimeiraRotaDisponivel(
   permissoes: Permissao[],
   isAdmin: boolean = false,
+  isTecnico: boolean = false,
 ): string {
   // Admin sempre vai para dashboard
   if (isAdmin) return "/sistema/dashboard";
+
+  // Técnico sempre vai para suas ordens de serviço
+  if (isTecnico) return "/sistema/ordem-servico/tecnico";
 
   // Encontrar primeira rota com permissão
   for (const route of routes) {
@@ -83,6 +88,6 @@ export function getPrimeiraRotaDisponivel(
     }
   }
 
-  // Fallback: dashboard (todos devem ter acesso)
-  return "/sistema/dashboard";
+  // Fallback: Minhas Ordens para usuários sem dashboard
+  return "/sistema/ordem-servico";
 }

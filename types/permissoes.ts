@@ -407,8 +407,6 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "os.alterar_status",
     "os.gerar_pdf",
     "estoque.visualizar",
-    "dashboard.visualizar",
-    "dashboard_pessoal.visualizar",
     "quebras.visualizar",
     "quebras.registrar",
   ],

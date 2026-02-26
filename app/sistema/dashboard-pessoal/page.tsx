@@ -1,12 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/spinner";
 
 import DashboardPessoal from "@/components/dashboard/DashboardPessoal";
 import { usePermissoes } from "@/hooks/usePermissoes";
 
 export default function DashboardPessoalPage() {
-  const { loading } = usePermissoes();
+  const { loading, temPermissao, perfil } = usePermissoes();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      // Bloquear acesso de técnicos
+      if (perfil === "tecnico" || !temPermissao("dashboard_pessoal.visualizar")) {
+        router.push("/sistema/ordem-servico/tecnico");
+      }
+    }
+  }, [loading, perfil, temPermissao, router]);
 
   if (loading) {
     return (
@@ -14,6 +26,11 @@ export default function DashboardPessoalPage() {
         <Spinner label="Carregando..." size="lg" />
       </div>
     );
+  }
+
+  // Não renderizar nada para técnicos (já está redirecionando)
+  if (perfil === "tecnico" || !temPermissao("dashboard_pessoal.visualizar")) {
+    return null;
   }
 
   return (
