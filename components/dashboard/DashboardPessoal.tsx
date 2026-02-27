@@ -71,15 +71,28 @@ interface MetricasPessoais {
     valor_total: number;
     criado_em: string;
   }>;
+  vendasPendentesRecebimentoTotal: number;
+  vendasPendentesRecebimento: Array<{
+    id: string;
+    numero_venda: number;
+    saldo_devedor: number;
+    data_prevista_pagamento?: string;
+    criado_em: string;
+    cliente_nome?: string;
+    status?: string;
+  }>;
+  vendasPendentesRecebimentoQuantidade: number;
 }
 
 export default function DashboardPessoal() {
+  const ITENS_POR_PAGINA_PENDENTES = 10;
   const { usuario } = useAuthContext();
   const { lojaId, perfil } = usePermissoes();
   const [metricas, setMetricas] = useState<MetricasPessoais | null>(null);
   const [loading, setLoading] = useState(true);
   const [metaMensal, setMetaMensal] = useState(10000);
   const [diasUteis, setDiasUteis] = useState(26);
+  const [paginaPendentes, setPaginaPendentes] = useState(1);
 
   useEffect(() => {
     if (usuario) {
@@ -93,6 +106,7 @@ export default function DashboardPessoal() {
     if (!usuario) return;
 
     setLoading(true);
+    setPaginaPendentes(1);
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -291,6 +305,50 @@ export default function DashboardPessoal() {
       }
 
       // Últimas 5 vendas (por data)
+      let queryVendasPendentes = supabase
+        .from("vendas")
+        .select(
+          "id, numero_venda, valor_total, valor_pago, data_prevista_pagamento, criado_em, status, cliente:clientes(nome)",
+        )
+        .eq("vendedor_id", usuario.id)
+        .neq("status", "cancelada")
+        .order("data_prevista_pagamento", { ascending: true })
+        .order("criado_em", { ascending: false });
+
+      if (lojaId) {
+        queryVendasPendentes = queryVendasPendentes.eq("loja_id", lojaId);
+      }
+
+      const { data: vendasPendentes, error: erroVendasPendentes } =
+        await queryVendasPendentes;
+
+      if (erroVendasPendentes) {
+        throw erroVendasPendentes;
+      }
+
+      const listaPendentes = (vendasPendentes || [])
+        .map((venda: any) => {
+          const valorTotal = Number(venda.valor_total || 0);
+          const valorPago = Number(venda.valor_pago || 0);
+          const saldoDevedor = Math.max(0, valorTotal - valorPago);
+
+          return {
+            id: String(venda.id),
+            numero_venda: Number(venda.numero_venda || 0),
+            saldo_devedor: saldoDevedor,
+            data_prevista_pagamento: venda.data_prevista_pagamento || undefined,
+            criado_em: venda.criado_em,
+            cliente_nome: venda.cliente?.nome || undefined,
+            status: venda.status || undefined,
+          };
+        })
+        .filter((venda) => venda.saldo_devedor > 0);
+
+      const totalPendenteReceber = listaPendentes.reduce(
+        (acumulado, venda) => acumulado + venda.saldo_devedor,
+        0,
+      );
+
       const ultimasVendasArray = Array.from(vendasHojeMap.values())
         .sort((a, b) => {
           const dataA = new Date(a.criado_em).getTime();
@@ -323,6 +381,9 @@ export default function DashboardPessoal() {
         },
         ordensServico,
         ultimasVendas: ultimasVendasArray,
+        vendasPendentesRecebimentoTotal: totalPendenteReceber,
+        vendasPendentesRecebimento: listaPendentes,
+        vendasPendentesRecebimentoQuantidade: listaPendentes.length,
       });
     } catch (error) {
       console.error("Erro ao carregar métricas:", error);
@@ -357,6 +418,25 @@ export default function DashboardPessoal() {
       currency: "BRL",
     }).format(valor);
   };
+
+  const totalPaginasPendentes = Math.max(
+    1,
+    Math.ceil(
+      metricas.vendasPendentesRecebimentoQuantidade /
+        ITENS_POR_PAGINA_PENDENTES,
+    ),
+  );
+  const paginaPendentesAtual = Math.min(
+    Math.max(paginaPendentes, 1),
+    totalPaginasPendentes,
+  );
+  const inicioPendentes =
+    (paginaPendentesAtual - 1) * ITENS_POR_PAGINA_PENDENTES;
+  const fimPendentes = inicioPendentes + ITENS_POR_PAGINA_PENDENTES;
+  const vendasPendentesPaginadas = metricas.vendasPendentesRecebimento.slice(
+    inicioPendentes,
+    fimPendentes,
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -684,6 +764,103 @@ export default function DashboardPessoal() {
       )}
 
       {/* Últimas Vendas */}
+      <div className="animate-in slide-in-from-bottom-4 duration-500 delay-650">
+        <Card className="border-none shadow-md hover:shadow-lg transition-all duration-300">
+          <CardHeader className="pb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold">Vendas que Faltam Receber</h3>
+              <p className="text-sm text-default-500">
+                Apenas vendas feitas por voce
+              </p>
+            </div>
+            <Chip color="warning" variant="flat">
+              {metricas.vendasPendentesRecebimentoQuantidade} pendente(s)
+            </Chip>
+          </CardHeader>
+          <Divider />
+          <CardBody className="pt-4 space-y-4">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-warning-50 dark:bg-warning-900/20">
+              <p className="text-sm font-semibold text-default-600">
+                Total pendente de recebimento
+              </p>
+              <p className="text-xl font-bold text-warning-600">
+                {formatarMoeda(metricas.vendasPendentesRecebimentoTotal)}
+              </p>
+            </div>
+            {metricas.vendasPendentesRecebimento.length > 0 ? (
+              <div className="space-y-2">
+                {metricas.vendasPendentesRecebimentoQuantidade >
+                ITENS_POR_PAGINA_PENDENTES ? (
+                  <p className="text-xs text-default-500">
+                    Mostrando {inicioPendentes + 1} a{" "}
+                    {Math.min(
+                      fimPendentes,
+                      metricas.vendasPendentesRecebimentoQuantidade,
+                    )}{" "}
+                    de {metricas.vendasPendentesRecebimentoQuantidade}{" "}
+                    pendencias.
+                  </p>
+                ) : null}
+                {vendasPendentesPaginadas.map((venda) => (
+                  <div
+                    key={venda.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-default-50 dark:bg-default-900/10"
+                  >
+                    <div>
+                      <p className="font-semibold text-default-900">
+                        Venda #{String(venda.numero_venda).padStart(6, "0")}
+                      </p>
+                      <p className="text-xs text-default-500">
+                        {venda.cliente_nome || "Cliente nao informado"}
+                        {venda.data_prevista_pagamento
+                          ? ` - Vencimento: ${new Date(venda.data_prevista_pagamento).toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </p>
+                    </div>
+                    <p className="font-bold text-warning-600">
+                      {formatarMoeda(venda.saldo_devedor)}
+                    </p>
+                  </div>
+                ))}
+                {totalPaginasPendentes > 1 ? (
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button
+                      isDisabled={paginaPendentesAtual <= 1}
+                      size="sm"
+                      variant="flat"
+                      onPress={() =>
+                        setPaginaPendentes((prev) => Math.max(1, prev - 1))
+                      }
+                    >
+                      Anterior
+                    </Button>
+                    <p className="text-xs text-default-500 min-w-[92px] text-center">
+                      Pagina {paginaPendentesAtual} de {totalPaginasPendentes}
+                    </p>
+                    <Button
+                      isDisabled={paginaPendentesAtual >= totalPaginasPendentes}
+                      size="sm"
+                      variant="flat"
+                      onPress={() =>
+                        setPaginaPendentes((prev) =>
+                          Math.min(totalPaginasPendentes, prev + 1),
+                        )
+                      }
+                    >
+                      Proxima
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-sm text-default-500">
+                Voce nao possui vendas pendentes de recebimento.
+              </p>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
       {metricas.ultimasVendas.length > 0 && (
         <div className="animate-in slide-in-from-bottom-4 duration-500 delay-700">
           <Card className="border-none shadow-md hover:shadow-lg transition-shadow duration-300">

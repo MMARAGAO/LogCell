@@ -10,6 +10,7 @@ import {
   CardBody,
   Spinner,
   Pagination,
+  DateRangePicker,
   Select,
   SelectItem,
   Chip,
@@ -25,6 +26,13 @@ import {
   DropdownItem,
   ButtonGroup,
 } from "@heroui/react";
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from "@heroui/modal";
 import {
   Plus,
   Search,
@@ -47,6 +55,9 @@ import {
   MapPin,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
@@ -64,6 +75,7 @@ import {
   toggleClienteAtivo,
 } from "@/services/clienteService";
 import { formatarTelefone, formatarCPF } from "@/lib/formatters";
+import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 // Hook para debounce
 function useDebounce<T>(value: T, delay: number): T {
@@ -116,6 +128,17 @@ export default function ClientesPage() {
   const [clienteParaDeletar, setClienteParaDeletar] = useState<Cliente | null>(
     null,
   );
+  const [modalRelatorioOpen, setModalRelatorioOpen] = useState(false);
+  const [clienteRelatorio, setClienteRelatorio] = useState<Cliente | null>(
+    null,
+  );
+  const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
+  const [periodoRelatorio, setPeriodoRelatorio] = useState<any>({
+    start: parseDate(
+      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`,
+    ),
+    end: today(getLocalTimeZone()),
+  });
 
   const [busca, setBusca] = useState("");
   const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
@@ -311,6 +334,213 @@ export default function ClientesPage() {
       saldo: creditosPorCliente[cliente.id] || 0,
     });
     setModalCreditosOpen(true);
+  };
+
+  const handleAbrirRelatorioCompras = (cliente: Cliente) => {
+    setClienteRelatorio(cliente);
+    setPeriodoRelatorio({
+      start: parseDate(
+        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`,
+      ),
+      end: today(getLocalTimeZone()),
+    });
+    setModalRelatorioOpen(true);
+  };
+
+  const formatarDataRange = (data: any): string => {
+    return `${data.year}-${String(data.month).padStart(2, "0")}-${String(data.day).padStart(2, "0")}`;
+  };
+
+  const formatarMoeda = (valor: number): string => {
+    return valor.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  };
+
+  const handleGerarRelatorioCompras = async () => {
+    if (!clienteRelatorio) return;
+    if (!periodoRelatorio?.start || !periodoRelatorio?.end) {
+      toast.error("Selecione um período válido");
+
+      return;
+    }
+
+    setGerandoRelatorio(true);
+
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+
+      const inicio = periodoRelatorio.start;
+      const fim = periodoRelatorio.end;
+      const dataInicioIso = new Date(
+        inicio.year,
+        inicio.month - 1,
+        inicio.day,
+        0,
+        0,
+        0,
+        0,
+      ).toISOString();
+      const dataFimIso = new Date(
+        fim.year,
+        fim.month - 1,
+        fim.day,
+        23,
+        59,
+        59,
+        999,
+      ).toISOString();
+
+      const { data, error } = await supabase
+        .from("vendas")
+        .select(
+          `
+          id,
+          numero_venda,
+          criado_em,
+          status,
+          valor_total,
+          valor_pago,
+          saldo_devedor,
+          loja:lojas(nome),
+          itens:itens_venda(
+            quantidade,
+            preco_unitario,
+            subtotal,
+            produto:produtos(descricao, codigo_fabricante)
+          )
+        `,
+        )
+        .eq("cliente_id", clienteRelatorio.id)
+        .neq("status", "cancelada")
+        .gte("criado_em", dataInicioIso)
+        .lte("criado_em", dataFimIso)
+        .order("criado_em", { ascending: true });
+
+      if (error) throw error;
+
+      const vendas = data || [];
+      const linhas: Array<Array<string | number>> = [];
+      let totalVendas = 0;
+      let totalPago = 0;
+      let totalRestante = 0;
+      let totalItens = 0;
+
+      vendas.forEach((venda: any) => {
+        totalVendas += Number(venda.valor_total || 0);
+        totalPago += Number(venda.valor_pago || 0);
+        totalRestante += Number(venda.saldo_devedor || 0);
+
+        const itens = venda.itens || [];
+
+        if (itens.length === 0) {
+          linhas.push([
+            new Date(venda.criado_em).toLocaleDateString("pt-BR"),
+            `V${String(venda.numero_venda).padStart(6, "0")}`,
+            venda.loja?.nome || "-",
+            "Sem itens",
+            "-",
+            "-",
+            formatarMoeda(Number(venda.valor_total || 0)),
+            venda.status || "-",
+          ]);
+
+          return;
+        }
+
+        itens.forEach((item: any) => {
+          const quantidade = Number(item.quantidade || 0);
+
+          totalItens += quantidade;
+
+          linhas.push([
+            new Date(venda.criado_em).toLocaleDateString("pt-BR"),
+            `V${String(venda.numero_venda).padStart(6, "0")}`,
+            venda.loja?.nome || "-",
+            item.produto?.descricao || item.produto?.codigo_fabricante || "-",
+            quantidade,
+            formatarMoeda(Number(item.preco_unitario || 0)),
+            formatarMoeda(Number(item.subtotal || 0)),
+            venda.status || "-",
+          ]);
+        });
+      });
+
+      const doc = new jsPDF({ orientation: "landscape" });
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Relatorio de Compras por Cliente", 14, 16);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Cliente: ${clienteRelatorio.nome}`, 14, 24);
+      doc.text(
+        `Periodo: ${formatarDataRange(inicio)} ate ${formatarDataRange(fim)}`,
+        14,
+        30,
+      );
+      doc.text(`Gerado em: ${new Date().toLocaleString("pt-BR")}`, 14, 36);
+
+      if (linhas.length === 0) {
+        doc.setFontSize(12);
+        doc.text(
+          "Nenhuma compra encontrada para o periodo selecionado.",
+          14,
+          50,
+        );
+      } else {
+        autoTable(doc, {
+          startY: 44,
+          head: [
+            [
+              "Data",
+              "Venda",
+              "Loja",
+              "Produto",
+              "Qtd",
+              "Preco Unit.",
+              "Subtotal",
+              "Status",
+            ],
+          ],
+          body: linhas,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [41, 98, 255] },
+        });
+
+        const finalY = (doc as any).lastAutoTable?.finalY || 44;
+
+        autoTable(doc, {
+          startY: finalY + 8,
+          head: [["Resumo", "Valor"]],
+          body: [
+            ["Total de vendas no periodo", formatarMoeda(totalVendas)],
+            ["Total pago", formatarMoeda(totalPago)],
+            ["Total em aberto", formatarMoeda(totalRestante)],
+            ["Quantidade total de itens", String(totalItens)],
+            ["Quantidade de vendas", String(vendas.length)],
+          ],
+          theme: "striped",
+          styles: { fontSize: 9, cellPadding: 2.5 },
+          headStyles: { fillColor: [46, 125, 50] },
+          margin: { left: 14, right: 120 },
+        });
+      }
+
+      abrirPreviewPDF(
+        doc,
+        `relatorio_compras_${clienteRelatorio.nome.replace(/\s+/g, "_")}.pdf`,
+      );
+      toast.success("Relatorio gerado com sucesso!");
+      setModalRelatorioOpen(false);
+    } catch (error: any) {
+      console.error("Erro ao gerar relatorio de compras:", error);
+      toast.error(error?.message || "Erro ao gerar relatorio");
+    } finally {
+      setGerandoRelatorio(false);
+    }
   };
 
   // Resetar para página 1 quando mudar busca ou filtro
@@ -635,6 +865,7 @@ export default function ClientesPage() {
                   onDeletar={handleDeletarCliente}
                   onEditar={handleEditarCliente}
                   onGerenciarCreditos={handleGerenciarCreditos}
+                  onRelatorioCompras={handleAbrirRelatorioCompras}
                   onToggleAtivo={handleToggleAtivo}
                   onVerHistorico={handleVerHistorico}
                 />
@@ -754,6 +985,17 @@ export default function ClientesPage() {
                                   Ver Histórico
                                 </DropdownItem>
                                 <DropdownItem
+                                  key="report_purchases"
+                                  startContent={
+                                    <Download className="w-4 h-4" />
+                                  }
+                                  onPress={() =>
+                                    handleAbrirRelatorioCompras(cliente)
+                                  }
+                                >
+                                  Relatorio de Compras (PDF)
+                                </DropdownItem>
+                                <DropdownItem
                                   key="toggle"
                                   onPress={() => handleToggleAtivo(cliente)}
                                 >
@@ -841,6 +1083,51 @@ export default function ClientesPage() {
       )}
 
       {/* Modal de Confirmação de Exclusão */}
+      <Modal
+        isOpen={modalRelatorioOpen}
+        onClose={() => {
+          if (gerandoRelatorio) return;
+          setModalRelatorioOpen(false);
+          setClienteRelatorio(null);
+        }}
+      >
+        <ModalContent>
+          <ModalHeader>Relatorio de Compras do Cliente</ModalHeader>
+          <ModalBody className="gap-4">
+            <p className="text-sm text-default-600">
+              Cliente: <strong>{clienteRelatorio?.nome || "-"}</strong>
+            </p>
+            <DateRangePicker
+              granularity="day"
+              label="Periodo"
+              pageBehavior="visible"
+              value={periodoRelatorio}
+              visibleMonths={2}
+              onChange={setPeriodoRelatorio}
+            />
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={() => {
+                setModalRelatorioOpen(false);
+                setClienteRelatorio(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="primary"
+              isLoading={gerandoRelatorio}
+              startContent={<Download className="w-4 h-4" />}
+              onPress={handleGerarRelatorioCompras}
+            >
+              Gerar PDF
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
       <ConfirmModal
         cancelText="Cancelar"
         confirmColor="danger"

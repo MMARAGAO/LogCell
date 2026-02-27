@@ -23,6 +23,7 @@ import {
   Power,
   PowerOff,
   Wallet,
+  Download,
 } from "lucide-react";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -34,6 +35,7 @@ interface ClienteCardProps {
   onVerHistorico: (cliente: Cliente) => void;
   onToggleAtivo: (cliente: Cliente) => void;
   onGerenciarCreditos?: (cliente: Cliente) => void;
+  onRelatorioCompras?: (cliente: Cliente) => void;
   creditosDisponiveis?: number;
 }
 
@@ -44,6 +46,7 @@ export default function ClienteCard({
   onVerHistorico,
   onToggleAtivo,
   onGerenciarCreditos,
+  onRelatorioCompras,
   creditosDisponiveis = 0,
 }: ClienteCardProps) {
   const { temPermissao } = usePermissoes();
@@ -90,6 +93,18 @@ export default function ClienteCard({
         onPress={() => onGerenciarCreditos(cliente)}
       >
         Gerenciar Créditos
+      </DropdownItem>,
+    );
+  }
+
+  if (onRelatorioCompras && temPermissao("clientes.visualizar")) {
+    menuItems.push(
+      <DropdownItem
+        key="relatorio_compras"
+        startContent={<Download className="w-4 h-4" />}
+        onPress={() => onRelatorioCompras(cliente)}
+      >
+        Relatorio de Compras (PDF)
       </DropdownItem>,
     );
   }

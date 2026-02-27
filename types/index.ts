@@ -101,6 +101,7 @@ export interface PermissoesModulos {
     criar: boolean;
     editar: boolean;
     editar_pagas: boolean;
+    concluir: boolean;
     cancelar: boolean;
     gerenciar_descontos: boolean;
     aplicar_desconto: boolean;

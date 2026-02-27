@@ -855,6 +855,14 @@ export function PermissoesModal({
                     Editar Vendas Pagas
                   </Checkbox>
                   <Checkbox
+                    isSelected={permissoes.vendas?.concluir}
+                    onValueChange={() =>
+                      handleTogglePermissao("vendas", "concluir")
+                    }
+                  >
+                    Concluir Venda
+                  </Checkbox>
+                  <Checkbox
                     isSelected={permissoes.vendas?.aplicar_desconto}
                     onValueChange={() =>
                       handleTogglePermissao("vendas", "aplicar_desconto")

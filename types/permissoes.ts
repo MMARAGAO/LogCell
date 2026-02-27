@@ -35,6 +35,7 @@ export type Permissao =
   | "vendas.criar"
   | "vendas.editar"
   | "vendas.editar_pagas"
+  | "vendas.concluir"
   | "vendas.cancelar"
   | "vendas.aplicar_desconto"
   | "vendas.processar_pagamentos"
@@ -176,6 +177,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.criar",
     "vendas.editar",
     "vendas.editar_pagas",
+    "vendas.concluir",
     "vendas.cancelar",
     "vendas.aplicar_desconto",
     "vendas.processar_pagamentos",
@@ -296,6 +298,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "vendas.visualizar",
     "vendas.criar",
     "vendas.editar",
+    "vendas.concluir",
     "vendas.cancelar",
     "vendas.aplicar_desconto",
     "vendas.processar_pagamentos",

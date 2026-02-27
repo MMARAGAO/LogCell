@@ -50,6 +50,7 @@ import {
   ChevronDown,
   ChevronUp,
   History,
+  CheckCircle,
 } from "lucide-react";
 
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
@@ -854,10 +855,37 @@ export default function VendasPage() {
     }
   };
 
-  const handleFinalizarVenda = async (vendaId: string) => {
+  const handleFinalizarVenda = async (venda: VendaCompleta) => {
+    if (!temPermissao("vendas.concluir")) {
+      toast.error("Voce nao tem permissao para concluir vendas");
+
+      return;
+    }
+
+    if (venda.status === "concluida") {
+      toast.error("Esta venda ja esta concluida");
+
+      return;
+    }
+
+    if (venda.status === "cancelada") {
+      toast.error("Nao e possivel concluir uma venda cancelada");
+
+      return;
+    }
+
+    const valorTotal = Number(venda.valor_total || 0);
+    const valorPago = Number(venda.valor_pago || 0);
+
+    if (valorPago < valorTotal) {
+      toast.error("A venda precisa estar totalmente paga para concluir");
+
+      return;
+    }
+
     try {
       const resultado = await VendasService.finalizarVenda(
-        vendaId,
+        venda.id,
         usuario?.id || "",
       );
 
@@ -1082,6 +1110,21 @@ export default function VendasPage() {
         label: "Imprimir Nota",
         icon: <Printer className="w-4 h-4" />,
         onClick: () => imprimirNotaVenda(venda),
+      });
+    }
+
+    // Concluir Venda (apenas quando estiver totalmente paga)
+    if (
+      venda.status !== "concluida" &&
+      venda.status !== "cancelada" &&
+      Number(venda.valor_pago || 0) >= Number(venda.valor_total || 0) &&
+      temPermissao("vendas.concluir")
+    ) {
+      items.push({
+        key: "concluir",
+        label: "Concluir Venda",
+        icon: <CheckCircle className="w-4 h-4" />,
+        onClick: () => handleFinalizarVenda(venda),
       });
     }
 
@@ -1321,6 +1364,16 @@ export default function VendasPage() {
   const indiceInicio = (paginaAtual - 1) * itensPorPagina;
   const indiceFim = indiceInicio + itensPorPagina;
   const vendasPaginadas = vendasOrdenadas.slice(indiceInicio, indiceFim);
+  const totaisTabela = vendasPaginadas.reduce(
+    (acc, venda) => {
+      acc.valorTotal += Number(venda.valor_total || 0);
+      acc.valorPago += Number(venda.valor_pago || 0);
+      acc.saldoDevedor += Number(venda.saldo_devedor || 0);
+
+      return acc;
+    },
+    { valorTotal: 0, valorPago: 0, saldoDevedor: 0 },
+  );
 
   // Resetar para página 1 quando filtros mudarem
   useEffect(() => {
@@ -1862,6 +1915,7 @@ export default function VendasPage() {
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
+                <>
                 {vendasPaginadas.map((venda) => (
                   <TableRow key={venda.id}>
                     <TableCell>
@@ -1997,6 +2051,38 @@ export default function VendasPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {vendasPaginadas.length > 0 && (
+                  <TableRow key="total-tabela">
+                    <TableCell>
+                      <span className="font-bold">TOTAL</span>
+                    </TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>
+                      <span className="font-bold text-primary">
+                        {formatarMoeda(totaisTabela.valorTotal)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-bold text-success">
+                        {formatarMoeda(totaisTabela.valorPago)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`font-bold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
+                      >
+                        {formatarMoeda(totaisTabela.saldoDevedor)}
+                      </span>
+                    </TableCell>
+                    <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
+                  </TableRow>
+                )}
+                </>
               </TableBody>
             </Table>
           </CardBody>
