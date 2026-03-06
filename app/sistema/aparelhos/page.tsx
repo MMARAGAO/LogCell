@@ -423,6 +423,11 @@ export default function AparelhosPage() {
       return;
     }
     if (key === "vender") {
+      if (!podeVender) {
+        showToast("Você não tem permissão para vender aparelhos", "warning");
+
+        return;
+      }
       if (todasLojas && !lojaIdFinal) {
         showToast("Selecione uma loja antes de vender", "warning");
 
@@ -434,6 +439,14 @@ export default function AparelhosPage() {
       return;
     }
     if (key === "receber_pagamento") {
+      if (!podeReceber) {
+        showToast(
+          "Você não tem permissão para receber pagamento de aparelhos",
+          "warning",
+        );
+
+        return;
+      }
       setAparelhoParaReceber(aparelho);
       setModalRecebimentoAberto(true);
 
@@ -997,7 +1010,8 @@ export default function AparelhosPage() {
                                 >
                                   Editar
                                 </DropdownItem>
-                                {aparelho.status === "disponivel" ? (
+                                {podeVender &&
+                                aparelho.status === "disponivel" ? (
                                   <DropdownItem
                                     key="vender"
                                     className="text-success"
@@ -1081,7 +1095,8 @@ export default function AparelhosPage() {
                                 >
                                   Marcar como Transferido
                                 </DropdownItem>
-                                {aparelho.status === "vendido" ? (
+                                {podeReceber &&
+                                aparelho.status === "vendido" ? (
                                   <DropdownItem
                                     key="receber_pagamento"
                                     color="success"
@@ -1190,9 +1205,28 @@ export default function AparelhosPage() {
 
                       {/* Ações */}
                       <div className="flex gap-2 pt-2">
-                        {podeEditar && (
+                        {podeVender && aparelho.status === "disponivel" && (
                           <Button
                             className="flex-1"
+                            color="success"
+                            isDisabled={todasLojas && !lojaIdFinal}
+                            size="sm"
+                            startContent={
+                              <ShoppingBagIcon className="w-4 h-4" />
+                            }
+                            variant="flat"
+                            onPress={() => handleAcaoCard("vender", aparelho)}
+                          >
+                            Vender
+                          </Button>
+                        )}
+                        {podeEditar && (
+                          <Button
+                            className={
+                              podeVender && aparelho.status === "disponivel"
+                                ? "flex-1"
+                                : "flex-1"
+                            }
                             color="primary"
                             size="sm"
                             startContent={<PencilIcon className="w-4 h-4" />}
@@ -1392,7 +1426,7 @@ export default function AparelhosPage() {
                               Editar
                             </DropdownItem>
                           ) : null}
-                          {aparelho.status === "disponivel" ? (
+                          {podeVender && aparelho.status === "disponivel" ? (
                             <DropdownItem
                               key="vender"
                               className="text-success"
@@ -1467,7 +1501,7 @@ export default function AparelhosPage() {
                           >
                             Marcar como Transferido
                           </DropdownItem>
-                          {aparelho.status === "vendido" ? (
+                          {podeReceber && aparelho.status === "vendido" ? (
                             <DropdownItem
                               key="receber_pagamento"
                               color="success"

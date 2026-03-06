@@ -1,6 +1,7 @@
 "use client";
 
 import type { Aparelho } from "@/types/aparelhos";
+import type { Cliente } from "@/types/clientesTecnicos";
 import type { ResultadoSimulacaoTaxa } from "@/types/taxasCartao";
 
 import { useState, useEffect } from "react";
@@ -18,7 +19,9 @@ import {
   Chip,
   Card,
   CardBody,
+  Textarea,
 } from "@heroui/react";
+import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import {
   ShoppingBag,
   DollarSign,
@@ -30,12 +33,13 @@ import {
   Repeat,
   X,
   Gift,
+  AlertCircle,
 } from "lucide-react";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 import { SimuladorTaxaCartao } from "@/components/vendas/SimuladorTaxaCartao";
-import { formatarMoeda } from "@/lib/formatters";
+import { formatarMoeda, formatarTelefone } from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
 import { BrindesAparelhosService } from "@/services/brindesAparelhosService";
 
@@ -88,6 +92,14 @@ interface BrindeItem {
   descricao: string;
   quantidade: number;
   valor_custo: number;
+  loja_id?: number;
+  loja_nome?: string;
+  estoque_disponivel?: number;
+}
+
+interface LojaOption {
+  id: number;
+  nome: string;
 }
 
 const FORMAS_PAGAMENTO = [
@@ -97,6 +109,37 @@ const FORMAS_PAGAMENTO = [
   { value: "cartao_debito", label: "Cartão de Débito" },
   { value: "transferencia", label: "Transferência" },
 ];
+
+const formatarMoedaInput = (valor: string) => {
+  const numeros = valor.replace(/\D/g, "");
+
+  if (!numeros) return "";
+
+  return (Number(numeros) / 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseMoedaInput = (valor: string) => {
+  const numeros = valor.replace(/\D/g, "");
+
+  return numeros ? Number(numeros) / 100 : 0;
+};
+
+const formatarTelefoneInput = (value: string) => {
+  const telefone = value.replace(/\D/g, "");
+
+  if (telefone.length <= 10) {
+    return telefone
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+
+  return telefone
+    .replace(/(\d{2})(\d)/, "($1) $2")
+    .replace(/(\d{5})(\d)/, "$1-$2");
+};
 
 export function VendaAparelhoModal({
   aparelho,
@@ -108,16 +151,21 @@ export function VendaAparelhoModal({
   const { usuario } = useAuthContext();
   const { showToast } = useToast();
 
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clienteSelecionadoId, setClienteSelecionadoId] = useState("");
   const [clienteNome, setClienteNome] = useState("");
   const [clienteTelefone, setClienteTelefone] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [valorVenda, setValorVenda] = useState(
-    aparelho.valor_venda?.toString() || "0",
+    formatarMoedaInput(String(aparelho.valor_venda || 0)),
   );
   const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoVenda[]>(
     [],
   );
   const [loading, setLoading] = useState(false);
+  const [loadingClientes, setLoadingClientes] = useState(false);
+  const [loadingBrindes, setLoadingBrindes] = useState(false);
+  const [errosValidacao, setErrosValidacao] = useState<string[]>([]);
 
   // Aparelho em troca
   const [aparelhoTroca, setAparelhoTroca] = useState<AparelhoTroca | null>(
@@ -131,7 +179,10 @@ export function VendaAparelhoModal({
   const [origemBrinde, setOrigemBrinde] = useState<"estoque" | "manual">(
     "estoque",
   );
+  const [lojasBrinde, setLojasBrinde] = useState<LojaOption[]>([]);
+  const [lojaBrindeId, setLojaBrindeId] = useState(String(lojaId));
   const [produtoBrindeId, setProdutoBrindeId] = useState<string>("");
+  const [produtoBrindeBusca, setProdutoBrindeBusca] = useState("");
   const [quantidadeBrinde, setQuantidadeBrinde] = useState("1");
   const [descricaoBrinde, setDescricaoBrinde] = useState("");
   const [valorCustoBrinde, setValorCustoBrinde] = useState("");
@@ -148,15 +199,88 @@ export function VendaAparelhoModal({
     useState<ResultadoSimulacaoTaxa | null>(null);
 
   useEffect(() => {
-    const carregarEstoqueBrindes = async () => {
+    if (!isOpen) return;
+
+    setClienteSelecionadoId("");
+    setClienteNome("");
+    setClienteTelefone("");
+    setObservacoes("");
+    setValorVenda(formatarMoedaInput(String(aparelho.valor_venda || 0)));
+    setFormasPagamento([]);
+    setBrindes([]);
+    setOrigemBrinde("estoque");
+    setLojaBrindeId(String(lojaId));
+    setProdutoBrindeId("");
+    setProdutoBrindeBusca("");
+    setQuantidadeBrinde("1");
+    setDescricaoBrinde("");
+    setValorCustoBrinde("");
+    setTipoPagamento("dinheiro");
+    setValorPagamento("");
+    setParcelasPagamento(1);
+    setDataPagamento(new Date().toISOString().split("T")[0]);
+    setErrosValidacao([]);
+  }, [isOpen, aparelho.id, aparelho.valor_venda, lojaId]);
+
+  useEffect(() => {
+    const carregarClientes = async () => {
       if (!isOpen) return;
       try {
+        setLoadingClientes(true);
+        const { data, error } = await supabase
+          .from("clientes")
+          .select(
+            "id, nome, telefone, doc, ativo, id_loja, criado_em, atualizado_em",
+          )
+          .eq("ativo", true)
+          .order("nome", { ascending: true });
+
+        if (error) throw error;
+
+        setClientes((data || []) as Cliente[]);
+      } catch (error) {
+        console.error(
+          "Erro ao carregar clientes para venda de aparelho:",
+          error,
+        );
+        setClientes([]);
+      } finally {
+        setLoadingClientes(false);
+      }
+    };
+
+    const carregarLojas = async () => {
+      if (!isOpen) return;
+      try {
+        const { data, error } = await supabase
+          .from("lojas")
+          .select("id, nome")
+          .order("nome", { ascending: true });
+
+        if (error) throw error;
+
+        setLojasBrinde((data || []) as LojaOption[]);
+      } catch (error) {
+        console.error("Erro ao carregar lojas para brindes:", error);
+        setLojasBrinde([]);
+      }
+    };
+
+    carregarClientes();
+    carregarLojas();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const carregarEstoqueBrindes = async () => {
+      if (!isOpen || !lojaBrindeId) return;
+      try {
+        setLoadingBrindes(true);
         const { data, error } = await supabase
           .from("estoque_lojas")
           .select(
             "id_produto, quantidade, produto:produtos(descricao, marca, preco_compra)",
           )
-          .eq("id_loja", lojaId)
+          .eq("id_loja", Number(lojaBrindeId))
           .gt("quantidade", 0);
 
         if (error) throw error;
@@ -172,13 +296,20 @@ export function VendaAparelhoModal({
       } catch (error) {
         console.error("Erro ao carregar estoque para brindes:", error);
         setEstoqueBrindes([]);
+      } finally {
+        setLoadingBrindes(false);
       }
     };
 
     carregarEstoqueBrindes();
-  }, [isOpen, lojaId]);
+  }, [isOpen, lojaBrindeId]);
 
-  const valorVendaNumerico = parseFloat(valorVenda) || 0;
+  useEffect(() => {
+    setProdutoBrindeId("");
+    setProdutoBrindeBusca("");
+  }, [lojaBrindeId, origemBrinde]);
+
+  const valorVendaNumerico = parseMoedaInput(valorVenda);
   const valorCusto = aparelho.valor_compra || 0;
   const valorTroca = aparelhoTroca?.valor_avaliado || 0;
   const valorPago =
@@ -195,14 +326,32 @@ export function VendaAparelhoModal({
 
       return {
         ...brinde,
-        disponivel,
-        ok: disponivel >= brinde.quantidade,
+        disponivel: brinde.estoque_disponivel ?? disponivel,
+        ok: (brinde.estoque_disponivel ?? disponivel) >= brinde.quantidade,
       };
     })
     .filter((brinde) => !brinde.ok);
 
+  const handleSelecionarCliente = (key: React.Key | null) => {
+    const clienteId = (key as string) || "";
+
+    setClienteSelecionadoId(clienteId);
+
+    if (!clienteId) return;
+
+    const cliente = clientes.find((item) => item.id === clienteId);
+
+    if (!cliente) return;
+
+    setClienteNome(cliente.nome || "");
+    setClienteTelefone(
+      cliente.telefone ? formatarTelefoneInput(cliente.telefone) : "",
+    );
+    setErrosValidacao([]);
+  };
+
   const handleAdicionarPagamento = () => {
-    const valor = parseFloat(valorPagamento);
+    const valor = parseMoedaInput(valorPagamento);
 
     if (!valor || valor <= 0) {
       showToast("Informe um valor válido", "error");
@@ -221,6 +370,7 @@ export function VendaAparelhoModal({
     setFormasPagamento([...formasPagamento, novoPagamento]);
     setValorPagamento("");
     setParcelasPagamento(1);
+    setErrosValidacao([]);
   };
 
   const handleRemoverPagamento = (index: number) => {
@@ -229,6 +379,12 @@ export function VendaAparelhoModal({
 
   const handleAdicionarBrinde = () => {
     if (origemBrinde === "estoque") {
+      if (!lojaBrindeId) {
+        showToast("Selecione a loja do brinde", "error");
+
+        return;
+      }
+
       if (!produtoBrindeId) {
         showToast("Selecione um produto do estoque", "error");
 
@@ -257,6 +413,10 @@ export function VendaAparelhoModal({
         return;
       }
 
+      const lojaSelecionada = lojasBrinde.find(
+        (loja) => loja.id === Number(lojaBrindeId),
+      );
+
       setBrindes((prev) => [
         ...prev,
         {
@@ -265,15 +425,20 @@ export function VendaAparelhoModal({
           descricao: item.descricao,
           quantidade,
           valor_custo: item.valor_custo_unitario * quantidade,
+          loja_id: Number(lojaBrindeId),
+          loja_nome: lojaSelecionada?.nome || `Loja ${lojaBrindeId}`,
+          estoque_disponivel: item.quantidade,
         },
       ]);
       setProdutoBrindeId("");
+      setProdutoBrindeBusca("");
       setQuantidadeBrinde("1");
+      setErrosValidacao([]);
 
       return;
     }
 
-    const valor = Number(valorCustoBrinde || 0);
+    const valor = parseMoedaInput(valorCustoBrinde);
 
     if (!descricaoBrinde.trim()) {
       showToast("Informe a descricao do brinde", "error");
@@ -297,6 +462,7 @@ export function VendaAparelhoModal({
     ]);
     setDescricaoBrinde("");
     setValorCustoBrinde("");
+    setErrosValidacao([]);
   };
 
   const handleRemoverBrinde = (index: number) => {
@@ -306,27 +472,26 @@ export function VendaAparelhoModal({
   const handleFinalizarVenda = async () => {
     if (!usuario) return;
 
-    // Validações
-    if (!clienteNome.trim()) {
-      showToast("Informe o nome do cliente", "error");
+    const pendencias: string[] = [];
 
-      return;
+    if (!clienteNome.trim()) pendencias.push("cliente");
+    if (valorVendaNumerico <= 0) pendencias.push("valor da venda");
+    if (formasPagamento.length === 0 && !aparelhoTroca) {
+      pendencias.push("ao menos um pagamento ou troca");
     }
-
-    if (valorVendaNumerico <= 0) {
-      showToast("Informe um valor de venda válido", "error");
-
-      return;
-    }
-
-    if (formasPagamento.length === 0) {
-      showToast("Adicione pelo menos uma forma de pagamento", "error");
-
-      return;
-    }
-
     if (saldoDevedor > 0) {
-      showToast(`Ainda falta pagar ${formatarMoeda(saldoDevedor)}`, "error");
+      pendencias.push(`faltam ${formatarMoeda(saldoDevedor)} para quitar`);
+    }
+    if (brindesSemEstoque.length > 0) {
+      pendencias.push("estoque de brinde insuficiente");
+    }
+
+    if (pendencias.length > 0) {
+      setErrosValidacao(pendencias);
+      showToast(
+        `Revise antes de finalizar: ${pendencias.join(", ")}`,
+        "warning",
+      );
 
       return;
     }
@@ -340,7 +505,7 @@ export function VendaAparelhoModal({
           .from("estoque_lojas")
           .select("quantidade")
           .eq("id_produto", brinde.produto_id)
-          .eq("id_loja", lojaId)
+          .eq("id_loja", brinde.loja_id || lojaId)
           .single();
 
         if (error) {
@@ -366,41 +531,28 @@ export function VendaAparelhoModal({
       setLoading(true);
 
       // 1. Buscar cliente por telefone ou criar novo
-      let clienteId: string;
+      let clienteId: string = clienteSelecionadoId;
 
-      if (clienteTelefone && clienteTelefone.trim()) {
+      if (!clienteId && clienteTelefone && clienteTelefone.trim()) {
         const { data: clienteExistente } = await supabase
           .from("clientes")
           .select("id")
-          .eq("telefone", clienteTelefone)
+          .eq("telefone", clienteTelefone.replace(/\D/g, ""))
           .single();
 
         if (clienteExistente) {
           clienteId = clienteExistente.id;
-        } else {
-          // Criar novo cliente
-          const { data: novoCliente, error: erroCliente } = await supabase
-            .from("clientes")
-            .insert({
-              nome: clienteNome,
-              telefone: clienteTelefone || null,
-              id_loja: lojaId,
-              ativo: true,
-              criado_por: usuario.id,
-              atualizado_por: usuario.id,
-            })
-            .select("id")
-            .single();
-
-          if (erroCliente) throw erroCliente;
-          clienteId = novoCliente.id;
         }
-      } else {
-        // Cliente sem telefone - criar novo
+      }
+
+      if (!clienteId) {
         const { data: novoCliente, error: erroCliente } = await supabase
           .from("clientes")
           .insert({
             nome: clienteNome,
+            telefone: clienteTelefone.trim()
+              ? clienteTelefone.replace(/\D/g, "")
+              : null,
             id_loja: lojaId,
             ativo: true,
             criado_por: usuario.id,
@@ -419,7 +571,7 @@ export function VendaAparelhoModal({
         .select("numero_venda")
         .order("criado_em", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const numeroVenda = ultimaVenda ? ultimaVenda.numero_venda + 1 : 1;
 
@@ -488,7 +640,7 @@ export function VendaAparelhoModal({
             venda_id: venda.id,
             tipo_pagamento: pagamento.tipo,
             valor: pagamento.valor,
-            data_pagamento: new Date().toISOString(),
+            data_pagamento: pagamento.data_pagamento,
             criado_por: usuario.id,
             observacao:
               pagamento.tipo === "cartao_credito"
@@ -523,7 +675,7 @@ export function VendaAparelhoModal({
               .from("estoque_lojas")
               .select("quantidade")
               .eq("id_produto", brinde.produto_id)
-              .eq("id_loja", lojaId)
+              .eq("id_loja", brinde.loja_id || lojaId)
               .single();
 
             if (erroEstoque) throw erroEstoque;
@@ -544,11 +696,11 @@ export function VendaAparelhoModal({
                 atualizado_por: usuario.id,
               })
               .eq("id_produto", brinde.produto_id)
-              .eq("id_loja", lojaId);
+              .eq("id_loja", brinde.loja_id || lojaId);
 
             await supabase.from("historico_estoque").insert({
               id_produto: brinde.produto_id,
-              id_loja: lojaId,
+              id_loja: brinde.loja_id || lojaId,
               quantidade_anterior: quantidadeAtual,
               quantidade_nova: novaQuantidade,
               quantidade_alterada: -brinde.quantidade,
@@ -559,7 +711,7 @@ export function VendaAparelhoModal({
           }
 
           await BrindesAparelhosService.registrarBrinde({
-            loja_id: lojaId,
+            loja_id: brinde.loja_id || lojaId,
             venda_id: venda.id,
             descricao:
               brinde.origem === "estoque"
@@ -608,21 +760,62 @@ export function VendaAparelhoModal({
       onClose={() => onClose(false)}
     >
       <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="w-6 h-6 text-primary" />
-            <span>Vender Aparelho</span>
+        <ModalHeader className="flex flex-col gap-3 border-b border-default-200 bg-default-50/80">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-default-100 text-default-700">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-lg font-semibold">Vender Aparelho</span>
+              <p className="text-sm text-default-500 font-normal">
+                {aparelho.marca} {aparelho.modelo} - {aparelho.armazenamento}
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-default-500 font-normal">
-            {aparelho.marca} {aparelho.modelo} - {aparelho.armazenamento}
-          </p>
+          <div className="flex flex-wrap gap-2">
+            <Chip color="primary" variant="flat">
+              Loja: {lojaNome || `Loja ${lojaId}`}
+            </Chip>
+            <Chip
+              color={saldoDevedor === 0 ? "success" : "warning"}
+              variant="flat"
+            >
+              {saldoDevedor === 0 ? "Quitado" : "Pendente"}
+            </Chip>
+            <Chip color="default" variant="flat">
+              Custo: {formatarMoeda(valorCusto)}
+            </Chip>
+          </div>
         </ModalHeader>
-        <ModalBody>
+        <ModalBody className="py-5">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Coluna Esquerda - Dados da Venda */}
             <div className="space-y-4">
+              {errosValidacao.length > 0 ? (
+                <Card className="border border-warning/40 bg-warning/5">
+                  <CardBody className="gap-2">
+                    <div className="flex items-center gap-2 text-warning-700">
+                      <AlertCircle className="h-4 w-4" />
+                      <p className="font-semibold">Revise antes de finalizar</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {errosValidacao.map((erro) => (
+                        <Chip
+                          key={erro}
+                          color="warning"
+                          size="sm"
+                          variant="flat"
+                        >
+                          {erro}
+                        </Chip>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              ) : null}
+
               {/* Informações do Aparelho */}
-              <Card>
+              <Card className="border border-default-200 shadow-sm">
                 <CardBody className="gap-3">
                   <h3 className="font-semibold flex items-center gap-2">
                     <ShoppingBag className="w-4 h-4" />
@@ -694,53 +887,101 @@ export function VendaAparelhoModal({
               </Card>
 
               {/* Dados do Cliente */}
-              <Card>
+              <Card className="border border-default-200 shadow-sm">
                 <CardBody className="gap-3">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <User className="w-4 h-4" />
+                    <User className="w-4 h-4 text-primary" />
                     Cliente
                   </h3>
-                  <Input
-                    isRequired
-                    isDisabled={loading}
-                    label="Nome do Cliente"
-                    placeholder="Digite o nome completo"
-                    value={clienteNome}
+                  <Autocomplete
+                    allowsCustomValue
+                    isClearable
+                    defaultItems={clientes}
+                    inputValue={clienteNome}
+                    isLoading={loadingClientes}
+                    label="Cliente"
+                    placeholder="Busque por nome, telefone ou documento"
+                    selectedKey={clienteSelecionadoId || null}
                     variant="bordered"
-                    onValueChange={setClienteNome}
-                  />
-                  <Input
-                    isDisabled={loading}
-                    label="Telefone"
-                    placeholder="(00) 00000-0000"
-                    value={clienteTelefone}
-                    variant="bordered"
-                    onValueChange={setClienteTelefone}
-                  />
+                    onInputChange={(value) => {
+                      setClienteSelecionadoId("");
+                      setClienteNome(value);
+                    }}
+                    onSelectionChange={handleSelecionarCliente}
+                  >
+                    {(item) => (
+                      <AutocompleteItem
+                        key={item.id}
+                        textValue={`${item.nome} ${item.telefone || ""} ${item.doc || ""}`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{item.nome}</span>
+                          <span className="text-xs text-default-500">
+                            {[
+                              item.telefone
+                                ? formatarTelefone(item.telefone)
+                                : null,
+                              item.doc || null,
+                            ]
+                              .filter(Boolean)
+                              .join(" - ") || "Sem telefone/documento"}
+                          </span>
+                        </div>
+                      </AutocompleteItem>
+                    )}
+                  </Autocomplete>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Input
+                      isRequired
+                      isDisabled={loading}
+                      label="Nome do Cliente"
+                      placeholder="Digite o nome completo"
+                      value={clienteNome}
+                      variant="bordered"
+                      onValueChange={(value) => {
+                        setClienteSelecionadoId("");
+                        setClienteNome(value);
+                      }}
+                    />
+                    <Input
+                      isDisabled={loading}
+                      label="Telefone"
+                      placeholder="(00) 00000-0000"
+                      value={clienteTelefone}
+                      variant="bordered"
+                      onValueChange={(value) => {
+                        setClienteSelecionadoId("");
+                        setClienteTelefone(formatarTelefoneInput(value));
+                      }}
+                    />
+                  </div>
                 </CardBody>
               </Card>
 
               {/* Valor da Venda */}
-              <Input
-                isRequired
-                isDisabled={loading}
-                label="Valor da Venda"
-                placeholder="0,00"
-                startContent={
-                  <DollarSign className="w-4 h-4 text-default-400" />
-                }
-                type="number"
-                value={valorVenda}
-                variant="bordered"
-                onValueChange={setValorVenda}
-              />
+              <Card className="border border-default-200 shadow-sm">
+                <CardBody className="gap-3">
+                  <Input
+                    isRequired
+                    isDisabled={loading}
+                    label="Valor da Venda"
+                    placeholder="0,00"
+                    startContent={<span className="text-default-400">R$</span>}
+                    value={valorVenda}
+                    variant="bordered"
+                    onValueChange={(value) =>
+                      setValorVenda(formatarMoedaInput(value))
+                    }
+                  />
+                </CardBody>
+              </Card>
 
               {/* Brindes */}
-              <Card>
+              <Card className="border border-default-200 shadow-sm">
                 <CardBody className="gap-3">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold flex items-center gap-2">
-                      <Gift className="w-4 h-4" />
+                      <Gift className="w-4 h-4 text-warning" />
                       Brindes
                     </h3>
                     <Chip color="warning" size="sm" variant="flat">
@@ -765,99 +1006,173 @@ export function VendaAparelhoModal({
                     </Card>
                   ) : null}
 
-                  <Select
-                    isDisabled={loading}
-                    label="Origem"
-                    selectedKeys={[origemBrinde]}
-                    onChange={(e) =>
-                      setOrigemBrinde(e.target.value as "estoque" | "manual")
-                    }
-                  >
-                    <SelectItem key="estoque">Do estoque</SelectItem>
-                    <SelectItem key="manual">Compra externa</SelectItem>
-                  </Select>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <Select
+                      isDisabled={loading}
+                      label="Origem"
+                      selectedKeys={[origemBrinde]}
+                      variant="bordered"
+                      onChange={(e) =>
+                        setOrigemBrinde(e.target.value as "estoque" | "manual")
+                      }
+                    >
+                      <SelectItem key="estoque">Do estoque</SelectItem>
+                      <SelectItem key="manual">Compra externa</SelectItem>
+                    </Select>
 
-                  {origemBrinde === "estoque" ? (
-                    <div className="space-y-3">
+                    {origemBrinde === "estoque" ? (
                       <Select
                         isDisabled={loading}
-                        label="Produto do estoque"
-                        placeholder="Selecione um produto"
-                        selectedKeys={produtoBrindeId ? [produtoBrindeId] : []}
-                        onChange={(e) => setProdutoBrindeId(e.target.value)}
+                        label="Loja do brinde"
+                        selectedKeys={lojaBrindeId ? [lojaBrindeId] : []}
+                        variant="bordered"
+                        onChange={(e) => setLojaBrindeId(e.target.value)}
                       >
-                        {estoqueBrindes.map((item) => (
-                          <SelectItem key={item.produto_id}>
-                            {item.descricao} (Disp: {item.quantidade})
+                        {lojasBrinde.map((loja) => (
+                          <SelectItem key={loja.id.toString()}>
+                            {loja.nome}
                           </SelectItem>
                         ))}
                       </Select>
+                    ) : (
+                      <Input
+                        isDisabled
+                        label="Loja"
+                        value={lojaNome || `Loja ${lojaId}`}
+                        variant="bordered"
+                      />
+                    )}
+                  </div>
+
+                  {origemBrinde === "estoque" ? (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.6fr_0.6fr_auto] md:items-end">
+                      <Autocomplete
+                        isClearable
+                        defaultItems={estoqueBrindes}
+                        inputValue={produtoBrindeBusca}
+                        isLoading={loadingBrindes}
+                        label="Produto do estoque"
+                        placeholder="Pesquise pelo nome do produto"
+                        selectedKey={produtoBrindeId || null}
+                        variant="bordered"
+                        onInputChange={setProdutoBrindeBusca}
+                        onSelectionChange={(key) => {
+                          const produtoId = (key as string) || "";
+
+                          setProdutoBrindeId(produtoId);
+                          if (!produtoId) return;
+                          const item = estoqueBrindes.find(
+                            (produto) => produto.produto_id === produtoId,
+                          );
+
+                          if (item) setProdutoBrindeBusca(item.descricao);
+                        }}
+                      >
+                        {(item) => (
+                          <AutocompleteItem
+                            key={item.produto_id}
+                            textValue={item.descricao}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">
+                                {item.descricao}
+                              </span>
+                              <span className="text-xs text-default-500">
+                                Disponivel: {item.quantidade} | Custo:{" "}
+                                {formatarMoeda(item.valor_custo_unitario)}
+                              </span>
+                            </div>
+                          </AutocompleteItem>
+                        )}
+                      </Autocomplete>
                       <Input
                         isDisabled={loading}
                         label="Quantidade"
                         type="number"
                         value={quantidadeBrinde}
+                        variant="bordered"
                         onValueChange={setQuantidadeBrinde}
                       />
+                      <Button
+                        color="secondary"
+                        isDisabled={loading}
+                        startContent={<Plus className="w-4 h-4" />}
+                        variant="flat"
+                        onPress={handleAdicionarBrinde}
+                      >
+                        Adicionar
+                      </Button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.4fr_0.8fr_auto] md:items-end">
                       <Input
                         isDisabled={loading}
                         label="Descricao"
                         placeholder="Ex: pelicula, capa, acessorio"
                         value={descricaoBrinde}
+                        variant="bordered"
                         onValueChange={setDescricaoBrinde}
                       />
                       <Input
                         isDisabled={loading}
                         label="Custo"
                         placeholder="0,00"
-                        type="number"
+                        startContent={
+                          <span className="text-default-400">R$</span>
+                        }
                         value={valorCustoBrinde}
-                        onValueChange={setValorCustoBrinde}
+                        variant="bordered"
+                        onValueChange={(value) =>
+                          setValorCustoBrinde(formatarMoedaInput(value))
+                        }
                       />
+                      <Button
+                        color="secondary"
+                        isDisabled={loading}
+                        startContent={<Plus className="w-4 h-4" />}
+                        variant="flat"
+                        onPress={handleAdicionarBrinde}
+                      >
+                        Adicionar
+                      </Button>
                     </div>
                   )}
-
-                  <Button
-                    color="secondary"
-                    isDisabled={loading}
-                    startContent={<Plus className="w-4 h-4" />}
-                    variant="flat"
-                    onPress={handleAdicionarBrinde}
-                  >
-                    Adicionar Brinde
-                  </Button>
 
                   {brindes.length > 0 ? (
                     <div className="space-y-2">
                       {brindes.map((brinde, index) => (
                         <div
                           key={`${brinde.descricao}-${index}`}
-                          className="flex items-center justify-between text-sm"
+                          className="flex items-center justify-between rounded-xl border border-default-200 bg-default-50 px-3 py-2 text-sm"
                         >
                           <div>
-                            <span className="font-medium">
-                              {brinde.descricao}
-                            </span>
-                            {brinde.quantidade > 1 ? (
-                              <span className="text-default-500">
-                                {` x${brinde.quantidade}`}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium">
+                                {brinde.descricao}
                               </span>
-                            ) : null}
+                              {brinde.quantidade > 1 ? (
+                                <Chip size="sm" variant="flat">
+                                  x{brinde.quantidade}
+                                </Chip>
+                              ) : null}
+                              {brinde.loja_nome ? (
+                                <Chip size="sm" variant="flat">
+                                  {brinde.loja_nome}
+                                </Chip>
+                              ) : null}
+                            </div>
+                            <span className="text-xs text-default-500">
+                              {formatarMoeda(brinde.valor_custo)}
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span>{formatarMoeda(brinde.valor_custo)}</span>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => handleRemoverBrinde(index)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onPress={() => handleRemoverBrinde(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -1187,10 +1502,10 @@ export function VendaAparelhoModal({
               )}
 
               {/* Adicionar Forma de Pagamento */}
-              <Card>
+              <Card className="border border-default-200 shadow-sm">
                 <CardBody className="gap-3">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-4 h-4 text-success" />
                     Adicionar Pagamento
                   </h3>
 
@@ -1210,13 +1525,12 @@ export function VendaAparelhoModal({
                     label="Valor"
                     placeholder="0,00"
                     size="sm"
-                    startContent={
-                      <DollarSign className="w-4 h-4 text-default-400" />
-                    }
-                    type="number"
+                    startContent={<span className="text-default-400">R$</span>}
                     value={valorPagamento}
                     variant="bordered"
-                    onValueChange={setValorPagamento}
+                    onValueChange={(value) =>
+                      setValorPagamento(formatarMoedaInput(value))
+                    }
                   />
 
                   {tipoPagamento === "cartao_credito" && (
@@ -1232,7 +1546,9 @@ export function VendaAparelhoModal({
                       {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
                         <SelectItem key={n.toString()}>
                           {n}x de{" "}
-                          {formatarMoeda((parseFloat(valorPagamento) || 0) / n)}
+                          {formatarMoeda(
+                            (parseMoedaInput(valorPagamento) || 0) / n,
+                          )}
                         </SelectItem>
                       ))}
                     </Select>
@@ -1367,15 +1683,19 @@ export function VendaAparelhoModal({
           </div>
 
           {/* Observações */}
-          <div className="mt-4">
-            <Input
-              disabled={loading}
-              label="Observações (Opcional)"
-              placeholder="Digite observações sobre a venda..."
-              value={observacoes}
-              onValueChange={setObservacoes}
-            />
-          </div>
+          <Card className="mt-4 border border-default-200 shadow-sm">
+            <CardBody>
+              <Textarea
+                isDisabled={loading}
+                label="Observacoes (Opcional)"
+                minRows={4}
+                placeholder="Digite observacoes sobre a venda..."
+                value={observacoes}
+                variant="bordered"
+                onValueChange={setObservacoes}
+              />
+            </CardBody>
+          </Card>
         </ModalBody>
         <ModalFooter>
           <Button

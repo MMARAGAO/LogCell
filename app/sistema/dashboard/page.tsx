@@ -3,7 +3,16 @@
 import type { DadosDashboard } from "@/types/dashboard";
 
 import { useEffect, useMemo, useState } from "react";
-import { Select, SelectItem } from "@heroui/react";
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Pagination,
+  Select,
+  SelectItem,
+} from "@heroui/react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import {
@@ -79,6 +88,40 @@ const CORES_GRAFICOS = [
   "#6366F1", // índigo
 ];
 
+type DashboardDetailCardKey =
+  | "pagamentos_recebidos"
+  | "total_vendas"
+  | "ganho_vendas"
+  | "ticket_medio"
+  | "contas_nao_pagas"
+  | "faturamento_os_processadas"
+  | "total_os"
+  | "os_pagas_nao_entregues"
+  | "os_pendentes"
+  | "ganho_os_processadas"
+  | "os_processadas"
+  | "os_lojista"
+  | "os_consumidor_final"
+  | "os_sem_tipo"
+  | "total_transferencias"
+  | "transferencias_pendentes"
+  | "total_quebras"
+  | "total_creditos_cliente"
+  | "devolucoes_com_credito"
+  | "devolucoes_sem_credito";
+
+interface DashboardDetailColumn {
+  key: string;
+  label: string;
+}
+
+interface DashboardDetailResult {
+  columns: DashboardDetailColumn[];
+  rows: Array<Record<string, string>>;
+  total: number;
+  emptyMessage: string;
+}
+
 export default function DashboardPage() {
   const { theme } = useTheme();
   const router = useRouter();
@@ -117,6 +160,21 @@ export default function DashboardPage() {
   const [top10Clientes, setTop10Clientes] = useState<any[]>([]);
   const [top10Vendedores, setTop10Vendedores] = useState<any[]>([]);
   const [loadingGraficos, setLoadingGraficos] = useState(false);
+  const [cardDetalhado, setCardDetalhado] =
+    useState<DashboardDetailCardKey | null>(null);
+  const [modalDetalheOpen, setModalDetalheOpen] = useState(false);
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false);
+  const [paginaDetalhe, setPaginaDetalhe] = useState(1);
+  const [totalDetalhe, setTotalDetalhe] = useState(0);
+  const [colunasDetalhe, setColunasDetalhe] = useState<DashboardDetailColumn[]>(
+    [],
+  );
+  const [linhasDetalhe, setLinhasDetalhe] = useState<
+    Array<Record<string, string>>
+  >([]);
+  const [mensagemVaziaDetalhe, setMensagemVaziaDetalhe] = useState(
+    "Nenhum registro encontrado.",
+  );
 
   const carregar = async () => {
     try {
@@ -195,6 +253,729 @@ export default function DashboardPage() {
         setLojas(data || []);
       });
   }, []);
+
+  const detalhesCards = useMemo(() => {
+    const lojaSelecionadaNome = lojaId
+      ? lojas.find((loja) => String(loja.id) === lojaId)?.nome ||
+        `Loja ${lojaId}`
+      : "Todas as lojas";
+
+    return {
+      pagamentos_recebidos: {
+        titulo: "Pagamentos Recebidos",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.pagamentos_sem_credito_cliente || 0,
+        ),
+        descricao:
+          "Soma de todos os pagamentos de vendas recebidos no periodo, excluindo credito de cliente.",
+        itens: [
+          `Periodo filtrado: ${dataInicio || "2000-01-01"} ate ${dataFim || hojeISO}`,
+          `Loja considerada: ${lojaSelecionadaNome}`,
+          "Ideal para acompanhar a entrada real de caixa das vendas.",
+        ],
+      },
+      total_vendas: {
+        titulo: "Total de Vendas",
+        valor: (dados?.metricas_adicionais.total_vendas || 0).toLocaleString(
+          "pt-BR",
+        ),
+        descricao:
+          "Quantidade total de vendas do periodo filtrado, desconsiderando vendas canceladas.",
+        itens: [
+          `Ticket medio atual: ${formatarMoeda(
+            dados?.metricas_adicionais.ticket_medio || 0,
+          )}`,
+          `Loja considerada: ${lojaSelecionadaNome}`,
+        ],
+      },
+      ganho_vendas: {
+        titulo: "Ganho com Vendas",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.ganho_total_vendas || 0,
+        ),
+        descricao:
+          "Lucro real calculado a partir dos pagamentos recebidos menos o custo dos produtos vendidos.",
+        itens: [
+          `Recebido sem credito: ${formatarMoeda(
+            dados?.metricas_adicionais.pagamentos_sem_credito_cliente || 0,
+          )}`,
+          "Usa apenas valores efetivamente recebidos no periodo.",
+        ],
+      },
+      ticket_medio: {
+        titulo: "Ticket Medio",
+        valor: formatarMoeda(dados?.metricas_adicionais.ticket_medio || 0),
+        descricao: "Media de valor recebido por venda no periodo filtrado.",
+        itens: [
+          `Total de vendas no periodo: ${(dados?.metricas_adicionais.total_vendas || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+      contas_nao_pagas: {
+        titulo: "Contas Nao Pagas",
+        valor: formatarMoeda(dados?.metricas_adicionais.contas_nao_pagas || 0),
+        descricao: "Soma dos valores ainda nao recebidos de vendas realizadas.",
+        itens: [
+          "Considera vendas nao canceladas com diferenca entre valor total e valor pago.",
+        ],
+      },
+      faturamento_os_processadas: {
+        titulo: "Faturamento OS Processadas",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.faturamento_os_processadas || 0,
+        ),
+        descricao:
+          "Valor total faturado em OS pagas nao entregues e OS entregues.",
+        itens: [
+          `OS processadas: ${(dados?.metricas_adicionais.os_processadas || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+      total_os: {
+        titulo: "Total de OS",
+        valor: (dados?.metricas_adicionais.total_os || 0).toLocaleString(
+          "pt-BR",
+        ),
+        descricao: "Quantidade total de ordens de servico criadas.",
+        itens: [
+          `OS pendentes: ${(dados?.metricas_adicionais.os_pendentes || 0).toLocaleString("pt-BR")}`,
+          `OS processadas: ${(dados?.metricas_adicionais.os_processadas || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+      os_pagas_nao_entregues: {
+        titulo: "Aguardando Entrega",
+        valor: (
+          dados?.metricas_adicionais.os_pagas_nao_entregues || 0
+        ).toLocaleString("pt-BR"),
+        descricao:
+          "OS que ja foram pagas, mas ainda nao tiveram entrega concluida.",
+        itens: ["Priorize entrega e baixa correta do status."],
+      },
+      os_pendentes: {
+        titulo: "Aguardando Pagamento",
+        valor: (dados?.metricas_adicionais.os_pendentes || 0).toLocaleString(
+          "pt-BR",
+        ),
+        descricao:
+          "OS prontas ou em fluxo que ainda aguardam pagamento/conclusao.",
+        itens: [],
+      },
+      ganho_os_processadas: {
+        titulo: "Ganho OS Processadas",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.ganho_os_processadas || 0,
+        ),
+        descricao:
+          "Lucro real das OS processadas, calculado pelo faturamento menos o custo das pecas.",
+        itens: [
+          `Faturamento OS processadas: ${formatarMoeda(
+            dados?.metricas_adicionais.faturamento_os_processadas || 0,
+          )}`,
+        ],
+      },
+      os_processadas: {
+        titulo: "OS Processadas",
+        valor: (dados?.metricas_adicionais.os_processadas || 0).toLocaleString(
+          "pt-BR",
+        ),
+        descricao: "Total de OS pagas nao entregues somadas as OS entregues.",
+        itens: [],
+      },
+      os_lojista: {
+        titulo: "OS para Lojista",
+        valor: (
+          dados?.metricas_adicionais.os_lojista_pagas || 0
+        ).toLocaleString("pt-BR"),
+        descricao: "Ordens de servico pagas classificadas para lojistas.",
+        itens: [
+          `Valor recebido: ${formatarMoeda(
+            dados?.metricas_adicionais.os_lojista_faturamento || 0,
+          )}`,
+          `Lucro: ${formatarMoeda(
+            dados?.metricas_adicionais.os_lojista_lucro || 0,
+          )}`,
+        ],
+      },
+      os_consumidor_final: {
+        titulo: "OS para Cliente Final",
+        valor: (
+          dados?.metricas_adicionais.os_consumidor_final_pagas || 0
+        ).toLocaleString("pt-BR"),
+        descricao: "Ordens de servico pagas classificadas para cliente final.",
+        itens: [
+          `Valor recebido: ${formatarMoeda(
+            dados?.metricas_adicionais.os_consumidor_final_faturamento || 0,
+          )}`,
+          `Lucro: ${formatarMoeda(
+            dados?.metricas_adicionais.os_consumidor_final_lucro || 0,
+          )}`,
+        ],
+      },
+      os_sem_tipo: {
+        titulo: "OS Sem Tipo Definido",
+        valor: (
+          dados?.metricas_adicionais.os_sem_tipo_pagas || 0
+        ).toLocaleString("pt-BR"),
+        descricao:
+          "Ordens de servico pagas sem classificacao de tipo de cliente.",
+        itens: [
+          `Valor recebido: ${formatarMoeda(
+            dados?.metricas_adicionais.os_sem_tipo_faturamento || 0,
+          )}`,
+          `Lucro: ${formatarMoeda(
+            dados?.metricas_adicionais.os_sem_tipo_lucro || 0,
+          )}`,
+        ],
+      },
+      total_transferencias: {
+        titulo: "Total de Transferencias",
+        valor: (
+          dados?.metricas_adicionais.total_transferencias || 0
+        ).toLocaleString("pt-BR"),
+        descricao: "Quantidade total de transferencias entre lojas no periodo.",
+        itens: [],
+      },
+      transferencias_pendentes: {
+        titulo: "Transferencias Pendentes",
+        valor: (
+          dados?.metricas_adicionais.transferencias_pendentes || 0
+        ).toLocaleString("pt-BR"),
+        descricao: "Transferencias aguardando confirmacao.",
+        itens: [],
+      },
+      total_quebras: {
+        titulo: "Total em Quebra de Pecas",
+        valor: formatarMoeda(dados?.metricas_adicionais.total_quebras || 0),
+        descricao: "Perda financeira consolidada em pecas quebradas.",
+        itens: [
+          `Quantidade de quebras: ${(dados?.metricas_adicionais.quantidade_quebras || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+      total_creditos_cliente: {
+        titulo: "Total Credito de Cliente",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.total_creditos_cliente || 0,
+        ),
+        descricao: "Saldo total de creditos disponiveis dos clientes.",
+        itens: [],
+      },
+      devolucoes_com_credito: {
+        titulo: "Devolucoes com Credito",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.devolucoes_com_credito_total || 0,
+        ),
+        descricao:
+          "Devolucoes processadas como credito para uso futuro do cliente.",
+        itens: [
+          `Quantidade: ${(dados?.metricas_adicionais.devolucoes_com_credito_quantidade || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+      devolucoes_sem_credito: {
+        titulo: "Devolucoes sem Credito",
+        valor: formatarMoeda(
+          dados?.metricas_adicionais.devolucoes_sem_credito_total || 0,
+        ),
+        descricao: "Devolucoes reembolsadas diretamente ao cliente.",
+        itens: [
+          `Quantidade: ${(dados?.metricas_adicionais.devolucoes_sem_credito_quantidade || 0).toLocaleString("pt-BR")}`,
+        ],
+      },
+    };
+  }, [dados, dataFim, dataInicio, hojeISO, lojaId, lojas]);
+
+  const detalheCardSelecionado = cardDetalhado
+    ? detalhesCards[cardDetalhado]
+    : null;
+
+  const getCardClassName = (
+    baseClasses: string,
+    cardKey: DashboardDetailCardKey,
+  ) =>
+    `${baseClasses} cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      cardDetalhado === cardKey && modalDetalheOpen
+        ? "ring-2 ring-primary/60"
+        : ""
+    }`;
+  const pageSizeDetalhe = 10;
+
+  const buscarDetalhamentoCard = async (
+    cardKey: DashboardDetailCardKey,
+    page = 1,
+  ) => {
+    const inicioISO = `${dataInicio || "2000-01-01"}T00:00:00`;
+    const fimISO = `${dataFim || hojeISO}T23:59:59`;
+    const from = (page - 1) * pageSizeDetalhe;
+    const to = from + pageSizeDetalhe - 1;
+    const lojaNumero = lojaId ? Number(lojaId) : undefined;
+
+    const mapVendaRows = (registros: any[]) =>
+      registros.map((item) => ({
+        numero: `V${String(item.numero_venda || 0).padStart(6, "0")}`,
+        cliente: item.cliente?.nome || "-",
+        loja: item.loja?.nome || "-",
+        data: item.criado_em
+          ? new Date(item.criado_em).toLocaleString("pt-BR")
+          : "-",
+        status: item.status || "-",
+        valor: formatarMoeda(Number(item.valor_total || 0)),
+        pago: formatarMoeda(Number(item.valor_pago || 0)),
+        restante: formatarMoeda(
+          Number(item.saldo_devedor || item.valor_total - item.valor_pago || 0),
+        ),
+      }));
+
+    const mapOSRows = (registros: any[]) =>
+      registros.map((item) => ({
+        numero: item.numero_os
+          ? `OS ${item.numero_os}`
+          : item.id?.slice(0, 8) || "-",
+        cliente: item.cliente_nome || "-",
+        loja: item.loja?.nome || "-",
+        data: item.criado_em
+          ? new Date(item.criado_em).toLocaleString("pt-BR")
+          : "-",
+        status: item.status || "-",
+        tipo: item.tipo_cliente || "-",
+        valor: formatarMoeda(
+          Number(item.valor_pago || item.valor_orcamento || 0),
+        ),
+      }));
+
+    switch (cardKey) {
+      case "pagamentos_recebidos": {
+        let query = supabase
+          .from("pagamentos_venda")
+          .select(
+            "valor, tipo_pagamento, data_pagamento, criado_em, venda:vendas!inner(numero_venda, loja_id, cliente:clientes(nome), loja:lojas(nome))",
+            { count: "exact" },
+          )
+          .gte("data_pagamento", inicioISO)
+          .lte("data_pagamento", fimISO)
+          .neq("tipo_pagamento", "credito_cliente")
+          .range(from, to)
+          .order("data_pagamento", { ascending: false });
+
+        if (lojaNumero) {
+          query = query.eq("venda.loja_id", lojaNumero);
+        }
+
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "venda", label: "Venda" },
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data Pagamento" },
+            { key: "tipo", label: "Tipo" },
+            { key: "valor", label: "Valor" },
+          ],
+          rows: (data || []).map((item: any) => ({
+            venda: `V${String(item.venda?.numero_venda || 0).padStart(6, "0")}`,
+            cliente: item.venda?.cliente?.nome || "-",
+            loja: item.venda?.loja?.nome || "-",
+            data: item.data_pagamento
+              ? new Date(item.data_pagamento).toLocaleString("pt-BR")
+              : "-",
+            tipo: item.tipo_pagamento || "-",
+            valor: formatarMoeda(Number(item.valor || 0)),
+          })),
+          total: count || 0,
+          emptyMessage: "Nenhum pagamento recebido encontrado no periodo.",
+        } satisfies DashboardDetailResult;
+      }
+      case "contas_nao_pagas": {
+        const pageSizeBusca = 1000;
+        let paginaBusca = 0;
+        let temMais = true;
+        const vendasPendentesBrutas: any[] = [];
+
+        while (temMais) {
+          let query = supabase
+            .from("vendas")
+            .select(
+              "numero_venda, criado_em, status, valor_total, valor_pago, saldo_devedor, cliente:clientes(nome), loja:lojas(nome)",
+            )
+            .gte("criado_em", inicioISO)
+            .lte("criado_em", fimISO)
+            .neq("status", "cancelada")
+            .range(
+              paginaBusca * pageSizeBusca,
+              (paginaBusca + 1) * pageSizeBusca - 1,
+            )
+            .order("criado_em", { ascending: false });
+
+          if (lojaNumero) {
+            query = query.eq("loja_id", lojaNumero);
+          }
+
+          const { data, error } = await query;
+
+          if (error) throw error;
+
+          const lote = data || [];
+
+          vendasPendentesBrutas.push(...lote);
+          temMais = lote.length === pageSizeBusca;
+          paginaBusca += 1;
+        }
+
+        const registrosPendentes = vendasPendentesBrutas.filter((item: any) => {
+          const valorTotal = Number(item.valor_total || 0);
+          const valorPago = Number(item.valor_pago || 0);
+          const saldoDevedor = Number(item.saldo_devedor || 0);
+          const pendente =
+            saldoDevedor > 0 ? saldoDevedor : valorTotal - valorPago;
+
+          return pendente > 0;
+        });
+
+        const registrosPaginados = registrosPendentes.slice(from, to + 1);
+
+        return {
+          columns: [
+            { key: "numero", label: "Venda" },
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "status", label: "Status" },
+            { key: "valor", label: "Valor" },
+            { key: "pago", label: "Pago" },
+            { key: "restante", label: "Restante" },
+          ],
+          rows: mapVendaRows(registrosPaginados),
+          total: registrosPendentes.length,
+          emptyMessage: "Nenhuma conta pendente encontrada.",
+        } satisfies DashboardDetailResult;
+      }
+      case "total_vendas":
+      case "ganho_vendas":
+      case "ticket_medio": {
+        let query = supabase
+          .from("vendas")
+          .select(
+            "numero_venda, criado_em, status, valor_total, valor_pago, saldo_devedor, cliente:clientes(nome), loja:lojas(nome)",
+            { count: "exact" },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .neq("status", "cancelada")
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        if (lojaNumero) {
+          query = query.eq("loja_id", lojaNumero);
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "numero", label: "Venda" },
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "status", label: "Status" },
+            { key: "valor", label: "Valor" },
+            { key: "pago", label: "Pago" },
+            { key: "restante", label: "Restante" },
+          ],
+          rows: mapVendaRows(data || []),
+          total: count || 0,
+          emptyMessage: "Nenhuma venda encontrada no periodo.",
+        } satisfies DashboardDetailResult;
+      }
+      case "total_os":
+      case "faturamento_os_processadas":
+      case "ganho_os_processadas":
+      case "os_processadas":
+      case "os_pagas_nao_entregues":
+      case "os_pendentes":
+      case "os_lojista":
+      case "os_consumidor_final":
+      case "os_sem_tipo": {
+        let query = supabase
+          .from("ordem_servico")
+          .select(
+            "id, numero_os, cliente_nome, criado_em, status, valor_orcamento, valor_pago, tipo_cliente, loja:lojas!id_loja(nome)",
+            { count: "exact" },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .neq("status", "cancelado")
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        if (lojaNumero) {
+          query = query.eq("id_loja", lojaNumero);
+        }
+        if (cardKey === "os_pagas_nao_entregues") {
+          query = query.gt("valor_pago", 0).not("status", "eq", "entregue");
+        } else if (cardKey === "os_pendentes") {
+          query = query
+            .not("status", "eq", "entregue")
+            .or("valor_pago.is.null,valor_pago.eq.0");
+        } else if (
+          cardKey === "faturamento_os_processadas" ||
+          cardKey === "ganho_os_processadas" ||
+          cardKey === "os_processadas"
+        ) {
+          query = query.or("valor_pago.gt.0,status.eq.entregue");
+        } else if (cardKey === "os_lojista") {
+          query = query
+            .eq("tipo_cliente", "lojista")
+            .or("valor_pago.gt.0,status.eq.entregue");
+        } else if (cardKey === "os_consumidor_final") {
+          query = query
+            .eq("tipo_cliente", "consumidor_final")
+            .or("valor_pago.gt.0,status.eq.entregue");
+        } else if (cardKey === "os_sem_tipo") {
+          query = query
+            .or("tipo_cliente.is.null,tipo_cliente.eq.sem_tipo")
+            .or("valor_pago.gt.0,status.eq.entregue");
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "numero", label: "OS" },
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "status", label: "Status" },
+            { key: "tipo", label: "Tipo" },
+            { key: "valor", label: "Valor" },
+          ],
+          rows: mapOSRows(data || []),
+          total: count || 0,
+          emptyMessage: "Nenhuma ordem de servico encontrada.",
+        } satisfies DashboardDetailResult;
+      }
+      case "total_transferencias":
+      case "transferencias_pendentes": {
+        let query = supabase
+          .from("transferencias")
+          .select(
+            "id, criado_em, status, lojaOrigem:lojas!transferencias_loja_origem_id_fkey(nome), lojaDestino:lojas!transferencias_loja_destino_id_fkey(nome)",
+            { count: "exact" },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        if (cardKey === "transferencias_pendentes") {
+          query = query.eq("status", "pendente");
+        }
+        if (lojaNumero) {
+          query = query.or(
+            `loja_origem_id.eq.${lojaNumero},loja_destino_id.eq.${lojaNumero}`,
+          );
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "id", label: "ID" },
+            { key: "origem", label: "Origem" },
+            { key: "destino", label: "Destino" },
+            { key: "data", label: "Data" },
+            { key: "status", label: "Status" },
+          ],
+          rows: (data || []).map((item: any) => ({
+            id: item.id?.slice(0, 8) || "-",
+            origem: item.lojaOrigem?.nome || "-",
+            destino: item.lojaDestino?.nome || "-",
+            data: item.criado_em
+              ? new Date(item.criado_em).toLocaleString("pt-BR")
+              : "-",
+            status: item.status || "-",
+          })),
+          total: count || 0,
+          emptyMessage: "Nenhuma transferencia encontrada.",
+        } satisfies DashboardDetailResult;
+      }
+      case "total_quebras": {
+        let query = supabase
+          .from("quebra_pecas")
+          .select(
+            "id, criado_em, valor_total, motivo, produto:produtos(descricao), loja:lojas(nome)",
+            {
+              count: "exact",
+            },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        if (lojaNumero) {
+          query = query.eq("id_loja", lojaNumero);
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "produto", label: "Produto" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "motivo", label: "Motivo" },
+            { key: "valor", label: "Valor" },
+          ],
+          rows: (data || []).map((item: any) => ({
+            produto: item.produto?.descricao || "-",
+            loja: item.loja?.nome || "-",
+            data: item.criado_em
+              ? new Date(item.criado_em).toLocaleString("pt-BR")
+              : "-",
+            motivo: item.motivo || "-",
+            valor: formatarMoeda(Number(item.valor_total || 0)),
+          })),
+          total: count || 0,
+          emptyMessage: "Nenhuma quebra registrada no periodo.",
+        } satisfies DashboardDetailResult;
+      }
+      case "total_creditos_cliente": {
+        let query = supabase
+          .from("creditos_cliente")
+          .select(
+            "saldo, criado_em, motivo, cliente:clientes(nome, id_loja, loja:lojas(nome))",
+            { count: "exact" },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        if (lojaNumero) {
+          query = query.eq("cliente.id_loja", lojaNumero);
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "motivo", label: "Motivo" },
+            { key: "saldo", label: "Saldo" },
+          ],
+          rows: (data || []).map((item: any) => ({
+            cliente: item.cliente?.nome || "-",
+            loja: item.cliente?.loja?.nome || "-",
+            data: item.criado_em
+              ? new Date(item.criado_em).toLocaleString("pt-BR")
+              : "-",
+            motivo: item.motivo || "-",
+            saldo: formatarMoeda(Number(item.saldo || 0)),
+          })),
+          total: count || 0,
+          emptyMessage: "Nenhum credito encontrado no periodo.",
+        } satisfies DashboardDetailResult;
+      }
+      case "devolucoes_com_credito":
+      case "devolucoes_sem_credito": {
+        let query = supabase
+          .from("devolucoes_venda")
+          .select(
+            "tipo, valor_total, criado_em, venda:vendas!devolucoes_venda_venda_id_fkey(numero_venda, loja_id, cliente:clientes(nome), loja:lojas(nome))",
+            { count: "exact" },
+          )
+          .gte("criado_em", inicioISO)
+          .lte("criado_em", fimISO)
+          .range(from, to)
+          .order("criado_em", { ascending: false });
+
+        query =
+          cardKey === "devolucoes_com_credito"
+            ? query.eq("tipo", "com_credito")
+            : query.neq("tipo", "com_credito");
+        if (lojaNumero) {
+          query = query.eq("venda.loja_id", lojaNumero);
+        }
+        const { data, count, error } = await query;
+
+        if (error) throw error;
+
+        return {
+          columns: [
+            { key: "venda", label: "Venda" },
+            { key: "cliente", label: "Cliente" },
+            { key: "loja", label: "Loja" },
+            { key: "data", label: "Data" },
+            { key: "tipo", label: "Tipo" },
+            { key: "valor", label: "Valor" },
+          ],
+          rows: (data || []).map((item: any) => ({
+            venda: `V${String(item.venda?.numero_venda || 0).padStart(6, "0")}`,
+            cliente: item.venda?.cliente?.nome || "-",
+            loja: item.venda?.loja?.nome || "-",
+            data: item.criado_em
+              ? new Date(item.criado_em).toLocaleString("pt-BR")
+              : "-",
+            tipo: item.tipo || "-",
+            valor: formatarMoeda(Number(item.valor_total || 0)),
+          })),
+          total: count || 0,
+          emptyMessage: "Nenhuma devolucao encontrada no periodo.",
+        } satisfies DashboardDetailResult;
+      }
+      default:
+        return {
+          columns: [],
+          rows: [],
+          total: 0,
+          emptyMessage: "Detalhamento nao disponivel para este card.",
+        };
+    }
+  };
+
+  const abrirDetalheCard = async (
+    cardKey: DashboardDetailCardKey,
+    page = 1,
+  ) => {
+    try {
+      setCardDetalhado(cardKey);
+      setModalDetalheOpen(true);
+      setLoadingDetalhe(true);
+      setPaginaDetalhe(page);
+      const result = await buscarDetalhamentoCard(cardKey, page);
+
+      setColunasDetalhe(result.columns);
+      setLinhasDetalhe(result.rows);
+      setTotalDetalhe(result.total);
+      setMensagemVaziaDetalhe(result.emptyMessage);
+    } catch (err) {
+      console.error("Erro ao buscar detalhamento do dashboard:", err);
+      setColunasDetalhe([]);
+      setLinhasDetalhe([]);
+      setTotalDetalhe(0);
+      setMensagemVaziaDetalhe("Nao foi possivel carregar o detalhamento.");
+    } finally {
+      setLoadingDetalhe(false);
+    }
+  };
+
+  const getCardInteractionProps = (cardKey: DashboardDetailCardKey) => ({
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: () => abrirDetalheCard(cardKey, 1),
+    onKeyDown: (event: any) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        abrirDetalheCard(cardKey, 1);
+      }
+    },
+  });
 
   return (
     <div className="p-6 space-y-6">
@@ -322,7 +1103,13 @@ export default function DashboardPage() {
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">Vendas</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm",
+                  "pagamentos_recebidos",
+                )}
+                {...getCardInteractionProps("pagamentos_recebidos")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-success dark:text-green-400">
@@ -350,7 +1137,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm",
+                  "total_vendas",
+                )}
+                {...getCardInteractionProps("total_vendas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-primary dark:text-blue-400">
@@ -376,7 +1169,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm",
+                  "ganho_vendas",
+                )}
+                {...getCardInteractionProps("ganho_vendas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-warning dark:text-amber-400">
@@ -403,7 +1202,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm",
+                  "ticket_medio",
+                )}
+                {...getCardInteractionProps("ticket_medio")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-secondary dark:text-purple-400">
@@ -429,7 +1234,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm",
+                  "contas_nao_pagas",
+                )}
+                {...getCardInteractionProps("contas_nao_pagas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-danger dark:text-red-400">
@@ -463,7 +1274,13 @@ export default function DashboardPage() {
               Ordens de Serviço
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950 dark:to-emerald-900 p-6 shadow-sm",
+                  "faturamento_os_processadas",
+                )}
+                {...getCardInteractionProps("faturamento_os_processadas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-teal-700 dark:text-teal-400">
@@ -489,7 +1306,13 @@ export default function DashboardPage() {
                   Valor total faturado em OS processadas.
                 </p>
               </div>
-              <div className="rounded-xl border border-sky-200 dark:border-sky-800 bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-cyan-950 dark:to-sky-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-sky-200 dark:border-sky-800 bg-gradient-to-br from-cyan-50 to-sky-50 dark:from-cyan-950 dark:to-sky-900 p-6 shadow-sm",
+                  "total_os",
+                )}
+                {...getCardInteractionProps("total_os")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-info dark:text-cyan-400">
@@ -515,7 +1338,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm",
+                  "os_pagas_nao_entregues",
+                )}
+                {...getCardInteractionProps("os_pagas_nao_entregues")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-warning dark:text-amber-400">
@@ -543,7 +1372,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm",
+                  "os_pendentes",
+                )}
+                {...getCardInteractionProps("os_pendentes")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-danger dark:text-red-400">
@@ -569,7 +1404,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950 dark:to-green-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-green-200 dark:border-green-800 bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-950 dark:to-green-900 p-6 shadow-sm",
+                  "ganho_os_processadas",
+                )}
+                {...getCardInteractionProps("ganho_os_processadas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-lime-700 dark:text-lime-400">
@@ -597,7 +1438,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-cyan-200 dark:border-cyan-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-900 p-6 shadow-sm",
+                  "os_processadas",
+                )}
+                {...getCardInteractionProps("os_processadas")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
@@ -631,7 +1478,13 @@ export default function DashboardPage() {
               OS por Tipo de Cliente (Pagas)
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950 dark:to-purple-900 p-6 shadow-sm",
+                  "os_lojista",
+                )}
+                {...getCardInteractionProps("os_lojista")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-violet-700 dark:text-violet-400">
@@ -683,7 +1536,13 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-amber-200 dark:border-amber-800 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-900 p-6 shadow-sm",
+                  "os_consumidor_final",
+                )}
+                {...getCardInteractionProps("os_consumidor_final")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
@@ -736,7 +1595,13 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950 dark:to-gray-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-950 dark:to-gray-900 p-6 shadow-sm",
+                  "os_sem_tipo",
+                )}
+                {...getCardInteractionProps("os_sem_tipo")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-400">
@@ -797,7 +1662,13 @@ export default function DashboardPage() {
               Transferências
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-950 dark:to-blue-900 p-6 shadow-sm",
+                  "total_transferencias",
+                )}
+                {...getCardInteractionProps("total_transferencias")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-cyan-700 dark:text-cyan-400">
@@ -823,7 +1694,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-950 dark:to-yellow-900 p-6 shadow-sm",
+                  "transferencias_pendentes",
+                )}
+                {...getCardInteractionProps("transferencias_pendentes")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
@@ -858,7 +1735,13 @@ export default function DashboardPage() {
               Quebras, Créditos e Devoluções
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm",
+                  "total_quebras",
+                )}
+                {...getCardInteractionProps("total_quebras")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-red-700 dark:text-red-400">
@@ -891,7 +1774,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950 dark:to-purple-900 p-6 shadow-sm",
+                  "total_creditos_cliente",
+                )}
+                {...getCardInteractionProps("total_creditos_cliente")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
@@ -918,7 +1807,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-900 p-6 shadow-sm",
+                  "devolucoes_com_credito",
+                )}
+                {...getCardInteractionProps("devolucoes_com_credito")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -952,7 +1847,13 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950 dark:to-rose-900 p-6 shadow-sm">
+              <div
+                className={getCardClassName(
+                  "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950 dark:to-rose-900 p-6 shadow-sm",
+                  "devolucoes_sem_credito",
+                )}
+                {...getCardInteractionProps("devolucoes_sem_credito")}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-pink-700 dark:text-pink-400">
@@ -1412,6 +2313,128 @@ export default function DashboardPage() {
               </div>
             </section>
           )}
+
+          <Modal
+            isOpen={modalDetalheOpen}
+            scrollBehavior="inside"
+            size="5xl"
+            onClose={() => setModalDetalheOpen(false)}
+          >
+            <ModalContent>
+              <ModalHeader className="flex flex-col gap-1">
+                <span>{detalheCardSelecionado?.titulo || "Detalhamento"}</span>
+                <span className="text-sm font-normal text-default-500">
+                  {detalheCardSelecionado?.descricao || ""}
+                </span>
+              </ModalHeader>
+              <ModalBody>
+                {detalheCardSelecionado && (
+                  <div className="rounded-lg border border-default-200 bg-default-50 p-4 mb-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                          Valor do card
+                        </p>
+                        <p className="text-3xl font-bold text-foreground">
+                          {detalheCardSelecionado.valor}
+                        </p>
+                      </div>
+                      <div className="text-right text-sm text-default-500">
+                        <p>
+                          Periodo: {dataInicio || "2000-01-01"} ate{" "}
+                          {dataFim || hojeISO}
+                        </p>
+                        <p>Registros: {totalDetalhe.toLocaleString("pt-BR")}</p>
+                      </div>
+                    </div>
+                    {detalheCardSelecionado.itens.length > 0 && (
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {detalheCardSelecionado.itens.map((item) => (
+                          <div
+                            key={item}
+                            className="rounded-md border border-default-200 bg-content1 px-3 py-2 text-sm text-default-700"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {loadingDetalhe ? (
+                  <div className="flex items-center justify-center py-16">
+                    <div className="text-center space-y-2">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto" />
+                      <p className="text-default-500">Carregando detalhes...</p>
+                    </div>
+                  </div>
+                ) : linhasDetalhe.length > 0 ? (
+                  <div className="overflow-auto rounded-lg border border-default-200">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-default-100">
+                        <tr>
+                          {colunasDetalhe.map((coluna) => (
+                            <th
+                              key={coluna.key}
+                              className="px-4 py-3 text-left font-semibold text-default-700"
+                            >
+                              {coluna.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linhasDetalhe.map((linha, index) => (
+                          <tr
+                            key={`${index}-${Object.values(linha).join("-")}`}
+                            className="border-t border-default-200"
+                          >
+                            {colunasDetalhe.map((coluna) => (
+                              <td
+                                key={coluna.key}
+                                className="px-4 py-3 text-default-700"
+                              >
+                                {linha[coluna.key] || "-"}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-default-300 px-4 py-12 text-center text-default-500">
+                    {mensagemVaziaDetalhe}
+                  </div>
+                )}
+              </ModalBody>
+              <ModalFooter className="flex items-center justify-between">
+                <div className="text-sm text-default-500">
+                  Pagina {paginaDetalhe} de{" "}
+                  {Math.max(1, Math.ceil(totalDetalhe / pageSizeDetalhe))}
+                </div>
+                <div className="flex items-center gap-3">
+                  {totalDetalhe > pageSizeDetalhe && (
+                    <Pagination
+                      showControls
+                      page={paginaDetalhe}
+                      size="sm"
+                      total={Math.max(
+                        1,
+                        Math.ceil(totalDetalhe / pageSizeDetalhe),
+                      )}
+                      onChange={(page) => {
+                        if (cardDetalhado) {
+                          abrirDetalheCard(cardDetalhado, page);
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
         </>
       )}
     </div>

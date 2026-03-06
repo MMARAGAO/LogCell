@@ -6,9 +6,90 @@ import type {
   ResultadoSimulacaoTaxa,
   TipoProdutoTaxa,
   FormaPagamentoTaxa,
+  BandeiraCartaoTaxa,
 } from "@/types/taxasCartao";
 
 import { supabase } from "@/lib/supabaseClient";
+
+const TABELA_TAXAS_FIXAS: Record<
+  BandeiraCartaoTaxa,
+  {
+    cartao_debito: { taxa_percentual: number; coeficiente: number };
+    cartao_credito: Record<
+      number,
+      { taxa_percentual: number; coeficiente: number }
+    >;
+  }
+> = {
+  visa_mastercard: {
+    cartao_debito: { taxa_percentual: 2.0, coeficiente: 0.98 },
+    cartao_credito: {
+      1: { taxa_percentual: 3.85, coeficiente: 0.9615 },
+      2: { taxa_percentual: 5.0, coeficiente: 0.95 },
+      3: { taxa_percentual: 5.95, coeficiente: 0.9405 },
+      4: { taxa_percentual: 6.69, coeficiente: 0.9331 },
+      5: { taxa_percentual: 7.35, coeficiente: 0.9265 },
+      6: { taxa_percentual: 8.0, coeficiente: 0.92 },
+      7: { taxa_percentual: 8.69, coeficiente: 0.9131 },
+      8: { taxa_percentual: 9.28, coeficiente: 0.9072 },
+      9: { taxa_percentual: 9.89, coeficiente: 0.9011 },
+      10: { taxa_percentual: 10.9, coeficiente: 0.891 },
+      11: { taxa_percentual: 11.3, coeficiente: 0.887 },
+      12: { taxa_percentual: 12.1, coeficiente: 0.879 },
+      13: { taxa_percentual: 13.3, coeficiente: 0.867 },
+      14: { taxa_percentual: 14.1, coeficiente: 0.859 },
+      15: { taxa_percentual: 15.19, coeficiente: 0.8481 },
+      16: { taxa_percentual: 16.0, coeficiente: 0.84 },
+      17: { taxa_percentual: 16.59, coeficiente: 0.8341 },
+      18: { taxa_percentual: 17.1, coeficiente: 0.829 },
+    },
+  },
+  elo: {
+    cartao_debito: { taxa_percentual: 3.0, coeficiente: 0.97 },
+    cartao_credito: {
+      1: { taxa_percentual: 4.85, coeficiente: 0.9515 },
+      2: { taxa_percentual: 6.0, coeficiente: 0.94 },
+      3: { taxa_percentual: 6.95, coeficiente: 0.9305 },
+      4: { taxa_percentual: 7.69, coeficiente: 0.9231 },
+      5: { taxa_percentual: 8.35, coeficiente: 0.9165 },
+      6: { taxa_percentual: 9.0, coeficiente: 0.91 },
+      7: { taxa_percentual: 9.69, coeficiente: 0.9031 },
+      8: { taxa_percentual: 10.28, coeficiente: 0.8972 },
+      9: { taxa_percentual: 10.89, coeficiente: 0.8911 },
+      10: { taxa_percentual: 11.9, coeficiente: 0.881 },
+      11: { taxa_percentual: 12.3, coeficiente: 0.877 },
+      12: { taxa_percentual: 13.1, coeficiente: 0.869 },
+      13: { taxa_percentual: 14.3, coeficiente: 0.857 },
+      14: { taxa_percentual: 15.1, coeficiente: 0.849 },
+      15: { taxa_percentual: 16.19, coeficiente: 0.8381 },
+      16: { taxa_percentual: 17.0, coeficiente: 0.83 },
+      17: { taxa_percentual: 17.59, coeficiente: 0.8241 },
+      18: { taxa_percentual: 18.1, coeficiente: 0.819 },
+    },
+  },
+};
+
+function obterTaxaTabelaFixa(
+  forma_pagamento: FormaPagamentoTaxa,
+  parcelas: number,
+  bandeira: BandeiraCartaoTaxa,
+) {
+  const tabela = TABELA_TAXAS_FIXAS[bandeira];
+
+  if (forma_pagamento === "cartao_debito") {
+    return {
+      ...tabela.cartao_debito,
+      parcelas: 1,
+    };
+  }
+
+  const parcelasAjustadas = Math.min(Math.max(parcelas, 1), 18);
+
+  return {
+    ...(tabela.cartao_credito[parcelasAjustadas] || tabela.cartao_credito[1]),
+    parcelas: parcelasAjustadas,
+  };
+}
 
 /**
  * Serviço para gerenciamento de taxas de cartão
@@ -142,7 +223,7 @@ export async function getTaxaAplicavel(
   }
 }
 
-// Simular taxa de cartão
+// Simular taxa de cartao
 export async function simularTaxaCartao(
   simulacao: SimulacaoTaxa,
 ): Promise<ResultadoSimulacaoTaxa> {
@@ -153,22 +234,19 @@ export async function simularTaxaCartao(
       tipo_produto,
       forma_pagamento,
       parcelas,
+      bandeira = "visa_mastercard",
     } = simulacao;
 
-    // Buscar taxa aplicável (sem passar loja_id, pode ser adicionado depois se necessário)
-    const taxaAplicavel = await getTaxaAplicavel(
-      null,
-      tipo_produto,
-      forma_pagamento,
-      parcelas,
-    );
+    const taxaTabela = obterTaxaTabelaFixa(forma_pagamento, parcelas, bandeira);
 
-    const taxa_percentual = taxaAplicavel?.taxa_percentual || 0;
-
-    // Cálculos
-    const valor_taxa = (valor_bruto * taxa_percentual) / 100;
-    const valor_liquido = valor_bruto - valor_taxa;
-    const lucro_sem_taxa = valor_bruto - valor_custo;
+    const valor_base = valor_bruto;
+    const taxa_percentual = taxaTabela.taxa_percentual;
+    const coeficiente = taxaTabela.coeficiente;
+    const parcelasAplicadas = taxaTabela.parcelas;
+    const valor_brutoCalculado = coeficiente > 0 ? valor_base / coeficiente : 0;
+    const valor_taxa = (valor_brutoCalculado * taxa_percentual) / 100;
+    const valor_liquido = valor_brutoCalculado - valor_taxa;
+    const lucro_sem_taxa = valor_base - valor_custo;
     const lucro_com_taxa = valor_liquido - valor_custo;
 
     const margem_lucro_sem_taxa_percentual =
@@ -177,9 +255,11 @@ export async function simularTaxaCartao(
       valor_bruto > 0 ? (lucro_com_taxa / valor_bruto) * 100 : 0;
 
     return {
-      valor_bruto,
+      valor_base,
+      valor_bruto: valor_brutoCalculado,
       valor_custo,
       taxa_percentual,
+      coeficiente,
       valor_taxa,
       valor_liquido,
       lucro_sem_taxa,
@@ -187,11 +267,12 @@ export async function simularTaxaCartao(
       margem_lucro_sem_taxa_percentual,
       margem_lucro_com_taxa_percentual,
       forma_pagamento,
-      parcelas,
+      parcelas: parcelasAplicadas,
+      bandeira,
       tipo_produto,
     };
   } catch (error) {
-    console.error("Erro ao simular taxa de cartão:", error);
+    console.error("Erro ao simular taxa de cartao:", error);
     throw error;
   }
 }

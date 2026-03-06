@@ -3,6 +3,76 @@ import type { DadosDashboard, FiltroDashboard } from "@/types/dashboard";
 import { supabase } from "@/lib/supabaseClient";
 
 export class DashboardService {
+  static async buscarContasNaoPagasAcumuladas(
+    data_inicio?: string,
+    data_fim?: string,
+    loja_id?: number,
+  ): Promise<number> {
+    const pageSize = 1000;
+    let from = 0;
+    let to = pageSize - 1;
+    let totalContasNaoPagas = 0;
+
+    while (true) {
+      let queryContasNaoPagas = supabase
+        .from("vendas")
+        .select("valor_total, valor_pago, saldo_devedor")
+        .neq("status", "cancelada")
+        .range(from, to);
+
+      if (data_inicio) {
+        queryContasNaoPagas = queryContasNaoPagas.gte(
+          "criado_em",
+          `${data_inicio}T00:00:00`,
+        );
+      }
+
+      if (data_fim) {
+        queryContasNaoPagas = queryContasNaoPagas.lte(
+          "criado_em",
+          `${data_fim}T23:59:59`,
+        );
+      }
+
+      if (loja_id) {
+        queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
+      }
+
+      const { data: contasData, error: erroContas } = await queryContasNaoPagas;
+
+      if (erroContas) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar contas não pagas acumuladas:",
+          erroContas,
+        );
+        break;
+      }
+
+      const batchContas = contasData || [];
+
+      batchContas.forEach((v: any) => {
+        const valorTotal = Number(v.valor_total || 0);
+        const valorPago = Number(v.valor_pago || 0);
+        const saldoDevedor = Number(v.saldo_devedor || 0);
+        const pendente =
+          saldoDevedor > 0 ? saldoDevedor : valorTotal - valorPago;
+
+        if (pendente > 0) {
+          totalContasNaoPagas += pendente;
+        }
+      });
+
+      if (batchContas.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
+      to += pageSize;
+    }
+
+    return totalContasNaoPagas;
+  }
+
   static async buscarDadosDashboard(
     filtro: FiltroDashboard,
   ): Promise<DadosDashboard> {
@@ -87,6 +157,12 @@ export class DashboardService {
         (Array.isArray(metricasAdicionais.data)
           ? metricasAdicionais.data[0]
           : metricasAdicionais.data) || {};
+      const contasNaoPagasAcumuladas =
+        await this.buscarContasNaoPagasAcumuladas(
+          data_inicio,
+          data_fim,
+          loja_id,
+        );
 
       console.log("✅ [DASHBOARD] Dados carregados:", {
         vendas,
@@ -104,7 +180,7 @@ export class DashboardService {
           total_vendas: Number(vendas.total_vendas || 0),
           ganho_total_vendas: Number(vendas.lucro_vendas || 0),
           ticket_medio: Number(vendas.ticket_medio || 0),
-          contas_nao_pagas: Number(vendas.contas_nao_pagas || 0),
+          contas_nao_pagas: Number(contasNaoPagasAcumuladas || 0),
           total_os: Number(os.total_os || 0),
           os_entregues: Number(os.os_entregues || 0),
           os_pendentes: Number(os.os_pendentes || 0),

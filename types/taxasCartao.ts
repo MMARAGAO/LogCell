@@ -2,6 +2,7 @@
 
 export type TipoProdutoTaxa = "aparelho" | "acessorio" | "servico" | "todos";
 export type FormaPagamentoTaxa = "cartao_credito" | "cartao_debito";
+export type BandeiraCartaoTaxa = "visa_mastercard" | "elo";
 
 export interface TaxaCartao {
   id: string;
@@ -34,13 +35,16 @@ export interface SimulacaoTaxa {
   tipo_produto: TipoProdutoTaxa;
   forma_pagamento: FormaPagamentoTaxa;
   parcelas: number;
+  bandeira?: BandeiraCartaoTaxa;
   taxa_aplicada?: TaxaCartao;
 }
 
 export interface ResultadoSimulacaoTaxa {
+  valor_base: number;
   valor_bruto: number;
   valor_custo: number;
   taxa_percentual: number;
+  coeficiente: number;
   valor_taxa: number;
   valor_liquido: number;
   lucro_sem_taxa: number;
@@ -49,6 +53,7 @@ export interface ResultadoSimulacaoTaxa {
   margem_lucro_com_taxa_percentual: number;
   forma_pagamento: FormaPagamentoTaxa;
   parcelas: number;
+  bandeira: BandeiraCartaoTaxa;
   tipo_produto: TipoProdutoTaxa;
 }
 

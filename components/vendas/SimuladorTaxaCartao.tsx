@@ -4,6 +4,7 @@ import type {
   ResultadoSimulacaoTaxa,
   TipoProdutoTaxa,
   FormaPagamentoTaxa,
+  BandeiraCartaoTaxa,
 } from "@/types/taxasCartao";
 
 import React, { useState, useEffect } from "react";
@@ -47,6 +48,11 @@ const FORMAS_PAGAMENTO = [
   { value: "cartao_debito", label: "Cartão de Débito" },
 ];
 
+const BANDEIRAS = [
+  { value: "visa_mastercard", label: "Visa / Mastercard" },
+  { value: "elo", label: "Elo" },
+];
+
 const OPCOES_PARCELAS = [
   { value: 1, label: "À vista" },
   { value: 2, label: "2x" },
@@ -73,6 +79,8 @@ export function SimuladorTaxaCartao({
     useState<TipoProdutoTaxa>(tipoProdutoPadrao);
   const [formaPagamento, setFormaPagamento] =
     useState<FormaPagamentoTaxa>("cartao_credito");
+  const [bandeira, setBandeira] =
+    useState<BandeiraCartaoTaxa>("visa_mastercard");
   const [parcelas, setParcelas] = useState(1);
   const [resultado, setResultado] = useState<ResultadoSimulacaoTaxa | null>(
     null,
@@ -92,7 +100,7 @@ export function SimuladorTaxaCartao({
 
   useEffect(() => {
     realizarSimulacao();
-  }, [valorVenda, valorCusto, tipoProduto, formaPagamento, parcelas]);
+  }, [valorVenda, valorCusto, tipoProduto, formaPagamento, bandeira, parcelas]);
 
   const realizarSimulacao = async () => {
     if (valorVenda <= 0) {
@@ -149,7 +157,7 @@ export function SimuladorTaxaCartao({
       </CardHeader>
       <CardBody className="gap-4">
         {/* Seletores */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Select
             label="Tipo de Produto"
             selectedKeys={[tipoProduto]}
@@ -178,6 +186,18 @@ export function SimuladorTaxaCartao({
           </Select>
 
           <Select
+            label="Bandeira"
+            selectedKeys={[bandeira]}
+            size="sm"
+            variant="bordered"
+            onChange={(e) => setBandeira(e.target.value as BandeiraCartaoTaxa)}
+          >
+            {BANDEIRAS.map((item) => (
+              <SelectItem key={item.value}>{item.label}</SelectItem>
+            ))}
+          </Select>
+
+          <Select
             isDisabled={formaPagamento === "cartao_debito"}
             label="Parcelas"
             selectedKeys={[parcelas.toString()]}
@@ -199,8 +219,17 @@ export function SimuladorTaxaCartao({
 
             {/* Resumo Rápido */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-default-100 p-3 rounded-lg">
+                <p className="text-xs text-default-600 mb-1">Valor a Vista</p>
+                <p className="text-lg font-bold text-default-700">
+                  {formatarMoeda(resultado.valor_base)}
+                </p>
+              </div>
+
               <div className="bg-primary/10 p-3 rounded-lg">
-                <p className="text-xs text-default-600 mb-1">Valor Bruto</p>
+                <p className="text-xs text-default-600 mb-1">
+                  Valor do Cliente
+                </p>
                 <p className="text-lg font-bold text-primary">
                   {formatarMoeda(resultado.valor_bruto)}
                 </p>
@@ -216,22 +245,12 @@ export function SimuladorTaxaCartao({
               </div>
 
               <div className="bg-success/10 p-3 rounded-lg">
-                <p className="text-xs text-default-600 mb-1">Valor Líquido</p>
+                <p className="text-xs text-default-600 mb-1">Recebimento</p>
                 <p className="text-lg font-bold text-success">
                   {formatarMoeda(resultado.valor_liquido)}
                 </p>
-              </div>
-
-              <div className="bg-warning/10 p-3 rounded-lg">
-                <p className="text-xs text-default-600 mb-1">Lucro c/ Taxa</p>
-                <p
-                  className={`text-lg font-bold ${
-                    resultado.lucro_com_taxa > 0
-                      ? "text-success"
-                      : "text-danger"
-                  }`}
-                >
-                  {formatarMoeda(resultado.lucro_com_taxa)}
+                <p className="text-[11px] text-default-500">
+                  Coef: {resultado.coeficiente.toFixed(4)}
                 </p>
               </div>
             </div>

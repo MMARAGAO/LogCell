@@ -1364,7 +1364,7 @@ export default function VendasPage() {
   const indiceInicio = (paginaAtual - 1) * itensPorPagina;
   const indiceFim = indiceInicio + itensPorPagina;
   const vendasPaginadas = vendasOrdenadas.slice(indiceInicio, indiceFim);
-  const totaisTabela = vendasPaginadas.reduce(
+  const totaisTabela = vendasOrdenadas.reduce(
     (acc, venda) => {
       acc.valorTotal += Number(venda.valor_total || 0);
       acc.valorPago += Number(venda.valor_pago || 0);
@@ -2052,34 +2052,37 @@ export default function VendasPage() {
                   </TableRow>
                 ))}
                 {vendasPaginadas.length > 0 && (
-                  <TableRow key="total-tabela">
+                  <TableRow
+                    key="total-tabela"
+                    className="bg-gray-100 dark:bg-gray-800/30"
+                  >
                     <TableCell>
                       <span className="font-bold">TOTAL</span>
                     </TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
                     <TableCell>
-                      <span className="font-bold text-primary">
+                      <span className="font-extrabold text-primary">
                         {formatarMoeda(totaisTabela.valorTotal)}
                       </span>
                     </TableCell>
                     <TableCell>
-                      <span className="font-bold text-success">
+                      <span className="font-extrabold text-success">
                         {formatarMoeda(totaisTabela.valorPago)}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span
-                        className={`font-bold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
+                        className={`font-extrabold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
                       >
                         {formatarMoeda(totaisTabela.saldoDevedor)}
                       </span>
                     </TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
+                    <TableCell className="text-default-400">-</TableCell>
                   </TableRow>
                 )}
                 </>
