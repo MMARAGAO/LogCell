@@ -73,6 +73,143 @@ export class DashboardService {
     return totalContasNaoPagas;
   }
 
+  private static async calcularMetricasOSProcessadasCorrigidas(
+    inicioISO: string,
+    fimISO: string,
+    loja_id?: number,
+  ): Promise<{
+    os_entregues: number;
+    os_pagas_nao_entregues: number;
+    os_processadas: number;
+    faturamento_os_processadas: number;
+    ganho_os_processadas: number;
+  }> {
+    const pageSize = 1000;
+    const osProcessadasIds: string[] = [];
+    let fromOS = 0;
+    let toOS = pageSize - 1;
+    let osEntregues = 0;
+    let osPagasNaoEntregues = 0;
+
+    while (true) {
+      let queryOSProcessadas = supabase
+        .from("ordem_servico")
+        .select("id, status, valor_pago")
+        .or("status.eq.entregue,valor_pago.gt.0")
+        .neq("status", "cancelado")
+        .gte("criado_em", inicioISO)
+        .lte("criado_em", fimISO)
+        .range(fromOS, toOS);
+
+      if (loja_id) {
+        queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
+      }
+
+      const { data: osProcessadasData, error: erroOSProcessadas } =
+        await queryOSProcessadas;
+
+      if (erroOSProcessadas) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar OS processadas corrigidas:",
+          erroOSProcessadas,
+        );
+        break;
+      }
+
+      const batchOSProcessadas = osProcessadasData || [];
+
+      batchOSProcessadas.forEach((os: any) => {
+        if (!os?.id) return;
+        osProcessadasIds.push(os.id);
+
+        if (os.status === "entregue") {
+          osEntregues += 1;
+        } else if (Number(os.valor_pago || 0) > 0) {
+          osPagasNaoEntregues += 1;
+        }
+      });
+
+      if (batchOSProcessadas.length < pageSize) {
+        break;
+      }
+
+      fromOS += pageSize;
+      toOS += pageSize;
+    }
+
+    const idsUnicos = Array.from(new Set(osProcessadasIds));
+    const batchSize = 50;
+    let faturamentoOSProcessadas = 0;
+    let custoOSProcessadas = 0;
+
+    for (let i = 0; i < idsUnicos.length; i += batchSize) {
+      const batchIds = idsUnicos.slice(i, i + batchSize);
+
+      let fromPagamentos = 0;
+      let toPagamentos = pageSize - 1;
+
+      while (true) {
+        const { data: pagamentosData, error: erroPagamentos } = await supabase
+          .from("ordem_servico_pagamentos")
+          .select("valor")
+          .in("id_ordem_servico", batchIds)
+          .gte("data_pagamento", inicioISO)
+          .lte("data_pagamento", fimISO)
+          .range(fromPagamentos, toPagamentos);
+
+        if (erroPagamentos) {
+          console.error(
+            "❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas corrigidas:",
+            erroPagamentos,
+          );
+          break;
+        }
+
+        const batchPagamentos = pagamentosData || [];
+
+        batchPagamentos.forEach((pagamento: any) => {
+          faturamentoOSProcessadas += Number(pagamento.valor || 0);
+        });
+
+        if (batchPagamentos.length < pageSize) {
+          break;
+        }
+
+        fromPagamentos += pageSize;
+        toPagamentos += pageSize;
+      }
+
+      const { data: pecasData, error: erroPecas } = await supabase
+        .from("ordem_servico_pecas")
+        .select(
+          "quantidade, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)",
+        )
+        .in("id_ordem_servico", batchIds);
+
+      if (erroPecas) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar custo de peças de OS processadas corrigidas:",
+          erroPecas,
+        );
+      } else {
+        (pecasData || []).forEach((peca: any) => {
+          const precoCompra = Number(peca.produto?.preco_compra || 0);
+          const quantidade = Number(peca.quantidade || 0);
+
+          custoOSProcessadas += precoCompra * quantidade;
+        });
+      }
+    }
+
+    return {
+      os_entregues: osEntregues,
+      os_pagas_nao_entregues: osPagasNaoEntregues,
+      os_processadas: osEntregues + osPagasNaoEntregues,
+      faturamento_os_processadas: faturamentoOSProcessadas,
+      ganho_os_processadas: faturamentoOSProcessadas - custoOSProcessadas,
+    };
+  }
+
   static async buscarDadosDashboard(
     filtro: FiltroDashboard,
   ): Promise<DadosDashboard> {
@@ -163,6 +300,12 @@ export class DashboardService {
           data_fim,
           loja_id,
         );
+      const metricasOSCorrigidas =
+        await this.calcularMetricasOSProcessadasCorrigidas(
+          inicioISO,
+          fimISO,
+          loja_id,
+        );
 
       console.log("✅ [DASHBOARD] Dados carregados:", {
         vendas,
@@ -182,14 +325,22 @@ export class DashboardService {
           ticket_medio: Number(vendas.ticket_medio || 0),
           contas_nao_pagas: Number(contasNaoPagasAcumuladas || 0),
           total_os: Number(os.total_os || 0),
-          os_entregues: Number(os.os_entregues || 0),
+          os_entregues: Number(metricasOSCorrigidas.os_entregues || 0),
           os_pendentes: Number(os.os_pendentes || 0),
-          os_pagas_nao_entregues: Number(os.os_pagas_nao_entregues || 0),
-          os_processadas: Number(os.os_processadas || 0),
-          faturamento_os_processadas: Number(os.faturamento_processadas || 0),
-          ganho_os_processadas: Number(os.ganho_processadas || 0),
-          faturamento_os: Number(os.faturamento_processadas || 0),
-          ganho_os: Number(os.ganho_processadas || 0),
+          os_pagas_nao_entregues: Number(
+            metricasOSCorrigidas.os_pagas_nao_entregues || 0,
+          ),
+          os_processadas: Number(metricasOSCorrigidas.os_processadas || 0),
+          faturamento_os_processadas: Number(
+            metricasOSCorrigidas.faturamento_os_processadas || 0,
+          ),
+          ganho_os_processadas: Number(
+            metricasOSCorrigidas.ganho_os_processadas || 0,
+          ),
+          faturamento_os: Number(
+            metricasOSCorrigidas.faturamento_os_processadas || 0,
+          ),
+          ganho_os: Number(metricasOSCorrigidas.ganho_os_processadas || 0),
           total_transferencias: Number(adicionais.total_transferencias || 0),
           transferencias_pendentes: Number(
             adicionais.transferencias_pendentes || 0,
@@ -1096,6 +1247,12 @@ export class DashboardService {
     osConsumidorFinalLucro =
       osConsumidorFinalFaturamento - osConsumidorFinalLucro;
     osSemTipoLucro = osSemTipoFaturamento - osSemTipoLucro;
+    const metricasOSCorrigidas =
+      await this.calcularMetricasOSProcessadasCorrigidas(
+        inicioISO,
+        fimISO,
+        loja_id,
+      );
 
     return {
       metricas_adicionais: {
@@ -1106,14 +1263,16 @@ export class DashboardService {
         ticket_medio: ticketMedio,
         contas_nao_pagas: totalContasNaoPagas,
         total_os: totalOS || 0,
-        os_entregues: osEntregues || 0,
+        os_entregues: metricasOSCorrigidas.os_entregues || 0,
         os_pendentes: osPendentes || 0,
-        os_pagas_nao_entregues: osPagasNaoEntregues || 0,
-        os_processadas: osProcessadas,
-        faturamento_os_processadas: faturamentoOSProcessadas,
-        ganho_os_processadas: ganhoOSProcessadas,
-        faturamento_os: faturamentoOS,
-        ganho_os: ganhoOS,
+        os_pagas_nao_entregues:
+          metricasOSCorrigidas.os_pagas_nao_entregues || 0,
+        os_processadas: metricasOSCorrigidas.os_processadas || 0,
+        faturamento_os_processadas:
+          metricasOSCorrigidas.faturamento_os_processadas || 0,
+        ganho_os_processadas: metricasOSCorrigidas.ganho_os_processadas || 0,
+        faturamento_os: metricasOSCorrigidas.faturamento_os_processadas || 0,
+        ganho_os: metricasOSCorrigidas.ganho_os_processadas || 0,
         total_transferencias: totalTransferencias || 0,
         transferencias_pendentes: transferenciasPendentes || 0,
         total_quebras: totalQuebras,
