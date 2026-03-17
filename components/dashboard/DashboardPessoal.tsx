@@ -283,82 +283,89 @@ export default function DashboardPessoal() {
   }, [detalheSelecionado]);
 
   const carregarLojas = async () => {
-      if (!usuario || lojaId) return;
+    if (!usuario || lojaId) return;
 
-      try {
-        const supabase = createBrowserClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        );
-        const { data, error } = await supabase
-          .from("lojas")
-          .select("id, nome")
-          .order("nome", { ascending: true });
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      );
+      const { data, error } = await supabase
+        .from("lojas")
+        .select("id, nome")
+        .order("nome", { ascending: true });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setLojas(
-          (data || []).map((loja: any) => ({
-            id: Number(loja.id),
-            nome: String(loja.nome || `Loja ${loja.id}`),
-          })),
-        );
-      } catch (error) {
-        console.error("Erro ao carregar lojas:", error);
-      }
-    };
+      setLojas(
+        (data || []).map((loja: any) => ({
+          id: Number(loja.id),
+          nome: String(loja.nome || `Loja ${loja.id}`),
+        })),
+      );
+    } catch (error) {
+      console.error("Erro ao carregar lojas:", error);
+    }
+  };
 
   const resolverIntervaloEscopo = (hoje: Date) => {
-      if (periodoFiltro === "hoje") {
-        const { inicio, fim } = getDayBounds(hoje);
-
-        return {
-          inicio,
-          fim,
-          descricao: "Hoje",
-        };
-      }
-
-      if (periodoFiltro === "personalizado") {
-        const inicio = new Date(`${dataInicioPersonalizada}T00:00:00`);
-        const fim = new Date(`${dataFimPersonalizada}T23:59:59`);
-
-        return {
-          inicio,
-          fim,
-          descricao: `${new Date(`${dataInicioPersonalizada}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${dataFimPersonalizada}T00:00:00`).toLocaleDateString("pt-BR")}`,
-        };
-      }
-
-      const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-      const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+    if (periodoFiltro === "hoje") {
+      const { inicio, fim } = getDayBounds(hoje);
 
       return {
         inicio,
         fim,
-        descricao: "Mês atual",
+        descricao: "Hoje",
       };
+    }
+
+    if (periodoFiltro === "personalizado") {
+      const inicio = new Date(`${dataInicioPersonalizada}T00:00:00`);
+      const fim = new Date(`${dataFimPersonalizada}T23:59:59`);
+
+      return {
+        inicio,
+        fim,
+        descricao: `${new Date(`${dataInicioPersonalizada}T00:00:00`).toLocaleDateString("pt-BR")} a ${new Date(`${dataFimPersonalizada}T00:00:00`).toLocaleDateString("pt-BR")}`,
+      };
+    }
+
+    const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const fim = new Date(
+      hoje.getFullYear(),
+      hoje.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    return {
+      inicio,
+      fim,
+      descricao: "Mês atual",
     };
+  };
 
   const buscarPagamentosRecebidos = async (
-      supabase: any,
-      usuarioId: string,
-      inicioISO: string,
-      fimISO: string,
-      lojaEscopoId?: number,
-    ) => {
-      const tamanhoPagina = 1000;
-      let pagina = 0;
-      const pagamentos: any[] = [];
+    supabase: any,
+    usuarioId: string,
+    inicioISO: string,
+    fimISO: string,
+    lojaEscopoId?: number,
+  ) => {
+    const tamanhoPagina = 1000;
+    let pagina = 0;
+    const pagamentos: any[] = [];
 
-      while (true) {
-        const inicio = pagina * tamanhoPagina;
-        const fim = inicio + tamanhoPagina - 1;
+    while (true) {
+      const inicio = pagina * tamanhoPagina;
+      const fim = inicio + tamanhoPagina - 1;
 
-        let queryPagamentos = supabase
-          .from("pagamentos_venda")
-          .select(
-            `
+      let queryPagamentos = supabase
+        .from("pagamentos_venda")
+        .select(
+          `
             id,
             venda_id,
             valor,
@@ -374,55 +381,55 @@ export default function DashboardPessoal() {
               cliente:clientes(nome)
             )
           `,
-          )
-          .eq("venda.vendedor_id", usuarioId)
-          .not("data_pagamento", "is", null)
-          .neq("tipo_pagamento", "credito_cliente")
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .order("criado_em", { ascending: false })
-          .range(inicio, fim);
+        )
+        .eq("venda.vendedor_id", usuarioId)
+        .not("data_pagamento", "is", null)
+        .neq("tipo_pagamento", "credito_cliente")
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .order("criado_em", { ascending: false })
+        .range(inicio, fim);
 
-        if (lojaEscopoId) {
-          queryPagamentos = queryPagamentos.eq("venda.loja_id", lojaEscopoId);
-        }
-
-        const { data, error } = await queryPagamentos;
-
-        if (error) throw error;
-
-        const lote = data || [];
-
-        pagamentos.push(...lote);
-
-        if (lote.length < tamanhoPagina) break;
-
-        pagina += 1;
+      if (lojaEscopoId) {
+        queryPagamentos = queryPagamentos.eq("venda.loja_id", lojaEscopoId);
       }
 
-      return pagamentos;
-    };
+      const { data, error } = await queryPagamentos;
 
-    const buscarPagamentosOS = async (
-      supabase: any,
-      usuarioId: string,
-      perfilAtual: string,
-      inicioISO: string,
-      fimISO: string,
-      lojaEscopoId?: number,
-    ) => {
-      const tamanhoPagina = 1000;
-      let pagina = 0;
-      const pagamentosOS: any[] = [];
+      if (error) throw error;
 
-      while (true) {
-        const inicio = pagina * tamanhoPagina;
-        const fim = inicio + tamanhoPagina - 1;
+      const lote = data || [];
 
-        let queryPagamentosOS = supabase
-          .from("ordem_servico_pagamentos")
-          .select(
-            `
+      pagamentos.push(...lote);
+
+      if (lote.length < tamanhoPagina) break;
+
+      pagina += 1;
+    }
+
+    return pagamentos;
+  };
+
+  const buscarPagamentosOS = async (
+    supabase: any,
+    usuarioId: string,
+    perfilAtual: string,
+    inicioISO: string,
+    fimISO: string,
+    lojaEscopoId?: number,
+  ) => {
+    const tamanhoPagina = 1000;
+    let pagina = 0;
+    const pagamentosOS: any[] = [];
+
+    while (true) {
+      const inicio = pagina * tamanhoPagina;
+      const fim = inicio + tamanhoPagina - 1;
+
+      let queryPagamentosOS = supabase
+        .from("ordem_servico_pagamentos")
+        .select(
+          `
             id,
             id_ordem_servico,
             valor,
@@ -436,58 +443,58 @@ export default function DashboardPessoal() {
               status
             )
           `,
-          )
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .order("data_pagamento", { ascending: false })
-          .range(inicio, fim);
+        )
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .order("data_pagamento", { ascending: false })
+        .range(inicio, fim);
 
-        if (perfilAtual === "tecnico") {
-          queryPagamentosOS = queryPagamentosOS.eq(
-            "os.tecnico_responsavel",
-            usuarioId,
-          );
-        } else {
-          queryPagamentosOS = queryPagamentosOS.eq("os.criado_por", usuarioId);
-        }
-
-        if (lojaEscopoId) {
-          queryPagamentosOS = queryPagamentosOS.eq("os.id_loja", lojaEscopoId);
-        }
-
-        const { data, error } = await queryPagamentosOS;
-
-        if (error) throw error;
-
-        const lote = data || [];
-
-        pagamentosOS.push(...lote);
-
-        if (lote.length < tamanhoPagina) break;
-
-        pagina += 1;
+      if (perfilAtual === "tecnico") {
+        queryPagamentosOS = queryPagamentosOS.eq(
+          "os.tecnico_responsavel",
+          usuarioId,
+        );
+      } else {
+        queryPagamentosOS = queryPagamentosOS.eq("os.criado_por", usuarioId);
       }
 
-      return pagamentosOS;
-    };
+      if (lojaEscopoId) {
+        queryPagamentosOS = queryPagamentosOS.eq("os.id_loja", lojaEscopoId);
+      }
 
-    const mapearPagamentos = (pagamentos: any[]): PagamentoDetalhe[] => {
-      return pagamentos
-        .filter((pagamento) => pagamento?.venda?.status !== "cancelada")
-        .map((pagamento) => ({
-          id: String(pagamento.id),
-          venda_id: String(pagamento.venda_id),
-          numero_venda: Number(pagamento.venda?.numero_venda || 0),
-          cliente_nome: pagamento.venda?.cliente?.nome || "Cliente não informado",
-          loja_id: pagamento.venda?.loja_id
-            ? Number(pagamento.venda?.loja_id)
-            : undefined,
-          tipo_pagamento: String(pagamento.tipo_pagamento || "-"),
-          valor: Number(pagamento.valor || 0),
-          data_pagamento: String(pagamento.data_pagamento || pagamento.criado_em),
-          criado_em: String(pagamento.criado_em || pagamento.data_pagamento),
-        }));
-    };
+      const { data, error } = await queryPagamentosOS;
+
+      if (error) throw error;
+
+      const lote = data || [];
+
+      pagamentosOS.push(...lote);
+
+      if (lote.length < tamanhoPagina) break;
+
+      pagina += 1;
+    }
+
+    return pagamentosOS;
+  };
+
+  const mapearPagamentos = (pagamentos: any[]): PagamentoDetalhe[] => {
+    return pagamentos
+      .filter((pagamento) => pagamento?.venda?.status !== "cancelada")
+      .map((pagamento) => ({
+        id: String(pagamento.id),
+        venda_id: String(pagamento.venda_id),
+        numero_venda: Number(pagamento.venda?.numero_venda || 0),
+        cliente_nome: pagamento.venda?.cliente?.nome || "Cliente não informado",
+        loja_id: pagamento.venda?.loja_id
+          ? Number(pagamento.venda?.loja_id)
+          : undefined,
+        tipo_pagamento: String(pagamento.tipo_pagamento || "-"),
+        valor: Number(pagamento.valor || 0),
+        data_pagamento: String(pagamento.data_pagamento || pagamento.criado_em),
+        criado_em: String(pagamento.criado_em || pagamento.data_pagamento),
+      }));
+  };
 
   const carregarMetricas = async (forcarRefresh?: boolean) => {
     if (!usuario) return;
@@ -547,10 +554,13 @@ export default function DashboardPessoal() {
       const fimEscopoISO = escopo.fim.toISOString();
 
       if (periodoFiltro === "personalizado" && escopo.inicio > escopo.fim) {
-        throw new Error("Período personalizado inválido: a data inicial é maior que a final.");
+        throw new Error(
+          "Período personalizado inválido: a data inicial é maior que a final.",
+        );
       }
 
-      const lojaEscopoId = lojaId || (filtroLojaId !== "todas" ? Number(filtroLojaId) : undefined);
+      const lojaEscopoId =
+        lojaId || (filtroLojaId !== "todas" ? Number(filtroLojaId) : undefined);
 
       const pagamentosMesRaw = await buscarPagamentosRecebidos(
         supabase,
@@ -750,7 +760,8 @@ export default function DashboardPessoal() {
         hoje.getMonth() + 1,
         0,
       ).getDate();
-      const fracaoMes = totalDiasMesAtual > 0 ? diaDoMesAtual / totalDiasMesAtual : 0;
+      const fracaoMes =
+        totalDiasMesAtual > 0 ? diaDoMesAtual / totalDiasMesAtual : 0;
       const metaEsperadaAteHoje = metaMensalAtual * fracaoMes;
       const desvioMetaProporcional = totalRecebidoMes - metaEsperadaAteHoje;
       const progressoEsperado =
@@ -808,7 +819,9 @@ export default function DashboardPessoal() {
           id: String(pagamento.id),
           id_ordem_servico: String(pagamento.id_ordem_servico),
           numero_os: String(pagamento.os?.numero_os || "-"),
-          cliente_nome: String(pagamento.os?.cliente_nome || "Cliente não informado"),
+          cliente_nome: String(
+            pagamento.os?.cliente_nome || "Cliente não informado",
+          ),
           valor: Number(pagamento.valor || 0),
           data_pagamento: String(pagamento.data_pagamento),
         }));
@@ -909,7 +922,9 @@ export default function DashboardPessoal() {
       const aReceberMes = listaPendentes.reduce((acumulado, venda) => {
         if (!venda.data_prevista_pagamento) return acumulado;
 
-        const chaveVencimento = getDateKeyInTimezone(venda.data_prevista_pagamento);
+        const chaveVencimento = getDateKeyInTimezone(
+          venda.data_prevista_pagamento,
+        );
 
         if (chaveVencimento >= inicioMesKey && chaveVencimento <= fimMesKey) {
           return acumulado + venda.saldo_devedor;
@@ -921,7 +936,9 @@ export default function DashboardPessoal() {
       const atrasado = listaPendentes.reduce((acumulado, venda) => {
         if (!venda.data_prevista_pagamento) return acumulado;
 
-        const chaveVencimento = getDateKeyInTimezone(venda.data_prevista_pagamento);
+        const chaveVencimento = getDateKeyInTimezone(
+          venda.data_prevista_pagamento,
+        );
 
         if (chaveVencimento < chaveHoje) {
           return acumulado + venda.saldo_devedor;
@@ -1103,7 +1120,8 @@ export default function DashboardPessoal() {
   })();
 
   const tituloDrilldown = (() => {
-    if (detalheSelecionado === "recebido_hoje") return "Detalhes de Recebido Hoje";
+    if (detalheSelecionado === "recebido_hoje")
+      return "Detalhes de Recebido Hoje";
     if (detalheSelecionado === "ticket") return "Detalhes do Ticket no Período";
     if (detalheSelecionado === "recebido_periodo")
       return "Detalhes de Recebido no Período";
@@ -1138,8 +1156,7 @@ export default function DashboardPessoal() {
     Math.max(paginaGanhosOS, 1),
     totalPaginasGanhosOS,
   );
-  const inicioGanhosOS =
-    (paginaGanhosOSAtual - 1) * ITENS_POR_PAGINA_GANHOS_OS;
+  const inicioGanhosOS = (paginaGanhosOSAtual - 1) * ITENS_POR_PAGINA_GANHOS_OS;
   const fimGanhosOS = inicioGanhosOS + ITENS_POR_PAGINA_GANHOS_OS;
   const pagamentosOSPaginados = metricas.ganhosOS.ultimosPagamentos.slice(
     inicioGanhosOS,
@@ -1149,18 +1166,36 @@ export default function DashboardPessoal() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {erroCarregamento ? (
-        <Card className="border border-danger-200 bg-danger-50 dark:bg-danger-900/20" id="detalhes-calculo">
+        <Card
+          className="border border-danger-200 bg-danger-50 dark:bg-danger-900/20"
+          id="detalhes-calculo"
+        >
           <CardBody className="flex items-start gap-3 py-5">
             <div className="flex items-center gap-2 text-danger-600">
               <AlertTriangle className="w-5 h-5" />
-              <p className="font-semibold">Não foi possível atualizar os dados do dashboard.</p>
+              <p className="font-semibold">
+                Não foi possível atualizar os dados do dashboard.
+              </p>
             </div>
-            <p className="text-sm text-danger-700 dark:text-danger-200">{erroCarregamento}</p>
+            <p className="text-sm text-danger-700 dark:text-danger-200">
+              {erroCarregamento}
+            </p>
             <div className="flex items-center gap-2">
-              <Button color="danger" size="sm" variant="flat" onPress={() => carregarMetricas(true)}>
+              <Button
+                color="danger"
+                size="sm"
+                variant="flat"
+                onPress={() => carregarMetricas(true)}
+              >
                 Tentar novamente
               </Button>
-              <Button as="a" color="danger" href="#detalhes-calculo" size="sm" variant="light">
+              <Button
+                as="a"
+                color="danger"
+                href="#detalhes-calculo"
+                size="sm"
+                variant="light"
+              >
                 Ver detalhes do cálculo
               </Button>
             </div>
@@ -1175,13 +1210,15 @@ export default function DashboardPessoal() {
             <div>
               <p className="font-bold text-default-900">Escopo do Dashboard</p>
               <p className="text-sm text-default-500">
-                Loja: {metricas?.periodoEscopo.lojaDescricao || "-"} | Período: {metricas?.periodoEscopo.descricao || "-"}
+                Loja: {metricas?.periodoEscopo.lojaDescricao || "-"} | Período:{" "}
+                {metricas?.periodoEscopo.descricao || "-"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <p className="text-xs text-default-500">
-              Atualizado às {formatarHoraAtualizacao(metricas?.ultimaAtualizacao)}
+              Atualizado às{" "}
+              {formatarHoraAtualizacao(metricas?.ultimaAtualizacao)}
             </p>
             <Button
               color="primary"
@@ -1202,7 +1239,9 @@ export default function DashboardPessoal() {
             <select
               className="w-full rounded-lg border border-default-200 bg-default-50 px-3 py-2"
               value={periodoFiltro}
-              onChange={(event) => setPeriodoFiltro(event.target.value as PeriodoFiltro)}
+              onChange={(event) =>
+                setPeriodoFiltro(event.target.value as PeriodoFiltro)
+              }
             >
               <option value="hoje">Hoje</option>
               <option value="mes">Mês atual</option>
@@ -1232,7 +1271,9 @@ export default function DashboardPessoal() {
               disabled={periodoFiltro !== "personalizado"}
               type="date"
               value={dataInicioPersonalizada}
-              onChange={(event) => setDataInicioPersonalizada(event.target.value)}
+              onChange={(event) =>
+                setDataInicioPersonalizada(event.target.value)
+              }
             />
           </label>
           <label className="text-sm text-default-700">
@@ -1271,20 +1312,32 @@ export default function DashboardPessoal() {
         </div>
       </div>
 
-      <Card className="border border-primary-100 bg-primary-50/70 dark:bg-primary-900/10" id="detalhes-calculo">
+      <Card
+        className="border border-primary-100 bg-primary-50/70 dark:bg-primary-900/10"
+        id="detalhes-calculo"
+      >
         <CardBody className="py-4 space-y-2">
           <p className="text-sm font-semibold text-primary-700 dark:text-primary-300">
             Critério do cálculo de recebimento
           </p>
           <p className="text-sm text-default-600">
-            Considera apenas pagamentos com data de pagamento preenchida, exclui crédito de cliente e vendas canceladas.
+            Considera apenas pagamentos com data de pagamento preenchida, exclui
+            crédito de cliente e vendas canceladas.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Chip size="sm" variant="flat">Sem data: {metricas.exclusoesAplicadas.semDataPagamento}</Chip>
-            <Chip size="sm" variant="flat">Crédito cliente: {metricas.exclusoesAplicadas.creditoCliente}</Chip>
-            <Chip size="sm" variant="flat">Venda cancelada: {metricas.exclusoesAplicadas.vendasCanceladas}</Chip>
+            <Chip size="sm" variant="flat">
+              Sem data: {metricas.exclusoesAplicadas.semDataPagamento}
+            </Chip>
+            <Chip size="sm" variant="flat">
+              Crédito cliente: {metricas.exclusoesAplicadas.creditoCliente}
+            </Chip>
+            <Chip size="sm" variant="flat">
+              Venda cancelada: {metricas.exclusoesAplicadas.vendasCanceladas}
+            </Chip>
           </div>
-          {erroDetalhe ? <p className="text-xs text-warning-700">{erroDetalhe}</p> : null}
+          {erroDetalhe ? (
+            <p className="text-xs text-warning-700">{erroDetalhe}</p>
+          ) : null}
         </CardBody>
       </Card>
 
@@ -1431,7 +1484,9 @@ export default function DashboardPessoal() {
             <p className="text-2xl font-bold text-warning-600">
               {formatarMoeda(metricas.carteira.aReceberMes)}
             </p>
-            <p className="text-xs text-default-500">Somente saldos de vendas com vencimento no mês atual</p>
+            <p className="text-xs text-default-500">
+              Somente saldos de vendas com vencimento no mês atual
+            </p>
           </CardBody>
         </Card>
         <Card className="border-none shadow-md">
@@ -1442,7 +1497,9 @@ export default function DashboardPessoal() {
             <p className="text-2xl font-bold text-danger-600">
               {formatarMoeda(metricas.carteira.atrasado)}
             </p>
-            <p className="text-xs text-default-500">Saldos com vencimento anterior a hoje</p>
+            <p className="text-xs text-default-500">
+              Saldos com vencimento anterior a hoje
+            </p>
           </CardBody>
         </Card>
         <Card className="border-none shadow-md">
@@ -1453,17 +1510,18 @@ export default function DashboardPessoal() {
             <p className="text-2xl font-bold text-success-600">
               {formatarMoeda(metricas.ticketQualidade.mediana)}
             </p>
-            <p className="text-xs text-default-500">
-              Top 3 vendas do mês
-            </p>
+            <p className="text-xs text-default-500">Top 3 vendas do mês</p>
             <div className="space-y-1 pt-1">
               {metricas.ticketQualidade.top3.map((venda) => (
                 <p key={venda.venda_id} className="text-xs text-default-600">
-                  #{String(venda.numero_venda).padStart(6, "0")} - {formatarMoeda(venda.total_recebido)}
+                  #{String(venda.numero_venda).padStart(6, "0")} -{" "}
+                  {formatarMoeda(venda.total_recebido)}
                 </p>
               ))}
               {metricas.ticketQualidade.top3.length === 0 ? (
-                <p className="text-xs text-default-400">Sem vendas recebidas no mês.</p>
+                <p className="text-xs text-default-400">
+                  Sem vendas recebidas no mês.
+                </p>
               ) : null}
             </div>
           </CardBody>
@@ -1474,13 +1532,16 @@ export default function DashboardPessoal() {
               Variação do Hoje
             </p>
             <p className="text-sm text-default-600">
-              Semana passada: {formatarMoeda(metricas.comparativos.mesmoDiaSemanaPassada)}
+              Semana passada:{" "}
+              {formatarMoeda(metricas.comparativos.mesmoDiaSemanaPassada)}
             </p>
             <p className="text-sm text-default-600">
-              Mês passado: {formatarMoeda(metricas.comparativos.mesmoDiaMesPassado)}
+              Mês passado:{" "}
+              {formatarMoeda(metricas.comparativos.mesmoDiaMesPassado)}
             </p>
             <p className="text-xs text-default-500">
-              Δ semana: {metricas.comparativos.variacaoSemana.toFixed(1)}% | Δ mês: {metricas.comparativos.variacaoMes.toFixed(1)}%
+              Δ semana: {metricas.comparativos.variacaoSemana.toFixed(1)}% | Δ
+              mês: {metricas.comparativos.variacaoMes.toFixed(1)}%
             </p>
           </CardBody>
         </Card>
@@ -1493,7 +1554,9 @@ export default function DashboardPessoal() {
             <p className="text-sm text-default-500">
               Recebimentos de OS no período selecionado
             </p>
-            <p className="text-xs text-default-400">{metricas.ganhosOS.criterio}</p>
+            <p className="text-xs text-default-400">
+              {metricas.ganhosOS.criterio}
+            </p>
           </div>
           <Chip color="primary" variant="flat">
             {metricas.ganhosOS.quantidadeOS} OS
@@ -1503,19 +1566,25 @@ export default function DashboardPessoal() {
         <CardBody className="pt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20">
-              <p className="text-xs font-semibold text-default-500 uppercase">Total OS</p>
+              <p className="text-xs font-semibold text-default-500 uppercase">
+                Total OS
+              </p>
               <p className="text-xl font-bold text-primary-600">
                 {formatarMoeda(metricas.ganhosOS.totalPeriodo)}
               </p>
             </div>
             <div className="p-4 rounded-xl bg-success-50 dark:bg-success-900/20">
-              <p className="text-xs font-semibold text-default-500 uppercase">Ticket médio por OS</p>
+              <p className="text-xs font-semibold text-default-500 uppercase">
+                Ticket médio por OS
+              </p>
               <p className="text-xl font-bold text-success-600">
                 {formatarMoeda(metricas.ganhosOS.ticketMedioOS)}
               </p>
             </div>
             <div className="p-4 rounded-xl bg-default-100 dark:bg-default-900/20">
-              <p className="text-xs font-semibold text-default-500 uppercase">Pagamentos lançados</p>
+              <p className="text-xs font-semibold text-default-500 uppercase">
+                Pagamentos lançados
+              </p>
               <p className="text-xl font-bold text-default-700">
                 {metricas.ganhosOS.quantidadePagamentos}
               </p>
@@ -1548,7 +1617,10 @@ export default function DashboardPessoal() {
                       OS #{pagamento.numero_os}
                     </p>
                     <p className="text-xs text-default-500">
-                      {pagamento.cliente_nome} - {new Date(pagamento.data_pagamento).toLocaleDateString("pt-BR")}
+                      {pagamento.cliente_nome} -{" "}
+                      {new Date(pagamento.data_pagamento).toLocaleDateString(
+                        "pt-BR",
+                      )}
                     </p>
                   </div>
                   <p className="font-bold text-success-600">
@@ -1729,7 +1801,9 @@ export default function DashboardPessoal() {
               ) : null}
               <div className="rounded-lg bg-default-50 dark:bg-default-900/20 p-3 text-sm">
                 <p className="text-default-600">
-                  Esperado até hoje: {formatarMoeda(metricas.metaProporcional.esperadoAteHoje)} ({metricas.metaProporcional.progressoEsperado.toFixed(1)}%)
+                  Esperado até hoje:{" "}
+                  {formatarMoeda(metricas.metaProporcional.esperadoAteHoje)} (
+                  {metricas.metaProporcional.progressoEsperado.toFixed(1)}%)
                 </p>
                 <p
                   className={`font-semibold ${
@@ -1755,7 +1829,10 @@ export default function DashboardPessoal() {
       </div>
 
       {detalheSelecionado ? (
-        <Card className="border-none shadow-md animate-in slide-in-from-bottom-4 duration-500" id="detalhes-registros">
+        <Card
+          className="border-none shadow-md animate-in slide-in-from-bottom-4 duration-500"
+          id="detalhes-registros"
+        >
           <CardHeader className="flex items-center justify-between gap-3">
             <div>
               <h3 className="text-xl font-bold">{tituloDrilldown}</h3>
@@ -1763,7 +1840,11 @@ export default function DashboardPessoal() {
                 {registrosDrilldown.length} registro(s) no escopo atual.
               </p>
             </div>
-            <Button size="sm" variant="light" onPress={() => setDetalheSelecionado(null)}>
+            <Button
+              size="sm"
+              variant="light"
+              onPress={() => setDetalheSelecionado(null)}
+            >
               Fechar
             </Button>
           </CardHeader>
@@ -1782,14 +1863,21 @@ export default function DashboardPessoal() {
                 </thead>
                 <tbody>
                   {registrosDrilldownPaginados.map((registro) => (
-                    <tr key={registro.id} className="border-b border-default-100">
+                    <tr
+                      key={registro.id}
+                      className="border-b border-default-100"
+                    >
                       <td className="py-2 pr-3 font-semibold">
                         #{String(registro.numero_venda).padStart(6, "0")}
                       </td>
                       <td className="py-2 pr-3">{registro.cliente_nome}</td>
-                      <td className="py-2 pr-3">{registro.tipo_pagamento.replace("_", " ")}</td>
                       <td className="py-2 pr-3">
-                        {new Date(registro.data_pagamento).toLocaleDateString("pt-BR")}
+                        {registro.tipo_pagamento.replace("_", " ")}
+                      </td>
+                      <td className="py-2 pr-3">
+                        {new Date(registro.data_pagamento).toLocaleDateString(
+                          "pt-BR",
+                        )}
                       </td>
                       <td className="py-2 pr-3 font-bold text-success-600">
                         {formatarMoeda(registro.valor)}
@@ -1799,7 +1887,9 @@ export default function DashboardPessoal() {
                 </tbody>
               </table>
             ) : (
-              <p className="text-sm text-default-500">Nenhum registro encontrado para este card no escopo selecionado.</p>
+              <p className="text-sm text-default-500">
+                Nenhum registro encontrado para este card no escopo selecionado.
+              </p>
             )}
             {totalPaginasDrilldown > 1 ? (
               <div className="flex items-center justify-end gap-2 pt-3">
@@ -1840,9 +1930,18 @@ export default function DashboardPessoal() {
           <p className="font-semibold text-default-700">Glossário rápido</p>
         </CardHeader>
         <CardBody className="pt-0 text-sm text-default-600 space-y-1">
-          <p>Recebido: soma dos pagamentos efetivamente registrados com data de pagamento.</p>
-          <p>Ticket médio: total recebido dividido pela quantidade de vendas recebidas no período.</p>
-          <p>Meta esperada até hoje: fração da meta mensal proporcional ao dia corrente do mês.</p>
+          <p>
+            Recebido: soma dos pagamentos efetivamente registrados com data de
+            pagamento.
+          </p>
+          <p>
+            Ticket médio: total recebido dividido pela quantidade de vendas
+            recebidas no período.
+          </p>
+          <p>
+            Meta esperada até hoje: fração da meta mensal proporcional ao dia
+            corrente do mês.
+          </p>
           <p>A receber e atrasado: saldos devedor de vendas não canceladas.</p>
         </CardBody>
       </Card>
