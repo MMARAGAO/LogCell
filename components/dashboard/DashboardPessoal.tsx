@@ -150,6 +150,7 @@ interface MetricasPessoais {
   };
   metaMensal: {
     valor: number;
+    realizado: number;
     progresso: number;
     faltando: number;
   };
@@ -747,9 +748,10 @@ export default function DashboardPessoal() {
         diasUteisAtual > 0 ? metaMensalAtual / diasUteisAtual : 0;
 
       // Progresso das metas
-      const progressoMensal =
+      let totalRecebidoMetaMensal = totalRecebidoMes;
+      let progressoMensal =
         metaMensalAtual > 0 ? (totalRecebidoMes / metaMensalAtual) * 100 : 0;
-      const faltandoMensal = Math.max(0, metaMensalAtual - totalRecebidoMes);
+      let faltandoMensal = Math.max(0, metaMensalAtual - totalRecebidoMes);
       const progressoDiario =
         metaDiariaValor > 0 ? (totalRecebidoHoje / metaDiariaValor) * 100 : 0;
       const faltandoDiario = Math.max(0, metaDiariaValor - totalRecebidoHoje);
@@ -763,7 +765,7 @@ export default function DashboardPessoal() {
       const fracaoMes =
         totalDiasMesAtual > 0 ? diaDoMesAtual / totalDiasMesAtual : 0;
       const metaEsperadaAteHoje = metaMensalAtual * fracaoMes;
-      const desvioMetaProporcional = totalRecebidoMes - metaEsperadaAteHoje;
+      let desvioMetaProporcional = totalRecebidoMes - metaEsperadaAteHoje;
       const progressoEsperado =
         metaMensalAtual > 0 ? (metaEsperadaAteHoje / metaMensalAtual) * 100 : 0;
 
@@ -835,6 +837,30 @@ export default function DashboardPessoal() {
       );
       const ticketMedioOS =
         osUnicas.size > 0 ? totalGanhosOSPeriodo / osUnicas.size : 0;
+
+      const pagamentosOSMesRaw = await buscarPagamentosOS(
+        supabase,
+        usuario.id,
+        perfil || "",
+        inicioMesISO,
+        fimMesISO,
+        lojaEscopoId,
+      );
+      const totalGanhosOSMes = (pagamentosOSMesRaw || [])
+        .filter((pagamento: any) => pagamento?.os?.status !== "cancelado")
+        .reduce(
+          (acumulado: number, pagamento: any) =>
+            acumulado + Number(pagamento?.valor || 0),
+          0,
+        );
+
+      totalRecebidoMetaMensal = totalRecebidoMes + totalGanhosOSMes;
+      progressoMensal =
+        metaMensalAtual > 0
+          ? (totalRecebidoMetaMensal / metaMensalAtual) * 100
+          : 0;
+      faltandoMensal = Math.max(0, metaMensalAtual - totalRecebidoMetaMensal);
+      desvioMetaProporcional = totalRecebidoMetaMensal - metaEsperadaAteHoje;
 
       // Ordens de serviço (se for técnico)
       let ordensServico = {
@@ -969,6 +995,7 @@ export default function DashboardPessoal() {
         },
         metaMensal: {
           valor: metaMensalAtual,
+          realizado: totalRecebidoMetaMensal,
           progresso: progressoMensal,
           faltando: faltandoMensal,
         },
@@ -1323,6 +1350,10 @@ export default function DashboardPessoal() {
           <p className="text-sm text-default-600">
             Considera apenas pagamentos com data de pagamento preenchida, exclui
             crédito de cliente e vendas canceladas.
+          </p>
+          <p className="text-sm text-default-600">
+            Na meta mensal, o realizado soma recebimentos de vendas e de OS do
+            mês atual.
           </p>
           <div className="flex flex-wrap gap-2">
             <Chip size="sm" variant="flat">
@@ -1762,7 +1793,7 @@ export default function DashboardPessoal() {
                     Realizado
                   </p>
                   <p className="text-xl font-bold text-default-900">
-                    {formatarMoeda(metricas.vendasMes.total)}
+                    {formatarMoeda(metricas.metaMensal.realizado)}
                   </p>
                 </div>
                 <Chip
