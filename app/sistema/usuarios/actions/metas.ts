@@ -89,7 +89,7 @@ export async function salvarMetaUsuario(payload: SalvarMetaPayload) {
     }
 
     if (existente?.id) {
-      const { data, error } = await supabaseAdmin
+      let updateQuery = supabaseAdmin
         .from("metas_usuarios")
         .update({
           loja_id: lojaId,
@@ -99,8 +99,16 @@ export async function salvarMetaUsuario(payload: SalvarMetaPayload) {
           atualizado_por: user.id,
         })
         .eq("id", existente.id)
-        .select("*")
-        .single();
+        .eq("usuario_id", payload.usuario_id)
+        .eq("ativo", true);
+
+      if (lojaId === null) {
+        updateQuery = updateQuery.is("loja_id", null);
+      } else {
+        updateQuery = updateQuery.eq("loja_id", lojaId);
+      }
+
+      const { data, error } = await updateQuery.select("*").single();
 
       if (error) {
         return {

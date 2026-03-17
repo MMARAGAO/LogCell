@@ -39,6 +39,8 @@ export function PermissoesModal({
   usuarioNome,
   onSuccess,
 }: PermissoesModalProps) {
+  const META_MENSAL_PADRAO = "10000";
+  const DIAS_UTEIS_PADRAO = "26";
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,8 +52,8 @@ export function PermissoesModal({
   const [todasLojas, setTodasLojas] = useState(false);
 
   // Estados para metas do usuário
-  const [metaMensalVendas, setMetaMensalVendas] = useState("10000");
-  const [diasUteis, setDiasUteis] = useState("26");
+  const [metaMensalVendas, setMetaMensalVendas] = useState(META_MENSAL_PADRAO);
+  const [diasUteis, setDiasUteis] = useState(DIAS_UTEIS_PADRAO);
 
   useEffect(() => {
     if (isOpen) {
@@ -84,6 +86,9 @@ export function PermissoesModal({
   const carregarPermissoes = async () => {
     setLoadingData(true);
     setError(null);
+    // Evita vazamento de estado ao alternar entre usuários no mesmo modal.
+    setMetaMensalVendas(META_MENSAL_PADRAO);
+    setDiasUteis(DIAS_UTEIS_PADRAO);
 
     try {
       console.log("🔍 Carregando permissões do usuário:", usuarioId);
@@ -124,16 +129,28 @@ export function PermissoesModal({
           // Carregar metas do usuário
           if (usuarioId) {
             try {
-              const metas = await MetasService.buscarMetaUsuario(usuarioId);
+              const metas = await MetasService.buscarMetaUsuario(
+                usuarioId,
+                result.data.todas_lojas
+                  ? undefined
+                  : result.data.loja_id || undefined,
+              );
 
               if (metas) {
                 setMetaMensalVendas(
-                  metas.meta_mensal_vendas?.toString() || "10000",
+                  metas.meta_mensal_vendas?.toString() || META_MENSAL_PADRAO,
                 );
-                setDiasUteis(metas.dias_uteis_mes?.toString() || "26");
+                setDiasUteis(
+                  metas.dias_uteis_mes?.toString() || DIAS_UTEIS_PADRAO,
+                );
+              } else {
+                setMetaMensalVendas(META_MENSAL_PADRAO);
+                setDiasUteis(DIAS_UTEIS_PADRAO);
               }
             } catch (metaError) {
               console.log("ℹ️ Nenhuma meta encontrada, usando valores padrão");
+              setMetaMensalVendas(META_MENSAL_PADRAO);
+              setDiasUteis(DIAS_UTEIS_PADRAO);
             }
           }
         } else {
@@ -141,6 +158,8 @@ export function PermissoesModal({
           setPermissoes(PermissoesService.getPermissoesPadrao());
           setLojaSelecionada(null);
           setTodasLojas(false);
+          setMetaMensalVendas(META_MENSAL_PADRAO);
+          setDiasUteis(DIAS_UTEIS_PADRAO);
         }
       } else {
         console.error("❌ Erro ao carregar:", result.error);
