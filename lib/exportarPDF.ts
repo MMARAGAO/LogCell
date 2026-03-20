@@ -1,6 +1,3 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 interface ProdutoEstoque {
@@ -31,7 +28,17 @@ function formatarValorMonetario(valor: number): string {
   }).format(valor);
 }
 
-export function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
+async function carregarPdfLibs() {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf/dist/jspdf.es.min.js"),
+    import("jspdf-autotable"),
+  ]);
+
+  return { jsPDF, autoTable };
+}
+
+export async function gerarRelatorioProdutoPDF(produto: ProdutoEstoque) {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
   const margemEsquerda = 14;
   let yPos = 20;

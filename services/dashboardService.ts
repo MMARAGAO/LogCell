@@ -3,6 +3,281 @@ import type { DadosDashboard, FiltroDashboard } from "@/types/dashboard";
 import { supabase } from "@/lib/supabaseClient";
 
 export class DashboardService {
+  private static normalizarTexto(texto?: string | null): string {
+    return (texto || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  private static async buscarVendaIdsComPagamentosNoPeriodo(
+    filtro: FiltroDashboard,
+  ): Promise<string[]> {
+    const { data_inicio, data_fim, loja_id } = filtro;
+    const inicioISO = `${data_inicio}T00:00:00`;
+    const fimISO = `${data_fim}T23:59:59`;
+    const pageSize = 1000;
+    let from = 0;
+    let to = pageSize - 1;
+    const vendaIds = new Set<string>();
+
+    while (true) {
+      let query = supabase
+        .from("pagamentos_venda")
+        .select(
+          "venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id, status)",
+        )
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .neq("tipo_pagamento", "credito_cliente")
+        .neq("venda.status", "cancelada")
+        .range(from, to);
+
+      if (loja_id) {
+        query = query.eq("venda.loja_id", loja_id);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error(
+          "Erro ao buscar vendas com pagamentos no período:",
+          error,
+        );
+        break;
+      }
+
+      const batch = data || [];
+
+      batch.forEach((pagamento: any) => {
+        if (pagamento.venda_id) {
+          vendaIds.add(String(pagamento.venda_id));
+        }
+      });
+
+      if (batch.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
+      to += pageSize;
+    }
+
+    return Array.from(vendaIds);
+  }
+
+  private static async listarProdutosVendidosAgrupados(
+    filtro: FiltroDashboard,
+  ): Promise<
+    Array<{
+      produto_id: string;
+      descricao: string;
+      quantidade: number;
+      receita: number;
+      valor_vendido: number;
+      valor_recebido: number;
+      lucro: number;
+      origem: string;
+    }>
+  > {
+    const { data_inicio, data_fim, loja_id } = filtro;
+    const inicioISO = `${data_inicio}T00:00:00`;
+    const fimISO = `${data_fim}T23:59:59`;
+    const agrupado: Record<
+      string,
+      {
+        produto_id: string;
+        descricao: string;
+        quantidade: number;
+        receita: number;
+        valor_vendido: number;
+        valor_recebido: number;
+        lucro: number;
+        origens: Set<string>;
+      }
+    > = {};
+    const pageSize = 1000;
+    let from = 0;
+    let to = pageSize - 1;
+
+    while (true) {
+      let queryItensVenda = supabase
+        .from("itens_venda")
+        .select(
+          "produto_id, quantidade, devolvido, subtotal, criado_em, produto:produtos!itens_venda_produto_id_fkey(descricao, preco_compra), venda:vendas!inner(loja_id, status, valor_total, valor_pago)",
+        )
+        .gte("criado_em", inicioISO)
+        .lte("criado_em", fimISO)
+        .neq("venda.status", "cancelada")
+        .range(from, to);
+
+      if (loja_id) {
+        queryItensVenda = queryItensVenda.eq("venda.loja_id", loja_id);
+      }
+
+      const { data, error } = await queryItensVenda;
+
+      if (error) {
+        console.error("Erro na query de produtos vendidos por venda:", error);
+        throw error;
+      }
+
+      const batch = data || [];
+
+      batch.forEach((item: any) => {
+        const produtoId = item.produto_id;
+
+        if (!produtoId) {
+          return;
+        }
+
+        if (!agrupado[produtoId]) {
+          agrupado[produtoId] = {
+            produto_id: String(produtoId),
+            descricao: (item.produto as any)?.descricao || "Produto desconhecido",
+            quantidade: 0,
+            receita: 0,
+            valor_vendido: 0,
+            valor_recebido: 0,
+            lucro: 0,
+            origens: new Set<string>(),
+          };
+        }
+
+        const quantidadeOriginal = Number(item.quantidade || 0);
+        const quantidadeVendida =
+          quantidadeOriginal - Number(item.devolvido || 0);
+        const fatorItem =
+          quantidadeOriginal > 0
+            ? Math.max(0, quantidadeVendida) / quantidadeOriginal
+            : 0;
+        const valorVendidoItem = Number(item.subtotal || 0) * fatorItem;
+        const valorTotalVenda = Number(item.venda?.valor_total || 0);
+        const valorPagoVenda = Number(item.venda?.valor_pago || 0);
+        const percentualRecebido =
+          valorTotalVenda > 0
+            ? Math.max(0, Math.min(valorPagoVenda / valorTotalVenda, 1))
+            : 0;
+        const valorRecebidoItem = valorVendidoItem * percentualRecebido;
+        const custoUnitario = Number(item.produto?.preco_compra || 0);
+        const custoTotalItem = custoUnitario * Math.max(0, quantidadeVendida);
+
+        agrupado[produtoId].quantidade += Math.max(0, quantidadeVendida);
+        agrupado[produtoId].receita += valorVendidoItem;
+        agrupado[produtoId].valor_vendido += valorVendidoItem;
+        agrupado[produtoId].valor_recebido += valorRecebidoItem;
+        agrupado[produtoId].lucro += valorRecebidoItem - custoTotalItem;
+        agrupado[produtoId].origens.add("Venda");
+      });
+
+      if (batch.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
+      to += pageSize;
+    }
+
+    from = 0;
+    to = pageSize - 1;
+
+    while (true) {
+      let queryPecasOS = supabase
+        .from("ordem_servico_pecas")
+        .select(
+          "id_produto, descricao_peca, quantidade, valor_custo, valor_total, criado_em, produto:produtos!ordem_servico_pecas_id_produto_fkey(descricao, preco_compra), os:ordem_servico!inner(id_loja, status, valor_orcamento, valor_pago)",
+        )
+        .gte("criado_em", inicioISO)
+        .lte("criado_em", fimISO)
+        .neq("os.status", "cancelado")
+        .range(from, to);
+
+      if (loja_id) {
+        queryPecasOS = queryPecasOS.eq("os.id_loja", loja_id);
+      }
+
+      const { data, error } = await queryPecasOS;
+
+      if (error) {
+        console.error("Erro na query de produtos vendidos por OS:", error);
+        throw error;
+      }
+
+      const batch = data || [];
+
+      batch.forEach((peca: any) => {
+        const produtoId =
+          peca.id_produto != null
+            ? String(peca.id_produto)
+            : `os-avulso:${peca.descricao_peca || "sem-descricao"}`;
+
+        if (!agrupado[produtoId]) {
+          agrupado[produtoId] = {
+            produto_id: produtoId,
+            descricao:
+              peca.produto?.descricao ||
+              peca.descricao_peca ||
+              "Produto desconhecido",
+            quantidade: 0,
+            receita: 0,
+            valor_vendido: 0,
+            valor_recebido: 0,
+            lucro: 0,
+            origens: new Set<string>(),
+          };
+        }
+
+        const quantidadePeca = Number(peca.quantidade || 0);
+        const valorVendidoPeca = Number(peca.valor_total || 0);
+        const valorBaseOS = Number(
+          peca.os?.valor_orcamento || valorVendidoPeca || 0,
+        );
+        const valorPagoOS = Number(peca.os?.valor_pago || 0);
+        const percentualRecebidoOS =
+          valorBaseOS > 0
+            ? Math.max(0, Math.min(valorPagoOS / valorBaseOS, 1))
+            : 0;
+        const valorRecebidoPeca = valorVendidoPeca * percentualRecebidoOS;
+        const custoUnitarioPeca =
+          peca.id_produto != null
+            ? Number(peca.produto?.preco_compra || 0)
+            : quantidadePeca > 0
+              ? Number(peca.valor_custo || 0) / quantidadePeca
+              : 0;
+        const custoTotalPeca =
+          peca.id_produto != null
+            ? custoUnitarioPeca * quantidadePeca
+            : Number(peca.valor_custo || 0);
+
+        agrupado[produtoId].quantidade += quantidadePeca;
+        agrupado[produtoId].receita += valorVendidoPeca;
+        agrupado[produtoId].valor_vendido += valorVendidoPeca;
+        agrupado[produtoId].valor_recebido += valorRecebidoPeca;
+        agrupado[produtoId].lucro += valorRecebidoPeca - custoTotalPeca;
+        agrupado[produtoId].origens.add("OS");
+      });
+
+      if (batch.length < pageSize) {
+        break;
+      }
+
+      from += pageSize;
+      to += pageSize;
+    }
+
+    return Object.values(agrupado)
+      .map(({ origens, ...produto }) => ({
+        ...produto,
+        receita: Math.round(produto.receita * 100) / 100,
+        valor_vendido: Math.round(produto.valor_vendido * 100) / 100,
+        valor_recebido: Math.round(produto.valor_recebido * 100) / 100,
+        lucro: Math.round(produto.lucro * 100) / 100,
+        origem: Array.from(origens).sort().join(" + "),
+      }))
+      .sort((a, b) => b.quantidade - a.quantidade);
+  }
+
   static async buscarContasNaoPagasAcumuladas(
     data_inicio?: string,
     data_fim?: string,
@@ -468,7 +743,7 @@ export class DashboardService {
       .select("id", { count: "exact", head: true })
       .gte("criado_em", inicioISO)
       .lte("criado_em", fimISO)
-      .neq("status", "cancelado");
+      .neq("status", "cancelada");
 
     if (loja_id) {
       queryVendas = queryVendas.eq("loja_id", loja_id);
@@ -580,7 +855,7 @@ export class DashboardService {
         .select("valor_total, valor_pago")
         .gte("criado_em", inicioISO)
         .lte("criado_em", fimISO)
-        .neq("status", "cancelado")
+        .neq("status", "cancelada")
         .range(fromContasNaoPagas, toContasNaoPagas);
 
       if (loja_id) {
@@ -1372,68 +1647,75 @@ export class DashboardService {
     const fimISO = `${data_fim}T23:59:59`;
 
     try {
-      let query = supabase
-        .from("itens_venda")
-        .select(
-          "produto_id, produtos(descricao), quantidade, devolvido, subtotal, venda_id, venda:vendas!inner(loja_id, criado_em)",
-        )
-        .gte("venda.criado_em", inicioISO)
-        .lte("venda.criado_em", fimISO);
+      const produtos = await this.listarProdutosVendidosAgrupados({
+        data_inicio,
+        data_fim,
+        loja_id,
+      });
 
-      if (loja_id) {
-        query = query.eq("venda.loja_id", loja_id);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error("Erro na query de top 10 produtos:", error);
-        throw error;
-      }
-
-      const itens = data || [];
-
-      // Agrupar por produto
-      const agrupado = itens.reduce(
-        (acc, item) => {
-          const produtoId = item.produto_id;
-
-          if (!acc[produtoId]) {
-            acc[produtoId] = {
-              produto_id: produtoId,
-              descricao:
-                (item.produtos as any)?.descricao || "Produto desconhecido",
-              quantidade: 0,
-              receita: 0,
-            };
-          }
-          // Quantidade vendida = quantidade total - devolvida
-          const quantidadeVendida =
-            (item.quantidade || 0) - (item.devolvido || 0);
-
-          acc[produtoId].quantidade += Math.max(0, quantidadeVendida);
-          acc[produtoId].receita += Number(item.subtotal) || 0;
-
-          return acc;
-        },
-        {} as Record<
-          string,
-          {
-            produto_id: string;
-            descricao: string;
-            quantidade: number;
-            receita: number;
-          }
-        >,
-      );
-
-      return Object.values(agrupado)
+      return produtos
         .sort((a, b) => b.quantidade - a.quantidade)
         .slice(0, 10);
     } catch (error) {
       console.error("Erro ao buscar top 10 produtos:", error);
 
       return [];
+    }
+  }
+
+  static async buscarProdutosVendidosPeriodo(
+    filtro: FiltroDashboard,
+    busca = "",
+    page = 1,
+    pageSize = 10,
+  ): Promise<{
+    rows: Array<{
+      produto_id: string;
+      descricao: string;
+      quantidade: number;
+      valor_vendido: number;
+      valor_recebido: number;
+      lucro: number;
+      origem: string;
+    }>;
+    total: number;
+    quantidade_total: number;
+  }> {
+    try {
+      const produtos = await this.listarProdutosVendidosAgrupados(filtro);
+      const buscaNormalizada = this.normalizarTexto(busca);
+      const filtrados = buscaNormalizada
+        ? produtos.filter((produto) =>
+            this.normalizarTexto(produto.descricao).includes(buscaNormalizada),
+          )
+        : produtos;
+      const from = Math.max(0, (page - 1) * pageSize);
+      const to = from + pageSize;
+
+      return {
+        rows: filtrados.slice(from, to).map((produto) => ({
+          produto_id: produto.produto_id,
+          descricao: produto.descricao,
+          quantidade: produto.quantidade,
+          valor_vendido: produto.valor_vendido,
+          valor_recebido: produto.valor_recebido,
+          lucro: produto.lucro,
+          origem: produto.origem,
+        })),
+        total: filtrados.length,
+        quantidade_total: filtrados.reduce(
+          (acc, produto) => acc + Number(produto.quantidade || 0),
+          0,
+        ),
+      };
+    } catch (error) {
+      console.error("Erro ao buscar produtos vendidos no periodo:", error);
+
+      return {
+        rows: [],
+        total: 0,
+        quantidade_total: 0,
+      };
     }
   }
 
@@ -1453,52 +1735,80 @@ export class DashboardService {
     const fimISO = `${data_fim}T23:59:59`;
 
     try {
-      let query = supabase
-        .from("vendas")
-        .select("cliente_id, cliente:clientes(nome), valor_total")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .neq("status", "cancelada");
+      // Agrupar por cliente com base nos pagamentos recebidos no período
+      const agrupado: Record<
+        string,
+        {
+          cliente_id: string;
+          cliente_nome: string;
+          total_vendas: number;
+          receita_total: number;
+          venda_ids: Set<string>;
+        }
+      > = {};
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
 
-      if (loja_id) {
-        query = query.eq("loja_id", loja_id);
-      }
+      while (true) {
+        let query = supabase
+          .from("pagamentos_venda")
+          .select(
+            "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(cliente_id, loja_id, status, cliente:clientes(nome))",
+          )
+          .gte("data_pagamento", inicioISO)
+          .lte("data_pagamento", fimISO)
+          .neq("tipo_pagamento", "credito_cliente")
+          .neq("venda.status", "cancelada")
+          .range(from, to);
 
-      const { data, error } = await query;
+        if (loja_id) {
+          query = query.eq("venda.loja_id", loja_id);
+        }
 
-      if (error) throw error;
+        const { data, error } = await query;
 
-      // Agrupar por cliente
-      const agrupado = (data || []).reduce(
-        (acc, venda) => {
-          const clienteId = venda.cliente_id;
+        if (error) throw error;
 
-          if (!acc[clienteId]) {
-            acc[clienteId] = {
+        const batch = data || [];
+
+        batch.forEach((pagamento) => {
+          const venda = pagamento.venda as any;
+          const clienteId = venda?.cliente_id;
+
+          if (!clienteId) {
+            return;
+          }
+
+          if (!agrupado[clienteId]) {
+            agrupado[clienteId] = {
               cliente_id: clienteId,
-              cliente_nome:
-                (venda.cliente as any)?.nome || "Cliente desconhecido",
+              cliente_nome: venda?.cliente?.nome || "Cliente desconhecido",
               total_vendas: 0,
               receita_total: 0,
+              venda_ids: new Set<string>(),
             };
           }
-          acc[clienteId].total_vendas += 1;
-          acc[clienteId].receita_total += Number(venda.valor_total) || 0;
 
-          return acc;
-        },
-        {} as Record<
-          string,
-          {
-            cliente_id: string;
-            cliente_nome: string;
-            total_vendas: number;
-            receita_total: number;
+          if (pagamento.venda_id) {
+            agrupado[clienteId].venda_ids.add(String(pagamento.venda_id));
           }
-        >,
-      );
+          agrupado[clienteId].receita_total += Number(pagamento.valor) || 0;
+        });
+
+        if (batch.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+        to += pageSize;
+      }
 
       return Object.values(agrupado)
+        .map(({ venda_ids, ...cliente }) => ({
+          ...cliente,
+          total_vendas: venda_ids.size,
+        }))
         .sort((a, b) => b.receita_total - a.receita_total)
         .slice(0, 10);
     } catch (error) {
@@ -1524,54 +1834,80 @@ export class DashboardService {
     const fimISO = `${data_fim}T23:59:59`;
 
     try {
-      let query = supabase
-        .from("vendas")
-        .select(
-          "vendedor_id, vendedor:usuarios!vendas_vendedor_id_fkey(nome), valor_total",
-        )
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .neq("status", "cancelada");
+      // Agrupar por vendedor com base nos pagamentos recebidos no período
+      const agrupado: Record<
+        string,
+        {
+          vendedor_id: string;
+          vendedor_nome: string;
+          total_vendas: number;
+          receita_total: number;
+          venda_ids: Set<string>;
+        }
+      > = {};
+      const pageSize = 1000;
+      let from = 0;
+      let to = pageSize - 1;
 
-      if (loja_id) {
-        query = query.eq("loja_id", loja_id);
-      }
+      while (true) {
+        let query = supabase
+          .from("pagamentos_venda")
+          .select(
+            "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(vendedor_id, loja_id, status, vendedor:usuarios!vendas_vendedor_id_fkey(nome))",
+          )
+          .gte("data_pagamento", inicioISO)
+          .lte("data_pagamento", fimISO)
+          .neq("tipo_pagamento", "credito_cliente")
+          .neq("venda.status", "cancelada")
+          .range(from, to);
 
-      const { data, error } = await query;
+        if (loja_id) {
+          query = query.eq("venda.loja_id", loja_id);
+        }
 
-      if (error) throw error;
+        const { data, error } = await query;
 
-      // Agrupar por vendedor
-      const agrupado = (data || []).reduce(
-        (acc, venda) => {
-          const vendedorId = venda.vendedor_id;
+        if (error) throw error;
 
-          if (!acc[vendedorId]) {
-            acc[vendedorId] = {
+        const batch = data || [];
+
+        batch.forEach((pagamento) => {
+          const venda = pagamento.venda as any;
+          const vendedorId = venda?.vendedor_id;
+
+          if (!vendedorId) {
+            return;
+          }
+
+          if (!agrupado[vendedorId]) {
+            agrupado[vendedorId] = {
               vendedor_id: vendedorId,
-              vendedor_nome:
-                (venda.vendedor as any)?.nome || "Vendedor desconhecido",
+              vendedor_nome: venda?.vendedor?.nome || "Vendedor desconhecido",
               total_vendas: 0,
               receita_total: 0,
+              venda_ids: new Set<string>(),
             };
           }
-          acc[vendedorId].total_vendas += 1;
-          acc[vendedorId].receita_total += Number(venda.valor_total) || 0;
 
-          return acc;
-        },
-        {} as Record<
-          string,
-          {
-            vendedor_id: string;
-            vendedor_nome: string;
-            total_vendas: number;
-            receita_total: number;
+          if (pagamento.venda_id) {
+            agrupado[vendedorId].venda_ids.add(String(pagamento.venda_id));
           }
-        >,
-      );
+          agrupado[vendedorId].receita_total += Number(pagamento.valor) || 0;
+        });
+
+        if (batch.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+        to += pageSize;
+      }
 
       return Object.values(agrupado)
+        .map(({ venda_ids, ...vendedor }) => ({
+          ...vendedor,
+          total_vendas: venda_ids.size,
+        }))
         .sort((a, b) => b.receita_total - a.receita_total)
         .slice(0, 10);
     } catch (error) {

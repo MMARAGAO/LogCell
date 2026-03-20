@@ -108,7 +108,8 @@ type DashboardDetailCardKey =
   | "total_quebras"
   | "total_creditos_cliente"
   | "devolucoes_com_credito"
-  | "devolucoes_sem_credito";
+  | "devolucoes_sem_credito"
+  | "produtos_vendidos";
 
 interface DashboardDetailColumn {
   key: string;
@@ -159,6 +160,10 @@ export default function DashboardPage() {
   const [top10Produtos, setTop10Produtos] = useState<any[]>([]);
   const [top10Clientes, setTop10Clientes] = useState<any[]>([]);
   const [top10Vendedores, setTop10Vendedores] = useState<any[]>([]);
+  const [resumoProdutosVendidos, setResumoProdutosVendidos] = useState<{
+    total: number;
+    quantidade_total: number;
+  }>({ total: 0, quantidade_total: 0 });
   const [loadingGraficos, setLoadingGraficos] = useState(false);
   const [cardDetalhado, setCardDetalhado] =
     useState<DashboardDetailCardKey | null>(null);
@@ -175,6 +180,7 @@ export default function DashboardPage() {
   const [mensagemVaziaDetalhe, setMensagemVaziaDetalhe] = useState(
     "Nenhum registro encontrado.",
   );
+  const [buscaProdutoDetalhe, setBuscaProdutoDetalhe] = useState("");
 
   const carregar = async () => {
     try {
@@ -207,12 +213,14 @@ export default function DashboardPage() {
         loja_id: lojaId ? Number(lojaId) : undefined,
       };
 
-      const [evolucao, produtos, clientes, vendedores] = await Promise.all([
-        DashboardService.buscarEvolucaoVendas(filtro),
-        DashboardService.buscarTop10Produtos(filtro),
-        DashboardService.buscarTop10Clientes(filtro),
-        DashboardService.buscarTop10Vendedores(filtro),
-      ]);
+      const [evolucao, produtos, clientes, vendedores, produtosVendidos] =
+        await Promise.all([
+          DashboardService.buscarEvolucaoVendas(filtro),
+          DashboardService.buscarTop10Produtos(filtro),
+          DashboardService.buscarTop10Clientes(filtro),
+          DashboardService.buscarTop10Vendedores(filtro),
+          DashboardService.buscarProdutosVendidosPeriodo(filtro, "", 1, 10),
+        ]);
 
       console.log("📊 Dados dos Gráficos Carregados:");
       console.log("Evolução de Vendas:", evolucao);
@@ -224,6 +232,10 @@ export default function DashboardPage() {
       setTop10Produtos(produtos);
       setTop10Clientes(clientes);
       setTop10Vendedores(vendedores);
+      setResumoProdutosVendidos({
+        total: produtosVendidos.total,
+        quantidade_total: produtosVendidos.quantidade_total,
+      });
     } catch (err) {
       console.error("Erro ao carregar gráficos:", err);
     } finally {
@@ -478,8 +490,27 @@ export default function DashboardPage() {
           `Quantidade: ${(dados?.metricas_adicionais.devolucoes_sem_credito_quantidade || 0).toLocaleString("pt-BR")}`,
         ],
       },
+      produtos_vendidos: {
+        titulo: "Produtos Vendidos",
+        valor: `${resumoProdutosVendidos.quantidade_total.toLocaleString("pt-BR")} un`,
+        descricao:
+          "Consulta pesquisavel dos produtos vendidos no periodo, considerando itens de venda e pecas associadas em OS.",
+        itens: [
+          `Produtos encontrados: ${resumoProdutosVendidos.total.toLocaleString("pt-BR")}`,
+          `Loja considerada: ${lojaSelecionadaNome}`,
+          "Use a busca para localizar um produto especifico.",
+        ],
+      },
     };
-  }, [dados, dataFim, dataInicio, hojeISO, lojaId, lojas]);
+  }, [
+    dados,
+    dataFim,
+    dataInicio,
+    hojeISO,
+    lojaId,
+    lojas,
+    resumoProdutosVendidos,
+  ]);
 
   const detalheCardSelecionado = cardDetalhado
     ? detalhesCards[cardDetalhado]
@@ -499,6 +530,7 @@ export default function DashboardPage() {
   const buscarDetalhamentoCard = async (
     cardKey: DashboardDetailCardKey,
     page = 1,
+    searchTerm = "",
   ) => {
     const inicioISO = `${dataInicio || "2000-01-01"}T00:00:00`;
     const fimISO = `${dataFim || hojeISO}T23:59:59`;
@@ -929,6 +961,39 @@ export default function DashboardPage() {
           emptyMessage: "Nenhuma devolucao encontrada no periodo.",
         } satisfies DashboardDetailResult;
       }
+      case "produtos_vendidos": {
+        const resultado = await DashboardService.buscarProdutosVendidosPeriodo(
+          {
+            data_inicio: dataInicio || "2000-01-01",
+            data_fim: dataFim || hojeISO,
+            loja_id: lojaNumero,
+          },
+          searchTerm,
+          page,
+          pageSizeDetalhe,
+        );
+
+        return {
+          columns: [
+            { key: "produto", label: "Produto" },
+            { key: "origem", label: "Origem" },
+            { key: "quantidade", label: "Quantidade" },
+            { key: "valor_vendido", label: "Valor Vendido" },
+            { key: "valor_recebido", label: "Valor Recebido" },
+            { key: "lucro", label: "Lucro" },
+          ],
+          rows: resultado.rows.map((item) => ({
+            produto: item.descricao,
+            origem: item.origem || "-",
+            quantidade: `${Number(item.quantidade || 0).toLocaleString("pt-BR")} un`,
+            valor_vendido: formatarMoeda(Number(item.valor_vendido || 0)),
+            valor_recebido: formatarMoeda(Number(item.valor_recebido || 0)),
+            lucro: formatarMoeda(Number(item.lucro || 0)),
+          })),
+          total: resultado.total,
+          emptyMessage: "Nenhum produto vendido encontrado para os filtros atuais.",
+        } satisfies DashboardDetailResult;
+      }
       default:
         return {
           columns: [],
@@ -942,13 +1007,14 @@ export default function DashboardPage() {
   const abrirDetalheCard = async (
     cardKey: DashboardDetailCardKey,
     page = 1,
+    searchTerm = "",
   ) => {
     try {
       setCardDetalhado(cardKey);
       setModalDetalheOpen(true);
       setLoadingDetalhe(true);
       setPaginaDetalhe(page);
-      const result = await buscarDetalhamentoCard(cardKey, page);
+      const result = await buscarDetalhamentoCard(cardKey, page, searchTerm);
 
       setColunasDetalhe(result.columns);
       setLinhasDetalhe(result.rows);
@@ -2093,6 +2159,60 @@ export default function DashboardPage() {
 
               {/* Grid de Gráficos */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div
+                  className={getCardClassName(
+                    "rounded-2xl border border-sky-200 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950 dark:to-cyan-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 lg:col-span-2",
+                    "produtos_vendidos",
+                  )}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    setBuscaProdutoDetalhe("");
+                    abrirDetalheCard("produtos_vendidos", 1, "");
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setBuscaProdutoDetalhe("");
+                      abrirDetalheCard("produtos_vendidos", 1, "");
+                    }
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="p-2.5 bg-sky-500/20 rounded-lg">
+                          <FaBox className="text-2xl text-sky-600 dark:text-sky-400" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-foreground">
+                            Produtos Vendidos no Período
+                          </h3>
+                          <p className="text-sm text-default-500">
+                            Pesquise qualquer produto e veja a quantidade vendida
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-3xl font-bold text-foreground">
+                        {loadingGraficos
+                          ? "..."
+                          : `${resumoProdutosVendidos.quantidade_total.toLocaleString("pt-BR")} un`}
+                      </p>
+                      <p className="mt-2 text-sm text-default-600">
+                        {resumoProdutosVendidos.total.toLocaleString("pt-BR")} produtos encontrados no periodo filtrado.
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white/70 dark:bg-black/20 px-4 py-3 text-right shadow-sm">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-default-500">
+                        Ação
+                      </p>
+                      <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">
+                        Clique para pesquisar
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Top 10 Produtos */}
                 <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
                   <div className="flex items-center gap-3 mb-6">
@@ -2362,6 +2482,50 @@ export default function DashboardPage() {
                   </div>
                 )}
 
+                {cardDetalhado === "produtos_vendidos" && (
+                  <div className="rounded-lg border border-default-200 bg-content1 p-4 mb-4">
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <input
+                        className="h-10 flex-1 rounded-md border border-default-200 px-3 text-sm bg-content1 text-foreground"
+                        placeholder="Pesquisar produto por nome"
+                        type="text"
+                        value={buscaProdutoDetalhe}
+                        onChange={(e) => setBuscaProdutoDetalhe(e.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            abrirDetalheCard(
+                              "produtos_vendidos",
+                              1,
+                              buscaProdutoDetalhe,
+                            );
+                          }
+                        }}
+                      />
+                      <button
+                        className="h-10 px-4 rounded-md text-sm font-semibold bg-primary text-white hover:bg-primary/90"
+                        onClick={() =>
+                          abrirDetalheCard(
+                            "produtos_vendidos",
+                            1,
+                            buscaProdutoDetalhe,
+                          )
+                        }
+                      >
+                        Pesquisar
+                      </button>
+                      <button
+                        className="h-10 px-4 rounded-md text-sm font-semibold border border-default-200 text-default-700 hover:bg-default-100"
+                        onClick={() => {
+                          setBuscaProdutoDetalhe("");
+                          abrirDetalheCard("produtos_vendidos", 1, "");
+                        }}
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {loadingDetalhe ? (
                   <div className="flex items-center justify-center py-16">
                     <div className="text-center space-y-2">
@@ -2426,7 +2590,13 @@ export default function DashboardPage() {
                       )}
                       onChange={(page) => {
                         if (cardDetalhado) {
-                          abrirDetalheCard(cardDetalhado, page);
+                          abrirDetalheCard(
+                            cardDetalhado,
+                            page,
+                            cardDetalhado === "produtos_vendidos"
+                              ? buscaProdutoDetalhe
+                              : "",
+                          );
                         }
                       }}
                     />

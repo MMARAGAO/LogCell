@@ -1,6 +1,4 @@
 import * as XLSX from "xlsx";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
@@ -34,6 +32,15 @@ function formatarValorMonetario(valor: number): string {
     style: "currency",
     currency: "BRL",
   }).format(valor);
+}
+
+async function carregarPdfLibs() {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf/dist/jspdf.es.min.js"),
+    import("jspdf-autotable"),
+  ]);
+
+  return { jsPDF, autoTable };
 }
 
 // ============== EXPORTAÇÃO GERAL (EXCEL) ==============
@@ -138,9 +145,10 @@ export function exportarTransferenciasParaExcel(
 }
 
 // ============== RELATÓRIO INDIVIDUAL (PDF) ==============
-export function gerarRelatorioTransferenciaPDF(
+export async function gerarRelatorioTransferenciaPDF(
   transferencia: TransferenciaCompleta,
 ) {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
   const margemEsquerda = 14;
   let yPos = 20;
@@ -344,9 +352,10 @@ export function gerarRelatorioTransferenciaPDF(
 }
 
 // ============== RELATÓRIO DETALHADO DE TRANSFERÊNCIA ==============
-export function gerarRelatorioTransferenciaDetalhado(
+export async function gerarRelatorioTransferenciaDetalhado(
   transferencia: TransferenciaCompleta,
 ) {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
   const margemEsquerda = 14;
   let yPos = 20;
@@ -513,9 +522,10 @@ export function gerarRelatorioTransferenciaDetalhado(
 }
 
 // ============== RELATÓRIO RESUMIDO DE TRANSFERÊNCIA ==============
-export function gerarRelatorioTransferenciaResumido(
+export async function gerarRelatorioTransferenciaResumido(
   transferencia: TransferenciaCompleta,
 ) {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
   const margemEsquerda = 14;
   let yPos = 20;

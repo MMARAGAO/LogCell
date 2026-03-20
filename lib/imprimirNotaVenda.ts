@@ -1,11 +1,11 @@
 import type { VendaCompleta } from "@/types/vendas";
-
-import jsPDF from "jspdf";
+import type jsPDF from "jspdf";
 
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 
 // Função principal que gera o PDF
-function gerarPDFNota(venda: VendaCompleta): jsPDF {
+async function gerarPDFNota(venda: VendaCompleta): Promise<jsPDF> {
+  const { default: jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
   const doc = new jsPDF({
     format: [80, 297], // 80mm de largura (padrão de impressora térmica)
   });
@@ -224,17 +224,17 @@ function gerarPDFNota(venda: VendaCompleta): jsPDF {
 
 // Função para salvar PDF
 export function salvarPDFNota(venda: VendaCompleta) {
-  const doc = gerarPDFNota(venda);
-
-  abrirPreviewPDF(doc, `venda_${venda.numero_venda}.pdf`);
+  gerarPDFNota(venda).then((doc) => {
+    abrirPreviewPDF(doc, `venda_${venda.numero_venda}.pdf`);
+  });
 }
 
 // Função para imprimir PDF
 export function imprimirNotaVenda(venda: VendaCompleta) {
-  const doc = gerarPDFNota(venda);
-
-  doc.autoPrint();
-  window.open(doc.output("bloburl"), "_blank");
+  gerarPDFNota(venda).then((doc) => {
+    doc.autoPrint();
+    window.open(doc.output("bloburl"), "_blank");
+  });
 }
 
 function formatarMoeda(valor: number): string {

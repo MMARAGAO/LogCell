@@ -1,5 +1,4 @@
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import type jsPDF from "jspdf";
 
 import { OrdemServico } from "@/types/ordemServico";
 import { supabase } from "@/lib/supabaseClient";
@@ -15,6 +14,15 @@ interface PecaOS {
   descricao_peca: string;
   quantidade: number;
   valor_venda: number;
+}
+
+async function carregarPdfLibs() {
+  const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+    import("jspdf/dist/jspdf.es.min.js"),
+    import("jspdf-autotable"),
+  ]);
+
+  return { jsPDF, autoTable };
 }
 
 const ROBOTO_REGULAR_URL = "/fonts/Roboto-Regular.ttf";
@@ -93,6 +101,7 @@ export const gerarPDFOrdemServico = async (
   tipoGarantia?: string,
   diasGarantia?: number,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
 
   await ensurePdfFonts(doc);
@@ -485,6 +494,7 @@ export const gerarOrcamentoOS = async (
   tipoGarantia?: string,
   diasGarantia?: number,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
 
   await ensurePdfFonts(doc);
@@ -1028,6 +1038,7 @@ export const gerarGarantiaOS = async (
   tipoGarantia?: string,
   diasGarantia?: number,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   const doc = new jsPDF();
 
   await ensurePdfFonts(doc);
@@ -2069,6 +2080,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
   pecas: PecaOS[],
   dadosLoja: DadosLoja,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   // Documento com tamanho de cupom térmico (80mm x 250mm)
   const doc = new jsPDF({
     orientation: "portrait",
@@ -2491,6 +2503,7 @@ export const gerarCupomTermicoPDFGarantia = async (
   tipoGarantia?: string,
   diasGarantia?: number,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   // Documento com tamanho de cupom térmico (80mm x 250mm)
   const doc = new jsPDF({
     orientation: "portrait",
@@ -2876,6 +2889,7 @@ export const gerarCupomTermicoPDFOS = async (
   tipoGarantia?: string,
   diasGarantia?: number,
 ) => {
+  const { jsPDF, autoTable } = await carregarPdfLibs();
   // Documento com tamanho de cupom térmico (80mm x 297mm para ordem completa)
   const doc = new jsPDF({
     orientation: "portrait",

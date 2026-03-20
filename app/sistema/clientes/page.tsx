@@ -56,9 +56,6 @@ import {
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -467,6 +464,10 @@ export default function ClientesPage() {
         });
       });
 
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf/dist/jspdf.es.min.js"),
+        import("jspdf-autotable"),
+      ]);
       const doc = new jsPDF({ orientation: "landscape" });
 
       doc.setFontSize(16);

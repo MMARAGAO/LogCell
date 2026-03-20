@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import {
   Card,
   CardBody,
@@ -414,6 +412,10 @@ export default function CaixaPage() {
   const gerarPDFCaixa = async () => {
     if (!caixaDetalhes || !resumo) return;
 
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf/dist/jspdf.es.min.js"),
+      import("jspdf-autotable"),
+    ]);
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
