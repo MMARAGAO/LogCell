@@ -1826,6 +1826,9 @@ export class DashboardService {
       vendedor_id: string;
       vendedor_nome: string;
       total_vendas: number;
+      total_os: number;
+      receita_vendas: number;
+      receita_os: number;
       receita_total: number;
     }>
   > {
@@ -1841,10 +1844,15 @@ export class DashboardService {
           vendedor_id: string;
           vendedor_nome: string;
           total_vendas: number;
+          total_os: number;
+          receita_vendas: number;
+          receita_os: number;
           receita_total: number;
           venda_ids: Set<string>;
+          os_ids: Set<string>;
         }
       > = {};
+      const vendedorIds = new Set<string>();
       const pageSize = 1000;
       let from = 0;
       let to = pageSize - 1;
@@ -1884,15 +1892,24 @@ export class DashboardService {
               vendedor_id: vendedorId,
               vendedor_nome: venda?.vendedor?.nome || "Vendedor desconhecido",
               total_vendas: 0,
+              total_os: 0,
+              receita_vendas: 0,
+              receita_os: 0,
               receita_total: 0,
               venda_ids: new Set<string>(),
+              os_ids: new Set<string>(),
             };
           }
+
+          vendedorIds.add(String(vendedorId));
 
           if (pagamento.venda_id) {
             agrupado[vendedorId].venda_ids.add(String(pagamento.venda_id));
           }
-          agrupado[vendedorId].receita_total += Number(pagamento.valor) || 0;
+          const valorPagamento = Number(pagamento.valor) || 0;
+
+          agrupado[vendedorId].receita_vendas += valorPagamento;
+          agrupado[vendedorId].receita_total += valorPagamento;
         });
 
         if (batch.length < pageSize) {
@@ -1903,13 +1920,98 @@ export class DashboardService {
         to += pageSize;
       }
 
+      from = 0;
+      to = pageSize - 1;
+
+      while (true) {
+        let query = supabase
+          .from("ordem_servico_pagamentos")
+          .select(
+            "id_ordem_servico, valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(criado_por, id_loja, status)",
+          )
+          .gte("data_pagamento", inicioISO)
+          .lte("data_pagamento", fimISO)
+          .neq("os.status", "cancelado")
+          .range(from, to);
+
+        if (loja_id) {
+          query = query.eq("os.id_loja", loja_id);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        const batch = data || [];
+
+        batch.forEach((pagamento) => {
+          const os = pagamento.os as any;
+          const vendedorId = os?.criado_por;
+
+          if (!vendedorId) {
+            return;
+          }
+
+          if (!agrupado[vendedorId]) {
+            agrupado[vendedorId] = {
+              vendedor_id: vendedorId,
+              vendedor_nome: "Vendedor desconhecido",
+              total_vendas: 0,
+              total_os: 0,
+              receita_vendas: 0,
+              receita_os: 0,
+              receita_total: 0,
+              venda_ids: new Set<string>(),
+              os_ids: new Set<string>(),
+            };
+          }
+
+          vendedorIds.add(String(vendedorId));
+
+          if (pagamento.id_ordem_servico) {
+            agrupado[vendedorId].os_ids.add(String(pagamento.id_ordem_servico));
+          }
+
+          const valorPagamento = Number(pagamento.valor) || 0;
+
+          agrupado[vendedorId].receita_os += valorPagamento;
+          agrupado[vendedorId].receita_total += valorPagamento;
+        });
+
+        if (batch.length < pageSize) {
+          break;
+        }
+
+        from += pageSize;
+        to += pageSize;
+      }
+
+      if (vendedorIds.size > 0) {
+        const { data: usuarios, error: usuariosError } = await supabase
+          .from("usuarios")
+          .select("id, nome")
+          .in("id", Array.from(vendedorIds));
+
+        if (usuariosError) {
+          console.error("Erro ao buscar nomes dos vendedores:", usuariosError);
+        } else {
+          (usuarios || []).forEach((usuario: any) => {
+            if (agrupado[usuario.id]) {
+              agrupado[usuario.id].vendedor_nome =
+                usuario.nome || agrupado[usuario.id].vendedor_nome;
+            }
+          });
+        }
+      }
+
       return Object.values(agrupado)
-        .map(({ venda_ids, ...vendedor }) => ({
+        .map(({ venda_ids, os_ids, ...vendedor }) => ({
           ...vendedor,
           total_vendas: venda_ids.size,
+          total_os: os_ids.size,
         }))
         .sort((a, b) => b.receita_total - a.receita_total)
-        .slice(0, 10);
+        .filter((vendedor) => vendedor.receita_total > 0);
     } catch (error) {
       console.error("Erro ao buscar top 10 vendedores:", error);
 

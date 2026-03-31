@@ -88,6 +88,16 @@ const CORES_GRAFICOS = [
   "#6366F1", // índigo
 ];
 
+interface DesempenhoVendedor {
+  vendedor_id: string;
+  vendedor_nome: string;
+  total_vendas: number;
+  total_os: number;
+  receita_vendas: number;
+  receita_os: number;
+  receita_total: number;
+}
+
 type DashboardDetailCardKey =
   | "pagamentos_recebidos"
   | "total_vendas"
@@ -159,7 +169,9 @@ export default function DashboardPage() {
   const [evolucaoVendas, setEvolucaoVendas] = useState<any[]>([]);
   const [top10Produtos, setTop10Produtos] = useState<any[]>([]);
   const [top10Clientes, setTop10Clientes] = useState<any[]>([]);
-  const [top10Vendedores, setTop10Vendedores] = useState<any[]>([]);
+  const [top10Vendedores, setTop10Vendedores] = useState<DesempenhoVendedor[]>(
+    [],
+  );
   const [resumoProdutosVendidos, setResumoProdutosVendidos] = useState<{
     total: number;
     quantidade_total: number;
@@ -2351,7 +2363,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Top 10 Vendedores */}
+              {/* Performance por Vendedor */}
               <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2.5 bg-purple-500/20 rounded-lg">
@@ -2359,10 +2371,10 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-foreground">
-                      Top 10 Vendedores
+                      Vendas e OS por Vendedor
                     </h3>
                     <p className="text-sm text-default-500">
-                      Vendedores com melhor performance
+                      Total recebido em vendas e ordens de servico
                     </p>
                   </div>
                 </div>
@@ -2405,12 +2417,19 @@ export default function DashboardPage() {
                             </p>
                             <div className="flex items-center gap-2 ml-2">
                               <span className="text-xs font-medium text-purple-500">
-                                {vendedor.total_vendas} vendas
+                                {vendedor.total_vendas} vendas •{" "}
+                                {vendedor.total_os} OS
                               </span>
                               <span className="text-sm font-bold text-purple-600">
                                 {formatarMoeda(vendedor.receita_total)}
                               </span>
                             </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-default-500 mb-2">
+                            <span>
+                              Vendas: {formatarMoeda(vendedor.receita_vendas)}
+                            </span>
+                            <span>OS: {formatarMoeda(vendedor.receita_os)}</span>
                           </div>
                           <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                             <div
