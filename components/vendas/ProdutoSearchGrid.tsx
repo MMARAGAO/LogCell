@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Card,
   CardBody,
@@ -12,11 +12,13 @@ import {
 } from "@heroui/react";
 import { Search, Plus, Package } from "lucide-react";
 
+import { formatarMoeda } from "@/lib/formatters";
+
 interface Produto {
   id: string;
   nome: string;
   codigo: string;
-  preco_venda: number;
+  preco_venda: number | null;
   estoque_disponivel: number;
   categoria?: string;
   imagem_url?: string;
@@ -39,13 +41,6 @@ export function ProdutoSearchGrid({
   >(null);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const PRODUTOS_POR_PAGINA = 20;
-
-  const formatarMoeda = (valor: number) => {
-    return valor.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  };
 
   const produtosFiltrados = useMemo(() => {
     let resultado = produtos;
@@ -92,7 +87,7 @@ export function ProdutoSearchGrid({
   );
 
   // Resetar página ao filtrar
-  useMemo(() => {
+  useEffect(() => {
     setPaginaAtual(1);
   }, [busca, categoriaSelecionada]);
 

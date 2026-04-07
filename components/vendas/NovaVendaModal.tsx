@@ -397,7 +397,7 @@ export function NovaVendaModal({
             id: item.produtos.id,
             nome: item.produtos.descricao,
             codigo: item.produtos.id.split("-")[0].toUpperCase(),
-            preco_venda: item.produtos.preco_venda,
+            preco_venda: item.produtos.preco_venda ?? 0,
             categoria: item.produtos.categoria,
             estoque_disponivel: item.quantidade,
           }));
