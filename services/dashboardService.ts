@@ -1830,6 +1830,9 @@ export class DashboardService {
       receita_vendas: number;
       receita_os: number;
       receita_total: number;
+      lucro_vendas: number;
+      lucro_os: number;
+      lucro_total: number;
     }>
   > {
     const { data_inicio, data_fim, loja_id } = filtro;
@@ -1848,11 +1851,16 @@ export class DashboardService {
           receita_vendas: number;
           receita_os: number;
           receita_total: number;
+          lucro_vendas: number;
+          lucro_os: number;
+          lucro_total: number;
           venda_ids: Set<string>;
           os_ids: Set<string>;
         }
       > = {};
       const vendedorIds = new Set<string>();
+      const vendaIdParaVendedorId = new Map<string, string>();
+      const osIdParaVendedorId = new Map<string, string>();
       const pageSize = 1000;
       let from = 0;
       let to = pageSize - 1;
@@ -1896,6 +1904,9 @@ export class DashboardService {
               receita_vendas: 0,
               receita_os: 0,
               receita_total: 0,
+              lucro_vendas: 0,
+              lucro_os: 0,
+              lucro_total: 0,
               venda_ids: new Set<string>(),
               os_ids: new Set<string>(),
             };
@@ -1904,12 +1915,16 @@ export class DashboardService {
           vendedorIds.add(String(vendedorId));
 
           if (pagamento.venda_id) {
-            agrupado[vendedorId].venda_ids.add(String(pagamento.venda_id));
+            const vendaId = String(pagamento.venda_id);
+
+            agrupado[vendedorId].venda_ids.add(vendaId);
+            vendaIdParaVendedorId.set(vendaId, String(vendedorId));
           }
           const valorPagamento = Number(pagamento.valor) || 0;
 
           agrupado[vendedorId].receita_vendas += valorPagamento;
           agrupado[vendedorId].receita_total += valorPagamento;
+          agrupado[vendedorId].lucro_vendas += valorPagamento;
         });
 
         if (batch.length < pageSize) {
@@ -1961,6 +1976,9 @@ export class DashboardService {
               receita_vendas: 0,
               receita_os: 0,
               receita_total: 0,
+              lucro_vendas: 0,
+              lucro_os: 0,
+              lucro_total: 0,
               venda_ids: new Set<string>(),
               os_ids: new Set<string>(),
             };
@@ -1969,13 +1987,17 @@ export class DashboardService {
           vendedorIds.add(String(vendedorId));
 
           if (pagamento.id_ordem_servico) {
-            agrupado[vendedorId].os_ids.add(String(pagamento.id_ordem_servico));
+            const osId = String(pagamento.id_ordem_servico);
+
+            agrupado[vendedorId].os_ids.add(osId);
+            osIdParaVendedorId.set(osId, String(vendedorId));
           }
 
           const valorPagamento = Number(pagamento.valor) || 0;
 
           agrupado[vendedorId].receita_os += valorPagamento;
           agrupado[vendedorId].receita_total += valorPagamento;
+          agrupado[vendedorId].lucro_os += valorPagamento;
         });
 
         if (batch.length < pageSize) {
@@ -2003,6 +2025,90 @@ export class DashboardService {
           });
         }
       }
+
+      const vendaIds = Array.from(vendaIdParaVendedorId.keys());
+
+      if (vendaIds.length > 0) {
+        const batchSize = 50;
+
+        for (let i = 0; i < vendaIds.length; i += batchSize) {
+          const batch = vendaIds.slice(i, i + batchSize);
+          const { data: itensVenda, error: itensVendaError } = await supabase
+            .from("itens_venda")
+            .select(
+              "venda_id, quantidade, produto:produtos!itens_venda_produto_id_fkey(preco_compra)",
+            )
+            .in("venda_id", batch);
+
+          if (itensVendaError) {
+            console.error(
+              "Erro ao buscar custos das vendas por vendedor:",
+              itensVendaError,
+            );
+            continue;
+          }
+
+          (itensVenda || []).forEach((item: any) => {
+            const vendedorId = vendaIdParaVendedorId.get(String(item.venda_id));
+
+            if (!vendedorId || !agrupado[vendedorId]) {
+              return;
+            }
+
+            const quantidade = Number(item.quantidade || 0);
+            const custoUnitario = Number(item.produto?.preco_compra || 0);
+            const custoTotal = custoUnitario * quantidade;
+
+            agrupado[vendedorId].lucro_vendas -= custoTotal;
+          });
+        }
+      }
+
+      const osIds = Array.from(osIdParaVendedorId.keys());
+
+      if (osIds.length > 0) {
+        const batchSize = 50;
+
+        for (let i = 0; i < osIds.length; i += batchSize) {
+          const batch = osIds.slice(i, i + batchSize);
+          const { data: pecasOS, error: pecasOSError } = await supabase
+            .from("ordem_servico_pecas")
+            .select(
+              "id_ordem_servico, quantidade, valor_custo, id_produto, produto:produtos!ordem_servico_pecas_id_produto_fkey(preco_compra)",
+            )
+            .in("id_ordem_servico", batch);
+
+          if (pecasOSError) {
+            console.error(
+              "Erro ao buscar custos das OS por vendedor:",
+              pecasOSError,
+            );
+            continue;
+          }
+
+          (pecasOS || []).forEach((peca: any) => {
+            const vendedorId = osIdParaVendedorId.get(
+              String(peca.id_ordem_servico),
+            );
+
+            if (!vendedorId || !agrupado[vendedorId]) {
+              return;
+            }
+
+            const quantidade = Number(peca.quantidade || 0);
+            const custoTotal =
+              peca.id_produto != null
+                ? Number(peca.produto?.preco_compra || 0) * quantidade
+                : Number(peca.valor_custo || 0);
+
+            agrupado[vendedorId].lucro_os -= custoTotal;
+          });
+        }
+      }
+
+      Object.values(agrupado).forEach((vendedor) => {
+        vendedor.lucro_total = vendedor.lucro_vendas + vendedor.lucro_os;
+      });
 
       return Object.values(agrupado)
         .map(({ venda_ids, os_ids, ...vendedor }) => ({

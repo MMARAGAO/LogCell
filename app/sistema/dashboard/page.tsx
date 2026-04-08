@@ -96,6 +96,9 @@ interface DesempenhoVendedor {
   receita_vendas: number;
   receita_os: number;
   receita_total: number;
+  lucro_vendas: number;
+  lucro_os: number;
+  lucro_total: number;
 }
 
 type DashboardDetailCardKey =
@@ -2430,12 +2433,24 @@ export default function DashboardPage() {
                               Vendas: {formatarMoeda(vendedor.receita_vendas)}
                             </span>
                             <span>OS: {formatarMoeda(vendedor.receita_os)}</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              Lucro: {formatarMoeda(vendedor.lucro_total)}
+                            </span>
                           </div>
                           <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                             <div
                               className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg transition-all duration-500"
                               style={{
-                                width: `${Math.min((vendedor.receita_total / top10Vendedores[0].receita_total) * 100, 100)}%`,
+                                width: `${
+                                  top10Vendedores[0]?.receita_total
+                                    ? Math.min(
+                                        (vendedor.receita_total /
+                                          top10Vendedores[0].receita_total) *
+                                          100,
+                                        100,
+                                      )
+                                    : 0
+                                }%`,
                               }}
                             />
                           </div>
