@@ -27,10 +27,15 @@ import {
 import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 
+interface Loja {
+  id: number;
+  nome: string;
+}
+
 interface AparelhoFormModalProps {
   aparelho?: Aparelho;
-  lojaId: number;
-  lojaNome?: string;
+  lojas: Loja[];
+  lojaId?: number;
   onClose: (sucesso?: boolean) => void;
 }
 
@@ -50,8 +55,8 @@ const CONDICOES = [
 
 export function AparelhoFormModal({
   aparelho,
+  lojas,
   lojaId,
-  lojaNome,
   onClose,
 }: AparelhoFormModalProps) {
   const { usuario } = useAuthContext();
@@ -62,28 +67,32 @@ export function AparelhoFormModal({
   const [prefixoIMEIConsultado, setPrefixoIMEIConsultado] = useState("");
   const [aparelhoRecemCriado, setAparelhoRecemCriado] =
     useState<Aparelho | null>(null);
-  const [formData, setFormData] = useState<AparelhoFormData>({
-    marca: "",
-    modelo: "",
-    armazenamento: "",
-    memoria_ram: "",
-    imei: "",
-    numero_serie: "",
-    cor: "",
-    estado: "novo",
-    condicao: undefined,
-    acessorios: "",
-    observacoes: "",
-    valor_compra: undefined,
-    valor_venda: undefined,
-    loja_id: lojaId,
-    status: "disponivel",
-    saude_bateria: undefined,
-    exibir_catalogo: false,
-    destaque: false,
-    promocao: false,
-    novidade: false,
-    ordem_catalogo: 0,
+  const [formData, setFormData] = useState<AparelhoFormData>(() => {
+    const lojaPadrao = lojaId || (lojas.length > 0 ? lojas[0].id : 1);
+
+    return {
+      marca: "",
+      modelo: "",
+      armazenamento: "",
+      memoria_ram: "",
+      imei: "",
+      numero_serie: "",
+      cor: "",
+      estado: "novo",
+      condicao: undefined,
+      acessorios: "",
+      observacoes: "",
+      valor_compra: undefined,
+      valor_venda: undefined,
+      loja_id: lojaPadrao,
+      status: "disponivel",
+      saude_bateria: undefined,
+      exibir_catalogo: false,
+      destaque: false,
+      promocao: false,
+      novidade: false,
+      ordem_catalogo: 0,
+    };
   });
 
   useEffect(() => {
@@ -114,6 +123,8 @@ export function AparelhoFormModal({
       // Carregar fotos do aparelho
       carregarFotos(aparelho.id);
     } else {
+      const lojaPadrao = lojaId || (lojas.length > 0 ? lojas[0].id : 1);
+
       setFormData({
         marca: "",
         modelo: "",
@@ -128,7 +139,7 @@ export function AparelhoFormModal({
         observacoes: "",
         valor_compra: undefined,
         valor_venda: undefined,
-        loja_id: lojaId,
+        loja_id: lojaPadrao,
         status: "disponivel",
         saude_bateria: undefined,
         exibir_catalogo: false,
@@ -139,7 +150,7 @@ export function AparelhoFormModal({
       });
       setFotos([]);
     }
-  }, [aparelho, lojaId]);
+  }, [aparelho, lojaId, lojas]);
 
   useEffect(() => {
     if (aparelho) return;
@@ -264,14 +275,25 @@ export function AparelhoFormModal({
         </ModalHeader>
         <ModalBody>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              isDisabled
-              isReadOnly
+            <Select
+              isDisabled={!!aparelho || loading || lojas.length === 0}
               className="md:col-span-2"
               label="Loja"
-              value={lojaNome || `Loja ${lojaId}`}
+              placeholder={lojas.length === 0 ? "Nenhuma loja disponível" : "Selecione uma loja"}
+              selectedKeys={formData.loja_id ? [String(formData.loja_id)] : []}
               variant="bordered"
-            />
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0];
+
+                if (value) {
+                  setFormData({ ...formData, loja_id: Number(value) });
+                }
+              }}
+            >
+              {lojas.map((loja) => (
+                <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+              ))}
+            </Select>
             {/* Marca */}
             <Input
               isRequired

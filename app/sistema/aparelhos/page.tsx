@@ -364,11 +364,6 @@ export default function AparelhosPage() {
 
   // Handlers
   const handleAbrirFormNovo = () => {
-    if (todasLojas && !lojaIdFinal) {
-      showToast("Selecione uma loja antes de cadastrar", "warning");
-
-      return;
-    }
     setAparelhoParaEditar(undefined);
     setModalFormAberto(true);
   };
@@ -1537,8 +1532,8 @@ export default function AparelhosPage() {
       {modalFormAberto && (
         <AparelhoFormModal
           aparelho={aparelhoParaEditar}
-          lojaId={lojaIdFinal || 1}
-          lojaNome={lojaNomeSelecionada}
+          lojas={lojas}
+          lojaId={lojaIdFinal || undefined}
           onClose={handleFecharForm}
         />
       )}
