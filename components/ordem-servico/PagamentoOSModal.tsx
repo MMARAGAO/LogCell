@@ -36,6 +36,30 @@ interface Pagamento {
   observacao?: string;
 }
 
+function getLocalDateInputValue() {
+  const now = new Date();
+  const timezoneOffsetInMs = now.getTimezoneOffset() * 60 * 1000;
+
+  return new Date(now.getTime() - timezoneOffsetInMs).toISOString().split("T")[0];
+}
+
+function formatPaymentDate(value: string) {
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      12,
+    ).toLocaleDateString("pt-BR");
+  }
+
+  return new Date(value).toLocaleDateString("pt-BR");
+}
+
 export default function PagamentoOSModal({
   isOpen,
   onClose,
@@ -49,9 +73,7 @@ export default function PagamentoOSModal({
   const [loadingPagamentos, setLoadingPagamentos] = useState(false);
 
   // Campos do novo pagamento
-  const [dataPagamento, setDataPagamento] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [dataPagamento, setDataPagamento] = useState(getLocalDateInputValue());
   const [valorPagamento, setValorPagamento] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("dinheiro");
   const [observacaoPagamento, setObservacaoPagamento] = useState("");
@@ -361,7 +383,7 @@ export default function PagamentoOSModal({
       // Limpar campos
       setValorPagamento("");
       setObservacaoPagamento("");
-      setDataPagamento(new Date().toISOString().split("T")[0]);
+      setDataPagamento(getLocalDateInputValue());
 
       onPagamentoRealizado?.();
     } catch (error: any) {
@@ -696,9 +718,7 @@ export default function PagamentoOSModal({
                             </Chip>
                           </div>
                           <p className="text-xs text-default-600">
-                            {new Date(pag.data_pagamento).toLocaleDateString(
-                              "pt-BR",
-                            )}
+                            {formatPaymentDate(pag.data_pagamento)}
                             {pag.observacao && ` - ${pag.observacao}`}
                           </p>
                         </div>

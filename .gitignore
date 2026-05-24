@@ -18,9 +18,6 @@ bun.lockb
 .next
 dist
 .turbo
-.turbo/
-.next-cache/
-.vercel/
 
 # ============================================================================
 # AMBIENTE - NUNCA FAZER COMMIT (contém credenciais)
@@ -29,8 +26,6 @@ dist
 .env.local
 .env.*.local
 .env.production.local
-package.local.json
-.eslintrc.local.json
 
 # ============================================================================
 # CERTIFICADOS & CHAVES PRIVADAS - SUPER CRÍTICO
@@ -42,7 +37,6 @@ package.local.json
 private/
 secrets/
 .ssh/
-.certs/
 
 # ============================================================================
 # IDE & EDITOR
@@ -55,11 +49,6 @@ secrets/
 .DS_Store
 .env.example.local
 .eslintcache
-.eslintignore
-.cursor/
-.cursorignore
-*.code-workspace
-.vscode-server/
 
 # ============================================================================
 # LOGS & DEBUG
@@ -109,77 +98,34 @@ melhorias.txt
 # ============================================================================
 # NOTA: next.config.js DEVE estar no Git (removido daqui)
 # next.config.local.js
-.env.development.local
-.env.test.local
-.next.*.local
-
-# ============================================================================
-# DESENVOLVIMENTO LOCAL - EVITAR CONFLITOS
-# ============================================================================
-# PM2 ecosystem (paths específicos por dev)
-ecosystem.config.cjs
-
-# Cache NPM/Yarn/PNPM
-.npm/
-.yarn/cache/
-.pnpm-store/
-
-# Arquivos de backup e temporários
-*.bak
-*.backup
-*.tmp
-.cache/
-/tmp/
-/temp/
-
-# Database local e dados de teste
-*.sqlite
-*.sqlite3
-*.db
-*.db-shm
-*.db-wal
-
-# Ferramentas locais
-.supabase/
-.local/
-.volumes/
-
-# Cache e estado local
-.state/
-.session/
-state.json
-
-# Uploads/Downloads locais
-/uploads/
-/downloads/
-/public/uploads/
-
-# Node versions e virtuais
-.nvmrc.local
-.node-version.local
-
-# Arquivos de processo/pid
-*.pid
-*.pid.lock
-
-# ============================================================================
-# SISTEMA OPERACIONAL
-# ============================================================================
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# ecosystem.config.local.cjs
 
 # ============================================================================
 # SERVIDOR & OPERACIONAL (NÃO É CÓDIGO)
 # ============================================================================
+# Backups agora em /home/matheus/supabase/LogCell/backups/
 /backups/
-.pm2/logs/
+/logs/
+/tmp/
+/temp/
+# deploy.sh - DEVE estar no Git para automação
 TEST_DEPLOY.md
+DEVOLUCAO_OS_ATUALIZACOES.md
+IMPLEMENTACAO_DEVOLUCAO_OS.md
+
+# ============================================================================
+# DOCUMENTAÇÃO DE DESENVOLVIMENTO (MANTER LOCALMENTE)
+# ============================================================================
+VALIDACAO_COMPLETA.md
+RUNBOOK_OPERACIONAL.md
+RELATORIO_SEGURANCA.md
+RELATORIO_FINAL_SEGURANCA.md
+.env.local
+
+# ============================================================================
 # CACHE & TEMPORÁRIOS
 # ============================================================================
 .cache/
 .parcel-cache/
 .vercel
 *.swc/
-deploy.sh

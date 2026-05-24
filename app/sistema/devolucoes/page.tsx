@@ -33,11 +33,10 @@ export default function DevolucoesPage() {
 
   const [vendas, setVendas] = useState<VendaCompleta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingTabela, setLoadingTabela] = useState(false);
   const [busca, setBusca] = useState("");
-  const [buscandoVenda, setBuscandoVenda] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 10;
-  const [temMaisVendas, setTemMaisVendas] = useState(true);
   const [totalVendas, setTotalVendas] = useState(0);
   const [vendaSelecionada, setVendaSelecionada] =
     useState<VendaCompleta | null>(null);
@@ -45,188 +44,96 @@ export default function DevolucoesPage() {
   const [modalHistoricoAberto, setModalHistoricoAberto] = useState(false);
   const [vendaHistorico, setVendaHistorico] = useState<string | null>(null);
 
-  // Aguardar permissões serem carregadas antes de carregar vendas
+  const selectVendas = `
+    *,
+    cliente:clientes(id, nome, doc:doc, telefone),
+    loja:lojas(id, nome),
+    vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
+    itens:itens_venda(
+      id,
+      venda_id,
+      produto_id,
+      produto_nome,
+      produto_codigo,
+      quantidade,
+      preco_unitario,
+      subtotal,
+      desconto_tipo,
+      desconto_valor,
+      valor_desconto,
+      devolvido,
+      produto:produtos(descricao, codigo_fabricante)
+    ),
+    devolucoes:devolucoes_venda(
+      *,
+      itens:itens_devolucao(*)
+    )
+  `;
+
   useEffect(() => {
     if (!loadingPermissoes) {
-      carregarVendas();
+      carregarVendas(paginaAtual, busca);
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas, paginaAtual, busca]);
 
-  // Buscar venda específica por número quando digitar
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (busca && /^\d+$/.test(busca)) {
-        buscarVendaPorNumero(parseInt(busca));
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [busca]);
-
-  const carregarVendas = async () => {
+  const carregarVendas = async (pagina: number, termoBusca: string) => {
     try {
-      setLoading(true);
-      const limite = 1000;
-      const selectVendas = `
-          *,
-          cliente:clientes(id, nome, doc:doc, telefone),
-          loja:lojas(id, nome),
-          vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
-          itens:itens_venda(
-            id,
-            venda_id,
-            produto_id,
-            produto_nome,
-            produto_codigo,
-            quantidade,
-            preco_unitario,
-            subtotal,
-            desconto_tipo,
-            desconto_valor,
-            valor_desconto,
-            devolvido,
-            produto:produtos(descricao, codigo_fabricante)
-          ),
-          devolucoes:devolucoes_venda(
-            *,
-            itens:itens_devolucao(*)
-          )
-        `;
-
-      let pagina = 0;
-      let totalRegistros = 0;
-      const vendasAcumuladas: VendaCompleta[] = [];
-
-      while (true) {
-        const inicio = pagina * limite;
-
-        let query = supabase
-          .from("vendas")
-          .select(selectVendas, pagina === 0 ? { count: "exact" } : undefined)
-          .in("status", ["concluida", "devolvida"])
-          .gt("valor_pago", 0)
-          .order("criado_em", { ascending: false })
-          .range(inicio, inicio + limite - 1);
-
-        if (lojaId !== null && !podeVerTodasLojas) {
-          query = query.eq("loja_id", lojaId);
-        }
-
-        const { data, error, count } = await query;
-
-        if (error) throw error;
-
-        const lote = (data || []) as VendaCompleta[];
-
-        if (pagina === 0) {
-          totalRegistros = count || 0;
-        }
-
-        vendasAcumuladas.push(...lote);
-
-        if (
-          lote.length < limite ||
-          (totalRegistros > 0 && vendasAcumuladas.length >= totalRegistros)
-        ) {
-          break;
-        }
-
-        pagina += 1;
+      const isInitialLoad = vendas.length === 0;
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        setLoadingTabela(true);
       }
 
-      setVendas(vendasAcumuladas);
-      setTotalVendas(totalRegistros);
-      setTemMaisVendas(vendasAcumuladas.length < totalRegistros);
-    } catch (error) {
-      console.error("Erro ao carregar vendas:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const buscarVendaPorNumero = async (numeroVenda: number) => {
-    try {
-      setBuscandoVenda(true);
+      const offset = (pagina - 1) * itensPorPagina;
 
       let query = supabase
         .from("vendas")
-        .select(
-          `
-          *,
-          cliente:clientes(id, nome, doc:doc, telefone),
-          loja:lojas(id, nome),
-          vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
-          itens:itens_venda(
-            id,
-            venda_id,
-            produto_id,
-            produto_nome,
-            produto_codigo,
-            quantidade,
-            preco_unitario,
-            subtotal,
-            desconto_tipo,
-            desconto_valor,
-            valor_desconto,
-            devolvido,
-            produto:produtos(descricao, codigo_fabricante)
-          ),
-          devolucoes:devolucoes_venda(
-            *,
-            itens:itens_devolucao(*)
-          )
-        `,
-        )
-        .eq("numero_venda", numeroVenda)
-        .in("status", ["concluida", "devolvida"]);
+        .select(selectVendas, { count: "exact" })
+        .in("status", ["concluida", "devolvida"])
+        .gt("valor_pago", 0)
+        .order("criado_em", { ascending: false })
+        .range(offset, offset + itensPorPagina - 1);
 
-      // Aplicar filtro de loja se usuário não tiver acesso a todas
       if (lojaId !== null && !podeVerTodasLojas) {
         query = query.eq("loja_id", lojaId);
       }
 
-      const { data, error } = await query.single();
+      if (termoBusca) {
+        const ehNumerico = /^\d+$/.test(termoBusca);
+        if (ehNumerico) {
+          query = query.eq("numero_venda", parseInt(termoBusca));
+        } else {
+          const { data: clientes } = await supabase
+            .from("clientes")
+            .select("id")
+            .or(
+              `nome.ilike.%${termoBusca}%,doc.ilike.%${termoBusca}%`,
+            );
 
-      if (error) {
-        if (error.code === "PGRST116") {
-          toast.error(
-            `Venda #${numeroVenda} não encontrada ou não está concluída`,
-          );
-        }
-        console.error("Erro ao buscar venda:", error);
+          const ids = (clientes || []).map((c) => c.id);
 
-        return;
-      }
-
-      if (data) {
-        // Adicionar venda encontrada ao topo da lista se não estiver lá
-        setVendas((prevVendas) => {
-          const exists = prevVendas.some((v) => v.numero_venda === numeroVenda);
-
-          if (exists) {
-            return prevVendas;
+          if (ids.length > 0) {
+            query = query.in("cliente_id", ids);
+          } else {
+            query = query.eq("cliente_id", -1);
           }
-
-          return [data as VendaCompleta, ...prevVendas];
-        });
-        toast.success(`Venda #${numeroVenda} encontrada!`);
+        }
       }
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      setVendas((data || []) as VendaCompleta[]);
+      setTotalVendas(count || 0);
     } catch (error) {
-      console.error("Erro ao buscar venda por número:", error);
+      console.error("Erro ao carregar vendas:", error);
     } finally {
-      setBuscandoVenda(false);
+      setLoading(false);
+      setLoadingTabela(false);
     }
   };
-
-  const vendasFiltradas = vendas.filter((venda) => {
-    const termo = busca.toLowerCase();
-
-    return (
-      venda.numero_venda?.toString().includes(termo) ||
-      venda.cliente?.nome.toLowerCase().includes(termo) ||
-      venda.cliente?.doc?.includes(termo)
-    );
-  });
 
   const handleAbrirModal = (venda: VendaCompleta) => {
     if (!temPermissao("devolucoes.criar")) {
@@ -244,8 +151,7 @@ export default function DevolucoesPage() {
   };
 
   const handleDevolucaoProcessada = () => {
-    // Recarregar vendas para atualizar os valores
-    carregarVendas();
+    carregarVendas(paginaAtual, busca);
     handleFecharModal();
     toast.success("Devolução processada com sucesso!");
   };
@@ -286,20 +192,8 @@ export default function DevolucoesPage() {
     return venda.itens.reduce((total, item) => total + item.quantidade, 0);
   };
 
-  // Paginação no cliente
-  const totalPaginasCliente = Math.ceil(
-    vendasFiltradas.length / itensPorPagina,
-  );
-  const indiceInicio = (paginaAtual - 1) * itensPorPagina;
-  const indiceFim = indiceInicio + itensPorPagina;
-  const vendasPaginadas = vendasFiltradas.slice(indiceInicio, indiceFim);
+  const totalPaginas = Math.ceil(totalVendas / itensPorPagina);
 
-  // Reset página ao mudar busca
-  useEffect(() => {
-    setPaginaAtual(1);
-  }, [busca]);
-
-  // Verificar loading primeiro
   if (loading || loadingPermissoes) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -308,7 +202,6 @@ export default function DevolucoesPage() {
     );
   }
 
-  // Verificar permissão de visualizar
   if (!temPermissao("devolucoes.visualizar")) {
     return (
       <div className="p-8 text-center">
@@ -322,7 +215,6 @@ export default function DevolucoesPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           <PackageX className="w-8 h-8 text-danger" />
@@ -333,7 +225,6 @@ export default function DevolucoesPage() {
         </p>
       </div>
 
-      {/* Barra de busca */}
       <Card className="mb-6">
         <CardBody>
           <Input
@@ -344,28 +235,23 @@ export default function DevolucoesPage() {
             size="lg"
             startContent={<Search className="w-4 h-4 text-default-400" />}
             value={busca}
-            onChange={(e) => setBusca(e.target.value)}
+            onChange={(e) => {
+              setBusca(e.target.value);
+              setPaginaAtual(1);
+            }}
           />
         </CardBody>
       </Card>
 
-      {/* Tabela de vendas */}
       <Card>
-        <CardBody>
+        <CardBody className="relative">
           <div className="flex justify-between items-center mb-4">
             <div className="flex flex-col gap-1">
               <p className="text-sm text-default-500">
-                Mostrando {vendasPaginadas.length} de {vendasFiltradas.length}{" "}
-                venda(s)
-                {loading && temMaisVendas && " (carregando mais...)"}
+                Mostrando {vendas.length} de {totalVendas} venda(s)
               </p>
-              {totalVendas > vendas.length && (
-                <p className="text-xs text-default-400">
-                  Carregadas {vendas.length} de {totalVendas} vendas totais
-                </p>
-              )}
             </div>
-            {totalPaginasCliente > 1 && (
+            {totalPaginas > 1 && (
               <div className="flex gap-2 items-center">
                 <Button
                   isDisabled={paginaAtual === 1}
@@ -376,10 +262,10 @@ export default function DevolucoesPage() {
                   Anterior
                 </Button>
                 <span className="text-sm text-default-500">
-                  Página {paginaAtual} de {totalPaginasCliente}
+                  Página {paginaAtual} de {totalPaginas}
                 </span>
                 <Button
-                  isDisabled={paginaAtual === totalPaginasCliente}
+                  isDisabled={paginaAtual === totalPaginas}
                   size="sm"
                   variant="flat"
                   onPress={() => setPaginaAtual(paginaAtual + 1)}
@@ -389,6 +275,12 @@ export default function DevolucoesPage() {
               </div>
             )}
           </div>
+
+          {loadingTabela && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 rounded-lg">
+              <Spinner size="lg" />
+            </div>
+          )}
 
           <Table aria-label="Tabela de vendas concluídas">
             <TableHeader>
@@ -409,7 +301,7 @@ export default function DevolucoesPage() {
                 </div>
               }
             >
-              {vendasPaginadas.map((venda) => {
+              {vendas.map((venda) => {
                 const qtdDevolvida = calcularQuantidadeDevolvida(venda);
                 const qtdTotal = calcularQuantidadeTotal(venda);
                 const temDevolucao = qtdDevolvida > 0;
@@ -514,7 +406,6 @@ export default function DevolucoesPage() {
         </CardBody>
       </Card>
 
-      {/* Modal de Devolução */}
       {vendaSelecionada && (
         <ModalDevolucao
           isOpen={modalAberto}
@@ -524,7 +415,6 @@ export default function DevolucoesPage() {
         />
       )}
 
-      {/* Modal de Histórico */}
       {vendaHistorico && (
         <HistoricoDevolucoes
           isOpen={modalHistoricoAberto}
