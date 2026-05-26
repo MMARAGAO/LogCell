@@ -3,6 +3,7 @@ import { Metadata, Viewport } from "next";
 import clsx from "clsx";
 
 import { Providers } from "./providers";
+import { NewVersionToast } from "@/components/NewVersionToast";
 
 import { siteConfig } from "@/config/site";
 import { fontSans } from "@/config/fonts";
@@ -70,6 +71,22 @@ export default function RootLayout({
           fontSans.variable,
         )}
       >
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener("error", function(e) {
+                if (e.message && e.message.includes("Failed to load chunk")) {
+                  e.preventDefault();
+                  var toast = document.createElement("div");
+                  toast.id = "chunk-error-toast";
+                  toast.style.cssText = "position:fixed;bottom:4rem;right:1rem;z-index:9999;display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;border-radius:0.75rem;background:#f31260;color:white;box-shadow:0 4px 20px rgba(0,0,0,0.2);";
+                  toast.innerHTML = '<span style="font-size:0.875rem;font-weight:500">Atualização disponível — clique para recarregar</span><button style="background:rgba(255,255,255,0.2);color:white;border:none;border-radius:0.5rem;padding:0.375rem 0.75rem;font-size:0.75rem;font-weight:600;cursor:pointer" onclick="window.location.reload()">Recarregar</button>';
+                  document.body.appendChild(toast);
+                }
+              });
+            `,
+          }}
+        />
         <Providers
           themeProps={{
             attribute: "class",
@@ -82,6 +99,7 @@ export default function RootLayout({
           <div className="relative flex flex-col h-screen">
             <main className="">{children}</main>
           </div>
+          <NewVersionToast />
         </Providers>
       </body>
     </html>
