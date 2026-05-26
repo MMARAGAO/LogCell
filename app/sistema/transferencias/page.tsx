@@ -8,24 +8,40 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Select, SelectItem } from "@heroui/select";
+import { Input } from "@heroui/input";
 import { Divider } from "@heroui/divider";
 import { Spinner } from "@heroui/spinner";
+import { Pagination } from "@heroui/pagination";
+import {
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@heroui/table";
 import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
+
 import {
   ArrowRightIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  EyeIcon,
   FunnelIcon,
   PlusIcon,
   DocumentArrowDownIcon,
+  ArrowPathRoundedSquareIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+  EyeIcon,
   PencilSquareIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
@@ -34,18 +50,17 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
+import { MetricCard } from "@/components/transferencias/MetricCard";
+import { TransferenciaCard } from "@/components/transferencias/TransferenciaCard";
+import { DetalhesTransferenciaModal } from "@/components/transferencias/DetalhesTransferenciaModal";
 import { supabase } from "@/lib/supabaseClient";
 import {
   buscarTransferencias,
+  contarTransferencias,
   confirmarTransferencia,
   cancelarTransferencia,
 } from "@/services/transferenciasService";
-import {
-  exportarTransferenciasParaExcel,
-  gerarRelatorioTransferenciaPDF,
-  gerarRelatorioTransferenciaDetalhado,
-  gerarRelatorioTransferenciaResumido,
-} from "@/lib/exportarTransferencias";
+import { exportarTransferenciasParaExcel } from "@/lib/exportarTransferencias";
 
 interface Loja {
   id: number;
@@ -60,22 +75,34 @@ export default function TransferenciasPage() {
   const { lojaId, podeVerTodasLojas } = useLojaFilter();
   const router = useRouter();
 
+  const ITENS_POR_PAGINA = 15;
+
   const [transferencias, setTransferencias] = useState<TransferenciaCompleta[]>(
     [],
   );
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [loading, setLoading] = useState(true);
   const [processando, setProcessando] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [estatisticas, setEstatisticas] = useState({
+    pendentes: 0,
+    confirmadas: 0,
+    canceladas: 0,
+    total: 0,
+  });
 
-  // Filtros
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+  const [visualizacao, setVisualizacao] = useState<"cards" | "tabela">(
+    "cards",
+  );
+  const [termoBusca, setTermoBusca] = useState("");
 
-  // Transferência selecionada para visualização
   const [transferenciaSelecionada, setTransferenciaSelecionada] =
     useState<TransferenciaCompleta | null>(null);
 
-  // Estados dos modais de confirmação
   const [confirmarModal, setConfirmarModal] = useState({
     isOpen: false,
     transferencia: null as TransferenciaCompleta | null,
@@ -86,24 +113,21 @@ export default function TransferenciasPage() {
     transferencia: null as TransferenciaCompleta | null,
   });
 
-  // Carregar dados ao montar o componente
   useEffect(() => {
     carregarDados();
   }, []);
 
-  // Recarregar quando filtros de loja mudarem
   useEffect(() => {
     if (!loading) {
       carregarTransferencias();
     }
-  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja]);
+  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja, pagina, termoBusca]);
 
   const carregarDados = async () => {
     setLoading(true);
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Buscar lojas
       const { data: lojasData, error: lojasError } = await supabase
         .from("lojas")
         .select("id, nome")
@@ -113,8 +137,7 @@ export default function TransferenciasPage() {
       if (lojasError) throw lojasError;
       setLojas(lojasData || []);
 
-      // Buscar transferências
-      await carregarTransferencias();
+      await Promise.all([carregarTransferencias(), carregarEstatisticas()]);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar dados");
@@ -136,20 +159,24 @@ export default function TransferenciasPage() {
 
         filtros.loja_id = lojaIdFiltro;
       } else if (lojaId !== null && !podeVerTodasLojas) {
-        // Aplicar filtro de loja do usuário se não tiver acesso a todas
         filtros.loja_id = lojaId;
-        console.log(
-          `🏪 Filtrando transferências da loja ${lojaId} (enviadas ou recebidas)`,
-        );
       }
 
-      const resultado = await buscarTransferencias(filtros);
+      if (termoBusca.trim()) {
+        filtros.busca = termoBusca.trim();
+      }
 
-      setTransferencias(resultado);
+      const { data, total } = await buscarTransferencias(
+        filtros,
+        pagina,
+        ITENS_POR_PAGINA,
+      );
+
+      setTransferencias(data);
+      setTotalRegistros(total);
     } catch (error: any) {
       console.error("Erro ao buscar transferências:", error);
 
-      // Verificar se é erro de tabela não encontrada
       const mensagemErro = error?.message || JSON.stringify(error);
 
       if (
@@ -165,12 +192,28 @@ export default function TransferenciasPage() {
     }
   };
 
-  // Recarregar ao mudar filtros
-  useEffect(() => {
-    if (!loading) {
-      carregarTransferencias();
+  const carregarEstatisticas = async () => {
+    try {
+      const lojaFilter: any = {};
+
+      if (filtroLoja !== "todas") {
+        lojaFilter.loja_id = parseInt(filtroLoja);
+      } else if (lojaId !== null && !podeVerTodasLojas) {
+        lojaFilter.loja_id = lojaId;
+      }
+
+      const stats = await contarTransferencias(lojaFilter);
+
+      setEstatisticas({
+        pendentes: stats.pendente,
+        confirmadas: stats.confirmada,
+        canceladas: stats.cancelada,
+        total: stats.total,
+      });
+    } catch (error) {
+      console.error("Erro ao carregar estatísticas:", error);
     }
-  }, [filtroStatus, filtroLoja]);
+  };
 
   const handleConfirmar = async (transferencia: TransferenciaCompleta) => {
     if (!usuario) return;
@@ -182,7 +225,6 @@ export default function TransferenciasPage() {
 
     const transferencia = confirmarModal.transferencia;
 
-    // Verificar estoque antes de confirmar
     const itensComProblema = [];
 
     for (const item of transferencia.itens) {
@@ -202,7 +244,6 @@ export default function TransferenciasPage() {
       }
     }
 
-    // Se há problemas, mostrar mensagem detalhada
     if (itensComProblema.length > 0) {
       const mensagem = itensComProblema
         .map(
@@ -296,7 +337,6 @@ export default function TransferenciasPage() {
   };
 
   const transferenciasAgrupadas = useMemo(() => {
-    // Agrupar transferências pendentes por origem/destino/data
     const grupos: { [key: string]: TransferenciaCompleta[] } = {};
 
     transferencias.forEach((t) => {
@@ -314,19 +354,12 @@ export default function TransferenciasPage() {
     return grupos;
   }, [transferencias]);
 
-  const estatisticas = useMemo(() => {
-    const pendentes = transferencias.filter(
-      (t) => t.status === "pendente",
-    ).length;
-    const confirmadas = transferencias.filter(
-      (t) => t.status === "confirmada",
-    ).length;
-    const canceladas = transferencias.filter(
-      (t) => t.status === "cancelada",
-    ).length;
-
-    return { pendentes, confirmadas, canceladas, total: transferencias.length };
-  }, [transferencias]);
+  const statusChips = [
+    { key: "todas", label: "Todas", color: "default" as const },
+    { key: "pendente", label: "Pendentes", color: "warning" as const },
+    { key: "confirmada", label: "Confirmadas", color: "success" as const },
+    { key: "cancelada", label: "Canceladas", color: "danger" as const },
+  ];
 
   if (loading) {
     return (
@@ -339,58 +372,36 @@ export default function TransferenciasPage() {
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
       {/* Cabeçalho */}
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
-            Gestão de Transferências
-          </h1>
-          <p className="text-xs sm:text-sm text-default-500 mt-1">
-            Confirme, cancele ou edite transferências entre lojas
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary-500/15 text-primary">
+            <ArrowPathRoundedSquareIcon className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
+              Gestão de Transferências
+            </h1>
+            <p className="text-xs sm:text-sm text-default-500 mt-0.5">
+              Gerencie transferências de produtos entre lojas
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
-          {/* Botão Exportar Excel */}
-          <Button
-            isIconOnly
-            className="sm:hidden"
-            color="success"
-            isDisabled={transferencias.length === 0}
-            size="lg"
-            startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
-            variant="flat"
-            onPress={() =>
-              exportarTransferenciasParaExcel(transferencias, "transferencias")
-            }
-          />
-          <Button
-            className="hidden sm:flex"
-            color="success"
-            isDisabled={transferencias.length === 0}
-            size="lg"
-            startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
-            variant="flat"
-            onPress={() =>
-              exportarTransferenciasParaExcel(transferencias, "transferencias")
-            }
-          >
-            Exportar Excel
-          </Button>
-
+        <div className="flex items-center gap-2">
           {temPermissao("transferencias.criar") && (
             <>
               <Button
                 isIconOnly
                 className="sm:hidden"
                 color="primary"
-                size="lg"
+                size="sm"
                 startContent={<PlusIcon className="h-5 w-5" />}
                 onPress={() => router.push("/sistema/transferencias/nova")}
               />
               <Button
                 className="hidden sm:flex"
                 color="primary"
-                size="lg"
+                size="sm"
                 startContent={<PlusIcon className="h-5 w-5" />}
                 onPress={() => router.push("/sistema/transferencias/nova")}
               >
@@ -403,97 +414,200 @@ export default function TransferenciasPage() {
 
       {/* Estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card>
-          <CardBody className="text-center py-4">
-            <div className="text-2xl sm:text-3xl font-bold text-default-900">
-              {estatisticas.total}
-            </div>
-            <div className="text-xs sm:text-sm text-default-500">Total</div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="text-center py-4">
-            <div className="text-2xl sm:text-3xl font-bold text-warning">
-              {estatisticas.pendentes}
-            </div>
-            <div className="text-xs sm:text-sm text-default-500">Pendentes</div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="text-center py-4">
-            <div className="text-2xl sm:text-3xl font-bold text-success">
-              {estatisticas.confirmadas}
-            </div>
-            <div className="text-xs sm:text-sm text-default-500">
-              Confirmadas
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody className="text-center py-4">
-            <div className="text-2xl sm:text-3xl font-bold text-danger">
-              {estatisticas.canceladas}
-            </div>
-            <div className="text-xs sm:text-sm text-default-500">
-              Canceladas
-            </div>
-          </CardBody>
-        </Card>
+        <MetricCard
+          color="primary"
+          delay={0}
+          icon={<ArrowPathRoundedSquareIcon className="h-5 w-5" />}
+          label="Total"
+          value={estatisticas.total}
+        />
+        <MetricCard
+          color="warning"
+          delay={100}
+          icon={<ClockIcon className="h-5 w-5" />}
+          label="Pendentes"
+          value={estatisticas.pendentes}
+        />
+        <MetricCard
+          color="success"
+          delay={200}
+          icon={<CheckCircleIcon className="h-5 w-5" />}
+          label="Confirmadas"
+          value={estatisticas.confirmadas}
+        />
+        <MetricCard
+          color="danger"
+          delay={300}
+          icon={<XCircleIcon className="h-5 w-5" />}
+          label="Canceladas"
+          value={estatisticas.canceladas}
+        />
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardBody>
-          <div className="flex items-center gap-2 mb-4">
-            <FunnelIcon className="h-5 w-5" />
-            <span className="font-semibold">Filtros</span>
+      {/* Filtros e Busca */}
+      <Card shadow="sm">
+        <CardBody className="p-4 sm:p-5 space-y-3">
+          {/* Linha: Busca + Toggle */}
+          <div className="flex items-center gap-2">
+            <Input
+              isClearable
+              className="flex-1"
+              placeholder="Pesquisar por loja, observação..."
+              size="sm"
+              startContent={<MagnifyingGlassIcon className="h-4 w-4 text-default-400" />}
+              value={termoBusca}
+              variant="bordered"
+              onClear={() => {
+                setTermoBusca("");
+                setPagina(1);
+              }}
+              onValueChange={(value) => {
+                setTermoBusca(value);
+                setPagina(1);
+              }}
+            />
+            <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-default-100 flex-shrink-0">
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={visualizacao === "cards" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "cards" ? "solid" : "light"}
+                onPress={() => setVisualizacao("cards")}
+              >
+                <Squares2X2Icon className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={visualizacao === "tabela" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "tabela" ? "solid" : "light"}
+                onPress={() => setVisualizacao("tabela")}
+              >
+                <ListBulletIcon className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Status"
-              selectedKeys={[filtroStatus]}
-              onSelectionChange={(keys) =>
-                setFiltroStatus(Array.from(keys)[0] as string)
-              }
-            >
-              <SelectItem key="todas">Todas</SelectItem>
-              <SelectItem key="pendente">Pendentes</SelectItem>
-              <SelectItem key="confirmada">Confirmadas</SelectItem>
-              <SelectItem key="cancelada">Canceladas</SelectItem>
-            </Select>
 
-            <Select
-              items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
-              label="Loja"
-              selectedKeys={[filtroLoja]}
-              onSelectionChange={(keys) =>
-                setFiltroLoja(Array.from(keys)[0] as string)
-              }
+          {/* Cabeçalho dos filtros collapsível */}
+          <div className="flex items-center gap-2">
+            <button
+              className="flex items-center gap-1.5 cursor-pointer group"
+              onClick={() => setFiltrosAbertos(!filtrosAbertos)}
             >
-              {(loja) => (
-                <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
-              )}
-            </Select>
+              <FunnelIcon className="h-4 w-4 text-default-400 group-hover:text-default-600 transition-colors" />
+              <span className="text-xs font-semibold text-default-500 uppercase tracking-wider group-hover:text-default-700 transition-colors">
+                Filtros Avançados
+              </span>
+              <svg
+                className={`h-3.5 w-3.5 text-default-400 transition-transform duration-200 ${filtrosAbertos ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M19 9l-7 7-7-7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                />
+              </svg>
+            </button>
           </div>
+
+          {filtrosAbertos && (
+            <div className="space-y-3 pt-1">
+              {/* Status */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-xs font-semibold text-default-500 uppercase tracking-wider w-16 flex-shrink-0">
+                  Status
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {statusChips.map((chip) => (
+                    <Chip
+                      key={chip.key}
+                      classNames={{
+                        base: "cursor-pointer transition-all",
+                        content: "text-xs font-medium",
+                      }}
+                      color={filtroStatus === chip.key ? chip.color : "default"}
+                      variant={filtroStatus === chip.key ? "solid" : "flat"}
+                      onClick={() => {
+                        setFiltroStatus(chip.key);
+                        setPagina(1);
+                      }}
+                    >
+                      {chip.label}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+
+              {/* Loja */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-xs font-semibold text-default-500 uppercase tracking-wider w-16 flex-shrink-0">
+                  Loja
+                </span>
+                <Select
+                  aria-label="Filtrar por loja"
+                  className="sm:max-w-xs"
+                  items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
+                  placeholder="Todas as Lojas"
+                  selectedKeys={[filtroLoja]}
+                  size="sm"
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    setFiltroLoja(Array.from(keys)[0] as string);
+                    setPagina(1);
+                  }}
+                >
+                  {(loja) => (
+                    <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+                  )}
+                </Select>
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
 
       {/* Lista de Transferências */}
       {transferencias.length === 0 ? (
-        <Card>
-          <CardBody className="text-center py-12">
-            <p className="text-default-400">Nenhuma transferência encontrada</p>
+        <Card shadow="sm">
+          <CardBody className="text-center py-16">
+            <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
+              <ArrowPathRoundedSquareIcon className="h-8 w-8 text-default-300" />
+            </div>
+            <p className="text-lg font-medium text-default-500">
+              Nenhuma transferência encontrada
+            </p>
+            <p className="text-sm text-default-400 mt-1">
+              {filtroStatus !== "todas" || filtroLoja !== "todas"
+                ? "Tente alterar os filtros para ver mais resultados"
+                : temPermissao("transferencias.criar")
+                  ? 'Clique em "Nova Transferência" para começar'
+                  : ""}
+            </p>
           </CardBody>
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Agrupamentos de Transferências Pendentes */}
+          {/* Agrupamentos */}
           {filtroStatus === "pendente" &&
             Object.keys(transferenciasAgrupadas).length > 0 && (
               <>
-                <h2 className="text-lg sm:text-xl font-semibold">
-                  Transferências Agrupadas (Mesmo Dia/Rota)
-                </h2>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-warning-500/15 text-warning">
+                    <ClockIcon className="h-4 w-4" />
+                  </div>
+                  <h2 className="text-base sm:text-lg font-semibold text-foreground">
+                    Transferências Agrupadas
+                  </h2>
+                  <span className="text-xs text-default-400">
+                    (Mesma rota/data)
+                  </span>
+                </div>
                 {Object.entries(transferenciasAgrupadas).map(
                   ([chave, grupo]) => {
                     if (grupo.length <= 1) return null;
@@ -505,33 +619,50 @@ export default function TransferenciasPage() {
                     );
 
                     return (
-                      <Card key={chave} className="border-2 border-warning">
-                        <CardHeader className="bg-warning/10">
+                      <Card
+                        key={chave}
+                        className="border-l-4 border-l-warning overflow-hidden"
+                        shadow="sm"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-warning-500/10 to-transparent px-4 sm:px-5 py-3">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full">
-                              <Chip color="warning" size="sm" variant="solid">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <Chip
+                                classNames={{
+                                  content: "font-semibold text-xs",
+                                }}
+                                color="warning"
+                                size="sm"
+                                variant="solid"
+                              >
                                 {grupo.length} transferências
                               </Chip>
-                              <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
-                                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
+                              <div className="flex items-center gap-1.5 text-sm">
+                                <span className="font-semibold truncate max-w-[120px]">
                                   {primeira.loja_origem}
                                 </span>
-                                <ArrowRightIcon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
+                                <ArrowRightIcon className="h-4 w-4 text-warning flex-shrink-0" />
+                                <span className="font-semibold truncate max-w-[120px]">
                                   {primeira.loja_destino}
                                 </span>
                               </div>
-                              <span className="text-xs sm:text-sm text-default-500">
+                              <span className="text-xs text-default-500">
                                 {new Date(
                                   primeira.criado_em,
                                 ).toLocaleDateString("pt-BR")}
                               </span>
                             </div>
-                            <Chip size="sm">{totalItens} itens no total</Chip>
+                            <Chip
+                              classNames={{ content: "text-xs" }}
+                              size="sm"
+                              variant="flat"
+                            >
+                              {totalItens} itens no total
+                            </Chip>
                           </div>
                         </CardHeader>
-                        <CardBody>
-                          <div className="grid grid-cols-1 gap-2">
+                        <CardBody className="p-3 sm:p-4">
+                          <div className="grid grid-cols-1 gap-3">
                             {grupo.map((transferencia) => (
                               <TransferenciaCard
                                 key={transferencia.id}
@@ -553,29 +684,290 @@ export default function TransferenciasPage() {
                     );
                   },
                 )}
-                <Divider className="my-4" />
+                <Divider className="my-2" />
               </>
             )}
 
           {/* Todas as Transferências */}
-          <h2 className="text-lg sm:text-xl font-semibold">
-            Todas as Transferências
-          </h2>
-          <div className="grid grid-cols-1 gap-4">
-            {transferencias.map((transferencia) => (
-              <TransferenciaCard
-                key={transferencia.id}
-                podeConfirmar={podeConfirmar}
-                podeEditar={temPermissao("transferencias.editar")}
-                processando={processando === transferencia.id}
-                transferencia={transferencia}
-                onCancelar={handleCancelar}
-                onConfirmar={handleConfirmar}
-                onEditar={handleEditar}
-                onVisualizar={setTransferenciaSelecionada}
-              />
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary-500/15 text-primary">
+              <ArrowPathRoundedSquareIcon className="h-4 w-4" />
+            </div>
+            <h2 className="text-base sm:text-lg font-semibold text-foreground">
+              Todas as Transferências
+            </h2>
+            <span className="text-xs text-default-400">
+              ({transferencias.length})
+            </span>
           </div>
+
+          {/* Visualização em Cards */}
+          {visualizacao === "cards" && (
+            <div className="grid grid-cols-1 gap-3">
+              {transferencias.map((transferencia) => (
+                <TransferenciaCard
+                  key={transferencia.id}
+                  podeConfirmar={podeConfirmar}
+                  podeEditar={temPermissao("transferencias.editar")}
+                  processando={processando === transferencia.id}
+                  transferencia={transferencia}
+                  onCancelar={handleCancelar}
+                  onConfirmar={handleConfirmar}
+                  onEditar={handleEditar}
+                  onVisualizar={setTransferenciaSelecionada}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Visualização em Tabela */}
+          {visualizacao === "tabela" && (
+            <div className="overflow-x-auto rounded-xl border border-default-200">
+              <Table
+                aria-label="Tabela de transferências"
+                removeWrapper
+                classNames={{
+                  th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider",
+                  td: "text-sm",
+                }}
+              >
+                <TableHeader>
+                  <TableColumn>STATUS</TableColumn>
+                  <TableColumn>ORIGEM</TableColumn>
+                  <TableColumn>DESTINO</TableColumn>
+                  <TableColumn>ITENS</TableColumn>
+                  <TableColumn>RESPONSÁVEL</TableColumn>
+                  <TableColumn>DATA</TableColumn>
+                  <TableColumn width={120}>AÇÕES</TableColumn>
+                </TableHeader>
+                <TableBody>
+                  {transferencias.map((t) => {
+                    const statusConf = {
+                      pendente: {
+                        color: "warning" as const,
+                        icon: ClockIcon,
+                      },
+                      confirmada: {
+                        color: "success" as const,
+                        icon: CheckCircleIcon,
+                      },
+                      cancelada: {
+                        color: "danger" as const,
+                        icon: XCircleIcon,
+                      },
+                    };
+                    const sc = statusConf[t.status];
+                    const SI = sc.icon;
+
+                    return (
+                      <TableRow
+                        key={t.id}
+                        className="transition-colors hover:bg-default-50"
+                      >
+                        <TableCell>
+                          <Chip
+                            color={sc.color}
+                            size="sm"
+                            startContent={<SI className="h-3 w-3" />}
+                            variant="flat"
+                            classNames={{
+                              base: "px-2",
+                              content: "text-xs font-semibold",
+                            }}
+                          >
+                            {t.status === "pendente"
+                              ? "Pendente"
+                              : t.status === "confirmada"
+                                ? "Confirmada"
+                                : "Cancelada"}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium text-sm">
+                            {t.loja_origem}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium text-sm">
+                            {t.loja_destino}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Chip size="sm" variant="flat" classNames={{ content: "text-xs" }}>
+                            {t.itens.length}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-600">
+                            {t.usuario_nome}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-default-500 whitespace-nowrap">
+                            {new Date(t.criado_em).toLocaleDateString(
+                              "pt-BR",
+                              {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              },
+                            )}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="light"
+                              onPress={() =>
+                                setTransferenciaSelecionada(t)
+                              }
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                            </Button>
+                            <Dropdown>
+                              <DropdownTrigger>
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="light"
+                                >
+                                  <DocumentArrowDownIcon className="h-4 w-4" />
+                                </Button>
+                              </DropdownTrigger>
+                              <DropdownMenu aria-label="Relatório">
+                                <DropdownItem
+                                  key="completo"
+                                  description="Completo"
+                                  onPress={async () => {
+                                    const {
+                                      gerarRelatorioTransferenciaPDF,
+                                    } = await import(
+                                      "@/lib/exportarTransferencias"
+                                    );
+                                    gerarRelatorioTransferenciaPDF(t);
+                                  }}
+                                >
+                                  Completo
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="detalhado"
+                                  description="Detalhado"
+                                  onPress={async () => {
+                                    const {
+                                      gerarRelatorioTransferenciaDetalhado,
+                                    } = await import(
+                                      "@/lib/exportarTransferencias"
+                                    );
+                                    gerarRelatorioTransferenciaDetalhado(t);
+                                  }}
+                                >
+                                  Detalhado
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="resumido"
+                                  description="Resumido"
+                                  onPress={async () => {
+                                    const {
+                                      gerarRelatorioTransferenciaResumido,
+                                    } = await import(
+                                      "@/lib/exportarTransferencias"
+                                    );
+                                    gerarRelatorioTransferenciaResumido(t);
+                                  }}
+                                >
+                                  Resumido
+                                </DropdownItem>
+                              </DropdownMenu>
+                            </Dropdown>
+                            {t.status === "pendente" && (
+                              <Dropdown>
+                                <DropdownTrigger>
+                                  <Button
+                                    isIconOnly
+                                    color="primary"
+                                    isDisabled={processando === t.id}
+                                    size="sm"
+                                    variant="light"
+                                  >
+                                    <PencilSquareIcon className="h-4 w-4" />
+                                  </Button>
+                                </DropdownTrigger>
+                                <DropdownMenu
+                                  aria-label="Ações"
+                                  onAction={(key) => {
+                                    if (key === "editar") handleEditar(t);
+                                    if (key === "confirmar")
+                                      handleConfirmar(t);
+                                    if (key === "cancelar")
+                                      handleCancelar(t);
+                                  }}
+                                >
+                                  {temPermissao(
+                                    "transferencias.editar",
+                                  ) ? (
+                                    <DropdownItem
+                                      key="editar"
+                                      startContent={
+                                        <PencilSquareIcon className="h-4 w-4" />
+                                      }
+                                    >
+                                      Editar
+                                    </DropdownItem>
+                                  ) : null}
+                                  {podeConfirmar ? (
+                                    <DropdownItem
+                                      key="confirmar"
+                                      className="text-success"
+                                      color="success"
+                                      startContent={
+                                        <CheckCircleIcon className="h-4 w-4" />
+                                      }
+                                    >
+                                      Confirmar
+                                    </DropdownItem>
+                                  ) : null}
+                                  <DropdownItem
+                                    key="cancelar"
+                                    className="text-danger"
+                                    color="danger"
+                                    startContent={
+                                      <XCircleIcon className="h-4 w-4" />
+                                    }
+                                  >
+                                    Cancelar
+                                  </DropdownItem>
+                                </DropdownMenu>
+                              </Dropdown>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Paginação */}
+      {totalRegistros > ITENS_POR_PAGINA && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <p className="text-xs sm:text-sm text-default-400">
+            Mostrando {Math.min((pagina - 1) * ITENS_POR_PAGINA + 1, totalRegistros)}-
+            {Math.min(pagina * ITENS_POR_PAGINA, totalRegistros)} de{" "}
+            {totalRegistros} registro{totalRegistros > 1 ? "s" : ""}
+          </p>
+          <Pagination
+            showControls
+            color="primary"
+            page={pagina}
+            total={Math.ceil(totalRegistros / ITENS_POR_PAGINA)}
+            onChange={setPagina}
+          />
         </div>
       )}
 
@@ -623,705 +1015,6 @@ export default function TransferenciasPage() {
       />
 
       {toast.ToastComponent}
-    </div>
-  );
-}
-
-// Componente de Card de Transferência
-function TransferenciaCard({
-  transferencia,
-  processando,
-  podeConfirmar,
-  podeEditar,
-  onConfirmar,
-  onCancelar,
-  onEditar,
-  onVisualizar,
-}: {
-  transferencia: TransferenciaCompleta;
-  processando: boolean;
-  podeConfirmar: boolean;
-  podeEditar: boolean;
-  onConfirmar: (t: TransferenciaCompleta) => void;
-  onCancelar: (t: TransferenciaCompleta) => void;
-  onEditar: (t: TransferenciaCompleta) => void;
-  onVisualizar: (t: TransferenciaCompleta) => void;
-}) {
-  const statusConfig = {
-    pendente: { color: "warning" as const, label: "Pendente", icon: ClockIcon },
-    confirmada: {
-      color: "success" as const,
-      label: "Confirmada",
-      icon: CheckCircleIcon,
-    },
-    cancelada: {
-      color: "danger" as const,
-      label: "Cancelada",
-      icon: XCircleIcon,
-    },
-  };
-
-  const config = statusConfig[transferencia.status];
-  const StatusIcon = config.icon;
-
-  return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardBody>
-        <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
-          <div className="flex-1 space-y-3 w-full">
-            {/* Cabeçalho */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <Chip
-                color={config.color}
-                size="sm"
-                startContent={<StatusIcon className="h-4 w-4" />}
-                variant="flat"
-              >
-                {config.label}
-              </Chip>
-              <div className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
-                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
-                  {transferencia.loja_origem}
-                </span>
-                <ArrowRightIcon className="h-4 w-4 sm:h-5 sm:w-5 text-default-400 flex-shrink-0" />
-                <span className="font-semibold truncate max-w-[120px] sm:max-w-none">
-                  {transferencia.loja_destino}
-                </span>
-              </div>
-              <Chip size="sm" variant="flat">
-                {transferencia.itens.length}{" "}
-                {transferencia.itens.length === 1 ? "item" : "itens"}
-              </Chip>
-            </div>
-
-            {/* Informações */}
-            <div className="text-xs sm:text-sm text-default-500 space-y-1">
-              <div>
-                <span className="font-semibold text-foreground">Saída:</span>{" "}
-                {transferencia.usuario_nome} -{" "}
-                {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-              {transferencia.confirmado_em && (
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Confirmação:
-                  </span>{" "}
-                  {transferencia.confirmado_por_nome} -{" "}
-                  {new Date(transferencia.confirmado_em).toLocaleString(
-                    "pt-BR",
-                    {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}
-                </div>
-              )}
-              {!transferencia.confirmado_em &&
-                transferencia.status === "pendente" && (
-                  <div className="text-yellow-600">
-                    <span className="font-semibold">Aguardando:</span>{" "}
-                    confirmação de recebimento
-                  </div>
-                )}
-              {transferencia.cancelado_em && (
-                <div>
-                  <span className="font-semibold text-foreground">
-                    Cancelamento:
-                  </span>{" "}
-                  {transferencia.cancelado_por_nome} -{" "}
-                  {new Date(transferencia.cancelado_em).toLocaleString(
-                    "pt-BR",
-                    {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}
-                  {transferencia.motivo_cancelamento &&
-                    ` - ${transferencia.motivo_cancelamento}`}
-                </div>
-              )}
-            </div>
-
-            {/* Produtos */}
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {transferencia.itens.slice(0, 3).map((item) => (
-                <Chip
-                  key={item.id}
-                  className="text-xs sm:text-sm"
-                  color="primary"
-                  size="sm"
-                  variant="flat"
-                >
-                  <span className="truncate max-w-[200px] sm:max-w-none">
-                    {item.produto_descricao}{" "}
-                    {item.produto_marca && `(${item.produto_marca})`}
-                  </span>{" "}
-                  - {item.quantidade}un
-                </Chip>
-              ))}
-              {transferencia.itens.length > 3 && (
-                <Chip
-                  className="text-xs sm:text-sm"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                >
-                  +{transferencia.itens.length - 3} mais
-                </Chip>
-              )}
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex lg:flex-col flex-row lg:gap-2 gap-2 w-full lg:w-auto">
-            <Button
-              className="flex-1 lg:flex-initial"
-              color="default"
-              size="sm"
-              startContent={<EyeIcon className="h-4 w-4" />}
-              variant="flat"
-              onPress={() => onVisualizar(transferencia)}
-            >
-              <span className="hidden sm:inline">Detalhes</span>
-              <span className="sm:hidden">Ver</span>
-            </Button>
-
-            <Dropdown>
-              <DropdownTrigger>
-                <Button
-                  className="flex-1 lg:flex-initial"
-                  color="success"
-                  size="sm"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  variant="flat"
-                >
-                  <span className="hidden sm:inline">Relatório</span>
-                  <span className="sm:hidden">PDF</span>
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="Opções de relatório">
-                <DropdownItem
-                  key="completo"
-                  description="Relatório original completo"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
-                >
-                  Completo
-                </DropdownItem>
-                <DropdownItem
-                  key="detalhado"
-                  description="Com todas as informações e códigos"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() =>
-                    gerarRelatorioTransferenciaDetalhado(transferencia)
-                  }
-                >
-                  Detalhado
-                </DropdownItem>
-                <DropdownItem
-                  key="resumido"
-                  description="Versão compacta para impressão"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() =>
-                    gerarRelatorioTransferenciaResumido(transferencia)
-                  }
-                >
-                  Resumido
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-
-            {transferencia.status === "pendente" && (
-              <Dropdown>
-                <DropdownTrigger>
-                  <Button
-                    className="flex-1 lg:flex-initial"
-                    color="primary"
-                    isDisabled={processando}
-                    size="sm"
-                    variant="flat"
-                  >
-                    Ações
-                  </Button>
-                </DropdownTrigger>
-                <DropdownMenu aria-label="Ações da transferência">
-                  {podeEditar ? (
-                    <DropdownItem
-                      key="editar"
-                      startContent={<PencilSquareIcon className="h-4 w-4" />}
-                      onPress={() => onEditar(transferencia)}
-                    >
-                      Editar Transferência
-                    </DropdownItem>
-                  ) : null}
-                  {podeConfirmar ? (
-                    <DropdownItem
-                      key="confirmar"
-                      className="text-success"
-                      color="success"
-                      startContent={<CheckCircleIcon className="h-4 w-4" />}
-                      onPress={() => onConfirmar(transferencia)}
-                    >
-                      Confirmar Recebimento
-                    </DropdownItem>
-                  ) : null}
-                  <DropdownItem
-                    key="cancelar"
-                    className="text-danger"
-                    color="danger"
-                    startContent={<XCircleIcon className="h-4 w-4" />}
-                    onPress={() => onCancelar(transferencia)}
-                  >
-                    Cancelar Transferência
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
-            )}
-          </div>
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
-
-// Modal de Detalhes
-function DetalhesTransferenciaModal({
-  transferencia,
-  onClose,
-  onConfirmar,
-  onCancelar,
-  onEditar,
-  podeConfirmar,
-  podeEditar,
-  processando,
-}: {
-  transferencia: TransferenciaCompleta;
-  onClose: () => void;
-  onConfirmar: (t: TransferenciaCompleta) => void;
-  onCancelar: (t: TransferenciaCompleta) => void;
-  onEditar: (t: TransferenciaCompleta) => void;
-  podeConfirmar: boolean;
-  podeEditar: boolean;
-  processando: boolean;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      role="button"
-      tabIndex={0}
-      onClick={onClose}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClose();
-        }
-      }}
-    >
-      <Card
-        className="max-w-3xl w-full m-2 sm:m-4 max-h-[95vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <CardHeader className="flex justify-between sticky top-0 bg-background z-10 border-b">
-          <h3 className="text-lg sm:text-xl font-bold">
-            Detalhes da Transferência
-          </h3>
-          <Button size="sm" variant="light" onPress={onClose}>
-            ✕
-          </Button>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          {/* Informações Gerais */}
-          <div>
-            <h4 className="font-semibold mb-2 text-sm sm:text-base">
-              Informações Gerais
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
-              <div>
-                <span className="text-default-500">Status:</span>{" "}
-                <Chip
-                  color={
-                    transferencia.status === "pendente"
-                      ? "warning"
-                      : transferencia.status === "confirmada"
-                        ? "success"
-                        : "danger"
-                  }
-                  size="sm"
-                >
-                  {transferencia.status === "pendente"
-                    ? "Pendente"
-                    : transferencia.status === "confirmada"
-                      ? "Confirmada"
-                      : "Cancelada"}
-                </Chip>
-              </div>
-              <div>
-                <span className="text-default-500">Origem:</span>{" "}
-                <span className="font-medium">{transferencia.loja_origem}</span>
-              </div>
-              <div>
-                <span className="text-default-500">Destino:</span>{" "}
-                <span className="font-medium">
-                  {transferencia.loja_destino}
-                </span>
-              </div>
-              <div>
-                <span className="text-default-500">Total de Itens:</span>{" "}
-                <span className="font-medium">
-                  {transferencia.itens.length}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* Histórico / Timeline */}
-          <div>
-            <h4 className="font-semibold mb-4 text-sm sm:text-base">
-              Histórico de Movimentação
-            </h4>
-            <div className="space-y-4">
-              {/* Evento 1: Criação / Saída */}
-              <div className="flex gap-2 sm:gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-500 flex items-center justify-center text-white flex-shrink-0">
-                    <ArrowRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </div>
-                  <div className="w-0.5 sm:w-1 h-12 bg-gray-300 mt-2" />
-                </div>
-                <div className="flex-1 pb-4">
-                  <div className="font-semibold text-xs sm:text-sm text-blue-600">
-                    Saída Autorizada
-                  </div>
-                  <div className="text-xs text-default-500 mt-0.5">
-                    {new Date(transferencia.criado_em).toLocaleString("pt-BR", {
-                      day: "2-digit",
-                      month: "2-digit",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                  <div className="text-xs sm:text-sm mt-2 bg-blue-50 p-2 sm:p-3 rounded-lg">
-                    <span className="font-medium text-foreground">
-                      {transferencia.usuario_nome}
-                    </span>
-                    <span className="text-default-600">
-                      {" "}
-                      autorizou a saída de{" "}
-                    </span>
-                    <span className="font-semibold text-foreground">
-                      {transferencia.itens.length}{" "}
-                      {transferencia.itens.length === 1 ? "item" : "itens"}
-                    </span>
-                    <br />
-                    <span className="text-default-600">de </span>
-                    <span className="font-medium text-foreground">
-                      {transferencia.loja_origem}
-                    </span>
-                    <span className="text-default-600"> para </span>
-                    <span className="font-medium text-foreground">
-                      {transferencia.loja_destino}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Evento 2: Recebimento (Pendente ou Confirmado) */}
-              <div className="flex gap-2 sm:gap-4">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white flex-shrink-0 ${
-                      transferencia.status === "confirmada"
-                        ? "bg-green-500"
-                        : transferencia.status === "cancelada"
-                          ? "bg-red-500"
-                          : "bg-yellow-500"
-                    }`}
-                  >
-                    {transferencia.status === "confirmada" ? (
-                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                    ) : transferencia.status === "cancelada" ? (
-                      <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                    ) : (
-                      <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                    )}
-                  </div>
-                  {transferencia.status === "cancelada" ? (
-                    <div className="w-1 h-0 mt-2" />
-                  ) : (
-                    <div className="w-1 h-0 mt-2" />
-                  )}
-                </div>
-                <div className="flex-1 pb-4">
-                  <div
-                    className={`font-semibold text-xs sm:text-sm ${
-                      transferencia.status === "confirmada"
-                        ? "text-green-600"
-                        : transferencia.status === "cancelada"
-                          ? "text-red-600"
-                          : "text-yellow-600"
-                    }`}
-                  >
-                    {transferencia.status === "confirmada"
-                      ? "Recebimento Confirmado"
-                      : transferencia.status === "pendente"
-                        ? "Aguardando Confirmação"
-                        : "Cancelado"}
-                  </div>
-                  {transferencia.confirmado_em ? (
-                    <>
-                      <div className="text-xs text-default-500 mt-0.5">
-                        {new Date(transferencia.confirmado_em).toLocaleString(
-                          "pt-BR",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </div>
-                      <div className="text-xs sm:text-sm mt-2 bg-green-50 p-2 sm:p-3 rounded-lg">
-                        <span className="font-medium text-foreground">
-                          {transferencia.confirmado_por_nome}
-                        </span>
-                        <span className="text-default-600">
-                          {" "}
-                          confirmou o recebimento dos itens em{" "}
-                        </span>
-                        <span className="font-medium text-foreground">
-                          {transferencia.loja_destino}
-                        </span>
-                      </div>
-                    </>
-                  ) : transferencia.status === "cancelada" ? (
-                    <div />
-                  ) : (
-                    <div className="text-xs mt-2 bg-yellow-50 p-2 sm:p-3 rounded-lg">
-                      <span className="text-yellow-700">
-                        ⏳ <span className="font-medium">Pendente</span> -
-                        Aguardando confirmação de recebimento em{" "}
-                        <span className="font-medium">
-                          {transferencia.loja_destino}
-                        </span>
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Evento 3: Cancelamento (se aplicável) */}
-              {transferencia.status === "cancelada" &&
-                transferencia.cancelado_em && (
-                  <div className="flex gap-2 sm:gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-red-500 flex items-center justify-center text-white flex-shrink-0">
-                        <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-xs sm:text-sm text-red-600">
-                        Transferência Cancelada
-                      </div>
-                      <div className="text-xs text-default-500 mt-0.5">
-                        {new Date(transferencia.cancelado_em).toLocaleString(
-                          "pt-BR",
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </div>
-                      <div className="text-xs sm:text-sm mt-2 bg-red-50 p-2 sm:p-3 rounded-lg">
-                        <span className="font-medium text-foreground">
-                          {transferencia.cancelado_por_nome}
-                        </span>
-                        <span className="text-default-600">
-                          {" "}
-                          cancelou a transferência
-                        </span>
-                        {transferencia.motivo_cancelamento && (
-                          <>
-                            <br />
-                            <span className="text-xs italic">
-                              Motivo: {transferencia.motivo_cancelamento}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-            </div>
-          </div>
-
-          <Divider />
-
-          {/* Produtos */}
-          <div>
-            <h4 className="font-semibold mb-2 text-sm sm:text-base">
-              Produtos ({transferencia.itens.length})
-            </h4>
-            <div className="space-y-2 max-h-48 sm:max-h-60 overflow-y-auto">
-              {transferencia.itens.map((item) => {
-                return (
-                  <div
-                    key={item.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 rounded-lg bg-default-100 gap-2"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm sm:text-base truncate">
-                        {item.produto_descricao}
-                      </div>
-                      {item.produto_marca && (
-                        <div className="text-xs sm:text-sm text-default-500">
-                          {item.produto_marca}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
-                      <Chip color="primary" size="sm" variant="flat">
-                        {item.quantidade} un
-                      </Chip>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {transferencia.observacao && (
-            <>
-              <Divider />
-              <div>
-                <h4 className="font-semibold mb-2 text-sm sm:text-base">
-                  Observação
-                </h4>
-                <p className="text-sm text-default-600">
-                  {transferencia.observacao}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* Ações */}
-          <Divider />
-          <div className="flex flex-col sm:flex-row gap-2 justify-end">
-            <Dropdown>
-              <DropdownTrigger>
-                <Button
-                  color="success"
-                  startContent={<DocumentArrowDownIcon className="h-5 w-5" />}
-                  variant="flat"
-                >
-                  Baixar Relatório
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="Opções de relatório">
-                <DropdownItem
-                  key="completo"
-                  description="Relatório original completo"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() => gerarRelatorioTransferenciaPDF(transferencia)}
-                >
-                  Completo
-                </DropdownItem>
-                <DropdownItem
-                  key="detalhado"
-                  description="Com todas as informações e códigos"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() =>
-                    gerarRelatorioTransferenciaDetalhado(transferencia)
-                  }
-                >
-                  Detalhado
-                </DropdownItem>
-                <DropdownItem
-                  key="resumido"
-                  description="Versão compacta para impressão"
-                  startContent={<DocumentArrowDownIcon className="h-4 w-4" />}
-                  onPress={() =>
-                    gerarRelatorioTransferenciaResumido(transferencia)
-                  }
-                >
-                  Resumido
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-            {transferencia.status === "pendente" && (
-              <Dropdown>
-                <DropdownTrigger>
-                  <Button
-                    color="primary"
-                    isDisabled={processando}
-                    variant="flat"
-                  >
-                    Ações
-                  </Button>
-                </DropdownTrigger>
-                <DropdownMenu aria-label="Ações da transferência">
-                  {podeEditar ? (
-                    <DropdownItem
-                      key="editar"
-                      startContent={<PencilSquareIcon className="h-4 w-4" />}
-                      onPress={() => {
-                        onEditar(transferencia);
-                        onClose();
-                      }}
-                    >
-                      Editar Transferência
-                    </DropdownItem>
-                  ) : null}
-                  {podeConfirmar ? (
-                    <DropdownItem
-                      key="confirmar"
-                      className="text-success"
-                      color="success"
-                      startContent={<CheckCircleIcon className="h-4 w-4" />}
-                      onPress={() => {
-                        onConfirmar(transferencia);
-                        onClose();
-                      }}
-                    >
-                      Confirmar Recebimento
-                    </DropdownItem>
-                  ) : null}
-                  <DropdownItem
-                    key="cancelar"
-                    className="text-danger"
-                    color="danger"
-                    startContent={<XCircleIcon className="h-4 w-4" />}
-                    onPress={() => {
-                      onCancelar(transferencia);
-                      onClose();
-                    }}
-                  >
-                    Cancelar Transferência
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
-            )}
-          </div>
-        </CardBody>
-      </Card>
     </div>
   );
 }

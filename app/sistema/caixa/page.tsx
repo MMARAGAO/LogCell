@@ -212,27 +212,44 @@ export default function CaixaPage() {
 
       const historicos = await CaixaService.listarCaixas(filtros);
 
-      const historicosComSaldoEsperado = await Promise.all(
-        historicos.map(async (caixa) => {
-          try {
-            const resumoHistorico = await CaixaService.buscarResumoCaixa(
-              caixa.id,
-            );
+      const CONCURRENCY_LIMIT = 3;
 
-            return {
-              ...caixa,
-              saldo_esperado: resumoHistorico.saldo_esperado,
-            };
-          } catch (error) {
-            console.error(
-              "Erro ao calcular saldo esperado para caixa histórico:",
-              error,
-            );
+      const processInBatches = async (items: CaixaCompleto[]) => {
+        const results: CaixaCompleto[] = [];
+        const queue = [...items];
 
-            return caixa;
+        const worker = async () => {
+          while (queue.length > 0) {
+            const caixa = queue.shift()!;
+
+            try {
+              const resumoHistorico = await CaixaService.buscarResumoCaixa(
+                caixa.id,
+              );
+
+              results.push({
+                ...caixa,
+                saldo_esperado: resumoHistorico.saldo_esperado,
+              } as CaixaCompleto);
+            } catch (error) {
+              console.error(
+                "Erro ao calcular saldo esperado para caixa histórico:",
+                error,
+              );
+
+              results.push(caixa);
+            }
           }
-        }),
-      );
+        };
+
+        await Promise.all(
+          Array.from({ length: CONCURRENCY_LIMIT }, () => worker()),
+        );
+
+        return results;
+      };
+
+      const historicosComSaldoEsperado = await processInBatches(historicos);
 
       setHistoricosCaixa(historicosComSaldoEsperado);
       setPaginaHistorico(1);

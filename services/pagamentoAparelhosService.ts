@@ -21,7 +21,15 @@ interface CriarPagamentoAparelhoParams {
 export async function criarPagamentoAparelho(
   params: CriarPagamentoAparelhoParams,
 ) {
-  const { aparelhoId, clienteId, lojaId, valorVenda, pagamentos, brindes = [], usuarioId } = params;
+  const {
+    aparelhoId,
+    clienteId,
+    lojaId,
+    valorVenda,
+    pagamentos,
+    brindes = [],
+    usuarioId,
+  } = params;
 
   const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
 

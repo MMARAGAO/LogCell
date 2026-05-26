@@ -10,7 +10,8 @@ export async function GET(
 
     const { data, error } = await supabaseAdmin
       .from("ordem_servico")
-      .select(`
+      .select(
+        `
         bancada,
         numero_os,
         cliente_nome,
@@ -27,7 +28,8 @@ export async function GET(
         laudo_garantia_dias,
         tecnico_responsavel,
         valor_orcamento
-      `)
+      `,
+      )
       .eq("id", id)
       .single();
 
@@ -47,6 +49,7 @@ export async function GET(
 
     // Busca nome do técnico
     let tecnico_nome = null;
+
     if (data.tecnico_responsavel) {
       const { data: tecnico } = await supabaseAdmin
         .from("tecnicos")
@@ -79,6 +82,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Erro ao buscar dados da stream:", error);
+
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 },

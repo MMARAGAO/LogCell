@@ -139,6 +139,13 @@ export function HistoricoDevolucoes({
       currency: "BRL",
     });
   };
+  const totalDevolvido = devolucoes.reduce(
+    (total, devolucao) => total + Number(devolucao.valor_total || 0),
+    0,
+  );
+  const devolucoesComCredito = devolucoes.filter(
+    (devolucao) => devolucao.tipo === "com_credito",
+  ).length;
 
   if (loading) {
     return (
@@ -156,23 +163,65 @@ export function HistoricoDevolucoes({
 
   return (
     <Modal isOpen={isOpen} scrollBehavior="inside" size="4xl" onClose={onClose}>
-      <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            <span>Histórico de Devoluções</span>
+      <ModalContent className="overflow-hidden border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.12)] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-[0_22px_58px_rgba(0,0,0,0.4)]">
+        <ModalHeader className="border-b border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f8fafc_100%)] px-6 py-5 dark:border-zinc-800 dark:bg-[linear-gradient(180deg,_#18181b_0%,_#111827_100%)]">
+          <div className="flex w-full flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                <History className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="block text-lg font-semibold text-slate-900 dark:text-zinc-100">
+                  Histórico de Devoluções
+                </span>
+                <p className="text-sm font-normal text-slate-500 dark:text-zinc-400">
+                  {devolucoes.length} devolução(ões) registrada(s)
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Card className="border border-slate-200 bg-white shadow-none dark:border-zinc-700 dark:bg-zinc-900/70">
+                <CardBody className="gap-1 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
+                    Registros
+                  </p>
+                  <p className="text-xl font-semibold text-slate-900 dark:text-zinc-100">
+                    {devolucoes.length}
+                  </p>
+                </CardBody>
+              </Card>
+              <Card className="border border-slate-200 bg-white shadow-none dark:border-zinc-700 dark:bg-zinc-900/70">
+                <CardBody className="gap-1 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
+                    Com Crédito
+                  </p>
+                  <p className="text-xl font-semibold text-slate-900 dark:text-zinc-100">
+                    {devolucoesComCredito}
+                  </p>
+                </CardBody>
+              </Card>
+              <Card className="border border-slate-200 bg-white shadow-none dark:border-zinc-700 dark:bg-zinc-900/70">
+                <CardBody className="gap-1 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-zinc-400">
+                    Valor Acumulado
+                  </p>
+                  <p className="text-xl font-semibold text-slate-900 dark:text-zinc-100">
+                    {formatarMoeda(totalDevolvido)}
+                  </p>
+                </CardBody>
+              </Card>
+            </div>
           </div>
-          <p className="text-sm font-normal text-default-500">
-            {devolucoes.length} devolução(ões) registrada(s)
-          </p>
         </ModalHeader>
 
-        <ModalBody>
+        <ModalBody className="bg-slate-50/60 px-6 py-6 dark:bg-zinc-950/60">
           {devolucoes.length === 0 ? (
-            <Card className="bg-default-50">
-              <CardBody className="text-center py-12">
-                <PackageX className="w-16 h-16 text-default-300 mx-auto mb-3" />
-                <p className="text-default-500">
+            <Card className="rounded-[24px] border border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+              <CardBody className="py-12 text-center">
+                <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-500">
+                  <PackageX className="h-7 w-7" />
+                </div>
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-200">
                   Nenhuma devolução registrada para esta venda
                 </p>
               </CardBody>
@@ -180,180 +229,197 @@ export function HistoricoDevolucoes({
           ) : (
             <div className="space-y-4">
               {devolucoes.map((devolucao, index) => (
-                <Card key={devolucao.id} className="border-l-4 border-l-danger">
-                  <CardBody className="p-4">
-                    {/* Cabeçalho da Devolução */}
-                    <div className="flex items-start justify-between mb-4">
+                <Card
+                  key={devolucao.id}
+                  className="rounded-[24px] border border-slate-200 bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)] dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-[0_12px_28px_rgba(0,0,0,0.26)]"
+                >
+                  <CardBody className="p-5">
+                    <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <Chip
-                            color="danger"
+                            classNames={{
+                              base: "border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-300",
+                            }}
                             size="sm"
-                            startContent={<PackageX className="w-3 h-3" />}
+                            startContent={<PackageX className="h-3 w-3" />}
                             variant="flat"
                           >
                             Devolução #{index + 1}
                           </Chip>
                           {devolucao.tipo === "com_credito" ? (
                             <Chip
-                              color="success"
+                              classNames={{
+                                base: "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/35 dark:text-emerald-300",
+                              }}
                               size="sm"
-                              startContent={<CreditCard className="w-3 h-3" />}
+                              startContent={<CreditCard className="h-3 w-3" />}
                               variant="flat"
                             >
                               Com Crédito
                             </Chip>
                           ) : (
-                            <Chip color="warning" size="sm" variant="flat">
+                            <Chip
+                              classNames={{
+                                base: "border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/35 dark:text-amber-300",
+                              }}
+                              size="sm"
+                              variant="flat"
+                            >
                               Sem Crédito
                             </Chip>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-default-500">
-                          <Calendar className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
+                          <Calendar className="h-4 w-4 dark:text-zinc-500" />
                           {formatarData(devolucao.criado_em!)}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-default-500">
+                      <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-right dark:border-zinc-700 dark:bg-zinc-800/80">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-zinc-400">
                           Valor Devolvido
                         </p>
-                        <p className="text-xl font-bold text-danger">
+                        <p className="text-2xl font-semibold text-slate-900 dark:text-zinc-100">
                           {formatarMoeda(devolucao.valor_total)}
                         </p>
                       </div>
                     </div>
 
-                    <Divider className="my-3" />
+                    <Divider className="my-3 bg-slate-200 dark:bg-zinc-800" />
 
-                    {/* Detalhes */}
-                    <div className="space-y-3">
-                      {/* Realizado por */}
-                      <div className="flex items-start gap-2">
-                        <User className="w-4 h-4 text-default-400 mt-0.5" />
-                        <div>
-                          <p className="text-xs text-default-500">
-                            Processado por
-                          </p>
-                          <p className="text-sm font-medium">
-                            {devolucao.realizado_por_usuario?.nome ||
-                              "Não informado"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Forma de Pagamento */}
-                      {devolucao.forma_pagamento && (
+                    <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)]">
+                      <div className="space-y-3">
                         <div className="flex items-start gap-2">
-                          <CreditCard className="w-4 h-4 text-default-400 mt-0.5" />
+                          <User className="mt-0.5 h-4 w-4 text-slate-400 dark:text-zinc-500" />
                           <div>
-                            <p className="text-xs text-default-500">
-                              Forma de Pagamento
+                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                              Processado por
                             </p>
-                            <p className="text-sm font-medium">
-                              {devolucao.forma_pagamento === "dinheiro" &&
-                                "Dinheiro"}
-                              {devolucao.forma_pagamento === "pix" && "PIX"}
-                              {devolucao.forma_pagamento === "debito" &&
-                                "Cartão de Débito"}
-                              {devolucao.forma_pagamento === "credito" &&
-                                "Cartão de Crédito"}
-                              {devolucao.forma_pagamento === "credito_loja" &&
-                                "Crédito na Loja"}
+                            <p className="text-sm font-medium text-slate-900 dark:text-zinc-100">
+                              {devolucao.realizado_por_usuario?.nome ||
+                                "Não informado"}
                             </p>
                           </div>
                         </div>
-                      )}
 
-                      {/* Motivo */}
-                      <div>
-                        <p className="text-xs text-default-500 mb-1">Motivo</p>
-                        <Card className="bg-default-100">
-                          <CardBody className="p-3">
-                            <p className="text-sm">{devolucao.motivo}</p>
-                          </CardBody>
-                        </Card>
-                      </div>
-
-                      {/* Itens Devolvidos */}
-                      <div>
-                        <p className="text-xs text-default-500 mb-2">
-                          Itens Devolvidos ({devolucao.itens?.length || 0})
-                        </p>
-                        <div className="space-y-2">
-                          {devolucao.itens?.map((item) => (
-                            <Card key={item.id} className="bg-default-50">
-                              <CardBody className="p-3">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-sm font-medium">
-                                      {item.item_venda?.produto_nome ||
-                                        "Produto"}
-                                    </p>
-                                    {item.item_venda?.produto_codigo && (
-                                      <p className="text-xs text-default-500">
-                                        Cód: {item.item_venda.produto_codigo}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-sm font-semibold">
-                                      {item.quantidade}x{" "}
-                                      {item.item_venda?.preco_unitario
-                                        ? formatarMoeda(
-                                            item.item_venda.preco_unitario,
-                                          )
-                                        : "-"}
-                                    </p>
-                                    <p className="text-xs text-danger">
-                                      {item.item_venda?.preco_unitario
-                                        ? formatarMoeda(
-                                            item.quantidade *
-                                              item.item_venda.preco_unitario,
-                                          )
-                                        : "-"}
-                                    </p>
-                                  </div>
-                                </div>
-                              </CardBody>
-                            </Card>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Crédito Gerado */}
-                      {devolucao.credito && (
-                        <Card className="bg-success-50 border border-success">
-                          <CardBody className="p-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CreditCard className="w-4 h-4 text-success" />
-                              <p className="text-sm font-semibold text-success">
-                                Crédito Gerado
+                        {devolucao.forma_pagamento && (
+                          <div className="flex items-start gap-2">
+                            <CreditCard className="mt-0.5 h-4 w-4 text-slate-400 dark:text-zinc-500" />
+                            <div>
+                              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                Forma de Pagamento
+                              </p>
+                              <p className="text-sm font-medium text-slate-900 dark:text-zinc-100">
+                                {devolucao.forma_pagamento === "dinheiro" &&
+                                  "Dinheiro"}
+                                {devolucao.forma_pagamento === "pix" && "PIX"}
+                                {devolucao.forma_pagamento === "debito" &&
+                                  "Cartão de Débito"}
+                                {devolucao.forma_pagamento === "credito" &&
+                                  "Cartão de Crédito"}
+                                {devolucao.forma_pagamento === "credito_loja" &&
+                                  "Crédito na Loja"}
                               </p>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <p className="text-xs text-default-600">
-                                  Valor Total
-                                </p>
-                                <p className="font-semibold">
-                                  {formatarMoeda(
-                                    devolucao.credito?.valor_total,
-                                  )}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-default-600">
-                                  Saldo Disponível
-                                </p>
-                                <p className="font-semibold text-success">
-                                  {formatarMoeda(devolucao.credito?.saldo)}
+                          </div>
+                        )}
+
+                        {devolucao.credito && (
+                          <Card className="rounded-[20px] border border-emerald-200 bg-emerald-50 shadow-none dark:border-emerald-900/60 dark:bg-emerald-950/35">
+                            <CardBody className="p-3">
+                              <div className="mb-2 flex items-center gap-2">
+                                <CreditCard className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
+                                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-200">
+                                  Crédito Gerado
                                 </p>
                               </div>
-                            </div>
-                          </CardBody>
-                        </Card>
-                      )}
+                              <div className="space-y-2 text-sm">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-emerald-700/80 dark:text-emerald-200/80">
+                                    Valor Total
+                                  </span>
+                                  <span className="font-semibold text-emerald-800 dark:text-emerald-100">
+                                    {formatarMoeda(
+                                      devolucao.credito?.valor_total,
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-emerald-700/80 dark:text-emerald-200/80">
+                                    Saldo Disponível
+                                  </span>
+                                  <span className="font-semibold text-emerald-800 dark:text-emerald-100">
+                                    {formatarMoeda(devolucao.credito?.saldo)}
+                                  </span>
+                                </div>
+                              </div>
+                            </CardBody>
+                          </Card>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="mb-1 text-xs text-slate-500 dark:text-zinc-400">
+                            Motivo
+                          </p>
+                          <Card className="rounded-[20px] border border-slate-200 bg-slate-50 shadow-none dark:border-zinc-700 dark:bg-zinc-800/80">
+                            <CardBody className="p-3">
+                              <p className="text-sm text-slate-700 dark:text-zinc-200">
+                                {devolucao.motivo}
+                              </p>
+                            </CardBody>
+                          </Card>
+                        </div>
+
+                        <div>
+                          <p className="mb-2 text-xs text-slate-500 dark:text-zinc-400">
+                            Itens Devolvidos ({devolucao.itens?.length || 0})
+                          </p>
+                          <div className="space-y-2">
+                            {devolucao.itens?.map((item) => (
+                              <Card
+                                key={item.id}
+                                className="rounded-[18px] border border-slate-200 bg-white shadow-none dark:border-zinc-700 dark:bg-zinc-900/80"
+                              >
+                                <CardBody className="p-3">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-slate-900 dark:text-zinc-100">
+                                        {item.item_venda?.produto_nome ||
+                                          "Produto"}
+                                      </p>
+                                      {item.item_venda?.produto_codigo && (
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                          Cód: {item.item_venda.produto_codigo}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-sm font-semibold text-slate-800 dark:text-zinc-200">
+                                        {item.quantidade}x{" "}
+                                        {item.item_venda?.preco_unitario
+                                          ? formatarMoeda(
+                                              item.item_venda.preco_unitario,
+                                            )
+                                          : "-"}
+                                      </p>
+                                      <p className="text-xs text-rose-600 dark:text-rose-300">
+                                        {item.item_venda?.preco_unitario
+                                          ? formatarMoeda(
+                                              item.quantidade *
+                                                item.item_venda.preco_unitario,
+                                            )
+                                          : "-"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </CardBody>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardBody>
                 </Card>
@@ -362,8 +428,12 @@ export function HistoricoDevolucoes({
           )}
         </ModalBody>
 
-        <ModalFooter>
-          <Button variant="flat" onPress={onClose}>
+        <ModalFooter className="border-t border-slate-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <Button
+            className="rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+            variant="flat"
+            onPress={onClose}
+          >
             Fechar
           </Button>
         </ModalFooter>

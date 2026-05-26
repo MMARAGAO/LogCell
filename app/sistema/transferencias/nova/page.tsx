@@ -8,6 +8,7 @@ import { Select, SelectItem } from "@heroui/select";
 import { Input, Textarea } from "@heroui/input";
 import { Chip } from "@heroui/chip";
 import { Tooltip } from "@heroui/tooltip";
+import { Progress } from "@heroui/progress";
 import {
   Table,
   TableHeader,
@@ -23,7 +24,12 @@ import {
   XMarkIcon,
   CheckCircleIcon,
   ArrowLeftIcon,
+  BuildingStorefrontIcon,
+  CubeIcon,
+  DocumentTextIcon,
+  ClipboardDocumentCheckIcon,
 } from "@heroicons/react/24/outline";
+import { MinusIcon, PlusIcon } from "@heroicons/react/24/solid";
 
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -59,6 +65,13 @@ interface ItemTransferencia {
   estoques_todas_lojas: EstoqueLoja[];
 }
 
+const STEPS = [
+  { key: "lojas", label: "Lojas", icon: BuildingStorefrontIcon },
+  { key: "produtos", label: "Produtos", icon: CubeIcon },
+  { key: "revisao", label: "Revisão", icon: DocumentTextIcon },
+  { key: "confirmar", label: "Confirmar", icon: ClipboardDocumentCheckIcon },
+];
+
 export default function NovaTransferenciaPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -83,7 +96,13 @@ export default function NovaTransferenciaPage() {
   const [observacao, setObservacao] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Carregar lojas ao montar
+  const passoAtual = useMemo(() => {
+    if (!lojaOrigemId) return 0;
+    if (itensTransferencia.length === 0) return 1;
+
+    return 2;
+  }, [lojaOrigemId, itensTransferencia]);
+
   useEffect(() => {
     carregarLojas();
   }, []);
@@ -94,7 +113,6 @@ export default function NovaTransferenciaPage() {
     }
   }, [transferenciaId]);
 
-  // Buscar produtos quando mudar loja origem ou busca
   useEffect(() => {
     if (lojaOrigemId && buscaProduto.length > 0) {
       buscarProdutos();
@@ -103,7 +121,6 @@ export default function NovaTransferenciaPage() {
     }
   }, [lojaOrigemId, buscaProduto]);
 
-  // Buscar total de produtos na loja quando mudar loja origem
   useEffect(() => {
     if (lojaOrigemId) {
       buscarTotalProdutosLoja();
@@ -133,10 +150,8 @@ export default function NovaTransferenciaPage() {
 
     setLoadingProdutos(true);
     try {
-      // Separar os termos de busca por espaços
       const termosBusca = buscaProduto.trim().split(/\s+/);
 
-      // Construir a query
       let query = supabase
         .from("produtos")
         .select(
@@ -154,7 +169,6 @@ export default function NovaTransferenciaPage() {
         )
         .eq("ativo", true);
 
-      // Aplicar filtro para cada termo (busca dinâmica)
       termosBusca.forEach((termo) => {
         if (termo.length > 0) {
           query = query.ilike("descricao", `%${termo}%`);
@@ -165,7 +179,6 @@ export default function NovaTransferenciaPage() {
 
       if (error) throw error;
 
-      // Formatar dados e filtrar produtos com estoque na loja origem
       const produtosFormatados = (data || [])
         .map((p: any) => ({
           id: p.id,
@@ -204,7 +217,6 @@ export default function NovaTransferenciaPage() {
       const pageSize = 1000;
       let hasMore = true;
 
-      // Buscar em lotes de 1000 registros
       while (hasMore) {
         const { data, error } = await supabase
           .from("estoque_lojas")
@@ -224,7 +236,6 @@ export default function NovaTransferenciaPage() {
         }
       }
 
-      // Contar produtos únicos
       const produtosUnicos = new Set(
         allProdutos.map((item) => item.id_produto),
       );
@@ -247,7 +258,6 @@ export default function NovaTransferenciaPage() {
       return;
     }
 
-    // Verificar se produto já foi adicionado
     if (itensTransferencia.some((i) => i.produto_id === produto.id)) {
       toast.error("Produto já adicionado");
 
@@ -380,7 +390,6 @@ export default function NovaTransferenciaPage() {
     }
   };
 
-  // Validação para habilitar/desabilitar botão de criar transferência
   const errosValidacao = useMemo(() => {
     const erros: string[] = [];
 
@@ -445,7 +454,6 @@ export default function NovaTransferenciaPage() {
 
     setLoading(true);
     try {
-      // Agrupar itens por loja destino
       const itensPorDestino: Record<number, ItemTransferencia[]> = {};
 
       itensTransferencia.forEach((item) => {
@@ -586,45 +594,121 @@ export default function NovaTransferenciaPage() {
     return lojas.find((l) => l.id === parseInt(lojaOrigemId))?.nome || "";
   }, [lojas, lojaOrigemId]);
 
+  const totalItens = itensTransferencia.length;
+  const totalQuantidade = itensTransferencia.reduce(
+    (acc, item) => acc + (item.quantidade_transferir || 0),
+    0,
+  );
+
   return (
-    <div className="container mx-auto max-w-7xl px-6 py-8">
+    <div className="container mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            isIconOnly
+            isDisabled={loading}
+            variant="light"
+            onPress={() => router.push("/sistema/transferencias")}
+          >
+            <ArrowLeftIcon className="h-5 w-5" />
+          </Button>
           <div className="flex items-center gap-3">
-            <Button
-              isIconOnly
-              isDisabled={loading}
-              variant="light"
-              onPress={() => router.push("/sistema/transferencias")}
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Button>
+            <div className="p-2 rounded-xl bg-primary-500/15 text-primary">
+              <ArrowRightIcon className="h-5 w-5" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <ArrowRightIcon className="h-6 w-6 text-primary" />
-                {editando
-                  ? "Editar Transferência de Produtos"
-                  : "Nova Transferência de Produtos"}
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+                {editando ? "Editar Transferência" : "Nova Transferência"}
               </h1>
-              <p className="text-default-500 text-sm mt-1">
+              <p className="text-xs sm:text-sm text-default-500 mt-0.5">
                 {editando
                   ? "Ajuste os itens antes da confirmação"
-                  : "Selecione a loja de origem e adicione produtos para transferir"}
+                  : "Transfira produtos entre lojas de forma organizada"}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Layout em Coluna Única */}
+      {/* Stepper */}
+      <Card className="mb-6" shadow="sm">
+        <CardBody className="p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3">
+            {STEPS.map((step, index) => {
+              const StepIcon = step.icon;
+              const isActive = index === passoAtual;
+              const isCompleted = index < passoAtual;
+              const isPending = index > passoAtual;
+
+              return (
+                <div
+                  key={step.key}
+                  className="flex flex-col items-center flex-1"
+                >
+                  <div
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isActive
+                        ? "bg-primary text-white shadow-md shadow-primary/30 scale-110"
+                        : isCompleted
+                          ? "bg-success text-white"
+                          : "bg-default-100 text-default-400"
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    ) : (
+                      <StepIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] sm:text-xs mt-1.5 font-medium text-center ${
+                      isActive
+                        ? "text-primary"
+                        : isCompleted
+                          ? "text-success"
+                          : "text-default-400"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <Progress
+            aria-label="Progresso"
+            color={passoAtual >= STEPS.length - 1 ? "success" : "primary"}
+            size="sm"
+            value={(passoAtual / (STEPS.length - 1)) * 100}
+          />
+          <p className="text-xs text-default-400 mt-2 text-center">
+            Passo {passoAtual + 1} de {STEPS.length}
+            {passoAtual === 0 && " — Selecione a loja de origem"}
+            {passoAtual === 1 && " — Adicione produtos à transferência"}
+            {passoAtual >= 2 && " — Revise e confirme"}
+          </p>
+        </CardBody>
+      </Card>
+
       <div className="space-y-6">
-        {/* Loja de Origem e Destino Padrão */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold">1. Selecione as Lojas</h3>
+        {/* Passo 1: Lojas */}
+        <Card
+          className={passoAtual >= 0 ? "opacity-100" : "opacity-50"}
+          shadow="sm"
+        >
+          <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+            <span className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
+              1
+            </span>
+            <h3 className="text-base sm:text-lg font-semibold text-foreground">
+              Selecione as Lojas
+            </h3>
+            {lojaOrigemId && (
+              <CheckCircleIcon className="h-4 w-4 text-success ml-auto" />
+            )}
           </CardHeader>
-          <CardBody className="space-y-4">
+          <CardBody className="space-y-4 p-4 sm:p-5">
             <Select
               isRequired
               isDisabled={loading || editando}
@@ -632,12 +716,12 @@ export default function NovaTransferenciaPage() {
               placeholder="Escolha a loja de origem"
               selectedKeys={lojaOrigemId ? [lojaOrigemId] : []}
               size="lg"
+              variant="bordered"
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0] as string;
 
                 setLojaOrigemId(selected);
                 setItensTransferencia([]);
-                // Resetar loja destino padrão se for a mesma
                 if (lojaDestinoPadrao === selected) {
                   setLojaDestinoPadrao("");
                 }
@@ -656,6 +740,7 @@ export default function NovaTransferenciaPage() {
                 placeholder="Selecione uma loja de destino padrão"
                 selectedKeys={lojaDestinoPadrao ? [lojaDestinoPadrao] : []}
                 size="lg"
+                variant="bordered"
                 onSelectionChange={(keys) => {
                   const selected = Array.from(keys)[0] as string;
 
@@ -679,32 +764,79 @@ export default function NovaTransferenciaPage() {
                   ))}
               </Select>
             )}
+
+            {/* Resumo das lojas selecionadas */}
+            {lojaOrigemId && (
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-500/15 border border-primary-500/30">
+                <div className="p-2 rounded-lg bg-primary-500/15 text-primary">
+                  <BuildingStorefrontIcon className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-default-500 uppercase tracking-wider font-medium">
+                    Origem
+                  </p>
+                  <p className="font-semibold text-foreground truncate">
+                    {lojaOrigemNome}
+                  </p>
+                </div>
+                <ArrowRightIcon className="h-5 w-5 text-primary flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-default-500 uppercase tracking-wider font-medium">
+                    Destino {lojaDestinoPadrao ? "" : "(por item)"}
+                  </p>
+                  <p className="font-semibold text-foreground truncate">
+                    {lojaDestinoPadrao
+                      ? lojas.find((l) => l.id === parseInt(lojaDestinoPadrao))
+                          ?.nome || "Selecionar"
+                      : "Definir por produto"}
+                  </p>
+                </div>
+              </div>
+            )}
           </CardBody>
         </Card>
 
-        {/* Busca de Produtos */}
+        {/* Passo 2: Produtos */}
         {lojaOrigemId && (
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-lg font-semibold">
-                  2. Buscar e Adicionar Produtos
-                </h3>
-                <p className="text-sm text-default-500">
-                  {totalProdutosLoja > 0
-                    ? `${totalProdutosLoja} produto${totalProdutosLoja > 1 ? "s" : ""} disponível${totalProdutosLoja > 1 ? "is" : ""} nesta loja`
-                    : "Carregando produtos disponíveis..."}
-                </p>
-              </div>
+          <Card shadow="sm">
+            <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+              <span
+                className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                  itensTransferencia.length > 0
+                    ? "bg-success text-white"
+                    : "bg-primary text-white"
+                }`}
+              >
+                {itensTransferencia.length > 0 ? (
+                  <CheckCircleIcon className="h-3.5 w-3.5" />
+                ) : (
+                  "2"
+                )}
+              </span>
+              <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                Buscar e Adicionar Produtos
+              </h3>
+              {totalProdutosLoja > 0 && (
+                <Chip
+                  classNames={{ content: "text-xs" }}
+                  size="sm"
+                  variant="flat"
+                >
+                  {totalProdutosLoja} disponíveis
+                </Chip>
+              )}
             </CardHeader>
-            <CardBody className="space-y-3">
+            <CardBody className="space-y-4 p-4 sm:p-5">
               <Input
                 isClearable
                 isDisabled={loading}
                 placeholder="Digite o nome do produto para buscar..."
                 size="lg"
-                startContent={<MagnifyingGlassIcon className="h-5 w-5" />}
+                startContent={
+                  <MagnifyingGlassIcon className="h-5 w-5 text-default-400" />
+                }
                 value={buscaProduto}
+                variant="bordered"
                 onClear={() => {
                   setBuscaProduto("");
                   setProdutos([]);
@@ -713,8 +845,11 @@ export default function NovaTransferenciaPage() {
               />
 
               {loadingProdutos && (
-                <div className="text-center text-sm text-default-500 py-4">
-                  Buscando produtos...
+                <div className="flex items-center justify-center gap-2 py-6">
+                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                  <span className="text-sm text-default-500">
+                    Buscando produtos...
+                  </span>
                 </div>
               )}
 
@@ -732,96 +867,135 @@ export default function NovaTransferenciaPage() {
 
                   return (
                     <div className="space-y-3">
-                      <Table aria-label="Tabela de produtos encontrados">
-                        <TableHeader>
-                          <TableColumn>PRODUTO</TableColumn>
-                          <TableColumn>MARCA</TableColumn>
-                          <TableColumn>CÓDIGO</TableColumn>
-                          <TableColumn>ESTOQUE ORIGEM</TableColumn>
-                          <TableColumn>OUTRAS LOJAS</TableColumn>
-                          <TableColumn>AÇÃO</TableColumn>
-                        </TableHeader>
-                        <TableBody>
-                          {produtosPaginados.map((produto) => {
-                            const estoqueOrigem = produto.estoques_lojas.find(
-                              (e) => e.id_loja === parseInt(lojaOrigemId),
-                            );
-                            const outrasLojas = produto.estoques_lojas.filter(
-                              (e) => e.id_loja !== parseInt(lojaOrigemId),
-                            );
-                            const jaAdicionado = itensTransferencia.some(
-                              (i) => i.produto_id === produto.id,
-                            );
+                      <div className="overflow-x-auto rounded-xl border border-default-200">
+                        <Table
+                          removeWrapper
+                          aria-label="Tabela de produtos encontrados"
+                          classNames={{
+                            th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider",
+                            td: "text-sm",
+                          }}
+                        >
+                          <TableHeader>
+                            <TableColumn>PRODUTO</TableColumn>
+                            <TableColumn>MARCA</TableColumn>
+                            <TableColumn>CÓDIGO</TableColumn>
+                            <TableColumn>ESTOQUE ORIGEM</TableColumn>
+                            <TableColumn>OUTRAS LOJAS</TableColumn>
+                            <TableColumn>AÇÃO</TableColumn>
+                          </TableHeader>
+                          <TableBody>
+                            {produtosPaginados.map((produto) => {
+                              const estoqueOrigem = produto.estoques_lojas.find(
+                                (e) => e.id_loja === parseInt(lojaOrigemId),
+                              );
+                              const outrasLojas = produto.estoques_lojas.filter(
+                                (e) => e.id_loja !== parseInt(lojaOrigemId),
+                              );
+                              const jaAdicionado = itensTransferencia.some(
+                                (i) => i.produto_id === produto.id,
+                              );
 
-                            return (
-                              <TableRow key={produto.id}>
-                                <TableCell>{produto.descricao}</TableCell>
-                                <TableCell>{produto.marca || "-"}</TableCell>
-                                <TableCell>
-                                  {produto.codigo_fabricante || "-"}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    color="primary"
-                                    size="sm"
-                                    variant="flat"
-                                  >
-                                    {estoqueOrigem?.quantidade || 0}
-                                  </Chip>
-                                </TableCell>
-                                <TableCell>
-                                  <div className="flex flex-wrap gap-1">
-                                    {outrasLojas.length > 0 ? (
-                                      outrasLojas.map((estoque) => (
-                                        <Chip
-                                          key={estoque.id_loja}
-                                          color={
-                                            estoque.quantidade > 0
-                                              ? "success"
-                                              : "default"
-                                          }
-                                          size="sm"
-                                          variant="flat"
-                                        >
-                                          {estoque.loja_nome}:{" "}
-                                          {estoque.quantidade}
-                                        </Chip>
-                                      ))
+                              return (
+                                <TableRow
+                                  key={produto.id}
+                                  className={`transition-colors ${
+                                    jaAdicionado
+                                      ? "bg-success-500/15"
+                                      : "hover:bg-default-50"
+                                  }`}
+                                >
+                                  <TableCell>
+                                    <span className="font-medium">
+                                      {produto.descricao}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-default-500">
+                                    {produto.marca || "-"}
+                                  </TableCell>
+                                  <TableCell>
+                                    {produto.codigo_fabricante ? (
+                                      <Chip
+                                        classNames={{
+                                          content: "text-xs font-mono",
+                                        }}
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {produto.codigo_fabricante}
+                                      </Chip>
                                     ) : (
-                                      <span className="text-xs text-default-400">
-                                        -
-                                      </span>
+                                      "-"
                                     )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {jaAdicionado ? (
-                                    <Button
-                                      color="danger"
-                                      size="sm"
-                                      variant="flat"
-                                      onPress={() => removerItem(produto.id)}
-                                    >
-                                      Remover
-                                    </Button>
-                                  ) : (
-                                    <Button
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip
                                       color="primary"
                                       size="sm"
-                                      onPress={() => adicionarProduto(produto)}
+                                      variant="flat"
                                     >
-                                      Adicionar
-                                    </Button>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                                      {estoqueOrigem?.quantidade || 0}
+                                    </Chip>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                      {outrasLojas.length > 0 ? (
+                                        outrasLojas.map((estoque) => (
+                                          <Chip
+                                            key={estoque.id_loja}
+                                            classNames={{
+                                              content: "text-xs",
+                                            }}
+                                            color={
+                                              estoque.quantidade > 0
+                                                ? "success"
+                                                : "default"
+                                            }
+                                            size="sm"
+                                            variant="flat"
+                                          >
+                                            {estoque.loja_nome}:{" "}
+                                            {estoque.quantidade}
+                                          </Chip>
+                                        ))
+                                      ) : (
+                                        <span className="text-xs text-default-400">
+                                          -
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {jaAdicionado ? (
+                                      <Button
+                                        color="danger"
+                                        size="sm"
+                                        variant="flat"
+                                        onPress={() => removerItem(produto.id)}
+                                      >
+                                        Remover
+                                      </Button>
+                                    ) : (
+                                      <Button
+                                        color="primary"
+                                        size="sm"
+                                        onPress={() =>
+                                          adicionarProduto(produto)
+                                        }
+                                      >
+                                        Adicionar
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
 
                       {totalPaginas > 1 && (
-                        <div className="flex justify-center items-center gap-2">
+                        <div className="flex justify-center items-center gap-3">
                           <Button
                             isDisabled={paginaProdutos === 1}
                             size="sm"
@@ -854,42 +1028,86 @@ export default function NovaTransferenciaPage() {
               {!loadingProdutos &&
                 produtos.length === 0 &&
                 buscaProduto.length > 0 && (
-                  <div className="text-center text-sm text-default-500 py-4">
-                    Nenhum produto encontrado com estoque em {lojaOrigemNome}
+                  <div className="text-center py-8">
+                    <div className="w-12 h-12 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-3">
+                      <MagnifyingGlassIcon className="h-6 w-6 text-default-300" />
+                    </div>
+                    <p className="text-sm font-medium text-default-500">
+                      Nenhum produto encontrado em {lojaOrigemNome}
+                    </p>
                   </div>
                 )}
 
               {buscaProduto.length === 0 && (
-                <div className="text-center text-sm text-default-500 py-4">
-                  Digite o nome do produto para começar a busca
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-3">
+                    <CubeIcon className="h-6 w-6 text-default-300" />
+                  </div>
+                  <p className="text-sm font-medium text-default-500">
+                    Digite o nome do produto para começar a busca
+                  </p>
+                  <p className="text-xs text-default-400 mt-1">
+                    Serão exibidos apenas produtos com estoque em{" "}
+                    {lojaOrigemNome}
+                  </p>
+                </div>
+              )}
+
+              {/* Itens adicionados — mini resumo */}
+              {itensTransferencia.length > 0 && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-success-500/15 border border-success-500/30">
+                  <CheckCircleIcon className="h-5 w-5 text-success flex-shrink-0" />
+                  <span className="text-sm text-default-700">
+                    <strong>{itensTransferencia.length}</strong> produto
+                    {itensTransferencia.length > 1 ? "s" : ""} adicionado
+                    {itensTransferencia.length > 1 ? "s" : ""}
+                    {totalQuantidade > 0 &&
+                      ` (${totalQuantidade} unidades no total)`}
+                  </span>
                 </div>
               )}
             </CardBody>
           </Card>
         )}
 
-        {/* Tabela de Itens */}
+        {/* Passo 3: Tabela de Itens + Observação */}
         {itensTransferencia.length > 0 && (
           <>
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between w-full">
-                  <h3 className="text-lg font-semibold">
-                    3. Produtos a Transferir ({itensTransferencia.length})
-                  </h3>
-                </div>
+            <Card shadow="sm">
+              <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+                <span className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
+                  3
+                </span>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                  Revisão dos Itens
+                </h3>
+                <Chip
+                  classNames={{ content: "text-xs" }}
+                  size="sm"
+                  variant="flat"
+                >
+                  {itensTransferencia.length}{" "}
+                  {itensTransferencia.length === 1 ? "item" : "itens"}
+                </Chip>
               </CardHeader>
-              <CardBody>
-                <div className="overflow-x-auto">
-                  <Table aria-label="Itens da transferência">
+              <CardBody className="p-4 sm:p-5">
+                <div className="overflow-x-auto rounded-xl border border-default-200">
+                  <Table
+                    removeWrapper
+                    aria-label="Itens da transferência"
+                    classNames={{
+                      th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider",
+                      td: "text-sm",
+                    }}
+                  >
                     <TableHeader>
                       <TableColumn>PRODUTO</TableColumn>
-                      <TableColumn>ESTOQUE ORIGEM</TableColumn>
+                      <TableColumn>ESTOQUE</TableColumn>
                       <TableColumn>QUANTIDADE</TableColumn>
                       <TableColumn>LOJA DESTINO</TableColumn>
-                      <TableColumn>ESTOQUE DESTINO ATUAL</TableColumn>
-                      <TableColumn>ESTOQUE APÓS</TableColumn>
-                      <TableColumn width={50}>AÇÕES</TableColumn>
+                      <TableColumn>ESTOQUE DESTINO</TableColumn>
+                      <TableColumn>APÓS RECEBER</TableColumn>
+                      <TableColumn width={50}>{""}</TableColumn>
                     </TableHeader>
                     <TableBody>
                       {[...itensTransferencia].reverse().map((item) => {
@@ -901,12 +1119,20 @@ export default function NovaTransferenciaPage() {
                         const estoqueDestinoApos =
                           estoqueDestinoAtual +
                           (item.quantidade_transferir || 0);
+                        const acabouEstoque =
+                          item.quantidade_transferir !== undefined &&
+                          item.quantidade_transferir > item.estoque_origem;
 
                         return (
-                          <TableRow key={item.produto_id}>
+                          <TableRow
+                            key={item.produto_id}
+                            className={`transition-colors hover:bg-default-50 ${
+                              acabouEstoque ? "bg-danger-500/15" : ""
+                            }`}
+                          >
                             <TableCell>
-                              <div>
-                                <p className="font-medium text-sm">
+                              <div className="min-w-0">
+                                <p className="font-medium text-sm truncate max-w-[200px]">
                                   {item.produto_descricao}
                                 </p>
                                 <p className="text-xs text-default-500">
@@ -917,67 +1143,139 @@ export default function NovaTransferenciaPage() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Chip color="default" size="sm" variant="flat">
+                              <Chip
+                                color={
+                                  item.estoque_origem <= 5
+                                    ? "danger"
+                                    : "default"
+                                }
+                                size="sm"
+                                variant="flat"
+                              >
                                 {item.estoque_origem}
                               </Chip>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                className="w-24"
-                                inputMode="numeric"
-                                isDisabled={loading}
-                                placeholder="Qtd"
-                                size="sm"
-                                type="text"
-                                value={
-                                  item.quantidade_transferir !== undefined
-                                    ? item.quantidade_transferir.toString()
-                                    : ""
-                                }
-                                onValueChange={(value) => {
-                                  // Remove caracteres não numéricos
-                                  const numericValue = value.replace(
-                                    /[^0-9]/g,
-                                    "",
-                                  );
-
-                                  if (numericValue === "") {
-                                    atualizarQuantidade(
-                                      item.produto_id,
-                                      undefined,
-                                    );
-
-                                    return;
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  isIconOnly
+                                  className="h-7 w-7 min-w-0"
+                                  isDisabled={
+                                    loading ||
+                                    !item.quantidade_transferir ||
+                                    item.quantidade_transferir <= 1
                                   }
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => {
+                                    const qtd = item.quantidade_transferir || 0;
 
-                                  const quantidade = parseInt(numericValue);
-
-                                  // Limita ao estoque máximo disponível
-                                  if (quantidade > item.estoque_origem) {
                                     atualizarQuantidade(
                                       item.produto_id,
-                                      item.estoque_origem,
+                                      Math.max(0, qtd - 1),
                                     );
-                                  } else {
-                                    atualizarQuantidade(
-                                      item.produto_id,
-                                      quantidade,
-                                    );
+                                  }}
+                                >
+                                  <MinusIcon className="h-3 w-3" />
+                                </Button>
+                                <Input
+                                  className="w-16"
+                                  inputMode="numeric"
+                                  isDisabled={loading}
+                                  placeholder="Qtd"
+                                  size="sm"
+                                  type="text"
+                                  value={
+                                    item.quantidade_transferir !== undefined
+                                      ? item.quantidade_transferir.toString()
+                                      : ""
                                   }
-                                }}
-                              />
+                                  onValueChange={(value) => {
+                                    const numericValue = value.replace(
+                                      /[^0-9]/g,
+                                      "",
+                                    );
+
+                                    if (numericValue === "") {
+                                      atualizarQuantidade(
+                                        item.produto_id,
+                                        undefined,
+                                      );
+
+                                      return;
+                                    }
+
+                                    const quantidade = parseInt(numericValue);
+
+                                    if (quantidade > item.estoque_origem) {
+                                      atualizarQuantidade(
+                                        item.produto_id,
+                                        item.estoque_origem,
+                                      );
+                                    } else {
+                                      atualizarQuantidade(
+                                        item.produto_id,
+                                        quantidade,
+                                      );
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  isIconOnly
+                                  className="h-7 w-7 min-w-0"
+                                  isDisabled={
+                                    loading ||
+                                    (item.quantidade_transferir || 0) >=
+                                      item.estoque_origem
+                                  }
+                                  size="sm"
+                                  variant="flat"
+                                  onPress={() => {
+                                    const qtd = item.quantidade_transferir || 0;
+
+                                    atualizarQuantidade(
+                                      item.produto_id,
+                                      Math.min(item.estoque_origem, qtd + 1),
+                                    );
+                                  }}
+                                >
+                                  <PlusIcon className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              {item.quantidade_transferir !== undefined &&
+                                item.quantidade_transferir > 0 && (
+                                  <div className="w-full mt-1">
+                                    <Progress
+                                      aria-label="Estoque utilizado"
+                                      color={
+                                        item.quantidade_transferir /
+                                          item.estoque_origem >
+                                        0.8
+                                          ? "warning"
+                                          : "primary"
+                                      }
+                                      size="sm"
+                                      value={
+                                        (item.quantidade_transferir /
+                                          item.estoque_origem) *
+                                        100
+                                      }
+                                    />
+                                  </div>
+                                )}
                             </TableCell>
                             <TableCell>
                               <Select
-                                className="min-w-[180px]"
+                                className="min-w-[150px]"
                                 isDisabled={loading || editando}
-                                placeholder="Selecione o destino"
+                                placeholder="Destino"
                                 selectedKeys={
                                   item.loja_destino_id
                                     ? [item.loja_destino_id.toString()]
                                     : []
                                 }
                                 size="sm"
+                                variant="bordered"
                                 onSelectionChange={(keys) => {
                                   const selected = Array.from(
                                     keys,
@@ -1041,25 +1339,52 @@ export default function NovaTransferenciaPage() {
               </CardBody>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <h3 className="text-lg font-semibold">
-                  4. Observação (Opcional)
+            {/* Observação */}
+            <Card shadow="sm">
+              <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
+                <span className="w-6 h-6 rounded-full bg-default-200 text-default-500 text-xs font-bold flex items-center justify-center">
+                  4
+                </span>
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                  Observação
                 </h3>
+                <span className="text-xs text-default-400">(opcional)</span>
               </CardHeader>
-              <CardBody>
+              <CardBody className="p-4 sm:p-5">
                 <Textarea
                   isDisabled={loading}
                   maxLength={500}
                   minRows={3}
                   placeholder="Adicione uma observação sobre esta transferência..."
                   value={observacao}
+                  variant="bordered"
                   onValueChange={setObservacao}
                 />
               </CardBody>
             </Card>
 
-            <div className="flex justify-end gap-3">
+            {/* Erros de validação inline */}
+            {errosValidacao.length > 0 && (
+              <div className="p-3 sm:p-4 rounded-xl bg-danger-500/15 border border-danger-500/30">
+                <p className="text-sm font-medium text-danger mb-2">
+                  Corrija os seguintes itens antes de continuar:
+                </p>
+                <ul className="space-y-1">
+                  {errosValidacao.map((erro, index) => (
+                    <li
+                      key={index}
+                      className="text-sm text-danger-500 flex items-start gap-2"
+                    >
+                      <span className="mt-0.5">•</span>
+                      <span>{erro}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Ações finais */}
+            <div className="flex flex-col sm:flex-row justify-end gap-3">
               <Button
                 color="danger"
                 isDisabled={loading}
@@ -1110,14 +1435,19 @@ export default function NovaTransferenciaPage() {
           </>
         )}
 
-        {/* Estado Vazio */}
+        {/* Empty State Inicial */}
         {!lojaOrigemId && (
-          <Card>
-            <CardBody className="py-20">
-              <div className="text-center text-default-500">
-                <ArrowRightIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">
+          <Card shadow="sm">
+            <CardBody className="py-16 sm:py-20">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-primary-500/15 flex items-center justify-center mx-auto mb-4">
+                  <BuildingStorefrontIcon className="h-8 w-8 text-primary-300" />
+                </div>
+                <p className="text-lg font-medium text-default-500">
                   Selecione uma loja de origem para começar
+                </p>
+                <p className="text-sm text-default-400 mt-1">
+                  Escolha a loja que irá enviar os produtos
                 </p>
               </div>
             </CardBody>
@@ -1125,15 +1455,18 @@ export default function NovaTransferenciaPage() {
         )}
 
         {lojaOrigemId && itensTransferencia.length === 0 && (
-          <Card>
-            <CardBody className="py-20">
-              <div className="text-center text-default-500">
-                <MagnifyingGlassIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium">
+          <Card shadow="sm">
+            <CardBody className="py-16 sm:py-20">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
+                  <CubeIcon className="h-8 w-8 text-default-300" />
+                </div>
+                <p className="text-lg font-medium text-default-500">
                   Busque e adicione produtos para continuar
                 </p>
-                <p className="text-sm mt-2">
-                  Use a barra de pesquisa acima para encontrar produtos
+                <p className="text-sm text-default-400 mt-1">
+                  Use a barra de pesquisa acima para encontrar produtos com
+                  estoque em {lojaOrigemNome}
                 </p>
               </div>
             </CardBody>

@@ -17,52 +17,38 @@ export class DashboardService {
     const { data_inicio, data_fim, loja_id } = filtro;
     const inicioISO = `${data_inicio}T00:00:00`;
     const fimISO = `${data_fim}T23:59:59`;
-    const pageSize = 1000;
-    let from = 0;
-    let to = pageSize - 1;
     const vendaIds = new Set<string>();
 
-    while (true) {
-      let query = supabase
-        .from("pagamentos_venda")
-        .select(
-          "venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id, status)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .neq("tipo_pagamento", "credito_cliente")
-        .neq("venda.status", "cancelada")
-        .range(from, to);
+    let query = supabase
+      .from("pagamentos_venda")
+      .select(
+        "venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id, status)",
+      )
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .neq("tipo_pagamento", "credito_cliente")
+      .neq("venda.status", "cancelada")
+      .limit(2000);
 
-      if (loja_id) {
-        query = query.eq("venda.loja_id", loja_id);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error(
-          "Erro ao buscar vendas com pagamentos no período:",
-          error,
-        );
-        break;
-      }
-
-      const batch = data || [];
-
-      batch.forEach((pagamento: any) => {
-        if (pagamento.venda_id) {
-          vendaIds.add(String(pagamento.venda_id));
-        }
-      });
-
-      if (batch.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-      to += pageSize;
+    if (loja_id) {
+      query = query.eq("venda.loja_id", loja_id);
     }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Erro ao buscar vendas com pagamentos no período:", error);
+
+      return [];
+    }
+
+    const batch = data || [];
+
+    batch.forEach((pagamento: any) => {
+      if (pagamento.venda_id) {
+        vendaIds.add(String(pagamento.venda_id));
+      }
+    });
 
     return Array.from(vendaIds);
   }
@@ -97,174 +83,149 @@ export class DashboardService {
         origens: Set<string>;
       }
     > = {};
-    const pageSize = 1000;
-    let from = 0;
-    let to = pageSize - 1;
+    let queryItensVenda = supabase
+      .from("itens_venda")
+      .select(
+        "produto_id, quantidade, devolvido, subtotal, criado_em, produto:produtos!itens_venda_produto_id_fkey(descricao, preco_compra), venda:vendas!inner(loja_id, status, valor_total, valor_pago)",
+      )
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .neq("venda.status", "cancelada")
+      .limit(2000);
 
-    while (true) {
-      let queryItensVenda = supabase
-        .from("itens_venda")
-        .select(
-          "produto_id, quantidade, devolvido, subtotal, criado_em, produto:produtos!itens_venda_produto_id_fkey(descricao, preco_compra), venda:vendas!inner(loja_id, status, valor_total, valor_pago)",
-        )
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .neq("venda.status", "cancelada")
-        .range(from, to);
-
-      if (loja_id) {
-        queryItensVenda = queryItensVenda.eq("venda.loja_id", loja_id);
-      }
-
-      const { data, error } = await queryItensVenda;
-
-      if (error) {
-        console.error("Erro na query de produtos vendidos por venda:", error);
-        throw error;
-      }
-
-      const batch = data || [];
-
-      batch.forEach((item: any) => {
-        const produtoId = item.produto_id;
-
-        if (!produtoId) {
-          return;
-        }
-
-        if (!agrupado[produtoId]) {
-          agrupado[produtoId] = {
-            produto_id: String(produtoId),
-            descricao: (item.produto as any)?.descricao || "Produto desconhecido",
-            quantidade: 0,
-            receita: 0,
-            valor_vendido: 0,
-            valor_recebido: 0,
-            lucro: 0,
-            origens: new Set<string>(),
-          };
-        }
-
-        const quantidadeOriginal = Number(item.quantidade || 0);
-        const quantidadeVendida =
-          quantidadeOriginal - Number(item.devolvido || 0);
-        const fatorItem =
-          quantidadeOriginal > 0
-            ? Math.max(0, quantidadeVendida) / quantidadeOriginal
-            : 0;
-        const valorVendidoItem = Number(item.subtotal || 0) * fatorItem;
-        const valorTotalVenda = Number(item.venda?.valor_total || 0);
-        const valorPagoVenda = Number(item.venda?.valor_pago || 0);
-        const percentualRecebido =
-          valorTotalVenda > 0
-            ? Math.max(0, Math.min(valorPagoVenda / valorTotalVenda, 1))
-            : 0;
-        const valorRecebidoItem = valorVendidoItem * percentualRecebido;
-        const custoUnitario = Number(item.produto?.preco_compra || 0);
-        const custoTotalItem = custoUnitario * Math.max(0, quantidadeVendida);
-
-        agrupado[produtoId].quantidade += Math.max(0, quantidadeVendida);
-        agrupado[produtoId].receita += valorVendidoItem;
-        agrupado[produtoId].valor_vendido += valorVendidoItem;
-        agrupado[produtoId].valor_recebido += valorRecebidoItem;
-        agrupado[produtoId].lucro += valorRecebidoItem - custoTotalItem;
-        agrupado[produtoId].origens.add("Venda");
-      });
-
-      if (batch.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-      to += pageSize;
+    if (loja_id) {
+      queryItensVenda = queryItensVenda.eq("venda.loja_id", loja_id);
     }
 
-    from = 0;
-    to = pageSize - 1;
+    const { data, error } = await queryItensVenda;
 
-    while (true) {
-      let queryPecasOS = supabase
-        .from("ordem_servico_pecas")
-        .select(
-          "id_produto, descricao_peca, quantidade, valor_custo, valor_total, criado_em, produto:produtos!ordem_servico_pecas_id_produto_fkey(descricao, preco_compra), os:ordem_servico!inner(id_loja, status, valor_orcamento, valor_pago)",
-        )
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .neq("os.status", "cancelado")
-        .range(from, to);
-
-      if (loja_id) {
-        queryPecasOS = queryPecasOS.eq("os.id_loja", loja_id);
-      }
-
-      const { data, error } = await queryPecasOS;
-
-      if (error) {
-        console.error("Erro na query de produtos vendidos por OS:", error);
-        throw error;
-      }
-
-      const batch = data || [];
-
-      batch.forEach((peca: any) => {
-        const produtoId =
-          peca.id_produto != null
-            ? String(peca.id_produto)
-            : `os-avulso:${peca.descricao_peca || "sem-descricao"}`;
-
-        if (!agrupado[produtoId]) {
-          agrupado[produtoId] = {
-            produto_id: produtoId,
-            descricao:
-              peca.produto?.descricao ||
-              peca.descricao_peca ||
-              "Produto desconhecido",
-            quantidade: 0,
-            receita: 0,
-            valor_vendido: 0,
-            valor_recebido: 0,
-            lucro: 0,
-            origens: new Set<string>(),
-          };
-        }
-
-        const quantidadePeca = Number(peca.quantidade || 0);
-        const valorVendidoPeca = Number(peca.valor_total || 0);
-        const valorBaseOS = Number(
-          peca.os?.valor_orcamento || valorVendidoPeca || 0,
-        );
-        const valorPagoOS = Number(peca.os?.valor_pago || 0);
-        const percentualRecebidoOS =
-          valorBaseOS > 0
-            ? Math.max(0, Math.min(valorPagoOS / valorBaseOS, 1))
-            : 0;
-        const valorRecebidoPeca = valorVendidoPeca * percentualRecebidoOS;
-        const custoUnitarioPeca =
-          peca.id_produto != null
-            ? Number(peca.produto?.preco_compra || 0)
-            : quantidadePeca > 0
-              ? Number(peca.valor_custo || 0) / quantidadePeca
-              : 0;
-        const custoTotalPeca =
-          peca.id_produto != null
-            ? custoUnitarioPeca * quantidadePeca
-            : Number(peca.valor_custo || 0);
-
-        agrupado[produtoId].quantidade += quantidadePeca;
-        agrupado[produtoId].receita += valorVendidoPeca;
-        agrupado[produtoId].valor_vendido += valorVendidoPeca;
-        agrupado[produtoId].valor_recebido += valorRecebidoPeca;
-        agrupado[produtoId].lucro += valorRecebidoPeca - custoTotalPeca;
-        agrupado[produtoId].origens.add("OS");
-      });
-
-      if (batch.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-      to += pageSize;
+    if (error) {
+      console.error("Erro na query de produtos vendidos por venda:", error);
+      throw error;
     }
+
+    const batch = data || [];
+
+    batch.forEach((item: any) => {
+      const produtoId = item.produto_id;
+
+      if (!produtoId) {
+        return;
+      }
+
+      if (!agrupado[produtoId]) {
+        agrupado[produtoId] = {
+          produto_id: String(produtoId),
+          descricao: (item.produto as any)?.descricao || "Produto desconhecido",
+          quantidade: 0,
+          receita: 0,
+          valor_vendido: 0,
+          valor_recebido: 0,
+          lucro: 0,
+          origens: new Set<string>(),
+        };
+      }
+
+      const quantidadeOriginal = Number(item.quantidade || 0);
+      const quantidadeVendida =
+        quantidadeOriginal - Number(item.devolvido || 0);
+      const fatorItem =
+        quantidadeOriginal > 0
+          ? Math.max(0, quantidadeVendida) / quantidadeOriginal
+          : 0;
+      const valorVendidoItem = Number(item.subtotal || 0) * fatorItem;
+      const valorTotalVenda = Number(item.venda?.valor_total || 0);
+      const valorPagoVenda = Number(item.venda?.valor_pago || 0);
+      const percentualRecebido =
+        valorTotalVenda > 0
+          ? Math.max(0, Math.min(valorPagoVenda / valorTotalVenda, 1))
+          : 0;
+      const valorRecebidoItem = valorVendidoItem * percentualRecebido;
+      const custoUnitario = Number(item.produto?.preco_compra || 0);
+      const custoTotalItem = custoUnitario * Math.max(0, quantidadeVendida);
+
+      agrupado[produtoId].quantidade += Math.max(0, quantidadeVendida);
+      agrupado[produtoId].receita += valorVendidoItem;
+      agrupado[produtoId].valor_vendido += valorVendidoItem;
+      agrupado[produtoId].valor_recebido += valorRecebidoItem;
+      agrupado[produtoId].lucro += valorRecebidoItem - custoTotalItem;
+      agrupado[produtoId].origens.add("Venda");
+    });
+
+    let queryPecasOS = supabase
+      .from("ordem_servico_pecas")
+      .select(
+        "id_produto, descricao_peca, quantidade, valor_custo, valor_total, criado_em, produto:produtos!ordem_servico_pecas_id_produto_fkey(descricao, preco_compra), os:ordem_servico!inner(id_loja, status, valor_orcamento, valor_pago)",
+      )
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .neq("os.status", "cancelado")
+      .limit(2000);
+
+    if (loja_id) {
+      queryPecasOS = queryPecasOS.eq("os.id_loja", loja_id);
+    }
+
+    const { data: dataPecas, error: errorPecas } = await queryPecasOS;
+
+    if (errorPecas) {
+      console.error("Erro na query de produtos vendidos por OS:", errorPecas);
+      throw errorPecas;
+    }
+
+    const batchPecas = dataPecas || [];
+
+    batchPecas.forEach((peca: any) => {
+      const produtoId =
+        peca.id_produto != null
+          ? String(peca.id_produto)
+          : `os-avulso:${peca.descricao_peca || "sem-descricao"}`;
+
+      if (!agrupado[produtoId]) {
+        agrupado[produtoId] = {
+          produto_id: produtoId,
+          descricao:
+            peca.produto?.descricao ||
+            peca.descricao_peca ||
+            "Produto desconhecido",
+          quantidade: 0,
+          receita: 0,
+          valor_vendido: 0,
+          valor_recebido: 0,
+          lucro: 0,
+          origens: new Set<string>(),
+        };
+      }
+
+      const quantidadePeca = Number(peca.quantidade || 0);
+      const valorVendidoPeca = Number(peca.valor_total || 0);
+      const valorBaseOS = Number(
+        peca.os?.valor_orcamento || valorVendidoPeca || 0,
+      );
+      const valorPagoOS = Number(peca.os?.valor_pago || 0);
+      const percentualRecebidoOS =
+        valorBaseOS > 0
+          ? Math.max(0, Math.min(valorPagoOS / valorBaseOS, 1))
+          : 0;
+      const valorRecebidoPeca = valorVendidoPeca * percentualRecebidoOS;
+      const custoUnitarioPeca =
+        peca.id_produto != null
+          ? Number(peca.produto?.preco_compra || 0)
+          : quantidadePeca > 0
+            ? Number(peca.valor_custo || 0) / quantidadePeca
+            : 0;
+      const custoTotalPeca =
+        peca.id_produto != null
+          ? custoUnitarioPeca * quantidadePeca
+          : Number(peca.valor_custo || 0);
+
+      agrupado[produtoId].quantidade += quantidadePeca;
+      agrupado[produtoId].receita += valorVendidoPeca;
+      agrupado[produtoId].valor_vendido += valorVendidoPeca;
+      agrupado[produtoId].valor_recebido += valorRecebidoPeca;
+      agrupado[produtoId].lucro += valorRecebidoPeca - custoTotalPeca;
+      agrupado[produtoId].origens.add("OS");
+    });
 
     return Object.values(agrupado)
       .map(({ origens, ...produto }) => ({
@@ -283,67 +244,55 @@ export class DashboardService {
     data_fim?: string,
     loja_id?: number,
   ): Promise<number> {
-    const pageSize = 1000;
-    let from = 0;
-    let to = pageSize - 1;
     let totalContasNaoPagas = 0;
 
-    while (true) {
-      let queryContasNaoPagas = supabase
-        .from("vendas")
-        .select("valor_total, valor_pago, saldo_devedor")
-        .neq("status", "cancelada")
-        .range(from, to);
+    let queryContasNaoPagas = supabase
+      .from("vendas")
+      .select("valor_total, valor_pago, saldo_devedor")
+      .neq("status", "cancelada")
+      .limit(2000);
 
-      if (data_inicio) {
-        queryContasNaoPagas = queryContasNaoPagas.gte(
-          "criado_em",
-          `${data_inicio}T00:00:00`,
-        );
-      }
-
-      if (data_fim) {
-        queryContasNaoPagas = queryContasNaoPagas.lte(
-          "criado_em",
-          `${data_fim}T23:59:59`,
-        );
-      }
-
-      if (loja_id) {
-        queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
-      }
-
-      const { data: contasData, error: erroContas } = await queryContasNaoPagas;
-
-      if (erroContas) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar contas não pagas acumuladas:",
-          erroContas,
-        );
-        break;
-      }
-
-      const batchContas = contasData || [];
-
-      batchContas.forEach((v: any) => {
-        const valorTotal = Number(v.valor_total || 0);
-        const valorPago = Number(v.valor_pago || 0);
-        const saldoDevedor = Number(v.saldo_devedor || 0);
-        const pendente =
-          saldoDevedor > 0 ? saldoDevedor : valorTotal - valorPago;
-
-        if (pendente > 0) {
-          totalContasNaoPagas += pendente;
-        }
-      });
-
-      if (batchContas.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-      to += pageSize;
+    if (data_inicio) {
+      queryContasNaoPagas = queryContasNaoPagas.gte(
+        "criado_em",
+        `${data_inicio}T00:00:00`,
+      );
     }
+
+    if (data_fim) {
+      queryContasNaoPagas = queryContasNaoPagas.lte(
+        "criado_em",
+        `${data_fim}T23:59:59`,
+      );
+    }
+
+    if (loja_id) {
+      queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
+    }
+
+    const { data: contasData, error: erroContas } = await queryContasNaoPagas;
+
+    if (erroContas) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar contas não pagas acumuladas:",
+        erroContas,
+      );
+
+      return totalContasNaoPagas;
+    }
+
+    const batchContas = contasData || [];
+
+    batchContas.forEach((v: any) => {
+      const valorTotal = Number(v.valor_total || 0);
+      const valorPago = Number(v.valor_pago || 0);
+      const saldoDevedor = Number(v.saldo_devedor || 0);
+      const pendente = saldoDevedor > 0 ? saldoDevedor : valorTotal - valorPago;
+
+      if (pendente > 0) {
+        totalContasNaoPagas += pendente;
+      }
+    });
 
     return totalContasNaoPagas;
   }
@@ -359,38 +308,32 @@ export class DashboardService {
     faturamento_os_processadas: number;
     ganho_os_processadas: number;
   }> {
-    const pageSize = 1000;
     const osProcessadasIds: string[] = [];
-    let fromOS = 0;
-    let toOS = pageSize - 1;
     let osEntregues = 0;
     let osPagasNaoEntregues = 0;
 
-    while (true) {
-      let queryOSProcessadas = supabase
-        .from("ordem_servico")
-        .select("id, status, valor_pago")
-        .or("status.eq.entregue,valor_pago.gt.0")
-        .neq("status", "cancelado")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromOS, toOS);
+    let queryOSProcessadas = supabase
+      .from("ordem_servico")
+      .select("id, status, valor_pago")
+      .or("status.eq.entregue,valor_pago.gt.0")
+      .neq("status", "cancelado")
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      if (loja_id) {
-        queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
-      }
+    if (loja_id) {
+      queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
+    }
 
-      const { data: osProcessadasData, error: erroOSProcessadas } =
-        await queryOSProcessadas;
+    const { data: osProcessadasData, error: erroOSProcessadas } =
+      await queryOSProcessadas;
 
-      if (erroOSProcessadas) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar OS processadas corrigidas:",
-          erroOSProcessadas,
-        );
-        break;
-      }
-
+    if (erroOSProcessadas) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar OS processadas corrigidas:",
+        erroOSProcessadas,
+      );
+    } else {
       const batchOSProcessadas = osProcessadasData || [];
 
       batchOSProcessadas.forEach((os: any) => {
@@ -403,13 +346,6 @@ export class DashboardService {
           osPagasNaoEntregues += 1;
         }
       });
-
-      if (batchOSProcessadas.length < pageSize) {
-        break;
-      }
-
-      fromOS += pageSize;
-      toOS += pageSize;
     }
 
     const idsUnicos = Array.from(new Set(osProcessadasIds));
@@ -420,38 +356,25 @@ export class DashboardService {
     for (let i = 0; i < idsUnicos.length; i += batchSize) {
       const batchIds = idsUnicos.slice(i, i + batchSize);
 
-      let fromPagamentos = 0;
-      let toPagamentos = pageSize - 1;
+      const { data: pagamentosData, error: erroPagamentos } = await supabase
+        .from("ordem_servico_pagamentos")
+        .select("valor")
+        .in("id_ordem_servico", batchIds)
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .limit(2000);
 
-      while (true) {
-        const { data: pagamentosData, error: erroPagamentos } = await supabase
-          .from("ordem_servico_pagamentos")
-          .select("valor")
-          .in("id_ordem_servico", batchIds)
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .range(fromPagamentos, toPagamentos);
-
-        if (erroPagamentos) {
-          console.error(
-            "❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas corrigidas:",
-            erroPagamentos,
-          );
-          break;
-        }
-
+      if (erroPagamentos) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas corrigidas:",
+          erroPagamentos,
+        );
+      } else {
         const batchPagamentos = pagamentosData || [];
 
         batchPagamentos.forEach((pagamento: any) => {
           faturamentoOSProcessadas += Number(pagamento.valor || 0);
         });
-
-        if (batchPagamentos.length < pageSize) {
-          break;
-        }
-
-        fromPagamentos += pageSize;
-        toPagamentos += pageSize;
       }
 
       const { data: pecasData, error: erroPecas } = await supabase
@@ -692,35 +615,28 @@ export class DashboardService {
     const inicioISO = `${data_inicio}T00:00:00`;
     const fimISO = `${data_fim}T23:59:59`;
 
-    // Buscar total de pagamentos de vendas (servidor faz o SUM para evitar limite de 1000 linhas)
-    // Paginado para evitar limite de 1000 linhas e sem usar agregação (política bloqueando aggregate)
-    const pageSize = 1000;
-    let from = 0;
-    let to = pageSize - 1;
+    // Buscar total de pagamentos de vendas
     let pagamentosSemCredito = 0;
 
-    while (true) {
-      let query = supabase
-        .from("pagamentos_venda")
-        .select(
-          "valor, tipo_pagamento, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .neq("tipo_pagamento", "credito_cliente")
-        .range(from, to);
+    let query = supabase
+      .from("pagamentos_venda")
+      .select(
+        "valor, tipo_pagamento, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)",
+      )
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .neq("tipo_pagamento", "credito_cliente")
+      .limit(2000);
 
-      if (loja_id) {
-        query = query.eq("venda.loja_id", loja_id);
-      }
+    if (loja_id) {
+      query = query.eq("venda.loja_id", loja_id);
+    }
 
-      const { data, error } = await query;
+    const { data, error } = await query;
 
-      if (error) {
-        console.error("❌ [DASHBOARD] Erro ao buscar pagamentos:", error);
-        break;
-      }
-
+    if (error) {
+      console.error("❌ [DASHBOARD] Erro ao buscar pagamentos:", error);
+    } else {
       const batch = data || [];
 
       batch.forEach((p: any) => {
@@ -728,13 +644,6 @@ export class DashboardService {
         if (loja_id && p.venda?.loja_id !== loja_id) return;
         pagamentosSemCredito += Number(p.valor || 0);
       });
-
-      if (batch.length < pageSize) {
-        break;
-      }
-
-      from += pageSize;
-      to += pageSize;
     }
 
     // Buscar quantidade total de vendas
@@ -757,40 +666,33 @@ export class DashboardService {
 
     // Buscar custo dos produtos vendidos baseado nos pagamentos recebidos
     // Precisamos pegar as vendas que tiveram pagamentos no período
-    let fromPagamentos = 0;
-    let toPagamentos = pageSize - 1;
     let custoTotalVendas = 0;
     const vendasProcessadas = new Set<string>();
 
-    while (true) {
-      let queryPagamentosVendas = supabase
-        .from("pagamentos_venda")
-        .select(
-          "venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .neq("tipo_pagamento", "credito_cliente")
-        .range(fromPagamentos, toPagamentos);
+    let queryPagamentosVendas = supabase
+      .from("pagamentos_venda")
+      .select("venda_id, venda:vendas!pagamentos_venda_venda_id_fkey(loja_id)")
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .neq("tipo_pagamento", "credito_cliente")
+      .limit(2000);
 
-      if (loja_id) {
-        queryPagamentosVendas = queryPagamentosVendas.eq(
-          "venda.loja_id",
-          loja_id,
-        );
-      }
+    if (loja_id) {
+      queryPagamentosVendas = queryPagamentosVendas.eq(
+        "venda.loja_id",
+        loja_id,
+      );
+    }
 
-      const { data: pagamentosData, error: erroPagamentos } =
-        await queryPagamentosVendas;
+    const { data: pagamentosData, error: erroPagamentos } =
+      await queryPagamentosVendas;
 
-      if (erroPagamentos) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar vendas dos pagamentos:",
-          erroPagamentos,
-        );
-        break;
-      }
-
+    if (erroPagamentos) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar vendas dos pagamentos:",
+        erroPagamentos,
+      );
+    } else {
       const batchPagamentos = pagamentosData || [];
 
       // Coletar IDs únicos de vendas
@@ -829,13 +731,6 @@ export class DashboardService {
           }
         }
       }
-
-      if (batchPagamentos.length < pageSize) {
-        break;
-      }
-
-      fromPagamentos += pageSize;
-      toPagamentos += pageSize;
     }
 
     // Lucro = Pagamentos Recebidos - Custo dos Produtos Vendidos
@@ -845,33 +740,28 @@ export class DashboardService {
     const ticketMedio = count && count > 0 ? pagamentosSemCredito / count : 0;
 
     // Buscar contas não pagas (vendas onde valor_pago < valor_total)
-    let fromContasNaoPagas = 0;
-    let toContasNaoPagas = pageSize - 1;
     let totalContasNaoPagas = 0;
 
-    while (true) {
-      let queryContasNaoPagas = supabase
-        .from("vendas")
-        .select("valor_total, valor_pago")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .neq("status", "cancelada")
-        .range(fromContasNaoPagas, toContasNaoPagas);
+    let queryContasNaoPagas = supabase
+      .from("vendas")
+      .select("valor_total, valor_pago")
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .neq("status", "cancelada")
+      .limit(2000);
 
-      if (loja_id) {
-        queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
-      }
+    if (loja_id) {
+      queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
+    }
 
-      const { data: contasData, error: erroContas } = await queryContasNaoPagas;
+    const { data: contasData, error: erroContas } = await queryContasNaoPagas;
 
-      if (erroContas) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar contas não pagas:",
-          erroContas,
-        );
-        break;
-      }
-
+    if (erroContas) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar contas não pagas:",
+        erroContas,
+      );
+    } else {
       const batchContas = contasData || [];
 
       batchContas.forEach((v: any) => {
@@ -882,54 +772,35 @@ export class DashboardService {
           totalContasNaoPagas += valorTotal - valorPago;
         }
       });
-
-      if (batchContas.length < pageSize) {
-        break;
-      }
-
-      fromContasNaoPagas += pageSize;
-      toContasNaoPagas += pageSize;
     }
 
     // Buscar métricas de Ordem de Serviço
-    let fromPagamentosOS = 0;
-    let toPagamentosOS = pageSize - 1;
     let pagamentosOSRecebidos = 0;
 
-    while (true) {
-      let queryPagamentosOS = supabase
-        .from("ordem_servico_pagamentos")
-        .select(
-          "valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .range(fromPagamentosOS, toPagamentosOS);
+    let queryPagamentosOS = supabase
+      .from("ordem_servico_pagamentos")
+      .select(
+        "valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)",
+      )
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .limit(2000);
 
-      const { data: pagamentosOSData, error: erroPagamentosOS } =
-        await queryPagamentosOS;
+    const { data: pagamentosOSData, error: erroPagamentosOS } =
+      await queryPagamentosOS;
 
-      if (erroPagamentosOS) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar pagamentos de OS:",
-          erroPagamentosOS,
-        );
-        break;
-      }
-
+    if (erroPagamentosOS) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar pagamentos de OS:",
+        erroPagamentosOS,
+      );
+    } else {
       const batchPagamentosOS = pagamentosOSData || [];
 
       batchPagamentosOS.forEach((p: any) => {
         if (loja_id && p.os?.id_loja !== loja_id) return;
         pagamentosOSRecebidos += Number(p.valor || 0);
       });
-
-      if (batchPagamentosOS.length < pageSize) {
-        break;
-      }
-
-      fromPagamentosOS += pageSize;
-      toPagamentosOS += pageSize;
     }
 
     let queryTotalOS = supabase
@@ -972,35 +843,27 @@ export class DashboardService {
     }
 
     // Buscar faturamento e custo de OS
-    let fromOS = 0;
-    let toOS = pageSize - 1;
     let faturamentoOS = 0;
     let custoOS = 0;
 
-    while (true) {
-      let queryOS = supabase
-        .from("ordem_servico")
-        .select("id, valor_pago, valor_orcamento")
-        .eq("status", "entregue")
-        .gt("valor_pago", 0)
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromOS, toOS);
+    let queryOS = supabase
+      .from("ordem_servico")
+      .select("id, valor_pago, valor_orcamento")
+      .eq("status", "entregue")
+      .gt("valor_pago", 0)
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      if (loja_id) {
-        queryOS = queryOS.eq("id_loja", loja_id);
-      }
+    if (loja_id) {
+      queryOS = queryOS.eq("id_loja", loja_id);
+    }
 
-      const { data: osData, error: erroOS } = await queryOS;
+    const { data: osData, error: erroOS } = await queryOS;
 
-      if (erroOS) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar faturamento de OS:",
-          erroOS,
-        );
-        break;
-      }
-
+    if (erroOS) {
+      console.error("❌ [DASHBOARD] Erro ao buscar faturamento de OS:", erroOS);
+    } else {
       const batchOS = osData || [];
 
       // Somar faturamento (usar valor_pago, fallback para valor_orcamento)
@@ -1035,86 +898,61 @@ export class DashboardService {
           }
         }
       }
-
-      if (batchOS.length < pageSize) {
-        break;
-      }
-
-      fromOS += pageSize;
-      toOS += pageSize;
     }
     const ganhoOS = faturamentoOS - custoOS;
     // Buscar faturamento de OS processadas (pagas não entregues + entregues)
-    let fromOSProcessadas = 0;
-    let toOSProcessadas = pageSize - 1;
     let faturamentoOSProcessadas = 0;
 
-    while (true) {
-      let queryOSProcessadas = supabase
-        .from("ordem_servico")
-        .select("valor_pago")
-        .or(`valor_pago.gt.0,status.eq.entregue`)
-        .neq("status", "cancelado")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromOSProcessadas, toOSProcessadas);
+    let queryOSProcessadas = supabase
+      .from("ordem_servico")
+      .select("valor_pago")
+      .or(`valor_pago.gt.0,status.eq.entregue`)
+      .neq("status", "cancelado")
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      if (loja_id) {
-        queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
-      }
+    if (loja_id) {
+      queryOSProcessadas = queryOSProcessadas.eq("id_loja", loja_id);
+    }
 
-      const { data: osProcessadasData, error: erroOSProcessadas } =
-        await queryOSProcessadas;
+    const { data: osProcessadasData, error: erroOSProcessadas } =
+      await queryOSProcessadas;
 
-      if (erroOSProcessadas) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar faturamento de OS processadas:",
-          erroOSProcessadas,
-        );
-        break;
-      }
-
+    if (erroOSProcessadas) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar faturamento de OS processadas:",
+        erroOSProcessadas,
+      );
+    } else {
       const batchOSProcessadas = osProcessadasData || [];
 
       batchOSProcessadas.forEach((os: any) => {
         faturamentoOSProcessadas += Number(os.valor_pago || 0);
       });
-
-      if (batchOSProcessadas.length < pageSize) {
-        break;
-      }
-
-      fromOSProcessadas += pageSize;
-      toOSProcessadas += pageSize;
     }
 
     // Buscar faturamento de OS processadas usando pagamentos reais (não valor_pago)
-    let fromOSPagtos = 0;
-    let toOSPagtos = pageSize - 1;
-
     faturamentoOSProcessadas = 0;
     const osProcessadasIds: string[] = [];
 
-    while (true) {
-      let queryOSPagtos = supabase
-        .from("ordem_servico_pagamentos")
-        .select(
-          "valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .range(fromOSPagtos, toOSPagtos);
+    let queryOSPagtos = supabase
+      .from("ordem_servico_pagamentos")
+      .select(
+        "valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)",
+      )
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .limit(2000);
 
-      const { data: osPagtosData, error: erroOSPagtos } = await queryOSPagtos;
+    const { data: osPagtosData, error: erroOSPagtos } = await queryOSPagtos;
 
-      if (erroOSPagtos) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas:",
-          erroOSPagtos,
-        );
-        break;
-      }
-
+    if (erroOSPagtos) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar pagamentos de OS processadas:",
+        erroOSPagtos,
+      );
+    } else {
       const batchOSPagtos = osPagtosData || [];
 
       batchOSPagtos.forEach((p: any) => {
@@ -1124,13 +962,6 @@ export class DashboardService {
           osProcessadasIds.push(p.id_ordem_servico);
         }
       });
-
-      if (batchOSPagtos.length < pageSize) {
-        break;
-      }
-
-      fromOSPagtos += pageSize;
-      toOSPagtos += pageSize;
     }
 
     // Buscar peças dessas OS para calcular custo
@@ -1263,73 +1094,56 @@ export class DashboardService {
     }
 
     // Buscar total em quebra de peças
-    let fromQuebras = 0;
-    let toQuebras = pageSize - 1;
     let totalQuebras = 0;
     let quantidadeQuebras = 0;
 
-    while (true) {
-      let queryQuebras = supabase
-        .from("quebra_pecas")
-        .select("valor_total")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromQuebras, toQuebras);
+    let queryQuebras = supabase
+      .from("quebra_pecas")
+      .select("valor_total")
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      if (loja_id) {
-        queryQuebras = queryQuebras.eq("id_loja", loja_id);
-      }
+    if (loja_id) {
+      queryQuebras = queryQuebras.eq("id_loja", loja_id);
+    }
 
-      const { data: quebrasData, error: erroQuebras } = await queryQuebras;
+    const { data: quebrasData, error: erroQuebras } = await queryQuebras;
 
-      if (erroQuebras) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar quebra de peças:",
-          erroQuebras,
-        );
-        break;
-      }
-
+    if (erroQuebras) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar quebra de peças:",
+        erroQuebras,
+      );
+    } else {
       const batchQuebras = quebrasData || [];
 
       quantidadeQuebras += batchQuebras.length;
       batchQuebras.forEach((q: any) => {
         totalQuebras += Number(q.valor_total || 0);
       });
-
-      if (batchQuebras.length < pageSize) {
-        break;
-      }
-
-      fromQuebras += pageSize;
-      toQuebras += pageSize;
     }
 
     // Buscar total de crédito de cliente (saldo disponível)
-    let fromCreditos = 0;
-    let toCreditos = pageSize - 1;
     let totalCreditosCliente = 0;
 
-    while (true) {
-      let queryCreditos = supabase
-        .from("creditos_cliente")
-        .select(
-          "saldo, cliente:clientes!creditos_cliente_cliente_id_fkey(id_loja)",
-        )
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromCreditos, toCreditos);
+    let queryCreditos = supabase
+      .from("creditos_cliente")
+      .select(
+        "saldo, cliente:clientes!creditos_cliente_cliente_id_fkey(id_loja)",
+      )
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      const { data: creditosData, error: erroCreditos } = await queryCreditos;
+    const { data: creditosData, error: erroCreditos } = await queryCreditos;
 
-      if (erroCreditos) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar crédito de cliente:",
-          erroCreditos,
-        );
-        break;
-      }
-
+    if (erroCreditos) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar crédito de cliente:",
+        erroCreditos,
+      );
+    } else {
       const batchCreditos = creditosData || [];
 
       batchCreditos.forEach((c: any) => {
@@ -1338,44 +1152,32 @@ export class DashboardService {
           totalCreditosCliente += Number(c.saldo || 0);
         }
       });
-
-      if (batchCreditos.length < pageSize) {
-        break;
-      }
-
-      fromCreditos += pageSize;
-      toCreditos += pageSize;
     }
 
     // Buscar devoluções (com crédito e sem crédito)
-    let fromDevolucoes = 0;
-    let toDevolucoes = pageSize - 1;
     let devolucoesComCreditoQuantidade = 0;
     let devolucoesComCreditoTotal = 0;
     let devolucoessemCreditoQuantidade = 0;
     let devolucoesemCreditoTotal = 0;
 
-    while (true) {
-      let queryDevolucoes = supabase
-        .from("devolucoes_venda")
-        .select(
-          "tipo, valor_total, venda:vendas!devolucoes_venda_venda_id_fkey(loja_id)",
-        )
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .range(fromDevolucoes, toDevolucoes);
+    let queryDevolucoes = supabase
+      .from("devolucoes_venda")
+      .select(
+        "tipo, valor_total, venda:vendas!devolucoes_venda_venda_id_fkey(loja_id)",
+      )
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .limit(2000);
 
-      const { data: devolucoesData, error: erroDevolucoes } =
-        await queryDevolucoes;
+    const { data: devolucoesData, error: erroDevolucoes } =
+      await queryDevolucoes;
 
-      if (erroDevolucoes) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar devoluções:",
-          erroDevolucoes,
-        );
-        break;
-      }
-
+    if (erroDevolucoes) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar devoluções:",
+        erroDevolucoes,
+      );
+    } else {
       const batchDevolucoes = devolucoesData || [];
 
       batchDevolucoes.forEach((d: any) => {
@@ -1391,13 +1193,6 @@ export class DashboardService {
           devolucoesemCreditoTotal += valor;
         }
       });
-
-      if (batchDevolucoes.length < pageSize) {
-        break;
-      }
-
-      fromDevolucoes += pageSize;
-      toDevolucoes += pageSize;
     }
 
     // Buscar OS pagas por tipo de cliente (lojista e consumidor final)
@@ -1416,30 +1211,25 @@ export class DashboardService {
     const osSemTipoIds: string[] = [];
 
     // Query payments from ordem_servico_pagamentos (same logic as "Ganho OS Processadas")
-    let fromOSPagtosPorTipo = 0;
-    let toOSPagtosPorTipo = pageSize - 1;
 
-    while (true) {
-      let queryOSPagtosPorTipo = supabase
-        .from("ordem_servico_pagamentos")
-        .select(
-          "valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja, tipo_cliente)",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .range(fromOSPagtosPorTipo, toOSPagtosPorTipo);
+    let queryOSPagtosPorTipo = supabase
+      .from("ordem_servico_pagamentos")
+      .select(
+        "valor, id_ordem_servico, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja, tipo_cliente)",
+      )
+      .gte("data_pagamento", inicioISO)
+      .lte("data_pagamento", fimISO)
+      .limit(2000);
 
-      const { data: osPagtosPorTipoData, error: erroOSPagtosPorTipo } =
-        await queryOSPagtosPorTipo;
+    const { data: osPagtosPorTipoData, error: erroOSPagtosPorTipo } =
+      await queryOSPagtosPorTipo;
 
-      if (erroOSPagtosPorTipo) {
-        console.error(
-          "❌ [DASHBOARD] Erro ao buscar pagamentos por tipo:",
-          erroOSPagtosPorTipo,
-        );
-        break;
-      }
-
+    if (erroOSPagtosPorTipo) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar pagamentos por tipo:",
+        erroOSPagtosPorTipo,
+      );
+    } else {
       const batchOSPagtosPorTipo = osPagtosPorTipoData || [];
 
       batchOSPagtosPorTipo.forEach((p: any) => {
@@ -1468,13 +1258,6 @@ export class DashboardService {
           }
         }
       });
-
-      if (batchOSPagtosPorTipo.length < pageSize) {
-        break;
-      }
-
-      fromOSPagtosPorTipo += pageSize;
-      toOSPagtosPorTipo += pageSize;
     }
 
     // Calculate costs for all OS types
@@ -1653,9 +1436,7 @@ export class DashboardService {
         loja_id,
       });
 
-      return produtos
-        .sort((a, b) => b.quantidade - a.quantidade)
-        .slice(0, 10);
+      return produtos.sort((a, b) => b.quantidade - a.quantidade).slice(0, 10);
     } catch (error) {
       console.error("Erro ao buscar top 10 produtos:", error);
 
@@ -1746,63 +1527,51 @@ export class DashboardService {
           venda_ids: Set<string>;
         }
       > = {};
-      const pageSize = 1000;
-      let from = 0;
-      let to = pageSize - 1;
 
-      while (true) {
-        let query = supabase
-          .from("pagamentos_venda")
-          .select(
-            "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(cliente_id, loja_id, status, cliente:clientes(nome))",
-          )
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .neq("tipo_pagamento", "credito_cliente")
-          .neq("venda.status", "cancelada")
-          .range(from, to);
+      let query = supabase
+        .from("pagamentos_venda")
+        .select(
+          "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(cliente_id, loja_id, status, cliente:clientes(nome))",
+        )
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .neq("tipo_pagamento", "credito_cliente")
+        .neq("venda.status", "cancelada")
+        .limit(2000);
 
-        if (loja_id) {
-          query = query.eq("venda.loja_id", loja_id);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        const batch = data || [];
-
-        batch.forEach((pagamento) => {
-          const venda = pagamento.venda as any;
-          const clienteId = venda?.cliente_id;
-
-          if (!clienteId) {
-            return;
-          }
-
-          if (!agrupado[clienteId]) {
-            agrupado[clienteId] = {
-              cliente_id: clienteId,
-              cliente_nome: venda?.cliente?.nome || "Cliente desconhecido",
-              total_vendas: 0,
-              receita_total: 0,
-              venda_ids: new Set<string>(),
-            };
-          }
-
-          if (pagamento.venda_id) {
-            agrupado[clienteId].venda_ids.add(String(pagamento.venda_id));
-          }
-          agrupado[clienteId].receita_total += Number(pagamento.valor) || 0;
-        });
-
-        if (batch.length < pageSize) {
-          break;
-        }
-
-        from += pageSize;
-        to += pageSize;
+      if (loja_id) {
+        query = query.eq("venda.loja_id", loja_id);
       }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const batch = data || [];
+
+      batch.forEach((pagamento) => {
+        const venda = pagamento.venda as any;
+        const clienteId = venda?.cliente_id;
+
+        if (!clienteId) {
+          return;
+        }
+
+        if (!agrupado[clienteId]) {
+          agrupado[clienteId] = {
+            cliente_id: clienteId,
+            cliente_nome: venda?.cliente?.nome || "Cliente desconhecido",
+            total_vendas: 0,
+            receita_total: 0,
+            venda_ids: new Set<string>(),
+          };
+        }
+
+        if (pagamento.venda_id) {
+          agrupado[clienteId].venda_ids.add(String(pagamento.venda_id));
+        }
+        agrupado[clienteId].receita_total += Number(pagamento.valor) || 0;
+      });
 
       return Object.values(agrupado)
         .map(({ venda_ids, ...cliente }) => ({
@@ -1861,152 +1630,125 @@ export class DashboardService {
       const vendedorIds = new Set<string>();
       const vendaIdParaVendedorId = new Map<string, string>();
       const osIdParaVendedorId = new Map<string, string>();
-      const pageSize = 1000;
-      let from = 0;
-      let to = pageSize - 1;
 
-      while (true) {
-        let query = supabase
-          .from("pagamentos_venda")
-          .select(
-            "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(vendedor_id, loja_id, status, vendedor:usuarios!vendas_vendedor_id_fkey(nome))",
-          )
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .neq("tipo_pagamento", "credito_cliente")
-          .neq("venda.status", "cancelada")
-          .range(from, to);
+      let query = supabase
+        .from("pagamentos_venda")
+        .select(
+          "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(vendedor_id, loja_id, status, vendedor:usuarios!vendas_vendedor_id_fkey(nome))",
+        )
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .neq("tipo_pagamento", "credito_cliente")
+        .neq("venda.status", "cancelada")
+        .limit(2000);
 
-        if (loja_id) {
-          query = query.eq("venda.loja_id", loja_id);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        const batch = data || [];
-
-        batch.forEach((pagamento) => {
-          const venda = pagamento.venda as any;
-          const vendedorId = venda?.vendedor_id;
-
-          if (!vendedorId) {
-            return;
-          }
-
-          if (!agrupado[vendedorId]) {
-            agrupado[vendedorId] = {
-              vendedor_id: vendedorId,
-              vendedor_nome: venda?.vendedor?.nome || "Vendedor desconhecido",
-              total_vendas: 0,
-              total_os: 0,
-              receita_vendas: 0,
-              receita_os: 0,
-              receita_total: 0,
-              lucro_vendas: 0,
-              lucro_os: 0,
-              lucro_total: 0,
-              venda_ids: new Set<string>(),
-              os_ids: new Set<string>(),
-            };
-          }
-
-          vendedorIds.add(String(vendedorId));
-
-          if (pagamento.venda_id) {
-            const vendaId = String(pagamento.venda_id);
-
-            agrupado[vendedorId].venda_ids.add(vendaId);
-            vendaIdParaVendedorId.set(vendaId, String(vendedorId));
-          }
-          const valorPagamento = Number(pagamento.valor) || 0;
-
-          agrupado[vendedorId].receita_vendas += valorPagamento;
-          agrupado[vendedorId].receita_total += valorPagamento;
-          agrupado[vendedorId].lucro_vendas += valorPagamento;
-        });
-
-        if (batch.length < pageSize) {
-          break;
-        }
-
-        from += pageSize;
-        to += pageSize;
+      if (loja_id) {
+        query = query.eq("venda.loja_id", loja_id);
       }
 
-      from = 0;
-      to = pageSize - 1;
+      const { data, error } = await query;
 
-      while (true) {
-        let query = supabase
-          .from("ordem_servico_pagamentos")
-          .select(
-            "id_ordem_servico, valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(criado_por, id_loja, status)",
-          )
-          .gte("data_pagamento", inicioISO)
-          .lte("data_pagamento", fimISO)
-          .neq("os.status", "cancelado")
-          .range(from, to);
+      if (error) throw error;
 
-        if (loja_id) {
-          query = query.eq("os.id_loja", loja_id);
+      const batch = data || [];
+
+      batch.forEach((pagamento) => {
+        const venda = pagamento.venda as any;
+        const vendedorId = venda?.vendedor_id;
+
+        if (!vendedorId) {
+          return;
         }
 
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        const batch = data || [];
-
-        batch.forEach((pagamento) => {
-          const os = pagamento.os as any;
-          const vendedorId = os?.criado_por;
-
-          if (!vendedorId) {
-            return;
-          }
-
-          if (!agrupado[vendedorId]) {
-            agrupado[vendedorId] = {
-              vendedor_id: vendedorId,
-              vendedor_nome: "Vendedor desconhecido",
-              total_vendas: 0,
-              total_os: 0,
-              receita_vendas: 0,
-              receita_os: 0,
-              receita_total: 0,
-              lucro_vendas: 0,
-              lucro_os: 0,
-              lucro_total: 0,
-              venda_ids: new Set<string>(),
-              os_ids: new Set<string>(),
-            };
-          }
-
-          vendedorIds.add(String(vendedorId));
-
-          if (pagamento.id_ordem_servico) {
-            const osId = String(pagamento.id_ordem_servico);
-
-            agrupado[vendedorId].os_ids.add(osId);
-            osIdParaVendedorId.set(osId, String(vendedorId));
-          }
-
-          const valorPagamento = Number(pagamento.valor) || 0;
-
-          agrupado[vendedorId].receita_os += valorPagamento;
-          agrupado[vendedorId].receita_total += valorPagamento;
-          agrupado[vendedorId].lucro_os += valorPagamento;
-        });
-
-        if (batch.length < pageSize) {
-          break;
+        if (!agrupado[vendedorId]) {
+          agrupado[vendedorId] = {
+            vendedor_id: vendedorId,
+            vendedor_nome: venda?.vendedor?.nome || "Vendedor desconhecido",
+            total_vendas: 0,
+            total_os: 0,
+            receita_vendas: 0,
+            receita_os: 0,
+            receita_total: 0,
+            lucro_vendas: 0,
+            lucro_os: 0,
+            lucro_total: 0,
+            venda_ids: new Set<string>(),
+            os_ids: new Set<string>(),
+          };
         }
 
-        from += pageSize;
-        to += pageSize;
-      }
+        vendedorIds.add(String(vendedorId));
+
+        if (pagamento.venda_id) {
+          const vendaId = String(pagamento.venda_id);
+
+          agrupado[vendedorId].venda_ids.add(vendaId);
+          vendaIdParaVendedorId.set(vendaId, String(vendedorId));
+        }
+        const valorPagamento = Number(pagamento.valor) || 0;
+
+        agrupado[vendedorId].receita_vendas += valorPagamento;
+        agrupado[vendedorId].receita_total += valorPagamento;
+        agrupado[vendedorId].lucro_vendas += valorPagamento;
+      });
+
+      const queryOSPayments = supabase
+        .from("ordem_servico_pagamentos")
+        .select(
+          "id_ordem_servico, valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(criado_por, id_loja, status)",
+        )
+        .gte("data_pagamento", inicioISO)
+        .lte("data_pagamento", fimISO)
+        .neq("os.status", "cancelado")
+        .limit(2000);
+
+      const { data: dataOSPayments, error: errorOSPayments } =
+        await queryOSPayments;
+
+      if (errorOSPayments) throw errorOSPayments;
+
+      const batchOSPayments = dataOSPayments || [];
+
+      batchOSPayments.forEach((pagamento) => {
+        const os = pagamento.os as any;
+        const vendedorId = os?.criado_por;
+
+        if (!vendedorId) {
+          return;
+        }
+
+        if (!agrupado[vendedorId]) {
+          agrupado[vendedorId] = {
+            vendedor_id: vendedorId,
+            vendedor_nome: "Vendedor desconhecido",
+            total_vendas: 0,
+            total_os: 0,
+            receita_vendas: 0,
+            receita_os: 0,
+            receita_total: 0,
+            lucro_vendas: 0,
+            lucro_os: 0,
+            lucro_total: 0,
+            venda_ids: new Set<string>(),
+            os_ids: new Set<string>(),
+          };
+        }
+
+        vendedorIds.add(String(vendedorId));
+
+        if (pagamento.id_ordem_servico) {
+          const osId = String(pagamento.id_ordem_servico);
+
+          agrupado[vendedorId].os_ids.add(osId);
+          osIdParaVendedorId.set(osId, String(vendedorId));
+        }
+
+        const valorPagamento = Number(pagamento.valor) || 0;
+
+        agrupado[vendedorId].receita_os += valorPagamento;
+        agrupado[vendedorId].receita_total += valorPagamento;
+        agrupado[vendedorId].lucro_os += valorPagamento;
+      });
 
       if (vendedorIds.size > 0) {
         const { data: usuarios, error: usuariosError } = await supabase

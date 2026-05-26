@@ -7,7 +7,7 @@ import type {
 } from "@/types/ordemServico";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   Button,
@@ -85,7 +85,6 @@ export default function OrdemServicoPage() {
   const { usuario: usuarioContext } = useAuthContext();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
-  const router = useRouter();
   const toast = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
@@ -213,12 +212,6 @@ export default function OrdemServicoPage() {
 
   // useEffects (devem vir após as funções mas antes dos returns condicionais)
   useEffect(() => {
-    if (usuarioContext?.tipo_usuario === "tecnico") {
-      router.push("/sistema/ordem-servico/tecnico");
-    }
-  }, [usuarioContext, router]);
-
-  useEffect(() => {
     carregarLojas();
     carregarOrdensServico();
   }, [
@@ -242,18 +235,6 @@ export default function OrdemServicoPage() {
   ]);
 
   // Returns condicionais (devem vir APÓS todos os hooks e funções)
-  // Se for técnico, mostrar loading enquanto redireciona
-  if (usuarioContext?.tipo_usuario === "tecnico") {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-default-500">Redirecionando...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Verificar loading primeiro
   if (loadingPermissoes) {
     return (

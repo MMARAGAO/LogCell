@@ -28,27 +28,13 @@ export async function getProdutos(filtros?: {
       );
     }
 
-    // BUSCAR TODOS OS PRODUTOS COM PAGINAÇÃO
-    const allData: Produto[] = [];
-    const pageSize = 1000;
-    let offset = 0;
-    let hasMore = true;
+    query = query.limit(500);
 
-    while (hasMore) {
-      const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const { data, error } = await query;
 
-      if (error) throw error;
+    if (error) throw error;
 
-      if (data && data.length > 0) {
-        allData.push(...data);
-        offset += pageSize;
-        hasMore = data.length === pageSize;
-      } else {
-        hasMore = false;
-      }
-    }
-
-    return allData;
+    return (data || []) as Produto[];
   } catch (error) {
     console.error("Erro ao buscar produtos:", error);
     throw error;

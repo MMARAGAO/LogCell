@@ -1673,9 +1673,9 @@ export function VendaAparelhoModal({
             {/* Coluna Direita - Simulador de Taxa */}
             <div className="space-y-4">
               <SimuladorTaxaCartao
+                lojaId={lojaId}
                 mostrarDetalhes={true}
                 tipoProdutoPadrao="aparelho"
-                lojaId={lojaId}
                 valorCusto={valorCusto}
                 valorVenda={valorVendaNumerico}
                 onSimulacaoChange={setSimulacaoAtual}

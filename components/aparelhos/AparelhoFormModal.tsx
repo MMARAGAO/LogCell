@@ -262,7 +262,11 @@ export function AparelhoFormModal({
           tipo_acao: "edicao",
           descricao: `Aparelho editado por ${usuario.nome}`,
           dados_antes: dadosAntigos,
-          dados_depois: { marca: formData.marca, modelo: formData.modelo, imei: formData.imei },
+          dados_depois: {
+            marca: formData.marca,
+            modelo: formData.modelo,
+            imei: formData.imei,
+          },
           usuario_id: usuario.id,
         });
 
@@ -276,7 +280,12 @@ export function AparelhoFormModal({
           aparelho_id: novoAparelho.id,
           tipo_acao: "criacao",
           descricao: `Aparelho cadastrado — ${formData.marca} ${formData.modelo}`,
-          dados_depois: { marca: formData.marca, modelo: formData.modelo, imei: formData.imei, valor: formData.valor_venda },
+          dados_depois: {
+            marca: formData.marca,
+            modelo: formData.modelo,
+            imei: formData.imei,
+            valor: formData.valor_venda,
+          },
           usuario_id: usuario.id,
         });
 
@@ -309,10 +318,14 @@ export function AparelhoFormModal({
         <ModalBody>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              isDisabled={!!aparelho || loading || lojas.length === 0}
               className="md:col-span-2"
+              isDisabled={!!aparelho || loading || lojas.length === 0}
               label="Loja"
-              placeholder={lojas.length === 0 ? "Nenhuma loja disponível" : "Selecione uma loja"}
+              placeholder={
+                lojas.length === 0
+                  ? "Nenhuma loja disponível"
+                  : "Selecione uma loja"
+              }
               selectedKeys={formData.loja_id ? [String(formData.loja_id)] : []}
               variant="bordered"
               onSelectionChange={(keys) => {

@@ -231,7 +231,7 @@ export function NovaVendaModal({
   // Carrega dados da venda para edição
   useEffect(() => {
     if (vendaParaEditar && isOpen) {
-      setClienteSelecionado(vendaParaEditar.cliente_id);
+      setClienteSelecionado(vendaParaEditar.cliente_id ?? "");
       setLojaSelecionada(vendaParaEditar.loja_id);
       setTipoVenda(vendaParaEditar.tipo);
       setDataPrevistaPagamento(

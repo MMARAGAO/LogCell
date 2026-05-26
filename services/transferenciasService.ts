@@ -4,13 +4,21 @@ import { supabase } from "@/lib/supabaseClient";
 
 export class TransferenciasService {
   /**
-   * Buscar todas as transferências com filtros opcionais
+   * Buscar transferências com paginação e filtros opcionais
    */
-  static async buscarTransferencias(filtros?: {
-    status?: "pendente" | "confirmada" | "cancelada";
-    loja_id?: number;
-  }): Promise<TransferenciaCompleta[]> {
+  static async buscarTransferencias(
+    filtros?: {
+      status?: "pendente" | "confirmada" | "cancelada";
+      loja_id?: number;
+      busca?: string;
+    },
+    page: number = 1,
+    pageSize: number = 15,
+  ): Promise<{ data: TransferenciaCompleta[]; total: number }> {
     try {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("transferencias")
         .select(
@@ -34,8 +42,10 @@ export class TransferenciasService {
           confirmado_por_usuario:usuarios!confirmado_por(nome),
           cancelado_por_usuario:usuarios!cancelado_por(nome)
         `,
+          { count: "exact", head: false },
         )
-        .order("criado_em", { ascending: false });
+        .order("criado_em", { ascending: false })
+        .range(from, to);
 
       if (filtros?.status) {
         query = query.eq("status", filtros.status);
@@ -47,7 +57,29 @@ export class TransferenciasService {
         );
       }
 
-      const { data, error } = await query;
+      if (filtros?.busca) {
+        const termo = filtros.busca.trim();
+
+        if (termo) {
+          const condicoes = [`observacao.ilike.%${termo}%`];
+
+          const { data: lojasEncontradas } = await supabase
+            .from("lojas")
+            .select("id")
+            .ilike("nome", `%${termo}%`);
+
+          if (lojasEncontradas && lojasEncontradas.length > 0) {
+            const lojaIds = lojasEncontradas.map((l) => l.id).join(",");
+
+            condicoes.push(`loja_origem_id.in.(${lojaIds})`);
+            condicoes.push(`loja_destino_id.in.(${lojaIds})`);
+          }
+
+          query = query.or(condicoes.join(","));
+        }
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error("Erro ao buscar transferências:", error);
@@ -56,32 +88,79 @@ export class TransferenciasService {
         );
       }
 
-      // Formatar dados com aliases para compatibilidade
-      return (
-        data?.map((t: any) => ({
-          ...t,
-          itens:
-            t.itens?.map((item: any) => ({
-              ...item,
-              produto_descricao: item.produto?.descricao,
-              produto_codigo: item.produto?.codigo_fabricante,
-              produto_marca: item.produto?.marca,
-              produtos: item.produto, // Incluir produto completo com estoque_lojas
-            })) || [],
-          loja_origem_nome: t.loja_origem?.nome,
-          loja_origem: t.loja_origem?.nome, // Alias
-          loja_destino_nome: t.loja_destino?.nome,
-          loja_destino: t.loja_destino?.nome, // Alias
-          criado_por_nome: t.criado_por_usuario?.nome,
-          usuario_nome: t.criado_por_usuario?.nome, // Alias
-          confirmado_por_nome: t.confirmado_por_usuario?.nome,
-          cancelado_por_nome: t.cancelado_por_usuario?.nome,
-          // observacao já vem correto do banco (não precisa alias)
-        })) || []
-      );
+      return {
+        data:
+          data?.map((t: any) => ({
+            ...t,
+            itens:
+              t.itens?.map((item: any) => ({
+                ...item,
+                produto_descricao: item.produto?.descricao,
+                produto_codigo: item.produto?.codigo_fabricante,
+                produto_marca: item.produto?.marca,
+                produtos: item.produto,
+              })) || [],
+            loja_origem_nome: t.loja_origem?.nome,
+            loja_origem: t.loja_origem?.nome,
+            loja_destino_nome: t.loja_destino?.nome,
+            loja_destino: t.loja_destino?.nome,
+            criado_por_nome: t.criado_por_usuario?.nome,
+            usuario_nome: t.criado_por_usuario?.nome,
+            confirmado_por_nome: t.confirmado_por_usuario?.nome,
+            cancelado_por_nome: t.cancelado_por_usuario?.nome,
+          })) || [],
+        total: count || 0,
+      };
     } catch (error) {
       console.error("Erro ao buscar transferências:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Contar transferências por status com os mesmos filtros
+   */
+  static async contarTransferencias(filtros?: {
+    loja_id?: number;
+  }): Promise<{
+    pendente: number;
+    confirmada: number;
+    cancelada: number;
+    total: number;
+  }> {
+    try {
+      const baseQuery = () =>
+        supabase.from("transferencias").select("*", {
+          count: "exact",
+          head: true,
+        });
+
+      const applyLojaFilter = (q: any) => {
+        if (filtros?.loja_id) {
+          return q.or(
+            `loja_origem_id.eq.${filtros.loja_id},loja_destino_id.eq.${filtros.loja_id}`,
+          );
+        }
+        return q;
+      };
+
+      const [pendenteRes, confirmadaRes, canceladaRes, totalRes] =
+        await Promise.all([
+          applyLojaFilter(baseQuery().eq("status", "pendente")),
+          applyLojaFilter(baseQuery().eq("status", "confirmada")),
+          applyLojaFilter(baseQuery().eq("status", "cancelada")),
+          applyLojaFilter(baseQuery()),
+        ]);
+
+      return {
+        pendente: pendenteRes.count || 0,
+        confirmada: confirmadaRes.count || 0,
+        cancelada: canceladaRes.count || 0,
+        total: totalRes.count || 0,
+      };
+    } catch (error) {
+      console.error("Erro ao contar transferências:", error);
+      return { pendente: 0, confirmada: 0, cancelada: 0, total: 0 };
     }
   }
 
@@ -195,6 +274,8 @@ export class TransferenciasService {
 
 // Exportar funções individuais para facilitar o uso
 export const buscarTransferencias = TransferenciasService.buscarTransferencias;
+export const contarTransferencias =
+  TransferenciasService.contarTransferencias;
 export const confirmarTransferencia =
   TransferenciasService.confirmarTransferencia;
 export const cancelarTransferencia =

@@ -153,14 +153,7 @@ export default function DashboardPage() {
   const [dados, setDados] = useState<DadosDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { temPermissao, perfil, loading: permissoesLoading } = usePermissoes();
-
-  // Redirecionar técnicos para suas ordens de serviço
-  useEffect(() => {
-    if (!permissoesLoading && perfil === "tecnico") {
-      router.push("/sistema/ordem-servico/tecnico");
-    }
-  }, [permissoesLoading, perfil, router]);
+  const { temPermissao, loading: permissoesLoading } = usePermissoes();
 
   // filtros - começar do primeiro dia do mês
   const [dataInicio, setDataInicio] = useState<string>(primeiroDiaDoMes);
@@ -179,6 +172,7 @@ export default function DashboardPage() {
     total: number;
     quantidade_total: number;
   }>({ total: 0, quantidade_total: 0 });
+  const [deviceSalesData, setDeviceSalesData] = useState<{ totalBruto: number; totalLucro: number; quantidade: number } | null>(null);
   const [loadingGraficos, setLoadingGraficos] = useState(false);
   const [cardDetalhado, setCardDetalhado] =
     useState<DashboardDetailCardKey | null>(null);
@@ -208,6 +202,52 @@ export default function DashboardPage() {
       });
 
       setDados(data);
+
+      // Busca dados de aparelhos vendidos
+      try {
+        const { data: deviceVendas } = await supabase
+          .from("aparelhos")
+          .select("venda_id, valor_venda, valor_compra, data_venda")
+          .eq("status", "vendido")
+          .not("venda_id", "is", null)
+          .gte("data_venda", dataInicio || "2000-01-01")
+          .lte("data_venda", dataFim || hojeISO);
+
+        if (deviceVendas && deviceVendas.length > 0) {
+          const vendaIds = Array.from(new Set(deviceVendas.map((a: any) => a.venda_id).filter(Boolean) as string[]));
+
+          const { data: brindes } = await supabase
+            .from("brindes_aparelhos")
+            .select("venda_id, valor_custo")
+            .in("venda_id", vendaIds);
+
+          const { data: taxas } = await supabase
+            .from("pagamentos_venda")
+            .select("venda_id, valor, liquido")
+            .in("venda_id", vendaIds)
+            .in("tipo_pagamento", ["cartao_credito", "cartao_debito"]);
+
+          const brindesPorVenda: Record<string, number> = {};
+          brindes?.forEach((b: any) => { brindesPorVenda[b.venda_id] = (brindesPorVenda[b.venda_id] || 0) + (b.valor_custo || 0); });
+
+          const taxasPorVenda: Record<string, number> = {};
+          taxas?.forEach((p: any) => { const t = (p.valor || 0) - (p.liquido || 0); if (t > 0) taxasPorVenda[p.venda_id] = (taxasPorVenda[p.venda_id] || 0) + t; });
+
+          let totalBruto = 0;
+          let totalLucro = 0;
+          let quantidade = 0;
+          deviceVendas.forEach((a: any) => {
+            const custo = (a.valor_compra || 0) + (brindesPorVenda[a.venda_id] || 0) + (taxasPorVenda[a.venda_id] || 0);
+            totalBruto += a.valor_venda || 0;
+            totalLucro += (a.valor_venda || 0) - custo;
+            quantidade++;
+          });
+
+          setDeviceSalesData({ totalBruto, totalLucro, quantidade });
+        } else {
+          setDeviceSalesData(null);
+        }
+      } catch { setDeviceSalesData(null); }
 
       // Carregar dados dos gráficos
       await carregarGraficos();
@@ -1006,7 +1046,8 @@ export default function DashboardPage() {
             lucro: formatarMoeda(Number(item.lucro || 0)),
           })),
           total: resultado.total,
-          emptyMessage: "Nenhum produto vendido encontrado para os filtros atuais.",
+          emptyMessage:
+            "Nenhum produto vendido encontrado para os filtros atuais.",
         } satisfies DashboardDetailResult;
       }
       default:
@@ -1067,7 +1108,7 @@ export default function DashboardPage() {
             <p className="text-default-500">Carregando...</p>
           </div>
         </div>
-      ) : perfil === "tecnico" || !temPermissao("dashboard.visualizar") ? (
+      ) : !temPermissao("dashboard.visualizar") ? (
         <div className="rounded-xl border border-danger/30 bg-danger/5 text-danger px-6 py-4 flex items-center gap-3">
           <FaExclamationTriangle className="text-lg flex-shrink-0" />
           <div>
@@ -1351,6 +1392,33 @@ export default function DashboardPage() {
 
           {/* Cards de Ordem de Serviço */}
           <section className="space-y-3">
+            {/* Vendas por Tipo - Aparelhos vs Produtos */}
+            {deviceSalesData && (
+              <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Vendas de Aparelhos</span>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Valor Bruto</p>
+                    <p className="text-xl font-bold text-foreground mt-1">{formatarMoeda(deviceSalesData.totalBruto)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Lucro Líquido</p>
+                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{formatarMoeda(deviceSalesData.totalLucro)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Quantidade</p>
+                    <p className="text-xl font-bold text-foreground mt-1">{deviceSalesData.quantidade}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                  Margem média: <strong>{deviceSalesData.totalBruto > 0 ? ((deviceSalesData.totalLucro / deviceSalesData.totalBruto) * 100).toFixed(1) : 0}%</strong>
+                </p>
+              </div>
+            )}
+
             <h2 className="text-xl font-semibold text-foreground">
               Ordens de Serviço
             </h2>
@@ -2204,7 +2272,8 @@ export default function DashboardPage() {
                             Produtos Vendidos no Período
                           </h3>
                           <p className="text-sm text-default-500">
-                            Pesquise qualquer produto e veja a quantidade vendida
+                            Pesquise qualquer produto e veja a quantidade
+                            vendida
                           </p>
                         </div>
                       </div>
@@ -2214,7 +2283,8 @@ export default function DashboardPage() {
                           : `${resumoProdutosVendidos.quantidade_total.toLocaleString("pt-BR")} un`}
                       </p>
                       <p className="mt-2 text-sm text-default-600">
-                        {resumoProdutosVendidos.total.toLocaleString("pt-BR")} produtos encontrados no periodo filtrado.
+                        {resumoProdutosVendidos.total.toLocaleString("pt-BR")}{" "}
+                        produtos encontrados no periodo filtrado.
                       </p>
                     </div>
                     <div className="rounded-xl bg-white/70 dark:bg-black/20 px-4 py-3 text-right shadow-sm">
@@ -2432,7 +2502,9 @@ export default function DashboardPage() {
                             <span>
                               Vendas: {formatarMoeda(vendedor.receita_vendas)}
                             </span>
-                            <span>OS: {formatarMoeda(vendedor.receita_os)}</span>
+                            <span>
+                              OS: {formatarMoeda(vendedor.receita_os)}
+                            </span>
                             <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                               Lucro: {formatarMoeda(vendedor.lucro_total)}
                             </span>

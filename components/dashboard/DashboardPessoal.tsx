@@ -223,6 +223,14 @@ interface MetricasPessoais {
     ultimosPagamentos: PagamentoOSDetalhe[];
   };
   ultimaAtualizacao: string;
+  vendasTipo: {
+    aparelhosHoje: number;
+    produtosHoje: number;
+    aparelhosPeriodo: number;
+    produtosPeriodo: number;
+    aparelhosMes: number;
+    produtosMes: number;
+  };
 }
 
 export default function DashboardPessoal() {
@@ -578,6 +586,83 @@ export default function DashboardPessoal() {
         lojaEscopoId,
       );
 
+      // Busca vendas de aparelhos para separar métricas
+      const { data: deviceVendas } = await supabase
+        .from("aparelhos")
+        .select("venda_id")
+        .eq("status", "vendido")
+        .not("venda_id", "is", null);
+      const deviceVendaIds = new Set(deviceVendas?.map((d: any) => d.venda_id) || []);
+
+      // Calcula lucro dos aparelhos no período
+      let lucroAparelhosPeriodo = 0;
+      let lucroAparelhosHoje = 0;
+      let lucroAparelhosMes = 0;
+      try {
+        const { data: aparelhosVendidos } = await supabase
+          .from("aparelhos")
+          .select(`
+            id, valor_venda, valor_compra, data_venda,
+            venda_id,
+            venda:vendas!inner(vendedor_id)
+          `)
+          .eq("status", "vendido")
+          .eq("venda.vendedor_id", usuario.id)
+          .not("venda_id", "is", null)
+          .gte("data_venda", inicioEscopoISO)
+          .lte("data_venda", fimEscopoISO);
+
+        if (aparelhosVendidos && aparelhosVendidos.length > 0) {
+          const vendaIds = Array.from(new Set(aparelhosVendidos.map((a: any) => a.venda_id).filter(Boolean)));
+
+          const { data: brindesData } = await supabase
+            .from("brindes_aparelhos")
+            .select("venda_id, valor_custo")
+            .in("venda_id", vendaIds);
+
+          const { data: taxasData } = await supabase
+            .from("pagamentos_venda")
+            .select("venda_id, valor, liquido")
+            .in("venda_id", vendaIds)
+            .in("tipo_pagamento", ["cartao_credito", "cartao_debito"]);
+
+          const brindesPorVenda: Record<string, number> = {};
+          brindesData?.forEach((b: any) => {
+            brindesPorVenda[b.venda_id] = (brindesPorVenda[b.venda_id] || 0) + (b.valor_custo || 0);
+          });
+
+          const taxasPorVenda: Record<string, number> = {};
+          taxasData?.forEach((p: any) => {
+            const taxa = (p.valor || 0) - (p.liquido || 0);
+            if (taxa > 0) {
+              taxasPorVenda[p.venda_id] = (taxasPorVenda[p.venda_id] || 0) + taxa;
+            }
+          });
+
+          const chaveHojeData = getDateKeyInTimezone(new Date().toISOString());
+          const chaveMesAtualLocal = chaveHojeData.slice(0, 7);
+          const inicioMesLucro = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+
+          aparelhosVendidos.forEach((a: any) => {
+            const vendaId = a.venda_id;
+            const custo = (a.valor_compra || 0) + (brindesPorVenda[vendaId] || 0) + (taxasPorVenda[vendaId] || 0);
+            const lucro = (a.valor_venda || 0) - custo;
+            const dataVenda = a.data_venda?.split("T")[0] || "";
+
+            lucroAparelhosPeriodo += lucro;
+
+            if (dataVenda === chaveHojeData) {
+              lucroAparelhosHoje += lucro;
+            }
+            if (dataVenda.startsWith(chaveMesAtualLocal)) {
+              lucroAparelhosMes += lucro;
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao calcular lucro de aparelhos:", err);
+      }
+
       let queryExcluidos = supabase
         .from("pagamentos_venda")
         .select(
@@ -624,7 +709,11 @@ export default function DashboardPessoal() {
 
       const chaveMesAtual = chaveHoje.slice(0, 7);
       let totalRecebidoHoje = 0;
+      let totalRecebidoHojeAparelhos = 0;
+      let totalRecebidoHojeProdutos = 0;
       let totalRecebidoMes = 0;
+      let totalRecebidoMesAparelhos = 0;
+      let totalRecebidoMesProdutos = 0;
       const vendasMesSet = new Set<string>();
       const vendasPeriodoSet = new Set<string>();
       const vendasHojeMap = new Map<
@@ -650,9 +739,19 @@ export default function DashboardPessoal() {
         if (chaveData.startsWith(chaveMesAtual)) {
           totalRecebidoMes += valorPagamento;
           vendasMesSet.add(vendaId);
+          if (deviceVendaIds.has(vendaId)) {
+            totalRecebidoMesAparelhos += valorPagamento;
+          } else {
+            totalRecebidoMesProdutos += valorPagamento;
+          }
         }
 
         if (chaveData === chaveHoje) {
+          if (deviceVendaIds.has(vendaId)) {
+            totalRecebidoHojeAparelhos += valorPagamento;
+          } else {
+            totalRecebidoHojeProdutos += valorPagamento;
+          }
           totalRecebidoHoje += valorPagamento;
           const existente = vendasHojeMap.get(vendaId);
           const numeroVenda = Number(pagamento.numero_venda || 0);
@@ -677,12 +776,20 @@ export default function DashboardPessoal() {
       });
 
       let totalRecebidoPeriodo = 0;
+      let totalRecebidoPeriodoAparelhos = 0;
+      let totalRecebidoPeriodoProdutos = 0;
 
       pagamentosPeriodo.forEach((pagamento) => {
         const valorPagamento = Number(pagamento.valor || 0);
+        const vendaId = String(pagamento.venda_id);
 
         totalRecebidoPeriodo += valorPagamento;
-        vendasPeriodoSet.add(String(pagamento.venda_id));
+        vendasPeriodoSet.add(vendaId);
+        if (deviceVendaIds.has(vendaId)) {
+          totalRecebidoPeriodoAparelhos += valorPagamento;
+        } else {
+          totalRecebidoPeriodoProdutos += valorPagamento;
+        }
       });
 
       const quantidadeHoje = vendasHojeMap.size;
@@ -1062,6 +1169,14 @@ export default function DashboardPessoal() {
           ultimosPagamentos: pagamentosOSDetalhes,
         },
         ultimaAtualizacao: new Date().toISOString(),
+        vendasTipo: {
+          aparelhosHoje: lucroAparelhosHoje,
+          produtosHoje: totalRecebidoHojeProdutos,
+          aparelhosPeriodo: lucroAparelhosPeriodo,
+          produtosPeriodo: totalRecebidoPeriodoProdutos,
+          aparelhosMes: lucroAparelhosMes,
+          produtosMes: totalRecebidoMesProdutos,
+        },
       });
 
       if (ticketMedioMes !== ticketMedioPeriodo && periodoFiltro !== "mes") {
@@ -1504,6 +1619,32 @@ export default function DashboardPessoal() {
             </CardBody>
           </Card>
         </div>
+      </div>
+
+      {/* Card de Vendas por Tipo */}
+      <div className="animate-in slide-in-from-bottom-4 duration-500 delay-400">
+        <Card className="border-none shadow-md">
+          <CardBody className="p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                <ShoppingCart className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+              </div>
+              <span className="text-sm font-semibold text-default-600 uppercase tracking-wide">Vendas por Tipo</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Aparelhos</p>
+                <p className="text-lg font-bold text-blue-700 dark:text-blue-300 mt-1">{formatarMoeda(metricas.vendasTipo.aparelhosPeriodo)}</p>
+                <p className="text-xs text-blue-500 dark:text-blue-400 mt-0.5">Lucro no período</p>
+              </div>
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Produtos</p>
+                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300 mt-1">{formatarMoeda(metricas.vendasTipo.produtosPeriodo)}</p>
+                <p className="text-xs text-emerald-500 dark:text-emerald-400 mt-0.5">{metricas.vendasHoje.total > 0 ? `R$ ${(metricas.vendasTipo.produtosHoje / metricas.vendasHoje.total * 100).toFixed(0)}% do recebido hoje` : "—"}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in slide-in-from-bottom-4 duration-500 delay-450">

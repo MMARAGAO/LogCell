@@ -73,6 +73,8 @@ export async function buscarOrdensServico(filtros?: {
       query = query.lte("data_entrada", dataFimCompleta);
     }
 
+    query = query.limit(200);
+
     const { data, error } = await query;
 
     if (error) throw error;

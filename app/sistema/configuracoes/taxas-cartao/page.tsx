@@ -70,7 +70,9 @@ export default function TaxasCartaoPage() {
   const [taxaParaDeletar, setTaxaParaDeletar] = useState<TaxaCartao | null>(
     null,
   );
-  const [valoresEditados, setValoresEditados] = useState<Record<string, string>>({});
+  const [valoresEditados, setValoresEditados] = useState<
+    Record<string, string>
+  >({});
   const [salvandoInline, setSalvandoInline] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<TaxaCartaoFormData>({
@@ -197,24 +199,34 @@ export default function TaxasCartaoPage() {
     if (!usuario) return;
 
     const novoValor = valoresEditados[id];
+
     if (novoValor === undefined) return;
 
     const taxa = taxas.find((t) => t.id === id);
+
     if (!taxa) return;
 
     const valorNumerico = parseFloat(novoValor);
+
     if (isNaN(valorNumerico) || valorNumerico <= 0) {
       showToast("Informe uma taxa válida", "error");
+
       return;
     }
 
     try {
       setSalvandoInline(id);
-      await atualizarTaxaCartao(id, { taxa_percentual: valorNumerico }, usuario.id);
+      await atualizarTaxaCartao(
+        id,
+        { taxa_percentual: valorNumerico },
+        usuario.id,
+      );
       showToast("Taxa atualizada", "success");
       setValoresEditados((prev) => {
         const next = { ...prev };
+
         delete next[id];
+
         return next;
       });
       setTaxas((prev) =>
@@ -251,329 +263,334 @@ export default function TaxasCartaoPage() {
   };
 
   return (
-    <PermissionGuard permission={podeVisualizar} loading={loadingPermissoes} fallbackMessage="Você não tem permissão para visualizar as configurações de taxas.">
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            isIconOnly
-            variant="light"
-            onPress={() => (window.location.href = "/sistema/aparelhos")}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <CreditCard className="w-8 h-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Taxas de Cartão</h1>
-            <p className="text-sm text-default-500">
-              Configure as taxas aplicadas em vendas com cartão
-            </p>
-          </div>
-        </div>
-        {podeEditar && (
-          <Button
-            color="primary"
-            startContent={<Plus className="w-5 h-5" />}
-            onPress={() => handleAbrirModal()}
-          >
-            Nova Taxa
-          </Button>
-        )}
-      </div>
-
-      {/* Tabela de Taxas */}
-      <Card>
-        <CardBody>
-          <Table isStriped aria-label="Tabela de taxas de cartão">
-            <TableHeader>
-              <TableColumn>TIPO DE PRODUTO</TableColumn>
-              <TableColumn>FORMA PAGAMENTO</TableColumn>
-              <TableColumn>PARCELAS</TableColumn>
-              <TableColumn>TAXA (%)</TableColumn>
-              <TableColumn>LOJA</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>AÇÕES</TableColumn>
-            </TableHeader>
-            <TableBody
-              emptyContent="Nenhuma taxa cadastrada"
-              isLoading={loading}
+    <PermissionGuard
+      fallbackMessage="Você não tem permissão para visualizar as configurações de taxas."
+      loading={loadingPermissoes}
+      permission={podeVisualizar}
+    >
+      <div className="p-4 md:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              isIconOnly
+              variant="light"
+              onPress={() => (window.location.href = "/sistema/aparelhos")}
             >
-              {taxas.map((taxa) => (
-                <TableRow key={taxa.id}>
-                  <TableCell>
-                    <Chip color="primary" size="sm" variant="flat">
-                      {getTipoProdutoLabel(taxa.tipo_produto)}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    {getFormaPagamentoLabel(taxa.forma_pagamento)}
-                  </TableCell>
-                  <TableCell>
-                    {taxa.parcelas_min === taxa.parcelas_max
-                      ? `${taxa.parcelas_min}x`
-                      : `${taxa.parcelas_min}x a ${taxa.parcelas_max}x`}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        className="w-24"
-                        isDisabled={!podeEditar || salvandoInline === taxa.id}
-                        min="0"
-                        size="sm"
-                        step="0.01"
-                        type="number"
-                        value={
-                          valoresEditados[taxa.id] !== undefined
-                            ? valoresEditados[taxa.id]
-                            : taxa.taxa_percentual.toFixed(2)
-                        }
-                        variant="bordered"
-                        onChange={(e) =>
-                          setValoresEditados((prev) => ({
-                            ...prev,
-                            [taxa.id]: e.target.value,
-                          }))
-                        }
-                      />
-                      <span className="text-default-400">%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {taxa.loja_id ? `Loja ${taxa.loja_id}` : "Todas"}
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      color="success"
-                      isDisabled={!podeEditar}
-                      isSelected={taxa.ativo}
-                      size="sm"
-                      onValueChange={() => handleToggleAtivo(taxa)}
-                    >
-                      {taxa.ativo ? "Ativa" : "Inativa"}
-                    </Switch>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {podeEditar && valoresEditados[taxa.id] !== undefined && (
-                        <Button
-                          isIconOnly
-                          color="success"
-                          isLoading={salvandoInline === taxa.id}
-                          size="sm"
-                          variant="flat"
-                          onPress={() => handleSalvarInline(taxa.id)}
-                        >
-                          <Save className="w-4 h-4" />
-                        </Button>
-                      )}
-                      {podeEditar && (
-                        <>
-                          <Button
-                            isIconOnly
-                            color="primary"
-                            size="sm"
-                            variant="light"
-                            onPress={() => handleAbrirModal(taxa)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            isIconOnly
-                            color="danger"
-                            size="sm"
-                            variant="light"
-                            onPress={() => {
-                              setTaxaParaDeletar(taxa);
-                              setModalDeleteAberto(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardBody>
-      </Card>
-
-      {/* Modal de Cadastro/Edição */}
-      <Modal
-        isOpen={modalAberto}
-        size="2xl"
-        onClose={() => setModalAberto(false)}
-      >
-        <ModalContent>
-          <ModalHeader>
-            {taxaEditando ? "Editar Taxa" : "Nova Taxa"}
-          </ModalHeader>
-          <ModalBody>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Tipo de Produto"
-                selectedKeys={[formData.tipo_produto]}
-                variant="bordered"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    tipo_produto: e.target.value as TipoProdutoTaxa,
-                  })
-                }
-              >
-                {TIPOS_PRODUTO.map((tipo) => (
-                  <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
-                ))}
-              </Select>
-
-              <Select
-                label="Forma de Pagamento"
-                selectedKeys={[formData.forma_pagamento]}
-                variant="bordered"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    forma_pagamento: e.target.value as FormaPagamentoTaxa,
-                  })
-                }
-              >
-                {FORMAS_PAGAMENTO.map((forma) => (
-                  <SelectItem key={forma.value}>{forma.label}</SelectItem>
-                ))}
-              </Select>
-
-              <Input
-                label="Parcelas Mínimas"
-                min="1"
-                type="number"
-                value={formData.parcelas_min.toString()}
-                variant="bordered"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    parcelas_min: parseInt(e.target.value) || 1,
-                  })
-                }
-              />
-
-              <Input
-                label="Parcelas Máximas"
-                min="1"
-                type="number"
-                value={formData.parcelas_max.toString()}
-                variant="bordered"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    parcelas_max: parseInt(e.target.value) || 1,
-                  })
-                }
-              />
-
-              <Input
-                endContent={
-                  <div className="pointer-events-none flex items-center">
-                    <span className="text-default-400 text-small">%</span>
-                  </div>
-                }
-                label="Taxa (%)"
-                step="0.01"
-                type="number"
-                value={formData.taxa_percentual.toString()}
-                variant="bordered"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    taxa_percentual: parseFloat(e.target.value) || 0,
-                  })
-                }
-              />
-
-              <div className="flex items-center">
-                <Switch
-                  color="success"
-                  isSelected={formData.ativo}
-                  onValueChange={(checked) =>
-                    setFormData({ ...formData, ativo: checked })
-                  }
-                >
-                  Taxa Ativa
-                </Switch>
-              </div>
-            </div>
-
-            <div className="mt-4 p-4 bg-primary/10 rounded-lg">
-              <p className="text-sm text-default-600">
-                <strong>Exemplo:</strong> Se você configurar parcelas de 2 a 3
-                com taxa de 4.5%, todas as vendas parceladas em 2x ou 3x terão
-                essa taxa aplicada.
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <CreditCard className="w-8 h-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">Taxas de Cartão</h1>
+              <p className="text-sm text-default-500">
+                Configure as taxas aplicadas em vendas com cartão
               </p>
             </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setModalAberto(false)}>
-              Cancelar
-            </Button>
+          </div>
+          {podeEditar && (
             <Button
               color="primary"
-              startContent={<Save className="w-4 h-4" />}
-              onPress={handleSalvar}
+              startContent={<Plus className="w-5 h-5" />}
+              onPress={() => handleAbrirModal()}
             >
-              {taxaEditando ? "Atualizar" : "Criar"}
+              Nova Taxa
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          )}
+        </div>
 
-      {/* Modal de Confirmação de Exclusão */}
-      <Modal
-        isOpen={modalDeleteAberto}
-        size="md"
-        onClose={() => {
-          setModalDeleteAberto(false);
-          setTaxaParaDeletar(null);
-        }}
-      >
-        <ModalContent>
-          <ModalHeader>Confirmar Exclusão</ModalHeader>
-          <ModalBody>
-            <p>Tem certeza que deseja deletar esta taxa?</p>
-            {taxaParaDeletar && (
-              <div className="mt-4 p-3 bg-danger/10 rounded-lg">
-                <p className="text-sm">
-                  <strong>Tipo:</strong>{" "}
-                  {getTipoProdutoLabel(taxaParaDeletar.tipo_produto)}
-                </p>
-                <p className="text-sm">
-                  <strong>Forma:</strong>{" "}
-                  {getFormaPagamentoLabel(taxaParaDeletar.forma_pagamento)}
-                </p>
-                <p className="text-sm">
-                  <strong>Taxa:</strong> {taxaParaDeletar.taxa_percentual}%
+        {/* Tabela de Taxas */}
+        <Card>
+          <CardBody>
+            <Table isStriped aria-label="Tabela de taxas de cartão">
+              <TableHeader>
+                <TableColumn>TIPO DE PRODUTO</TableColumn>
+                <TableColumn>FORMA PAGAMENTO</TableColumn>
+                <TableColumn>PARCELAS</TableColumn>
+                <TableColumn>TAXA (%)</TableColumn>
+                <TableColumn>LOJA</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>AÇÕES</TableColumn>
+              </TableHeader>
+              <TableBody
+                emptyContent="Nenhuma taxa cadastrada"
+                isLoading={loading}
+              >
+                {taxas.map((taxa) => (
+                  <TableRow key={taxa.id}>
+                    <TableCell>
+                      <Chip color="primary" size="sm" variant="flat">
+                        {getTipoProdutoLabel(taxa.tipo_produto)}
+                      </Chip>
+                    </TableCell>
+                    <TableCell>
+                      {getFormaPagamentoLabel(taxa.forma_pagamento)}
+                    </TableCell>
+                    <TableCell>
+                      {taxa.parcelas_min === taxa.parcelas_max
+                        ? `${taxa.parcelas_min}x`
+                        : `${taxa.parcelas_min}x a ${taxa.parcelas_max}x`}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          className="w-24"
+                          isDisabled={!podeEditar || salvandoInline === taxa.id}
+                          min="0"
+                          size="sm"
+                          step="0.01"
+                          type="number"
+                          value={
+                            valoresEditados[taxa.id] !== undefined
+                              ? valoresEditados[taxa.id]
+                              : taxa.taxa_percentual.toFixed(2)
+                          }
+                          variant="bordered"
+                          onChange={(e) =>
+                            setValoresEditados((prev) => ({
+                              ...prev,
+                              [taxa.id]: e.target.value,
+                            }))
+                          }
+                        />
+                        <span className="text-default-400">%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {taxa.loja_id ? `Loja ${taxa.loja_id}` : "Todas"}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        color="success"
+                        isDisabled={!podeEditar}
+                        isSelected={taxa.ativo}
+                        size="sm"
+                        onValueChange={() => handleToggleAtivo(taxa)}
+                      >
+                        {taxa.ativo ? "Ativa" : "Inativa"}
+                      </Switch>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {podeEditar &&
+                          valoresEditados[taxa.id] !== undefined && (
+                            <Button
+                              isIconOnly
+                              color="success"
+                              isLoading={salvandoInline === taxa.id}
+                              size="sm"
+                              variant="flat"
+                              onPress={() => handleSalvarInline(taxa.id)}
+                            >
+                              <Save className="w-4 h-4" />
+                            </Button>
+                          )}
+                        {podeEditar && (
+                          <>
+                            <Button
+                              isIconOnly
+                              color="primary"
+                              size="sm"
+                              variant="light"
+                              onPress={() => handleAbrirModal(taxa)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              isIconOnly
+                              color="danger"
+                              size="sm"
+                              variant="light"
+                              onPress={() => {
+                                setTaxaParaDeletar(taxa);
+                                setModalDeleteAberto(true);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardBody>
+        </Card>
+
+        {/* Modal de Cadastro/Edição */}
+        <Modal
+          isOpen={modalAberto}
+          size="2xl"
+          onClose={() => setModalAberto(false)}
+        >
+          <ModalContent>
+            <ModalHeader>
+              {taxaEditando ? "Editar Taxa" : "Nova Taxa"}
+            </ModalHeader>
+            <ModalBody>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Tipo de Produto"
+                  selectedKeys={[formData.tipo_produto]}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      tipo_produto: e.target.value as TipoProdutoTaxa,
+                    })
+                  }
+                >
+                  {TIPOS_PRODUTO.map((tipo) => (
+                    <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Forma de Pagamento"
+                  selectedKeys={[formData.forma_pagamento]}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      forma_pagamento: e.target.value as FormaPagamentoTaxa,
+                    })
+                  }
+                >
+                  {FORMAS_PAGAMENTO.map((forma) => (
+                    <SelectItem key={forma.value}>{forma.label}</SelectItem>
+                  ))}
+                </Select>
+
+                <Input
+                  label="Parcelas Mínimas"
+                  min="1"
+                  type="number"
+                  value={formData.parcelas_min.toString()}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      parcelas_min: parseInt(e.target.value) || 1,
+                    })
+                  }
+                />
+
+                <Input
+                  label="Parcelas Máximas"
+                  min="1"
+                  type="number"
+                  value={formData.parcelas_max.toString()}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      parcelas_max: parseInt(e.target.value) || 1,
+                    })
+                  }
+                />
+
+                <Input
+                  endContent={
+                    <div className="pointer-events-none flex items-center">
+                      <span className="text-default-400 text-small">%</span>
+                    </div>
+                  }
+                  label="Taxa (%)"
+                  step="0.01"
+                  type="number"
+                  value={formData.taxa_percentual.toString()}
+                  variant="bordered"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      taxa_percentual: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                />
+
+                <div className="flex items-center">
+                  <Switch
+                    color="success"
+                    isSelected={formData.ativo}
+                    onValueChange={(checked) =>
+                      setFormData({ ...formData, ativo: checked })
+                    }
+                  >
+                    Taxa Ativa
+                  </Switch>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+                <p className="text-sm text-default-600">
+                  <strong>Exemplo:</strong> Se você configurar parcelas de 2 a 3
+                  com taxa de 4.5%, todas as vendas parceladas em 2x ou 3x terão
+                  essa taxa aplicada.
                 </p>
               </div>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="light"
-              onPress={() => {
-                setModalDeleteAberto(false);
-                setTaxaParaDeletar(null);
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button color="danger" onPress={handleDeletar}>
-              Deletar
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={() => setModalAberto(false)}>
+                Cancelar
+              </Button>
+              <Button
+                color="primary"
+                startContent={<Save className="w-4 h-4" />}
+                onPress={handleSalvar}
+              >
+                {taxaEditando ? "Atualizar" : "Criar"}
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Modal de Confirmação de Exclusão */}
+        <Modal
+          isOpen={modalDeleteAberto}
+          size="md"
+          onClose={() => {
+            setModalDeleteAberto(false);
+            setTaxaParaDeletar(null);
+          }}
+        >
+          <ModalContent>
+            <ModalHeader>Confirmar Exclusão</ModalHeader>
+            <ModalBody>
+              <p>Tem certeza que deseja deletar esta taxa?</p>
+              {taxaParaDeletar && (
+                <div className="mt-4 p-3 bg-danger/10 rounded-lg">
+                  <p className="text-sm">
+                    <strong>Tipo:</strong>{" "}
+                    {getTipoProdutoLabel(taxaParaDeletar.tipo_produto)}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Forma:</strong>{" "}
+                    {getFormaPagamentoLabel(taxaParaDeletar.forma_pagamento)}
+                  </p>
+                  <p className="text-sm">
+                    <strong>Taxa:</strong> {taxaParaDeletar.taxa_percentual}%
+                  </p>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button
+                variant="light"
+                onPress={() => {
+                  setModalDeleteAberto(false);
+                  setTaxaParaDeletar(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button color="danger" onPress={handleDeletar}>
+                Deletar
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      </div>
     </PermissionGuard>
   );
 }

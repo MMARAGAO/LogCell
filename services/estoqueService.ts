@@ -255,70 +255,179 @@ export async function getTodoEstoque(
   }
 }
 
-// Buscar produtos com quantidades agrupadas por loja
+// Buscar filtros (marcas e categorias) para os dropdowns
+export async function getFiltrosProdutos(): Promise<{
+  marcas: string[];
+  categorias: string[];
+}> {
+  try {
+    const { data: marcas } = await supabase
+      .from("produtos")
+      .select("marca")
+      .not("marca", "is", null)
+      .order("marca");
+
+    const { data: categorias } = await supabase
+      .from("produtos")
+      .select("categoria")
+      .not("categoria", "is", null)
+      .order("categoria");
+
+    return {
+      marcas: Array.from(
+        new Set((marcas || []).map((m: any) => m.marca).filter(Boolean)),
+      ),
+      categorias: Array.from(
+        new Set(
+          (categorias || []).map((c: any) => c.categoria).filter(Boolean),
+        ),
+      ),
+    };
+  } catch (error) {
+    console.error("Erro ao buscar filtros:", error);
+    return { marcas: [], categorias: [] };
+  }
+}
+
+// Buscar produtos com paginação e filtros server-side
+export async function buscarProdutosPaginados(params: {
+  busca?: string;
+  ativo?: boolean;
+  marca?: string;
+  categoria?: string;
+  page: number;
+  pageSize: number;
+}): Promise<{ data: any[]; total: number }> {
+  try {
+    const { busca, ativo, marca, categoria, page, pageSize } = params;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    let query = supabase
+      .from("produtos")
+      .select("*", { count: "exact", head: false })
+      .order("descricao", { ascending: true })
+      .range(from, to);
+
+    if (busca) {
+      const termos = busca
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+
+      termos.forEach((token) => {
+        query = query.or(
+          `descricao.ilike.%${token}%,modelos.ilike.%${token}%,marca.ilike.%${token}%`,
+        );
+      });
+    }
+
+    if (ativo !== undefined) {
+      query = query.eq("ativo", ativo);
+    }
+
+    if (marca && marca !== "todos") {
+      query = query.eq("marca", marca);
+    }
+
+    if (categoria && categoria !== "todos") {
+      query = query.eq("categoria", categoria);
+    }
+
+    const { data: produtos, error, count } = await query;
+
+    if (error) {
+      console.error("Erro ao buscar produtos:", error);
+      throw error;
+    }
+
+    if (!produtos || produtos.length === 0) {
+      return { data: [], total: count || 0 };
+    }
+
+    // Buscar estoques apenas dos produtos da página
+    const produtoIds = produtos.map((p: any) => p.id);
+    const { data: estoques } = await supabase
+      .from("estoque_lojas")
+      .select(
+        `
+        id_produto,
+        id_loja,
+        quantidade,
+        loja:lojas(id, nome)
+      `,
+      )
+      .in("id_produto", produtoIds);
+
+    // Montar mapa de estoques
+    const estoquesMap = new Map<string, any[]>();
+
+    (estoques || []).forEach((estoque: any) => {
+      if (!estoquesMap.has(estoque.id_produto)) {
+        estoquesMap.set(estoque.id_produto, []);
+      }
+      estoquesMap.get(estoque.id_produto)!.push({
+        id_loja: estoque.id_loja,
+        loja_nome: estoque.loja?.nome || "Desconhecida",
+        quantidade: estoque.quantidade,
+      });
+    });
+
+    // Combinar produtos com estoques
+    const resultado = produtos.map((produto: any) => {
+      const estoquesLoja = estoquesMap.get(produto.id) || [];
+      const total_estoque = estoquesLoja.reduce(
+        (sum: number, e: any) => sum + e.quantidade,
+        0,
+      );
+
+      return {
+        ...produto,
+        estoques_lojas: estoquesLoja,
+        total_estoque,
+      };
+    });
+
+    return { data: resultado, total: count || 0 };
+  } catch (error) {
+    console.error("Erro ao buscar produtos paginados:", error);
+    throw error;
+  }
+}
+
+// Buscar produtos com quantidades agrupadas por loja (apenas para filtros)
 export async function getProdutosComEstoque(): Promise<any[]> {
   try {
-    // 1. Buscar TODOS os produtos com PAGINAÇÃO
-    const allProdutos: any[] = [];
-    const pageSize = 1000;
-    let offset = 0;
-    let hasMore = true;
+    const { data: allProdutos, error: produtosError } = await supabase
+      .from("produtos")
+      .select("*")
+      .order("descricao", { ascending: true })
+      .limit(1000);
 
-    while (hasMore) {
-      const { data: produtos, error: produtosError } = await supabase
-        .from("produtos")
-        .select("*")
-        .order("descricao", { ascending: true })
-        .range(offset, offset + pageSize - 1);
-
-      if (produtosError) {
-        console.error("Erro ao buscar produtos:", produtosError);
-        throw produtosError;
-      }
-
-      if (produtos && produtos.length > 0) {
-        allProdutos.push(...produtos);
-        offset += pageSize;
-        hasMore = produtos.length === pageSize;
-      } else {
-        hasMore = false;
-      }
+    if (produtosError) {
+      console.error("Erro ao buscar produtos:", produtosError);
+      throw produtosError;
     }
 
-    // 2. Buscar todos os estoques com PAGINAÇÃO
-    const allEstoques: any[] = [];
+    const { data: allEstoques, error: estoqueError } = await supabase
+      .from("estoque_lojas")
+      .select(
+        `
+        id_produto,
+        id_loja,
+        quantidade,
+        loja:lojas(id, nome)
+      `,
+      )
+      .limit(2000);
 
-    offset = 0;
-    hasMore = true;
-
-    while (hasMore) {
-      const { data: estoques, error: estoqueError } = await supabase
-        .from("estoque_lojas")
-        .select(
-          `
-          id_produto,
-          id_loja,
-          quantidade,
-          loja:lojas(id, nome)
-        `,
-        )
-        .range(offset, offset + pageSize - 1);
-
-      if (estoqueError) {
-        console.error("Erro ao buscar estoques:", estoqueError);
-        throw estoqueError;
-      }
-
-      if (estoques && estoques.length > 0) {
-        allEstoques.push(...estoques);
-        offset += pageSize;
-        hasMore = estoques.length === pageSize;
-      } else {
-        hasMore = false;
-      }
+    if (estoqueError) {
+      console.error("Erro ao buscar estoques:", estoqueError);
+      throw estoqueError;
     }
 
-    // 3. Criar mapa de estoques por produto
     const estoquesMap = new Map<string, any[]>();
 
     allEstoques.forEach((estoque: any) => {
@@ -332,7 +441,6 @@ export async function getProdutosComEstoque(): Promise<any[]> {
       });
     });
 
-    // 4. Combinar produtos com seus estoques
     const produtosComEstoque = allProdutos.map((produto: any) => {
       const estoquesLoja = estoquesMap.get(produto.id) || [];
       const total_estoque = estoquesLoja.reduce(
@@ -341,7 +449,7 @@ export async function getProdutosComEstoque(): Promise<any[]> {
       );
 
       return {
-        ...produto, // Incluir TODOS os campos do produto
+        ...produto,
         estoques_lojas: estoquesLoja,
         total_estoque: total_estoque,
       };

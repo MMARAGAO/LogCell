@@ -40,7 +40,9 @@ function getLocalDateInputValue() {
   const now = new Date();
   const timezoneOffsetInMs = now.getTimezoneOffset() * 60 * 1000;
 
-  return new Date(now.getTime() - timezoneOffsetInMs).toISOString().split("T")[0];
+  return new Date(now.getTime() - timezoneOffsetInMs)
+    .toISOString()
+    .split("T")[0];
 }
 
 function formatPaymentDate(value: string) {

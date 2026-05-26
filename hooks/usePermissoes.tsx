@@ -25,7 +25,7 @@ export function usePermissoes() {
 
     // Verificar se é admin pelo email ou flag específica
     // IMPORTANTE: Se usuário tem loja_id configurado, NÃO é admin global
-    const emailsAdmin = ["admin@logcell.com"];
+    const emailsAdmin = ["admin@logcell.com", "matheusmoxil@gmail.com"];
 
     if (usuario.email && emailsAdmin.includes(usuario.email.toLowerCase())) {
       return "admin";

@@ -4,9 +4,23 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { aparelhoId, clienteId, lojaId, valorVenda, pagamentos, brindes = [], usuarioId } = body;
+    const {
+      aparelhoId,
+      clienteId,
+      lojaId,
+      valorVenda,
+      pagamentos,
+      brindes = [],
+      usuarioId,
+    } = body;
 
-    if (!aparelhoId || !clienteId || !lojaId || !usuarioId || !pagamentos?.length) {
+    if (
+      !aparelhoId ||
+      !clienteId ||
+      !lojaId ||
+      !usuarioId ||
+      !pagamentos?.length
+    ) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
     }
 
@@ -29,7 +43,10 @@ export async function POST(request: Request) {
       .single();
 
     if (vendaError) {
-      return NextResponse.json({ error: `Erro ao criar venda: ${vendaError.message}` }, { status: 500 });
+      return NextResponse.json(
+        { error: `Erro ao criar venda: ${vendaError.message}` },
+        { status: 500 },
+      );
     }
 
     // Criar pagamentos_venda
@@ -49,7 +66,10 @@ export async function POST(request: Request) {
       .insert(pagamentoInserts);
 
     if (pagError) {
-      return NextResponse.json({ error: `Erro ao registrar pagamentos: ${pagError.message}` }, { status: 500 });
+      return NextResponse.json(
+        { error: `Erro ao registrar pagamentos: ${pagError.message}` },
+        { status: 500 },
+      );
     }
 
     // Atualizar aparelho
@@ -64,7 +84,10 @@ export async function POST(request: Request) {
       .eq("id", aparelhoId);
 
     if (aparelhoError) {
-      return NextResponse.json({ error: `Erro ao atualizar aparelho: ${aparelhoError.message}` }, { status: 500 });
+      return NextResponse.json(
+        { error: `Erro ao atualizar aparelho: ${aparelhoError.message}` },
+        { status: 500 },
+      );
     }
 
     // Registrar brindes
@@ -87,6 +110,7 @@ export async function POST(request: Request) {
 
     // Histórico
     const descricaoHistorico = `Venda de aparelho ${aparelhoId} com ${pagamentos.length} forma(s) de pagamento${brindes.length > 0 ? ` e ${brindes.length} brinde(s)` : ""}`;
+
     await supabaseAdmin.from("historico_vendas").insert({
       venda_id: vendaData.id,
       tipo_acao: "criacao",
@@ -97,6 +121,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, vendaId: vendaData.id });
   } catch (error: any) {
     console.error("Erro ao registrar pagamento:", error);
-    return NextResponse.json({ error: error.message || "Erro interno" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: error.message || "Erro interno" },
+      { status: 500 },
+    );
   }
 }

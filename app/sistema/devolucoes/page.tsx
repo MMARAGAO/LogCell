@@ -1,21 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardBody,
-  Button,
-  Input,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Chip,
-  Spinner,
-} from "@heroui/react";
-import { PackageX, Search, Calendar, User, Store, History } from "lucide-react";
+import { Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Spinner } from "@heroui/react";
+import { Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@heroui/dropdown";
+import { PackageX, Search, Calendar, User, Store, History, ShoppingBag, TrendingUp, EllipsisVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,6 +67,7 @@ export default function DevolucoesPage() {
   const carregarVendas = async (pagina: number, termoBusca: string) => {
     try {
       const isInitialLoad = vendas.length === 0;
+
       if (isInitialLoad) {
         setLoading(true);
       } else {
@@ -101,15 +90,14 @@ export default function DevolucoesPage() {
 
       if (termoBusca) {
         const ehNumerico = /^\d+$/.test(termoBusca);
+
         if (ehNumerico) {
           query = query.eq("numero_venda", parseInt(termoBusca));
         } else {
           const { data: clientes } = await supabase
             .from("clientes")
             .select("id")
-            .or(
-              `nome.ilike.%${termoBusca}%,doc.ilike.%${termoBusca}%`,
-            );
+            .or(`nome.ilike.%${termoBusca}%,doc.ilike.%${termoBusca}%`);
 
           const ids = (clientes || []).map((c) => c.id);
 
@@ -193,6 +181,24 @@ export default function DevolucoesPage() {
   };
 
   const totalPaginas = Math.ceil(totalVendas / itensPorPagina);
+  const devolucoesNaLista = vendas.filter(
+    (venda) => calcularQuantidadeDevolvida(venda) > 0,
+  );
+  const devolucoesTotais = devolucoesNaLista.filter((venda) => {
+    const qtdDevolvida = calcularQuantidadeDevolvida(venda);
+    const qtdTotal = calcularQuantidadeTotal(venda);
+
+    return qtdTotal > 0 && qtdDevolvida === qtdTotal;
+  }).length;
+  const valorEmDevolucoes = vendas.reduce((total, venda) => {
+    const valorDevolvido =
+      venda.devolucoes?.reduce(
+        (subtotal, devolucao) => subtotal + Number(devolucao.valor_total || 0),
+        0,
+      ) || 0;
+
+    return total + valorDevolvido;
+  }, 0);
 
   if (loading || loadingPermissoes) {
     return (
@@ -214,57 +220,65 @@ export default function DevolucoesPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <PackageX className="w-8 h-8 text-danger" />
-          <h1 className="text-3xl font-bold">Devoluções</h1>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+        <div className="flex items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-100 dark:border-zinc-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center">
+              <PackageX className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Operações de Pós-Venda</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Devoluções</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Gerencie devoluções de vendas concluídas</p>
+            </div>
+          </div>
         </div>
-        <p className="text-default-500">
-          Processe devoluções de vendas concluídas
-        </p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <KpiCard icon={<ShoppingBag className="w-4 h-4" />} value={totalVendas.toString()} label="Vendas Elegíveis" color="text-primary" bg="bg-primary/5" iconBg="bg-primary/10" />
+          <KpiCard icon={<PackageX className="w-4 h-4" />} value={devolucoesNaLista.length.toString()} label="Já Devolvidas" sub={`${devolucoesTotais} total`} color="text-amber-600 dark:text-amber-400" bg="bg-amber-50 dark:bg-amber-900/20" iconBg="bg-amber-100 dark:bg-amber-900/40" />
+          <KpiCard icon={<TrendingUp className="w-4 h-4" />} value={formatarMoeda(valorEmDevolucoes)} label="Valor Devolvido" color="text-rose-600 dark:text-rose-400" bg="bg-rose-50 dark:bg-rose-900/20" iconBg="bg-rose-100 dark:bg-rose-900/40" />
+        </div>
       </div>
 
-      <Card className="mb-6">
-        <CardBody>
-          <Input
-            classNames={{
-              input: "text-base",
-            }}
-            placeholder="Buscar por número da venda, cliente ou DOC..."
-            size="lg"
-            startContent={<Search className="w-4 h-4 text-default-400" />}
-            value={busca}
-            onChange={(e) => {
-              setBusca(e.target.value);
-              setPaginaAtual(1);
-            }}
-          />
-        </CardBody>
-      </Card>
+      {/* Busca */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
+        <p className="text-sm font-semibold text-gray-800 dark:text-white mb-1">Buscar venda para devolução</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Localize por número da venda, cliente ou documento.</p>
+        <Input
+          classNames={{
+            input: "text-sm",
+            inputWrapper: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700 rounded-xl",
+          }}
+          placeholder="Buscar por número da venda, cliente ou DOC..."
+          size="sm"
+          variant="bordered"
+          startContent={<Search className="w-4 h-4 text-gray-400" />}
+          value={busca}
+          onChange={(e) => { setBusca(e.target.value); setPaginaAtual(1); }}
+        />
+      </div>
 
-      <Card>
-        <CardBody className="relative">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-default-500">
-                Mostrando {vendas.length} de {totalVendas} venda(s)
-              </p>
-            </div>
-            {totalPaginas > 1 && (
-              <div className="flex gap-2 items-center">
-                <Button
-                  isDisabled={paginaAtual === 1}
-                  size="sm"
-                  variant="flat"
-                  onPress={() => setPaginaAtual(paginaAtual - 1)}
-                >
-                  Anterior
+      {/* Tabela */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+        <div className="flex flex-col gap-4 border-b border-gray-100 dark:border-zinc-800 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold text-gray-800 dark:text-white">Vendas concluídas com pagamento</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Mostrando {vendas.length} de {totalVendas} venda(s)</p>
+          </div>
+          {totalPaginas > 1 && (
+            <div className="flex items-center gap-2">
+              <Button className="rounded-xl text-xs" isDisabled={paginaAtual === 1} size="sm" variant="flat" onPress={() => setPaginaAtual(paginaAtual - 1)}>
+                Anterior
                 </Button>
-                <span className="text-sm text-default-500">
+                <span className="min-w-28 text-center text-xs font-medium text-slate-500 dark:text-zinc-400">
                   Página {paginaAtual} de {totalPaginas}
                 </span>
                 <Button
+                  className="rounded-xl border border-slate-200 bg-white text-slate-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
                   isDisabled={paginaAtual === totalPaginas}
                   size="sm"
                   variant="flat"
@@ -275,136 +289,152 @@ export default function DevolucoesPage() {
               </div>
             )}
           </div>
+          <div className="px-2 py-2 lg:px-3">
+            {loadingTabela && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[24px] bg-white/70 backdrop-blur-sm dark:bg-zinc-950/70">
+                <Spinner size="lg" />
+              </div>
+            )}
 
-          {loadingTabela && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 rounded-lg">
-              <Spinner size="lg" />
-            </div>
-          )}
-
-          <Table aria-label="Tabela de vendas concluídas">
-            <TableHeader>
-              <TableColumn>VENDA</TableColumn>
-              <TableColumn>DATA</TableColumn>
-              <TableColumn>CLIENTE</TableColumn>
-              <TableColumn>LOJA</TableColumn>
-              <TableColumn>ITENS</TableColumn>
-              <TableColumn>VALOR</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>AÇÕES</TableColumn>
-            </TableHeader>
-            <TableBody
-              emptyContent={
-                <div className="text-center py-8">
-                  <PackageX className="w-12 h-12 text-default-300 mx-auto mb-2" />
-                  <p className="text-default-500">Nenhuma venda encontrada</p>
-                </div>
-              }
+            <Table
+              aria-label="Tabela de vendas concluídas"
+              classNames={{
+                table: "min-h-[420px]",
+                th: "bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider",
+                td: "py-3 text-xs text-gray-600 dark:text-gray-300",
+                wrapper: "shadow-none bg-transparent",
+                tr: "border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors",
+              }}
             >
-              {vendas.map((venda) => {
-                const qtdDevolvida = calcularQuantidadeDevolvida(venda);
-                const qtdTotal = calcularQuantidadeTotal(venda);
-                const temDevolucao = qtdDevolvida > 0;
+              <TableHeader>
+                <TableColumn>VENDA</TableColumn>
+                <TableColumn>DATA</TableColumn>
+                <TableColumn>CLIENTE</TableColumn>
+                <TableColumn>LOJA</TableColumn>
+                <TableColumn>ITENS</TableColumn>
+                <TableColumn>VALOR</TableColumn>
+                <TableColumn>STATUS</TableColumn>
+                <TableColumn>AÇÕES</TableColumn>
+              </TableHeader>
+              <TableBody
+                emptyContent={
+                  <div className="py-12 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-zinc-800">
+                      <PackageX className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Nenhuma venda encontrada</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Ajuste os termos da busca para continuar.</p>
+                  </div>
+                }
+              >
+                {vendas.map((venda) => {
+                  const qtdDevolvida = calcularQuantidadeDevolvida(venda);
+                  const qtdTotal = calcularQuantidadeTotal(venda);
+                  const temDevolucao = qtdDevolvida > 0;
 
-                return (
-                  <TableRow key={venda.id}>
-                    <TableCell>
-                      <div className="font-semibold">#{venda.numero_venda}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-default-400" />
-                        {formatarData(venda.criado_em)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-default-400" />
-                        <div>
-                          <div className="font-medium">
-                            {venda.cliente?.nome}
+                  return (
+                    <TableRow key={venda.id}>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold text-gray-800 dark:text-white">
+                            #{venda.numero_venda}
                           </div>
-                          {venda.cliente?.doc && (
-                            <div className="text-xs text-default-500">
-                              {venda.cliente.doc}
-                            </div>
-                          )}
+                          <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                            {venda.status}
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Store className="w-4 h-4 text-default-400" />
-                        {venda.loja?.nome}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {qtdTotal} {qtdTotal === 1 ? "item" : "itens"}
-                        {temDevolucao && (
-                          <div className="text-xs text-danger">
-                            {qtdDevolvida} devolvido(s)
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {formatarData(venda.criado_em)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-700 text-gray-500">
+                            <User className="w-4 h-4" />
                           </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-xs font-medium text-gray-800 dark:text-white">
+                              {venda.cliente?.nome || "Cliente não informado"}
+                            </div>
+                            {venda.cliente?.doc && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {venda.cliente.doc}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                          <Store className="w-3.5 h-3.5" />
+                          {venda.loja?.nome || "Sem loja"}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-medium text-gray-800 dark:text-white">
+                            {qtdTotal} {qtdTotal === 1 ? "item" : "itens"}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {temDevolucao ? `${qtdDevolvida} devolvido(s)` : "Sem movimentações de devolução"}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-0.5">
+                          <div className="text-xs font-semibold text-gray-800 dark:text-white">
+                            {formatarMoeda(venda.valor_total)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Pago: {formatarMoeda(venda.valor_pago || 0)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {temDevolucao ? (
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            qtdDevolvida === qtdTotal
+                              ? "bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                              : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                          }`}>
+                            {qtdDevolvida === qtdTotal ? "Devolução Total" : "Devolução Parcial"}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                            Sem Devoluções
+                          </span>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold">
-                        {formatarMoeda(venda.valor_total)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {temDevolucao ? (
-                        <Chip
-                          color={
-                            qtdDevolvida === qtdTotal ? "danger" : "warning"
-                          }
-                          size="sm"
-                          variant="flat"
-                        >
-                          {qtdDevolvida === qtdTotal
-                            ? "Devolução Total"
-                            : "Devolução Parcial"}
-                        </Chip>
-                      ) : (
-                        <Chip color="success" size="sm" variant="flat">
-                          Sem Devoluções
-                        </Chip>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        {temPermissao("devolucoes.criar") && (
-                          <Button
-                            color="danger"
-                            size="sm"
-                            startContent={<PackageX className="w-4 h-4" />}
-                            variant="flat"
-                            onPress={() => handleAbrirModal(venda)}
-                          >
-                            Processar Devolução
-                          </Button>
-                        )}
-                        {temDevolucao && (
-                          <Button
-                            color="primary"
-                            size="sm"
-                            startContent={<History className="w-4 h-4" />}
-                            variant="flat"
-                            onPress={() => handleAbrirHistorico(venda.id)}
-                          >
-                            Histórico
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardBody>
-      </Card>
+                      </TableCell>
+                      <TableCell>
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Button isIconOnly size="sm" variant="light" className="rounded-lg">
+                              <EllipsisVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu aria-label="Ações" onAction={(key) => {
+                            if (key === "processar") handleAbrirModal(venda);
+                            else if (key === "historico") handleAbrirHistorico(venda.id);
+                          }}>
+                            <DropdownItem key="processar" startContent={<PackageX className="w-4 h-4" />}>
+                              Processar Devolução
+                            </DropdownItem>
+                            <DropdownItem key="historico" startContent={<History className="w-4 h-4" />}>
+                              Ver Histórico
+                            </DropdownItem>
+                          </DropdownMenu>
+                        </Dropdown>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+        </div>
+      </div>
 
       {vendaSelecionada && (
         <ModalDevolucao
@@ -422,6 +452,19 @@ export default function DevolucoesPage() {
           onClose={handleFecharHistorico}
         />
       )}
+    </div>
+  );
+}
+
+function KpiCard({ icon, value, label, color, bg, iconBg, sub }: { icon: React.ReactNode; value: string; label: string; color: string; bg: string; iconBg: string; sub?: string }) {
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}>{icon}</div>
+      <div className="min-w-0">
+        <p className={`text-sm font-bold truncate ${color}`}>{value}</p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{label}</p>
+        {sub && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{sub}</p>}
+      </div>
     </div>
   );
 }

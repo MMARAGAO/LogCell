@@ -25,7 +25,8 @@ async function syncTecnico(
         id: usuarioId,
         nome,
         telefone: telefone || "",
-        email: email || `${nome.toLowerCase().replace(/\s+/g, "")}@logcell.local`,
+        email:
+          email || `${nome.toLowerCase().replace(/\s+/g, "")}@logcell.local`,
         ativo,
         usuario_id: usuarioId,
         cor_agenda: "#3b82f6",
@@ -33,7 +34,13 @@ async function syncTecnico(
     } else {
       await supabaseAdmin
         .from("tecnicos")
-        .update({ nome, telefone: telefone || "", email, ativo, atualizado_em: new Date().toISOString() })
+        .update({
+          nome,
+          telefone: telefone || "",
+          email,
+          ativo,
+          atualizado_em: new Date().toISOString(),
+        })
         .eq("id", usuarioId);
     }
   } else {
@@ -237,6 +244,7 @@ export async function atualizarUsuario(
 
     // Sincroniza com tabela tecnicos
     const isTecnico = (dados as any).is_tecnico === true;
+
     await syncTecnico(
       id,
       data.nome,

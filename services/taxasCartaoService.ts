@@ -243,23 +243,34 @@ export async function simularTaxaCartao(
     let parcelasAplicadas: number;
 
     // Tenta buscar taxa do banco de dados primeiro
-    const taxaDb = loja_id !== undefined
-      ? await getTaxaAplicavel(loja_id, tipo_produto, forma_pagamento, parcelas).catch(() => null)
-      : null;
+    const taxaDb =
+      loja_id !== undefined
+        ? await getTaxaAplicavel(
+            loja_id,
+            tipo_produto,
+            forma_pagamento,
+            parcelas,
+          ).catch(() => null)
+        : null;
 
     if (taxaDb) {
       taxa_percentual = taxaDb.taxa_percentual;
       parcelasAplicadas = parcelas;
     } else {
       // Fallback para tabela fixa hardcoded
-      const taxaTabela = obterTaxaTabelaFixa(forma_pagamento, parcelas, bandeira);
+      const taxaTabela = obterTaxaTabelaFixa(
+        forma_pagamento,
+        parcelas,
+        bandeira,
+      );
+
       taxa_percentual = taxaTabela.taxa_percentual;
       parcelasAplicadas = taxaTabela.parcelas;
     }
 
     let valor_base: number;
     let valor_brutoCalculado: number;
-    const coeficiente = 1 - (taxa_percentual / 100);
+    const coeficiente = 1 - taxa_percentual / 100;
 
     if (taxa_inclusa) {
       // Valor digitado já é o valor bruto do cliente (com taxa inclusa)

@@ -1929,14 +1929,20 @@ export async function getLucroLiquidoReal(
   try {
     const folhas = await getFolhasSalariais(mes, ano, lojaId);
     const contas = lojaId
-      ? await getContasLoja(lojaId)
-      : (await supabase.from("contas_lojas").select("*")).data || [];
-    const impostos = await getImpostosConta(undefined, undefined, lojaId);
+      ? await getContasLoja(lojaId, undefined, mes, ano)
+      : (await supabase.from("contas_lojas").select("*").limit(500)).data || [];
+    const impostos = await getImpostosConta(
+      undefined,
+      undefined,
+      lojaId,
+      mes,
+      ano,
+    );
     const centrosCustos = lojaId
       ? await getCentroCustosLoja(lojaId, mes, ano)
       : [];
-    const vales = await getValesFuncionario();
-    const retiradas = await getRetiradasPessoais();
+    const vales = await getValesFuncionario(undefined, undefined, mes, ano);
+    const retiradas = await getRetiradasPessoais(undefined, mes, ano);
 
     const folha = folhas.reduce(
       (acc: number, f: FolhaSalarial) => acc + (f.total_liquido || 0),
@@ -2006,11 +2012,17 @@ export async function getComparativoMensal(
 
     for (let i = 0; i < quantidadeMeses; i++) {
       const folhas = await getFolhasSalariais(mes, ano, lojaId);
-      const contas = await getContasLoja(lojaId);
-      const impostos = await getImpostosConta(undefined, undefined, lojaId);
+      const contas = await getContasLoja(lojaId, undefined, mes, ano);
+      const impostos = await getImpostosConta(
+        undefined,
+        undefined,
+        lojaId,
+        mes,
+        ano,
+      );
       const custos = await getCentroCustosLoja(lojaId, mes, ano);
-      const vales = await getValesFuncionario();
-      const retiradas = await getRetiradasPessoais();
+      const vales = await getValesFuncionario(undefined, undefined, mes, ano);
+      const retiradas = await getRetiradasPessoais(undefined, mes, ano);
 
       const totalFolhas = folhas.reduce(
         (acc: number, f: FolhaSalarial) => acc + (f.total_liquido || 0),

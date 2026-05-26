@@ -73,9 +73,6 @@ export function getPrimeiraRotaDisponivel(
   // Admin sempre vai para dashboard
   if (isAdmin) return "/sistema/dashboard";
 
-  // Técnico sempre vai para suas ordens de serviço
-  if (isTecnico) return "/sistema/ordem-servico/tecnico";
-
   // Encontrar primeira rota com permissão
   for (const route of routes) {
     if (!route.permissao || permissoes.includes(route.permissao)) {

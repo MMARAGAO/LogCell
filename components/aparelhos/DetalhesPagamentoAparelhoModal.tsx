@@ -17,7 +17,6 @@ import {
   X,
   ShoppingBag,
   DollarSign,
-  CreditCard,
   Gift,
   TrendingUp,
   TrendingDown,
@@ -62,7 +61,11 @@ export function DetalhesPagamentoAparelhoModal({
     setLoading(true);
     try {
       const [vendaRes, pagamentosRes, brindesRes] = await Promise.all([
-        supabase.from("vendas").select("*").eq("id", aparelho.venda_id).single(),
+        supabase
+          .from("vendas")
+          .select("*")
+          .eq("id", aparelho.venda_id)
+          .single(),
         supabase
           .from("pagamentos_venda")
           .select("*")
@@ -87,7 +90,10 @@ export function DetalhesPagamentoAparelhoModal({
   }
 
   const totalPago = venda?.valor_pago || 0;
-  const custoBrindes = brindes.reduce((s: number, b: any) => s + Number(b.valor_custo || 0), 0);
+  const custoBrindes = brindes.reduce(
+    (s: number, b: any) => s + Number(b.valor_custo || 0),
+    0,
+  );
   const lucro = totalPago - (aparelho.valor_compra || 0) - custoBrindes;
 
   return (
@@ -123,10 +129,16 @@ export function DetalhesPagamentoAparelhoModal({
                   )}
                   <div className="flex gap-4 mt-2 text-sm">
                     <span>
-                      Venda: <strong className="text-success">{formatarMoeda(aparelho.valor_venda || 0)}</strong>
+                      Venda:{" "}
+                      <strong className="text-success">
+                        {formatarMoeda(aparelho.valor_venda || 0)}
+                      </strong>
                     </span>
                     <span>
-                      Custo: <strong className="text-danger">{formatarMoeda(aparelho.valor_compra || 0)}</strong>
+                      Custo:{" "}
+                      <strong className="text-danger">
+                        {formatarMoeda(aparelho.valor_compra || 0)}
+                      </strong>
                     </span>
                   </div>
                 </CardBody>
@@ -147,7 +159,8 @@ export function DetalhesPagamentoAparelhoModal({
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {TIPOS_PAGAMENTO_LABEL[pag.tipo_pagamento] || pag.tipo_pagamento}
+                              {TIPOS_PAGAMENTO_LABEL[pag.tipo_pagamento] ||
+                                pag.tipo_pagamento}
                             </span>
                             {pag.parcelas > 1 && (
                               <Chip size="sm" variant="flat">
@@ -157,10 +170,20 @@ export function DetalhesPagamentoAparelhoModal({
                           </div>
                           <div className="flex gap-3 text-[11px] text-default-500">
                             {pag.taxa_percentual && (
-                              <span>Taxa: <strong className="text-danger">{Number(pag.taxa_percentual).toFixed(2)}%</strong></span>
+                              <span>
+                                Taxa:{" "}
+                                <strong className="text-danger">
+                                  {Number(pag.taxa_percentual).toFixed(2)}%
+                                </strong>
+                              </span>
                             )}
                             {pag.liquido && (
-                              <span>Líquido: <strong className="text-success">{formatarMoeda(Number(pag.liquido))}</strong></span>
+                              <span>
+                                Líquido:{" "}
+                                <strong className="text-success">
+                                  {formatarMoeda(Number(pag.liquido))}
+                                </strong>
+                              </span>
                             )}
                           </div>
                         </div>
@@ -207,18 +230,24 @@ export function DetalhesPagamentoAparelhoModal({
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Saldo Devedor:</span>
-                  <span className={`font-semibold ${(venda?.saldo_devedor || 0) > 0 ? "text-warning" : "text-success"}`}>
+                  <span
+                    className={`font-semibold ${(venda?.saldo_devedor || 0) > 0 ? "text-warning" : "text-success"}`}
+                  >
                     {formatarMoeda(venda?.saldo_devedor || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Status:</span>
                   <Chip
-                    color={venda?.status === "concluida" ? "success" : "warning"}
+                    color={
+                      venda?.status === "concluida" ? "success" : "warning"
+                    }
                     size="sm"
                     variant="flat"
                   >
-                    {venda?.status === "concluida" ? "Concluída" : "Em andamento"}
+                    {venda?.status === "concluida"
+                      ? "Concluída"
+                      : "Em andamento"}
                   </Chip>
                 </div>
                 {custoBrindes > 0 && (
@@ -252,7 +281,11 @@ export function DetalhesPagamentoAparelhoModal({
         </ModalBody>
         <Divider />
         <ModalFooter>
-          <Button startContent={<X className="w-4 h-4" />} variant="light" onPress={onClose}>
+          <Button
+            startContent={<X className="w-4 h-4" />}
+            variant="light"
+            onPress={onClose}
+          >
             Fechar
           </Button>
         </ModalFooter>

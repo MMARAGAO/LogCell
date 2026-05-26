@@ -17,10 +17,10 @@ export function SistemaLayoutClient({ children }: SistemaLayoutClientProps) {
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar (desktop: flex flow, mobile: overlay via fixed) */}
       <Sidebar
-        isOpen={sidebarOpen}
         collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
       {/* Main Content - no margin needed, sidebar is in flex flow on lg+ */}

@@ -3,7 +3,7 @@
 export interface Venda {
   id: string;
   numero_venda: number; // Número sequencial da venda (inteiro)
-  cliente_id: string;
+  cliente_id: string | null;
   loja_id: number;
   vendedor_id: string;
   status: "em_andamento" | "concluida" | "cancelada" | "devolvida";
@@ -52,7 +52,8 @@ export interface PagamentoVenda {
     | "cartao_debito"
     | "transferencia"
     | "boleto"
-    | "credito_cliente";
+    | "credito_cliente"
+    | "troca_aparelho";
   valor: number;
   data_pagamento: string;
   observacao?: string;

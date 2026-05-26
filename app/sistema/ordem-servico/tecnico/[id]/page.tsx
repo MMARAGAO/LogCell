@@ -26,12 +26,10 @@ import {
   CurrencyDollarIcon,
   CalendarIcon,
   ShieldCheckIcon,
-  PhoneIcon,
   BuildingStorefrontIcon,
   UserIcon,
   FireIcon,
   ExclamationCircleIcon,
-  BoltIcon,
   CubeIcon,
   CheckIcon,
   VideoCameraIcon,
@@ -466,9 +464,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
       setBancada(valor);
       setOrdem({ ...ordem, bancada: valor });
       toast.success(
-        valor
-          ? `Bancada ${valor} associada com sucesso!`
-          : "Bancada removida",
+        valor ? `Bancada ${valor} associada com sucesso!` : "Bancada removida",
       );
     } catch (error) {
       console.error("Erro ao salvar bancada:", error);
@@ -489,6 +485,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
       .catch(() => {
         // Fallback para iOS/Safari
         const textarea = document.createElement("textarea");
+
         textarea.value = url;
         document.body.appendChild(textarea);
         textarea.select();
@@ -560,41 +557,57 @@ export default function OrdemServicoDetalheTecnicoPage() {
             <Button
               isIconOnly
               aria-label="Voltar"
+              className="text-gray-400 hover:text-gray-600"
               variant="light"
               onPress={() => router.back()}
-              className="text-gray-400 hover:text-gray-600"
             >
               <ArrowLeftIcon className="w-5 h-5" />
             </Button>
             <div>
               <div className="flex items-center gap-2.5 mb-1">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Ordem de Serviço</span>
-                <span className="text-xs text-gray-300">#{ordem.numero_os}</span>
+                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Ordem de Serviço
+                </span>
+                <span className="text-xs text-gray-300">
+                  #{ordem.numero_os}
+                </span>
               </div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">{ordem.cliente_nome}</h1>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                {ordem.cliente_nome}
+              </h1>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-sm text-gray-500">
-                  Criada em {new Date(ordem.criado_em).toLocaleDateString("pt-BR", {
+                  Criada em{" "}
+                  {new Date(ordem.criado_em).toLocaleDateString("pt-BR", {
                     day: "2-digit",
                     month: "short",
                     year: "numeric",
                   })}
                 </p>
                 {ordem.criado_por && (
-                  <span className="text-xs text-gray-400">• {ordem.criado_por}</span>
+                  <span className="text-xs text-gray-400">
+                    • {ordem.criado_por}
+                  </span>
                 )}
               </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-              ordem.status === "em_andamento" ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-800" :
-              ordem.status === "concluido" ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" :
-              ordem.status === "aguardando" ? "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700" :
-              ordem.status === "em_diagnostico" ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800" :
-              ordem.status === "aguardando_peca" ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800" :
-              "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
-            }`}>
+            <span
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                ordem.status === "em_andamento"
+                  ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-800"
+                  : ordem.status === "concluido"
+                    ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                    : ordem.status === "aguardando"
+                      ? "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
+                      : ordem.status === "em_diagnostico"
+                        ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                        : ordem.status === "aguardando_peca"
+                          ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800"
+                          : "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
+              }`}
+            >
               {getStatusLabel(ordem.status)}
             </span>
             {ordem.equipamento_senha && (
@@ -625,31 +638,48 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </span>
           )}
           {ordem.previsao_entrega && (
-            <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-              (() => {
-                const diff = Math.ceil((new Date(ordem.previsao_entrega).getTime() - Date.now()) / 86400000);
-                if (diff < 0) return "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800";
-                if (diff <= 2) return "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800";
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${(() => {
+                const diff = Math.ceil(
+                  (new Date(ordem.previsao_entrega).getTime() - Date.now()) /
+                    86400000,
+                );
+
+                if (diff < 0)
+                  return "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800";
+                if (diff <= 2)
+                  return "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800";
+
                 return "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800";
-              })()
-            }`}>
+              })()}`}
+            >
               <CalendarIcon className="w-3 h-3" />
-              {new Date(ordem.previsao_entrega).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+              {new Date(ordem.previsao_entrega).toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "short",
+              })}
             </span>
           )}
           {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 && (
             <span className="text-xs px-2.5 py-1 rounded-full bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 flex items-center gap-1.5">
               <ShieldCheckIcon className="w-3 h-3" />
-              {ordem.laudo_garantia_dias} {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
+              {ordem.laudo_garantia_dias}{" "}
+              {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
             </span>
           )}
           {ordem.tipo_cliente && (
-            <span className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-              ordem.tipo_cliente === "lojista"
-                ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                : "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-            }`}>
-              {ordem.tipo_cliente === "lojista" ? <BuildingStorefrontIcon className="w-3 h-3" /> : <UserIcon className="w-3 h-3" />}
+            <span
+              className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
+                ordem.tipo_cliente === "lojista"
+                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                  : "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+              }`}
+            >
+              {ordem.tipo_cliente === "lojista" ? (
+                <BuildingStorefrontIcon className="w-3 h-3" />
+              ) : (
+                <UserIcon className="w-3 h-3" />
+              )}
               {ordem.tipo_cliente === "lojista" ? "Lojista" : "Consumidor"}
             </span>
           )}
@@ -696,25 +726,47 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                       <InformationCircleIcon className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Informações da OS</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                      Informações da OS
+                    </span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <DetailField label="Cliente" value={ordem.cliente_nome} />
-                    <DetailField label="Equipamento" value={`${ordem.equipamento_tipo}${ordem.equipamento_marca ? ` - ${ordem.equipamento_marca}` : ""}${ordem.equipamento_modelo ? ` ${ordem.equipamento_modelo}` : ""}`} />
-                    {ordem.equipamento_numero_serie && <DetailField label="Nº de Série" value={ordem.equipamento_numero_serie} mono />}
+                    <DetailField
+                      label="Equipamento"
+                      value={`${ordem.equipamento_tipo}${ordem.equipamento_marca ? ` - ${ordem.equipamento_marca}` : ""}${ordem.equipamento_modelo ? ` ${ordem.equipamento_modelo}` : ""}`}
+                    />
+                    {ordem.equipamento_numero_serie && (
+                      <DetailField
+                        mono
+                        label="Nº de Série"
+                        value={ordem.equipamento_numero_serie}
+                      />
+                    )}
                     {ordem.equipamento_senha && (
                       <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-                        <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">Senha do Dispositivo</p>
-                        <p className="text-lg font-bold font-mono text-amber-700 dark:text-amber-300">{ordem.equipamento_senha}</p>
+                        <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
+                          Senha do Dispositivo
+                        </p>
+                        <p className="text-lg font-bold font-mono text-amber-700 dark:text-amber-300">
+                          {ordem.equipamento_senha}
+                        </p>
                       </div>
                     )}
                     <div className="md:col-span-2">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Defeito Reclamado</p>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                        Defeito Reclamado
+                      </p>
                       <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-zinc-800/50 rounded-xl p-3 border border-gray-100 dark:border-zinc-700">
                         {ordem.defeito_reclamado}
                       </p>
                     </div>
-                    {ordem.cliente_telefone && <DetailField label="Telefone" value={formatarTelefone(ordem.cliente_telefone)} />}
+                    {ordem.cliente_telefone && (
+                      <DetailField
+                        label="Telefone"
+                        value={formatarTelefone(ordem.cliente_telefone)}
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -723,19 +775,29 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
                       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-emerald-100 dark:border-emerald-900 p-5">
-                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">Valor do Serviço</p>
-                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">R$ {ordem.valor_orcamento.toFixed(2)}</p>
+                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">
+                          Valor do Serviço
+                        </p>
+                        <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                          R$ {ordem.valor_orcamento.toFixed(2)}
+                        </p>
                       </div>
                     )}
-                    {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 && (
-                      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Garantia</p>
-                        <div className="flex items-center gap-2">
-                          <ShieldCheckIcon className="w-5 h-5 text-gray-400" />
-                          <p className="font-semibold text-gray-800 dark:text-white">{ordem.laudo_garantia_dias} {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}</p>
+                    {ordem.laudo_garantia_dias &&
+                      ordem.laudo_garantia_dias > 0 && (
+                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                            Garantia
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <ShieldCheckIcon className="w-5 h-5 text-gray-400" />
+                            <p className="font-semibold text-gray-800 dark:text-white">
+                              {ordem.laudo_garantia_dias}{" "}
+                              {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 )}
 
@@ -743,14 +805,20 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <DocumentTextIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Observações Técnicas</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                      Observações Técnicas
+                    </span>
                   </div>
                   {ordem.observacoes_tecnicas ? (
                     <div className="p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-100 dark:border-zinc-700">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">{ordem.observacoes_tecnicas}</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                        {ordem.observacoes_tecnicas}
+                      </p>
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-400 italic">Nenhuma observação registrada</p>
+                    <p className="text-sm text-gray-400 italic">
+                      Nenhuma observação registrada
+                    </p>
                   )}
                 </div>
               </div>
@@ -761,10 +829,16 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
                   <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
                     <ClockIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Status</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                      Status
+                    </span>
                   </div>
                   <div className="space-y-4">
                     <Select
+                      classNames={{
+                        trigger:
+                          "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                      }}
                       isDisabled={ordem.status === "concluido"}
                       label="Alterar status"
                       labelPlacement="outside"
@@ -772,37 +846,40 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       selectedKeys={[novoStatus]}
                       size="md"
                       variant="bordered"
-                      classNames={{
-                        trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                      }}
                       onChange={(e) => setNovoStatus(e.target.value)}
                     >
                       <SelectItem key="em_andamento">Em Andamento</SelectItem>
-                      <SelectItem key="em_diagnostico">Em Diagnóstico</SelectItem>
-                      <SelectItem key="aguardando_pecas">Aguardando Peças</SelectItem>
+                      <SelectItem key="em_diagnostico">
+                        Em Diagnóstico
+                      </SelectItem>
+                      <SelectItem key="aguardando_pecas">
+                        Aguardando Peças
+                      </SelectItem>
                     </Select>
                     <Button
                       fullWidth
+                      className="font-medium"
                       color="primary"
                       isDisabled={ordem.status === "concluido"}
                       isLoading={salvando}
                       size="md"
                       startContent={<ClockIcon className="w-4 h-4" />}
                       variant="solid"
-                      className="font-medium"
                       onPress={salvarAtualizacao}
                     >
                       Salvar
                     </Button>
                     <Button
                       fullWidth
+                      className="font-medium"
                       color="success"
-                      isDisabled={ordem.status === "concluido" || !observacoes.trim()}
+                      isDisabled={
+                        ordem.status === "concluido" || !observacoes.trim()
+                      }
                       isLoading={salvando}
                       size="md"
                       startContent={<CheckCircleIcon className="w-4 h-4" />}
                       variant="flat"
-                      className="font-medium"
                       onPress={concluirOS}
                     >
                       Concluir OS
@@ -811,28 +888,35 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 </div>
 
                 {/* Câmera */}
-                <div className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border p-5 ${
-                  bancada ? "border-emerald-200 dark:border-emerald-900" : "border-gray-100 dark:border-zinc-800"
-                }`}>
+                <div
+                  className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border p-5 ${
+                    bancada
+                      ? "border-emerald-200 dark:border-emerald-900"
+                      : "border-gray-100 dark:border-zinc-800"
+                  }`}
+                >
                   <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
                     <VideoCameraIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Câmera ao Vivo</span>
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                      Câmera ao Vivo
+                    </span>
                   </div>
 
                   {novoStatus === "em_andamento" || bancada ? (
                     <div className="space-y-4">
                       <Select
+                        classNames={{
+                          trigger:
+                            "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                        }}
+                        isLoading={salvandoBancada}
                         label="Bancada"
                         labelPlacement="outside"
                         placeholder="Selecione a bancada"
                         selectedKeys={bancada ? [bancada] : []}
                         size="md"
                         variant="bordered"
-                        classNames={{
-                          trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                        }}
                         onChange={(e) => salvarBancada(e.target.value)}
-                        isLoading={salvandoBancada}
                       >
                         <SelectItem key="bancada-1">Bancada 1</SelectItem>
                         <SelectItem key="bancada-2">Bancada 2</SelectItem>
@@ -849,26 +933,38 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                 Bancada {bancada.replace("bancada-", "")} ativa
                               </p>
-                              <p className="text-[11px] text-emerald-500">Transmitindo ao vivo</p>
+                              <p className="text-[11px] text-emerald-500">
+                                Transmitindo ao vivo
+                              </p>
                             </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <Button
-                              size="sm"
-                              color="primary"
-                              startContent={<VideoCameraIcon className="w-3.5 h-3.5" />}
-                              variant="flat"
                               className="font-medium text-xs"
-                              onPress={() => window.open(`/ver-stream/${ordem.id}`, "_blank", "noopener,noreferrer")}
+                              color="primary"
+                              size="sm"
+                              startContent={
+                                <VideoCameraIcon className="w-3.5 h-3.5" />
+                              }
+                              variant="flat"
+                              onPress={() =>
+                                window.open(
+                                  `/ver-stream/${ordem.id}`,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                )
+                              }
                             >
                               Ver ao Vivo
                             </Button>
                             <Button
-                              size="sm"
-                              color="success"
-                              startContent={<ShareIcon className="w-3.5 h-3.5" />}
-                              variant="solid"
                               className="font-medium text-xs"
+                              color="success"
+                              size="sm"
+                              startContent={
+                                <ShareIcon className="w-3.5 h-3.5" />
+                              }
+                              variant="solid"
                               onPress={compartilharStream}
                             >
                               Compartilhar
@@ -885,8 +981,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
                         <VideoCameraIcon className="w-5 h-5 text-gray-400" />
                       </div>
-                      <p className="text-xs text-gray-500 font-medium">Câmera disponível</p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">ao iniciar manutenção</p>
+                      <p className="text-xs text-gray-500 font-medium">
+                        Câmera disponível
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        ao iniciar manutenção
+                      </p>
                     </div>
                   )}
                 </div>
@@ -897,7 +997,9 @@ export default function OrdemServicoDetalheTecnicoPage() {
             <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
               <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
                 <DocumentTextIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-semibold text-gray-800 dark:text-white">Observações Técnicas</span>
+                <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                  Observações Técnicas
+                </span>
               </div>
 
               <div className="relative pl-6 space-y-4">
@@ -910,8 +1012,20 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-zinc-900" />
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
                       {ordem.data_inicio_servico
-                        ? new Date(ordem.data_inicio_servico).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
-                        : new Date(ordem.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                        ? new Date(ordem.data_inicio_servico).toLocaleString(
+                            "pt-BR",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )
+                        : new Date(ordem.criado_em).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })}
                     </p>
                     <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-zinc-800/50 rounded-xl p-3 border border-gray-100 dark:border-zinc-700">
                       {ordem.observacoes_tecnicas}
@@ -922,17 +1036,20 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 {/* Nova observação */}
                 <div className="relative">
                   <div className="absolute -left-4 top-2 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white dark:ring-zinc-900" />
-                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">Nova Observação</p>
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">
+                    Nova Observação
+                  </p>
                   <Textarea
+                    classNames={{
+                      input: "text-sm",
+                      inputWrapper:
+                        "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                    }}
                     isDisabled={ordem.status === "concluido"}
                     minRows={3}
                     placeholder="Descreva o diagnóstico, procedimentos realizados..."
                     value={observacoes}
                     variant="bordered"
-                    classNames={{
-                      input: "text-sm",
-                      inputWrapper: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                    }}
                     onChange={(e) => setObservacoes(e.target.value)}
                   />
                 </div>
@@ -1695,11 +1812,25 @@ export default function OrdemServicoDetalheTecnicoPage() {
   );
 }
 
-function DetailField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function DetailField({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div>
-      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-sm text-gray-800 dark:text-white ${mono ? "font-mono" : "font-medium"}`}>{value}</p>
+      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      <p
+        className={`text-sm text-gray-800 dark:text-white ${mono ? "font-mono" : "font-medium"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -1714,18 +1845,59 @@ const STATUS_ORDER = [
   "entregue",
 ] as const;
 
-const STATUS_META: Record<string, { label: string; bg: string; dot: string; line: string }> = {
-  aguardando: { label: "Aguardando", bg: "bg-gray-200 dark:bg-gray-700", dot: "bg-gray-400", line: "bg-gray-200 dark:bg-gray-700" },
-  aprovado: { label: "Aprovado", bg: "bg-blue-100 dark:bg-blue-900/30", dot: "bg-blue-500", line: "bg-blue-300 dark:bg-blue-700" },
-  em_diagnostico: { label: "Em Diagnóstico", bg: "bg-indigo-100 dark:bg-indigo-900/30", dot: "bg-indigo-500", line: "bg-indigo-300 dark:bg-indigo-700" },
-  em_andamento: { label: "Em Andamento", bg: "bg-orange-100 dark:bg-orange-900/30", dot: "bg-orange-500", line: "bg-orange-300 dark:bg-orange-700" },
-  aguardando_peca: { label: "Aguardando Peça", bg: "bg-red-100 dark:bg-red-900/30", dot: "bg-red-500", line: "bg-red-300 dark:bg-red-700" },
-  concluido: { label: "Concluído", bg: "bg-emerald-100 dark:bg-emerald-900/30", dot: "bg-emerald-500", line: "bg-emerald-300 dark:bg-emerald-700" },
-  entregue: { label: "Entregue", bg: "bg-emerald-100 dark:bg-emerald-900/30", dot: "bg-emerald-500", line: "bg-emerald-300 dark:bg-emerald-700" },
+const STATUS_META: Record<
+  string,
+  { label: string; bg: string; dot: string; line: string }
+> = {
+  aguardando: {
+    label: "Aguardando",
+    bg: "bg-gray-200 dark:bg-gray-700",
+    dot: "bg-gray-400",
+    line: "bg-gray-200 dark:bg-gray-700",
+  },
+  aprovado: {
+    label: "Aprovado",
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    dot: "bg-blue-500",
+    line: "bg-blue-300 dark:bg-blue-700",
+  },
+  em_diagnostico: {
+    label: "Em Diagnóstico",
+    bg: "bg-indigo-100 dark:bg-indigo-900/30",
+    dot: "bg-indigo-500",
+    line: "bg-indigo-300 dark:bg-indigo-700",
+  },
+  em_andamento: {
+    label: "Em Andamento",
+    bg: "bg-orange-100 dark:bg-orange-900/30",
+    dot: "bg-orange-500",
+    line: "bg-orange-300 dark:bg-orange-700",
+  },
+  aguardando_peca: {
+    label: "Aguardando Peça",
+    bg: "bg-red-100 dark:bg-red-900/30",
+    dot: "bg-red-500",
+    line: "bg-red-300 dark:bg-red-700",
+  },
+  concluido: {
+    label: "Concluído",
+    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+    dot: "bg-emerald-500",
+    line: "bg-emerald-300 dark:bg-emerald-700",
+  },
+  entregue: {
+    label: "Entregue",
+    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+    dot: "bg-emerald-500",
+    line: "bg-emerald-300 dark:bg-emerald-700",
+  },
 };
 
 function StatusProgressBar({ current }: { current: string }) {
-  const currentIndex = STATUS_ORDER.indexOf(current as typeof STATUS_ORDER[number]);
+  const currentIndex = STATUS_ORDER.indexOf(
+    current as (typeof STATUS_ORDER)[number],
+  );
+
   if (currentIndex === -1) return null;
   const visibleSteps = ["aguardando", "aprovado", "em_andamento", "concluido"];
 
@@ -1733,8 +1905,13 @@ function StatusProgressBar({ current }: { current: string }) {
     <div className="w-full">
       <div className="flex items-center justify-between">
         {visibleSteps.map((s, idx) => {
-          const step = s as typeof STATUS_ORDER[number];
-          const meta = STATUS_META[step] || { label: step, bg: "", dot: "bg-gray-400", line: "bg-gray-200" };
+          const step = s as (typeof STATUS_ORDER)[number];
+          const meta = STATUS_META[step] || {
+            label: step,
+            bg: "",
+            dot: "bg-gray-400",
+            line: "bg-gray-200",
+          };
           const stepIdx = STATUS_ORDER.indexOf(step);
           const isCompleted = currentIndex > stepIdx;
           const isCurrent = currentIndex === stepIdx;
@@ -1742,31 +1919,57 @@ function StatusProgressBar({ current }: { current: string }) {
           return (
             <div key={step} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center">
-                <div className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                  isCompleted ? "bg-emerald-500 text-white shadow-sm" :
-                  isCurrent ? `${meta.dot.replace("bg-", "bg-").replace("-500", "-500")} text-white ring-4 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ${meta.dot.replace("bg-", "ring-").replace("-500", "-500/30")}` :
-                  "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
-                }`}>
+                <div
+                  className={`relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    isCompleted
+                      ? "bg-emerald-500 text-white shadow-sm"
+                      : isCurrent
+                        ? `${meta.dot.replace("bg-", "bg-").replace("-500", "-500")} text-white ring-4 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ${meta.dot.replace("bg-", "ring-").replace("-500", "-500/30")}`
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                  }`}
+                >
                   {isCompleted ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M5 13l4 4L19 7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2.5}
+                      />
                     </svg>
                   ) : (
                     idx + 1
                   )}
                 </div>
-                <span className={`mt-1.5 text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${
-                  isCurrent ? meta.dot.replace("bg-", "text-").replace("-500", "-600") + " dark:" + meta.dot.replace("bg-", "text-").replace("-500", "-400") :
-                  isCompleted ? "text-emerald-600 dark:text-emerald-400" :
-                  "text-gray-400 dark:text-gray-500"
-                }`}>
+                <span
+                  className={`mt-1.5 text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${
+                    isCurrent
+                      ? meta.dot
+                          .replace("bg-", "text-")
+                          .replace("-500", "-600") +
+                        " dark:" +
+                        meta.dot.replace("bg-", "text-").replace("-500", "-400")
+                      : isCompleted
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-gray-400 dark:text-gray-500"
+                  }`}
+                >
                   {meta.label}
                 </span>
               </div>
               {idx < visibleSteps.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-2 mb-5 rounded-full transition-colors duration-300 ${
-                  currentIndex > stepIdx ? "bg-emerald-400" : "bg-gray-200 dark:bg-gray-700"
-                }`} />
+                <div
+                  className={`flex-1 h-0.5 mx-2 mb-5 rounded-full transition-colors duration-300 ${
+                    currentIndex > stepIdx
+                      ? "bg-emerald-400"
+                      : "bg-gray-200 dark:bg-gray-700"
+                  }`}
+                />
               )}
             </div>
           );

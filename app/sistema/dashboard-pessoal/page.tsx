@@ -9,18 +9,11 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { getPrimeiraRotaDisponivel } from "@/lib/routeHelper";
 
 export default function DashboardPessoalPage() {
-  const { loading, temPermissao, perfil, permissoes, isAdmin } =
-    usePermissoes();
+  const { loading, temPermissao, permissoes, isAdmin } = usePermissoes();
   const router = useRouter();
 
   useEffect(() => {
     if (!loading) {
-      if (perfil === "tecnico") {
-        router.push("/sistema/ordem-servico/tecnico");
-
-        return;
-      }
-
       if (!temPermissao("dashboard_pessoal.visualizar")) {
         const primeiraRota = getPrimeiraRotaDisponivel(
           permissoes,
@@ -31,7 +24,7 @@ export default function DashboardPessoalPage() {
         router.push(primeiraRota);
       }
     }
-  }, [loading, perfil, temPermissao, router, permissoes, isAdmin]);
+  }, [loading, temPermissao, router, permissoes, isAdmin]);
 
   if (loading) {
     return (
@@ -41,7 +34,7 @@ export default function DashboardPessoalPage() {
     );
   }
 
-  if (perfil === "tecnico" || !temPermissao("dashboard_pessoal.visualizar")) {
+  if (!temPermissao("dashboard_pessoal.visualizar")) {
     return null;
   }
 

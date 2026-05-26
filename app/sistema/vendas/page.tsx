@@ -392,8 +392,15 @@ export default function VendasPage() {
       "!podeVerTodasLojas": !podeVerTodasLojas,
     });
 
-    // Aplicar filtro de loja se usuário não tiver acesso a todas
     const filtros: any = {};
+
+    // Filtro de data padrão: últimos 30 dias para evitar timeout
+    const trintaDiasAtras = new Date();
+
+    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
+    filtros.data_inicio = trintaDiasAtras.toISOString().split("T")[0];
+
+    // Aplicar filtro de loja se usuário não tiver acesso a todas
 
     // IMPORTANTE: Se o usuário não é admin e não tem permissão para ver todas as lojas,
     // DEVE ter um lojaId definido. Se não tiver, significa que as permissões não foram configuradas
@@ -1916,175 +1923,177 @@ export default function VendasPage() {
               </TableHeader>
               <TableBody>
                 <>
-                {vendasPaginadas.map((venda) => (
-                  <TableRow key={venda.id}>
-                    <TableCell>
-                      <span className="font-bold">
-                        V{String(venda.numero_venda).padStart(6, "0")}
-                      </span>
-                    </TableCell>
-                    <TableCell>{venda.cliente?.nome || "Cliente"}</TableCell>
-                    <TableCell>{venda.loja?.nome}</TableCell>
-                    <TableCell>
-                      <span className="text-sm">
-                        {venda.criado_em && formatarData(venda.criado_em)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {venda.tipo === "fiada" ? (
-                        <Chip color="warning" size="sm" variant="flat">
-                          Fiada
-                        </Chip>
-                      ) : (
-                        <Chip color="default" size="sm" variant="flat">
-                          Normal
-                        </Chip>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        color={
-                          venda.status === "concluida"
-                            ? "success"
-                            : venda.status === "cancelada"
-                              ? "danger"
-                              : venda.status === "devolvida"
-                                ? "warning"
-                                : "warning"
-                        }
-                        size="sm"
-                        variant="flat"
-                      >
-                        {venda.status === "concluida"
-                          ? "Concluída"
-                          : venda.status === "cancelada"
-                            ? "Cancelada"
-                            : venda.status === "devolvida"
-                              ? "Devolvida"
-                              : "Em Andamento"}
-                      </Chip>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-bold text-primary">
-                        {formatarMoeda(venda.valor_total)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-semibold text-success">
-                        {formatarMoeda(venda.valor_pago)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`font-semibold ${venda.saldo_devedor > 0 ? "text-warning" : "text-gray-400"}`}
-                      >
-                        {formatarMoeda(venda.saldo_devedor)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const qtdDevolvida =
-                          venda.itens?.reduce(
-                            (total, item) => total + (item.devolvido || 0),
-                            0,
-                          ) || 0;
-                        const qtdTotal =
-                          venda.itens?.reduce(
-                            (total, item) => total + item.quantidade,
-                            0,
-                          ) || 0;
-
-                        if (qtdDevolvida > 0) {
-                          return (
-                            <Chip
-                              color={
-                                qtdDevolvida === qtdTotal ? "danger" : "warning"
-                              }
-                              size="sm"
-                              variant="flat"
-                            >
-                              {qtdDevolvida === qtdTotal
-                                ? "Total"
-                                : `${qtdDevolvida}/${qtdTotal}`}
-                            </Chip>
-                          );
-                        }
-
-                        return <span className="text-gray-400">-</span>;
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex justify-center gap-2">
-                        <Button
-                          isIconOnly
+                  {vendasPaginadas.map((venda) => (
+                    <TableRow key={venda.id}>
+                      <TableCell>
+                        <span className="font-bold">
+                          V{String(venda.numero_venda).padStart(6, "0")}
+                        </span>
+                      </TableCell>
+                      <TableCell>{venda.cliente?.nome || "Cliente"}</TableCell>
+                      <TableCell>{venda.loja?.nome}</TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {venda.criado_em && formatarData(venda.criado_em)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {venda.tipo === "fiada" ? (
+                          <Chip color="warning" size="sm" variant="flat">
+                            Fiada
+                          </Chip>
+                        ) : (
+                          <Chip color="default" size="sm" variant="flat">
+                            Normal
+                          </Chip>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          color={
+                            venda.status === "concluida"
+                              ? "success"
+                              : venda.status === "cancelada"
+                                ? "danger"
+                                : venda.status === "devolvida"
+                                  ? "warning"
+                                  : "warning"
+                          }
                           size="sm"
-                          variant="light"
-                          onClick={() => handleAbrirDetalhes(venda)}
+                          variant="flat"
                         >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Dropdown>
-                          <DropdownTrigger>
-                            <Button
-                              isIconOnly
-                              isDisabled={processando}
-                              size="sm"
-                              variant="light"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownTrigger>
-                          <DropdownMenu aria-label="Ações da venda">
-                            {getMenuItems(venda).map((item) => (
-                              <DropdownItem
-                                key={item.key}
-                                color={item.color}
-                                startContent={item.icon}
-                                onClick={item.onClick}
+                          {venda.status === "concluida"
+                            ? "Concluída"
+                            : venda.status === "cancelada"
+                              ? "Cancelada"
+                              : venda.status === "devolvida"
+                                ? "Devolvida"
+                                : "Em Andamento"}
+                        </Chip>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-bold text-primary">
+                          {formatarMoeda(venda.valor_total)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-semibold text-success">
+                          {formatarMoeda(venda.valor_pago)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`font-semibold ${venda.saldo_devedor > 0 ? "text-warning" : "text-gray-400"}`}
+                        >
+                          {formatarMoeda(venda.saldo_devedor)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const qtdDevolvida =
+                            venda.itens?.reduce(
+                              (total, item) => total + (item.devolvido || 0),
+                              0,
+                            ) || 0;
+                          const qtdTotal =
+                            venda.itens?.reduce(
+                              (total, item) => total + item.quantidade,
+                              0,
+                            ) || 0;
+
+                          if (qtdDevolvida > 0) {
+                            return (
+                              <Chip
+                                color={
+                                  qtdDevolvida === qtdTotal
+                                    ? "danger"
+                                    : "warning"
+                                }
+                                size="sm"
+                                variant="flat"
                               >
-                                {item.label}
-                              </DropdownItem>
-                            ))}
-                          </DropdownMenu>
-                        </Dropdown>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {vendasPaginadas.length > 0 && (
-                  <TableRow
-                    key="total-tabela"
-                    className="bg-gray-100 dark:bg-gray-800/30"
-                  >
-                    <TableCell>
-                      <span className="font-bold">TOTAL</span>
-                    </TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell>
-                      <span className="font-extrabold text-primary">
-                        {formatarMoeda(totaisTabela.valorTotal)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-extrabold text-success">
-                        {formatarMoeda(totaisTabela.valorPago)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={`font-extrabold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
-                      >
-                        {formatarMoeda(totaisTabela.saldoDevedor)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                    <TableCell className="text-default-400">-</TableCell>
-                  </TableRow>
-                )}
+                                {qtdDevolvida === qtdTotal
+                                  ? "Total"
+                                  : `${qtdDevolvida}/${qtdTotal}`}
+                              </Chip>
+                            );
+                          }
+
+                          return <span className="text-gray-400">-</span>;
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-center gap-2">
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onClick={() => handleAbrirDetalhes(venda)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button
+                                isIconOnly
+                                isDisabled={processando}
+                                size="sm"
+                                variant="light"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Ações da venda">
+                              {getMenuItems(venda).map((item) => (
+                                <DropdownItem
+                                  key={item.key}
+                                  color={item.color}
+                                  startContent={item.icon}
+                                  onClick={item.onClick}
+                                >
+                                  {item.label}
+                                </DropdownItem>
+                              ))}
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {vendasPaginadas.length > 0 && (
+                    <TableRow
+                      key="total-tabela"
+                      className="bg-gray-100 dark:bg-gray-800/30"
+                    >
+                      <TableCell>
+                        <span className="font-bold">TOTAL</span>
+                      </TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell>
+                        <span className="font-extrabold text-primary">
+                          {formatarMoeda(totaisTabela.valorTotal)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-extrabold text-success">
+                          {formatarMoeda(totaisTabela.valorPago)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`font-extrabold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
+                        >
+                          {formatarMoeda(totaisTabela.saldoDevedor)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="text-default-400">-</TableCell>
+                    </TableRow>
+                  )}
                 </>
               </TableBody>
             </Table>
@@ -2137,7 +2146,7 @@ export default function VendasPage() {
       {/* Modal Adicionar Pagamento */}
       {vendaSelecionada && (
         <AdicionarPagamentoModal
-          clienteId={vendaSelecionada.cliente_id}
+          clienteId={vendaSelecionada.cliente_id ?? ""}
           isOpen={modalPagamentoOpen}
           numeroVenda={`V${String(vendaSelecionada.numero_venda).padStart(6, "0")}`}
           saldoDevedor={vendaSelecionada.saldo_devedor}

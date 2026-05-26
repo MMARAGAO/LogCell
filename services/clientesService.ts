@@ -15,7 +15,8 @@ export async function getClientes(): Promise<Cliente[]> {
       .from("clientes")
       .select("*")
       .eq("ativo", true)
-      .order("nome", { ascending: true });
+      .order("nome", { ascending: true })
+      .limit(500);
 
     if (error) throw error;
 

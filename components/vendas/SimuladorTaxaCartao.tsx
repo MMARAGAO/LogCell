@@ -102,7 +102,15 @@ export function SimuladorTaxaCartao({
 
   useEffect(() => {
     realizarSimulacao();
-  }, [valorVenda, valorCusto, tipoProduto, formaPagamento, bandeira, parcelas, lojaId]);
+  }, [
+    valorVenda,
+    valorCusto,
+    tipoProduto,
+    formaPagamento,
+    bandeira,
+    parcelas,
+    lojaId,
+  ]);
 
   const realizarSimulacao = async () => {
     if (valorVenda <= 0) {
