@@ -1454,10 +1454,9 @@ export class VendasService {
     status?: string;
     data_inicio?: string;
     data_fim?: string;
+    cliente_nome?: string;
   }): Promise<VendaCompleta[]> {
     try {
-      const pageSize = 200;
-
       let query = supabase
         .from("vendas")
         .select(
@@ -1471,8 +1470,7 @@ export class VendasService {
           devolucoes:devolucoes_venda(id)
         `,
         )
-        .order("criado_em", { ascending: false })
-        .limit(pageSize);
+        .order("criado_em", { ascending: false });
 
       if (filtros?.cliente_id) {
         query = query.eq("cliente_id", filtros.cliente_id);
@@ -1491,6 +1489,19 @@ export class VendasService {
       }
       if (filtros?.data_fim) {
         query = query.lte("criado_em", filtros.data_fim);
+      }
+
+      if (filtros?.cliente_nome) {
+        const { data: clientes } = await supabase
+          .from("clientes")
+          .select("id")
+          .ilike("nome", `%${filtros.cliente_nome}%`);
+
+        if (clientes && clientes.length > 0) {
+          query = query.in("cliente_id", clientes.map((c) => c.id));
+        } else {
+          return [];
+        }
       }
 
       const { data, error } = await query;

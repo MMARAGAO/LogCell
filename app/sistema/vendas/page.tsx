@@ -6,7 +6,7 @@ import type {
   PagamentoCarrinho,
 } from "@/types/vendas";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Button,
@@ -394,11 +394,12 @@ export default function VendasPage() {
 
     const filtros: any = {};
 
-    // Filtro de data padrão: últimos 30 dias para evitar timeout
-    const trintaDiasAtras = new Date();
+    // Usar as datas do filtro do usuário (se definidas)
+    if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
+    if (filtroDataFim) filtros.data_fim = filtroDataFim;
 
-    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30);
-    filtros.data_inicio = trintaDiasAtras.toISOString().split("T")[0];
+    // Busca por nome do cliente (server-side)
+    if (busca) filtros.cliente_nome = busca;
 
     // Aplicar filtro de loja se usuário não tiver acesso a todas
 
@@ -441,6 +442,25 @@ export default function VendasPage() {
     setVendas(dados);
     calcularEstatisticas(dados);
   };
+
+  // Debounce para re-fetch quando as datas do filtro mudam (evita pesquisar a cada caractere)
+  const dataInicialRef = useRef({ inicio: filtroDataInicio, fim: filtroDataFim });
+
+  useEffect(() => {
+    // Pular o primeiro render (já foi carregado pelo useEffect de inicialização)
+    if (
+      dataInicialRef.current.inicio === filtroDataInicio &&
+      dataInicialRef.current.fim === filtroDataFim
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      carregarVendas();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [filtroDataInicio, filtroDataFim]);
 
   const calcularEstatisticas = (vendas: VendaCompleta[]) => {
     const hoje = new Date().toISOString().split("T")[0];
