@@ -394,14 +394,10 @@ export default function VendasPage() {
 
     const filtros: any = {};
 
-    // Busca por nome do cliente (server-side) — quando busca, ignora filtro de data
-    if (busca) {
-      filtros.cliente_nome = busca;
-    } else {
-      // Só aplica filtro de data quando não há busca por cliente
-      if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
-      if (filtroDataFim) filtros.data_fim = filtroDataFim;
-    }
+    // Busca por nome do cliente (server-side)
+    if (busca) filtros.cliente_nome = busca;
+    if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
+    if (filtroDataFim) filtros.data_fim = filtroDataFim;
 
     // Aplicar filtro de loja se usuário não tiver acesso a todas
 
@@ -1254,12 +1250,10 @@ export default function VendasPage() {
     const matchCliente =
       filtroCliente === "todos" || venda.cliente_id === filtroCliente;
 
-    // Filtro de data — ignorado quando há busca por nome de cliente
+    // Filtro de data
     let matchData = true;
 
-    if (busca) {
-      matchData = true;
-    } else if (filtroDataInicio || filtroDataFim) {
+    if (filtroDataInicio || filtroDataFim) {
       // Extrair componentes de data para comparação
       const dataVendaObj = new Date(venda.criado_em);
       const ano = dataVendaObj.getFullYear();
