@@ -394,34 +394,27 @@ export default function VendasPage() {
 
     const filtros: any = {};
 
-    // Busca por nome do cliente (server-side)
+    // Envia todos os filtros ativos para o servidor
     if (busca) filtros.cliente_nome = busca;
     if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
     if (filtroDataFim) filtros.data_fim = filtroDataFim;
+    if (filtroStatus !== "todas") filtros.status = filtroStatus;
+    if (filtroCliente !== "todos") filtros.cliente_id = filtroCliente;
+    if (filtroLoja !== "todas" && podeVerTodasLojas) {
+      filtros.loja_id = parseInt(filtroLoja);
+    }
 
-    // Aplicar filtro de loja se usuário não tiver acesso a todas
-
-    // IMPORTANTE: Se o usuário não é admin e não tem permissão para ver todas as lojas,
-    // DEVE ter um lojaId definido. Se não tiver, significa que as permissões não foram configuradas
-    // corretamente e deve-se aplicar uma restrição de segurança.
+    // SEGURANÇA: Se o usuário não tem acesso a todas as lojas,
+    // força o filtro pela loja dele (independente do filtro da UI)
     if (!podeVerTodasLojas && lojaId !== null) {
       filtros.loja_id = lojaId;
-      console.log(`🏪 Filtrando vendas da loja ${lojaId}`);
     } else if (!podeVerTodasLojas && lojaId === null) {
-      // ⚠️ SEGURANÇA: Usuário não tem permissão para ver tudo E não tem loja definida
-      // Isso é uma situação de erro de configuração - não deve carregar nada
       console.warn(
         "⚠️ ERRO DE SEGURANÇA: Usuário sem loja definida e sem permissão para ver tudo!",
       );
-      console.warn("🔒 Bloqueando acesso às vendas como medida de segurança");
       setVendas([]);
       calcularEstatisticas([]);
-
       return;
-    } else {
-      console.log(
-        "✅ Sem filtro de loja (usuário tem acesso a todas as lojas)",
-      );
     }
 
     console.log("📤 Filtros que serão enviados:", filtros);
@@ -441,25 +434,24 @@ export default function VendasPage() {
     calcularEstatisticas(dados);
   };
 
-  // Debounce para re-fetch quando filtros mudam (evita pesquisar a cada caractere)
-  const ultimosFiltrosRef = useRef({ inicio: filtroDataInicio, fim: filtroDataFim, busca });
+  // Pular o primeiro render (já carregado pelo useEffect de inicialização)
+  const primeiraRender = useRef(true);
 
+  // Busca textual: debounce 400ms
   useEffect(() => {
-    if (
-      ultimosFiltrosRef.current.inicio === filtroDataInicio &&
-      ultimosFiltrosRef.current.fim === filtroDataFim &&
-      ultimosFiltrosRef.current.busca === busca
-    ) {
+    if (primeiraRender.current) return;
+    const timer = setTimeout(() => carregarVendas(), 400);
+    return () => clearTimeout(timer);
+  }, [busca]);
+
+  // Demais filtros enviados ao servidor: imediato
+  useEffect(() => {
+    if (primeiraRender.current) {
+      primeiraRender.current = false;
       return;
     }
-
-    const timer = setTimeout(() => {
-      ultimosFiltrosRef.current = { inicio: filtroDataInicio, fim: filtroDataFim, busca };
-      carregarVendas();
-    }, 500);
-
-    return () => clearTimeout(timer);
-  }, [filtroDataInicio, filtroDataFim, busca]);
+    carregarVendas();
+  }, [filtroDataInicio, filtroDataFim, filtroStatus, filtroLoja, filtroCliente]);
 
   const calcularEstatisticas = (vendas: VendaCompleta[]) => {
     const hoje = new Date().toISOString().split("T")[0];
@@ -1208,129 +1200,34 @@ export default function VendasPage() {
     return items;
   };
 
+  // Filtros client-side (apenas os que não são enviados ao servidor)
   const vendasFiltradas = vendas.filter((venda) => {
-    // ========== SEGURANÇA: FILTRO DE LOJA ==========
-    // IMPORTANTE: Se o usuário não tem permissão para ver todas as lojas
-    // E tem uma loja específica configurada, DEVE aplicar o filtro mesmo se
-    // o usuário tentar burlar a interface.
-    if (!podeVerTodasLojas && lojaId !== null) {
-      // Usuário tem acesso restrito a uma loja específica
-      if (venda.loja_id !== lojaId) {
-        return false;
-      }
-    }
-
-    // Filtro de permissão: se não tem ver_todas_vendas, só mostra suas próprias vendas
-    if (
-      !temPermissao("vendas.ver_todas_vendas") &&
-      venda.vendedor_id !== usuario?.id
-    ) {
-      return false;
-    }
-
-    const matchStatus =
-      filtroStatus === "todas" || venda.status === filtroStatus;
-    const matchLoja =
-      filtroLoja === "todas" || venda.loja_id === parseInt(filtroLoja);
-
     // Filtro de forma de pagamento
     let matchFormaPagamento = true;
-
     if (filtroFormaPagamento === "fiada") {
       matchFormaPagamento = venda.tipo === "fiada";
     } else if (filtroFormaPagamento !== "todas") {
-      // Verificar se a venda tem pagamento do tipo selecionado
       matchFormaPagamento =
         venda.pagamentos?.some(
           (p) => p.tipo_pagamento === filtroFormaPagamento,
         ) || false;
     }
 
-    // Filtro de cliente
-    const matchCliente =
-      filtroCliente === "todos" || venda.cliente_id === filtroCliente;
-
-    // Filtro de data
-    let matchData = true;
-
-    if (filtroDataInicio || filtroDataFim) {
-      // Extrair componentes de data para comparação
-      const dataVendaObj = new Date(venda.criado_em);
-      const ano = dataVendaObj.getFullYear();
-      const mes = String(dataVendaObj.getMonth() + 1).padStart(2, "0");
-      const dia = String(dataVendaObj.getDate()).padStart(2, "0");
-      const dataVenda = `${ano}-${mes}-${dia}`;
-
-      if (filtroDataInicio && filtroDataFim) {
-        // Quando ambos os filtros estão definidos, a data deve estar no intervalo
-        matchData = dataVenda >= filtroDataInicio && dataVenda <= filtroDataFim;
-      } else if (filtroDataInicio) {
-        // Apenas data de início: mostrar vendas a partir desta data
-        matchData = dataVenda >= filtroDataInicio;
-      } else if (filtroDataFim) {
-        // Apenas data de fim: mostrar vendas até esta data
-        matchData = dataVenda <= filtroDataFim;
-      }
-    }
-
-    // Filtro de vendas vencidas/pendentes (apenas para vendas fiadas)
+    // Filtro de vendas vencidas
     let matchVencida = true;
-
     if (filtroVencidas && venda.tipo === "fiada") {
       const hoje = new Date().toISOString().split("T")[0];
-      const dataVencimento = venda.data_prevista_pagamento;
-
       matchVencida = Boolean(
         venda.status === "concluida" &&
           venda.saldo_devedor > 0 &&
-          dataVencimento &&
-          dataVencimento < hoje,
+          venda.data_prevista_pagamento &&
+          venda.data_prevista_pagamento < hoje,
       );
     } else if (filtroVencidas) {
-      // Se filtro de vencidas está ativo mas não é fiada, não mostrar
       matchVencida = false;
     }
 
-    const numeroFormatado = `V${String(venda.numero_venda).padStart(6, "0")}`;
-    const matchBusca =
-      !busca ||
-      numeroFormatado?.toLowerCase().includes(busca.toLowerCase()) ||
-      venda.cliente?.nome?.toLowerCase().includes(busca.toLowerCase());
-
-    // Log para debug
-    if (venda.numero_venda === 6) {
-      console.log("🔍 Filtrando V000006:", {
-        status: venda.status,
-        filtroStatus,
-        matchStatus,
-        loja_id: venda.loja_id,
-        filtroLoja,
-        matchLoja,
-        matchBusca,
-        matchFormaPagamento,
-        matchCliente,
-        matchData,
-        matchVencida,
-        resultado:
-          matchStatus &&
-          matchLoja &&
-          matchBusca &&
-          matchFormaPagamento &&
-          matchCliente &&
-          matchData &&
-          matchVencida,
-      });
-    }
-
-    return (
-      matchStatus &&
-      matchLoja &&
-      matchBusca &&
-      matchFormaPagamento &&
-      matchCliente &&
-      matchData &&
-      matchVencida
-    );
+    return matchFormaPagamento && matchVencida;
   });
 
   // Ordenar vendas conforme a opção selecionada
