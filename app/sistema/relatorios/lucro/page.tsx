@@ -13,6 +13,8 @@ import { CalendarIcon, FunnelIcon, ChevronUpIcon, ChevronDownIcon } from "@heroi
 
 import { formatarMoeda } from "@/lib/formatters";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { PermissionGuard } from "@/components/PermissionGuard";
 
 const ITENS_POR_PAGINA = 20;
 
@@ -22,6 +24,7 @@ export default function RelatorioLucroPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
   const { usuario } = useAuthContext();
+  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
 
   const [dataInicio, setDataInicio] = useState(() => {
     const d = new Date();
@@ -162,6 +165,11 @@ export default function RelatorioLucroPage() {
   }
 
   return (
+    <PermissionGuard
+      fallbackMessage="Você não tem permissão para acessar este relatório."
+      loading={loadingPermissoes}
+      permission={temPermissao("relatorios.visualizar")}
+    >
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
         <div className="flex items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-100 dark:border-zinc-800">
@@ -264,6 +272,7 @@ export default function RelatorioLucroPage() {
         )}
       </div>
     </div>
+    </PermissionGuard>
   );
 }
 

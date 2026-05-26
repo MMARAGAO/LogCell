@@ -260,6 +260,9 @@ export class PermissoesService {
         definir_metas: false,
         visualizar_metas_outros: false,
       },
+      relatorios: {
+        visualizar: false,
+      },
     };
   }
 
@@ -397,6 +400,9 @@ export class PermissoesService {
         visualizar: true,
         definir_metas: true,
         visualizar_metas_outros: true,
+      },
+      relatorios: {
+        visualizar: true,
       },
     };
   }

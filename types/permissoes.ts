@@ -139,6 +139,8 @@ export type Permissao =
   | "financeiro.funcionarios"
   | "financeiro.custos"
   | "financeiro.relatorios"
+  // Relatórios
+  | "relatorios.visualizar"
   // Configurações
   | "configuracoes.gerenciar";
 
@@ -249,6 +251,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "aparelhos.gerenciar_fotos",
     "aparelhos.ver_relatorios",
     "aparelhos.ver_dashboard",
+    "relatorios.visualizar",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",
@@ -355,6 +358,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "aparelhos.gerenciar_fotos",
     "aparelhos.ver_relatorios",
     "aparelhos.ver_dashboard",
+    "relatorios.visualizar",
     "transferencias.visualizar",
     "transferencias.criar",
     "transferencias.editar",

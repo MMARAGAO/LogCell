@@ -1729,6 +1729,40 @@ export function PermissoesModal({
 
               <Divider className="my-4" />
 
+              {/* Módulo: Relatórios */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">Relatórios</h3>
+                    <Chip color="secondary" size="sm" variant="flat">
+                      Lucro
+                    </Chip>
+                  </div>
+                  <Checkbox
+                    isSelected={todosMarcados("relatorios")}
+                    size="sm"
+                    onValueChange={(checked) =>
+                      handleToggleTodos("relatorios", checked)
+                    }
+                  >
+                    Marcar todos
+                  </Checkbox>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 pl-4">
+                  <Checkbox
+                    isSelected={permissoes.relatorios?.visualizar}
+                    onValueChange={() =>
+                      handleTogglePermissao("relatorios", "visualizar")
+                    }
+                  >
+                    Visualizar
+                  </Checkbox>
+                </div>
+              </div>
+
+              <Divider className="my-4" />
+
               {/* Módulo: Notificações */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-3">

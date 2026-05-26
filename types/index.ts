@@ -192,6 +192,9 @@ export interface PermissoesModulos {
   notificacoes?: {
     visualizar: boolean;
   };
+  relatorios?: {
+    visualizar: boolean;
+  };
 }
 
 export interface CadastroUsuarioData {

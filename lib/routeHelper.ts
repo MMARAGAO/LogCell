@@ -29,6 +29,11 @@ const routes: RouteConfig[] = [
     permissao: "devolucoes.visualizar",
   },
   { name: "Caixa", href: "/sistema/caixa", permissao: "caixa.visualizar" },
+  {
+    name: "Relatório de Lucro",
+    href: "/sistema/relatorios/lucro",
+    permissao: "relatorios.visualizar",
+  },
   { name: "RMAs", href: "/sistema/rmas", permissao: "rma.visualizar" },
   { name: "Lojas", href: "/sistema/lojas", permissao: "lojas.visualizar" },
   {

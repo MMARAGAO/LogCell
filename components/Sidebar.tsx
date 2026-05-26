@@ -141,7 +141,7 @@ const menuSections = [
       {
         name: "Relatório de Lucro",
         href: "/sistema/relatorios/lucro",
-        permissao: "aparelhos.visualizar" as const,
+        permissao: "relatorios.visualizar" as const,
         icon: DocumentChartBarIcon,
         iconSolid: DocumentChartBarIconSolid,
       },
