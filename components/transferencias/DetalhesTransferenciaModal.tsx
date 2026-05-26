@@ -35,7 +35,8 @@ import {
 } from "@/lib/exportarTransferencias";
 
 interface DetalhesTransferenciaModalProps {
-  transferencia: TransferenciaCompleta;
+  isOpen: boolean;
+  transferencia: TransferenciaCompleta | null;
   onClose: () => void;
   onConfirmar: (t: TransferenciaCompleta) => void;
   onCancelar: (t: TransferenciaCompleta) => void;
@@ -73,6 +74,7 @@ const statusConfig = {
 };
 
 export function DetalhesTransferenciaModal({
+  isOpen,
   transferencia,
   onClose,
   onConfirmar,
@@ -82,11 +84,13 @@ export function DetalhesTransferenciaModal({
   podeEditar,
   processando,
 }: DetalhesTransferenciaModalProps) {
+  if (!transferencia) return null;
+
   const config = statusConfig[transferencia.status];
 
   return (
     <Modal
-      isOpen
+      isOpen={isOpen}
       placement="center"
       scrollBehavior="inside"
       size="3xl"

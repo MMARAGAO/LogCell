@@ -25,15 +25,11 @@ export class TransferenciasService {
           `
           *,
           itens:transferencias_itens(
-            *,
+            id, produto_id, quantidade,
             produto:produtos(
               descricao, 
               codigo_fabricante, 
-              marca,
-              estoque_lojas(
-                id_loja,
-                quantidade
-              )
+              marca
             )
           ),
           loja_origem:lojas!loja_origem_id(nome),

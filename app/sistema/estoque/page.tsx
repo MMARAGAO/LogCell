@@ -822,8 +822,7 @@ export default function EstoquePage() {
                 <TableHeader>
                   <TableColumn>PRODUTO</TableColumn>
                   <TableColumn>MARCA</TableColumn>
-                  <TableColumn>MODELOS</TableColumn>
-                  <TableColumn>PREÇO COMPRA</TableColumn>
+                  <TableColumn>CATEGORIA</TableColumn>
                   <TableColumn>PREÇO VENDA</TableColumn>
                   <TableColumn>ESTOQUE</TableColumn>
                   <TableColumn>LOJAS</TableColumn>
@@ -842,38 +841,58 @@ export default function EstoquePage() {
                       className="transition-colors hover:bg-default-50"
                     >
                       <TableCell>
-                        <div className="min-w-0 max-w-[200px]">
-                          <p className="font-medium text-sm truncate">
+                        <div className="min-w-0 max-w-[280px]">
+                          <p className="font-medium text-sm">
                             {produto.descricao}
                           </p>
-                          <p className="text-xs text-default-400 font-mono mt-0.5">
-                            #{produto.id.slice(0, 8)}
-                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {produto.codigo_fabricante ? (
+                              <span className="text-xs text-default-400 font-mono">
+                                {produto.codigo_fabricante}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-default-400 font-mono">
+                                #{produto.id.slice(0, 8)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {produto.marca || (
-                          <span className="text-default-400">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {produto.modelos ? (
-                          <span className="text-sm">{produto.modelos}</span>
+                        {produto.marca ? (
+                          <div>
+                            <p className="text-sm font-medium">{produto.marca}</p>
+                            {produto.modelos && (
+                              <p className="text-xs text-default-400 mt-0.5">
+                                {produto.modelos}
+                              </p>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-default-400">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {temPermissao("estoque.ver_preco_custo") ? (
-                          produto.preco_compra ? (
-                            <span className="font-medium text-warning">
-                              {formatarMoeda(produto.preco_compra)}
-                            </span>
-                          ) : (
-                            <span className="text-default-400">-</span>
-                          )
+                        {produto.categoria ? (
+                          <Chip
+                            classNames={{ content: "text-xs" }}
+                            color="primary"
+                            size="sm"
+                            variant="flat"
+                          >
+                            {produto.categoria}
+                          </Chip>
+                        ) : produto.grupo ? (
+                          <Chip
+                            classNames={{ content: "text-xs" }}
+                            color="secondary"
+                            size="sm"
+                            variant="flat"
+                          >
+                            {produto.grupo}
+                          </Chip>
                         ) : (
-                          <span className="text-default-400 font-mono">***</span>
+                          <span className="text-default-400">-</span>
                         )}
                       </TableCell>
                       <TableCell>

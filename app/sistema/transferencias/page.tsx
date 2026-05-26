@@ -2,7 +2,7 @@
 
 import type { TransferenciaCompleta } from "@/types";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -70,7 +70,7 @@ interface Loja {
 export default function TransferenciasPage() {
   const toast = useToast();
   const { usuario } = useAuth();
-  const { temPermissao } = usePermissoes();
+  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
   const podeConfirmar = temPermissao("transferencias.confirmar");
   const { lojaId, podeVerTodasLojas } = useLojaFilter();
   const router = useRouter();
@@ -113,15 +113,20 @@ export default function TransferenciasPage() {
     transferencia: null as TransferenciaCompleta | null,
   });
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  const carregouInicial = useRef(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (loadingPermissoes) return;
+
+    if (!carregouInicial.current) {
+      carregouInicial.current = true;
+      setLoading(true);
+      carregarDados();
+    } else {
       carregarTransferencias();
+      carregarEstatisticas();
     }
-  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja, pagina, termoBusca]);
+  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja, pagina, termoBusca, loadingPermissoes]);
 
   const carregarDados = async () => {
     setLoading(true);
@@ -972,18 +977,17 @@ export default function TransferenciasPage() {
       )}
 
       {/* Modal de Detalhes */}
-      {transferenciaSelecionada && (
-        <DetalhesTransferenciaModal
-          podeConfirmar={podeConfirmar}
-          podeEditar={temPermissao("transferencias.editar")}
-          processando={processando === transferenciaSelecionada.id}
-          transferencia={transferenciaSelecionada}
-          onCancelar={handleCancelar}
-          onClose={() => setTransferenciaSelecionada(null)}
-          onConfirmar={handleConfirmar}
-          onEditar={handleEditar}
-        />
-      )}
+      <DetalhesTransferenciaModal
+        isOpen={!!transferenciaSelecionada}
+        podeConfirmar={podeConfirmar}
+        podeEditar={temPermissao("transferencias.editar")}
+        processando={processando === transferenciaSelecionada?.id}
+        transferencia={transferenciaSelecionada}
+        onCancelar={handleCancelar}
+        onClose={() => setTransferenciaSelecionada(null)}
+        onConfirmar={handleConfirmar}
+        onEditar={handleEditar}
+      />
 
       {/* Modal de Confirmação */}
       <ConfirmModal

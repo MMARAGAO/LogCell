@@ -113,9 +113,11 @@ export default function NovaTransferenciaPage() {
     }
   }, [transferenciaId]);
 
+  // Busca com debounce para evitar re-renders a cada tecla
   useEffect(() => {
     if (lojaOrigemId && buscaProduto.length > 0) {
-      buscarProdutos();
+      const timer = setTimeout(() => buscarProdutos(), 300);
+      return () => clearTimeout(timer);
     } else {
       setProdutos([]);
     }
@@ -732,7 +734,7 @@ export default function NovaTransferenciaPage() {
               ))}
             </Select>
 
-            {lojaOrigemId && (
+            <div style={{ display: lojaOrigemId ? '' : 'none' }}>
               <Select
                 description="Os produtos adicionados terão esta loja como destino inicial"
                 isDisabled={loading}
@@ -763,7 +765,7 @@ export default function NovaTransferenciaPage() {
                     </SelectItem>
                   ))}
               </Select>
-            )}
+            </div>
 
             {/* Resumo das lojas selecionadas */}
             {lojaOrigemId && (
@@ -797,7 +799,7 @@ export default function NovaTransferenciaPage() {
         </Card>
 
         {/* Passo 2: Produtos */}
-        {lojaOrigemId && (
+        <div style={{ display: lojaOrigemId ? '' : 'none' }}>
           <Card shadow="sm">
             <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
               <span
@@ -1068,11 +1070,11 @@ export default function NovaTransferenciaPage() {
               )}
             </CardBody>
           </Card>
-        )}
+        </div>
 
         {/* Passo 3: Tabela de Itens + Observação */}
-        {itensTransferencia.length > 0 && (
-          <>
+        <div style={{ display: itensTransferencia.length > 0 ? '' : 'none' }}>
+          <div>
             <Card shadow="sm">
               <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
                 <span className="w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center">
@@ -1432,8 +1434,8 @@ export default function NovaTransferenciaPage() {
                 </div>
               </Tooltip>
             </div>
-          </>
-        )}
+          </div>
+        </div>
 
         {/* Empty State Inicial */}
         {!lojaOrigemId && (
