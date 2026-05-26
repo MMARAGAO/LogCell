@@ -1488,7 +1488,10 @@ export class VendasService {
         query = query.gte("criado_em", filtros.data_inicio);
       }
       if (filtros?.data_fim) {
-        query = query.lte("criado_em", filtros.data_fim);
+        const dataFim = new Date(filtros.data_fim);
+        dataFim.setDate(dataFim.getDate() + 1);
+        const diaSeguinte = dataFim.toISOString().split("T")[0];
+        query = query.lt("criado_em", diaSeguinte);
       }
 
       if (filtros?.cliente_nome) {

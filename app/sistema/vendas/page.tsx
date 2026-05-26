@@ -394,12 +394,14 @@ export default function VendasPage() {
 
     const filtros: any = {};
 
-    // Usar as datas do filtro do usuário (se definidas)
-    if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
-    if (filtroDataFim) filtros.data_fim = filtroDataFim;
-
-    // Busca por nome do cliente (server-side)
-    if (busca) filtros.cliente_nome = busca;
+    // Busca por nome do cliente (server-side) — quando busca, ignora filtro de data
+    if (busca) {
+      filtros.cliente_nome = busca;
+    } else {
+      // Só aplica filtro de data quando não há busca por cliente
+      if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
+      if (filtroDataFim) filtros.data_fim = filtroDataFim;
+    }
 
     // Aplicar filtro de loja se usuário não tiver acesso a todas
 
@@ -443,24 +445,25 @@ export default function VendasPage() {
     calcularEstatisticas(dados);
   };
 
-  // Debounce para re-fetch quando as datas do filtro mudam (evita pesquisar a cada caractere)
-  const dataInicialRef = useRef({ inicio: filtroDataInicio, fim: filtroDataFim });
+  // Debounce para re-fetch quando filtros mudam (evita pesquisar a cada caractere)
+  const ultimosFiltrosRef = useRef({ inicio: filtroDataInicio, fim: filtroDataFim, busca });
 
   useEffect(() => {
-    // Pular o primeiro render (já foi carregado pelo useEffect de inicialização)
     if (
-      dataInicialRef.current.inicio === filtroDataInicio &&
-      dataInicialRef.current.fim === filtroDataFim
+      ultimosFiltrosRef.current.inicio === filtroDataInicio &&
+      ultimosFiltrosRef.current.fim === filtroDataFim &&
+      ultimosFiltrosRef.current.busca === busca
     ) {
       return;
     }
 
     const timer = setTimeout(() => {
+      ultimosFiltrosRef.current = { inicio: filtroDataInicio, fim: filtroDataFim, busca };
       carregarVendas();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [filtroDataInicio, filtroDataFim]);
+  }, [filtroDataInicio, filtroDataFim, busca]);
 
   const calcularEstatisticas = (vendas: VendaCompleta[]) => {
     const hoje = new Date().toISOString().split("T")[0];
@@ -1251,10 +1254,12 @@ export default function VendasPage() {
     const matchCliente =
       filtroCliente === "todos" || venda.cliente_id === filtroCliente;
 
-    // Filtro de data
+    // Filtro de data — ignorado quando há busca por nome de cliente
     let matchData = true;
 
-    if (filtroDataInicio || filtroDataFim) {
+    if (busca) {
+      matchData = true;
+    } else if (filtroDataInicio || filtroDataFim) {
       // Extrair componentes de data para comparação
       const dataVendaObj = new Date(venda.criado_em);
       const ano = dataVendaObj.getFullYear();
