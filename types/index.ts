@@ -14,6 +14,7 @@ export interface Usuario {
   telefone?: string;
   cpf?: string;
   ativo: boolean;
+  is_tecnico?: boolean;
   criado_em: string;
   atualizado_em: string;
   foto_url?: string;
@@ -199,6 +200,7 @@ export interface CadastroUsuarioData {
   senha: string;
   telefone?: string;
   cpf?: string;
+  is_tecnico?: boolean;
 }
 
 export interface LoginData {

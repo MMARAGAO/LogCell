@@ -8,6 +8,27 @@ export type StatusAparelho =
   | "transferido";
 export type TipoDevolucaoAparelho = "devolucao" | "troca" | "garantia";
 
+export type TipoAcaoHistoricoAparelho =
+  | "criacao"
+  | "edicao"
+  | "vendido"
+  | "pagamento"
+  | "exclusao_pagamento"
+  | "status"
+  | "devolucao"
+  | "transferencia";
+
+export interface HistoricoAparelho {
+  id: string;
+  aparelho_id: string;
+  tipo_acao: TipoAcaoHistoricoAparelho;
+  descricao: string;
+  dados_antes?: any;
+  dados_depois?: any;
+  usuario_id?: string;
+  criado_em: string;
+}
+
 export interface FotoAparelho {
   id: string;
   aparelho_id: string;
@@ -120,7 +141,7 @@ export interface FiltrosAparelhos {
   marca?: string;
   modelo?: string;
   estado?: EstadoAparelho;
-  status?: StatusAparelho;
+  status?: StatusAparelho | "com_pagamento";
   busca?: string; // Para IMEI, número série, marca, modelo
   exibir_catalogo?: boolean;
   destaque?: boolean;

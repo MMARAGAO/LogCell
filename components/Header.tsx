@@ -322,7 +322,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       <div className="flex items-center justify-between h-16 px-4 lg:px-6">
         {/* Left Section - Menu + Title */}
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <button
             aria-label="Abrir menu"
             className="lg:hidden p-2 hover:bg-default-100 rounded-lg transition-colors"

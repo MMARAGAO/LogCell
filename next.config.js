@@ -27,6 +27,12 @@ const nextConfig = {
         port: "",
         pathname: "/storage/v1/object/public/**",
       },
+      {
+        protocol: "https",
+        hostname: "supabase.mmaragao.cloud",
+        port: "",
+        pathname: "/storage/v1/object/public/**",
+      },
     ],
   },
   // Remove console.log conforme configuração acima
@@ -45,6 +51,17 @@ const nextConfig = {
   experimental: {
     // Otimizar carregamento de pacotes
     optimizePackageImports: ["@heroui/react"],
+  },
+  // Impede cache do HTML para evitar ChunkLoadError após deploys
+  async headers() {
+    return [
+      {
+        source: '/:path((?!_next/static|_next/image|favicon.ico).*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
+        ],
+      },
+    ];
   },
 };
 

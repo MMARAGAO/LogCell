@@ -60,32 +60,38 @@ export class AuthService {
         return null;
       }
 
-      // Primeiro verifica se é técnico
+      // Busca dados do usuário na tabela usuarios
+      const usuario = await this.getUsuarioById(user.id);
+
+      if (usuario) {
+        if (usuario.is_tecnico) {
+          return {
+            ...usuario,
+            tipo_usuario: "tecnico" as TipoUsuario,
+          };
+        }
+
+        return {
+          ...usuario,
+          tipo_usuario: "usuario" as TipoUsuario,
+        };
+      }
+
+      // Fallback: verifica se é técnico (para usuários antigos sem registro em usuarios)
       const tecnico = await this.getTecnicoById(user.id);
 
       if (tecnico) {
-        // Retorna técnico como usuário com tipo_usuario = 'tecnico'
-        // IMPORTANTE: usar usuario_id (auth.uid) em vez de tecnico.id
         return {
-          id: tecnico.usuario_id || user.id, // usa auth.uid para RLS
+          id: tecnico.usuario_id || user.id,
           nome: tecnico.nome,
           email: tecnico.email,
           telefone: tecnico.telefone,
           cpf: tecnico.cpf,
           ativo: tecnico.ativo,
+          is_tecnico: true,
           criado_em: tecnico.criado_em,
           atualizado_em: tecnico.atualizado_em,
           tipo_usuario: "tecnico" as TipoUsuario,
-        };
-      }
-
-      // Se não é técnico, busca como usuário administrativo
-      const usuario = await this.getUsuarioById(user.id);
-
-      if (usuario) {
-        return {
-          ...usuario,
-          tipo_usuario: "usuario" as TipoUsuario,
         };
       }
 

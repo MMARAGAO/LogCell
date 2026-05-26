@@ -1,11 +1,18 @@
 import { supabase } from "@/lib/supabaseClient";
+import { BrindesAparelhosService } from "@/services/brindesAparelhosService";
 
 interface CriarPagamentoAparelhoParams {
   aparelhoId: string;
   clienteId: string;
+  lojaId: number;
   valorVenda: number;
   pagamentos: {
     tipo_pagamento: string;
+    valor: number;
+    parcelas?: number;
+  }[];
+  brindes?: {
+    descricao: string;
     valor: number;
   }[];
   usuarioId: string;
@@ -14,16 +21,9 @@ interface CriarPagamentoAparelhoParams {
 export async function criarPagamentoAparelho(
   params: CriarPagamentoAparelhoParams,
 ) {
-  const { aparelhoId, clienteId, valorVenda, pagamentos, usuarioId } = params;
+  const { aparelhoId, clienteId, lojaId, valorVenda, pagamentos, brindes = [], usuarioId } = params;
 
-  // Validar que não ultrapassa o valor
   const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
-
-  if (totalPago > valorVenda) {
-    throw new Error(
-      "Total de pagamentos não pode ultrapassar o valor da venda",
-    );
-  }
 
   // Criar venda
   const { data: vendaData, error: vendaError } = await supabase
@@ -50,6 +50,7 @@ export async function criarPagamentoAparelho(
     venda_id: vendaData.id,
     tipo_pagamento: pag.tipo_pagamento,
     valor: pag.valor,
+    parcelas: pag.parcelas || 1,
     data_pagamento: new Date().toISOString().split("T")[0],
     criado_por: usuarioId,
   }));
@@ -78,13 +79,29 @@ export async function criarPagamentoAparelho(
     throw new Error(`Erro ao atualizar aparelho: ${aparelhoError.message}`);
   }
 
+  // Registrar brindes
+  for (const brinde of brindes) {
+    try {
+      await BrindesAparelhosService.registrarBrinde({
+        loja_id: lojaId,
+        venda_id: vendaData.id,
+        descricao: brinde.descricao,
+        valor_custo: brinde.valor,
+        usuario_id: usuarioId,
+      });
+    } catch (error) {
+      console.error("Erro ao registrar brinde:", error);
+    }
+  }
+
   // Registrar no histórico
+  const descricaoHistorico = `Venda de aparelho ${aparelhoId} com ${pagamentos.length} forma(s) de pagamento${brindes.length > 0 ? ` e ${brindes.length} brinde(s)` : ""}`;
   const { error: historicoError } = await supabase
     .from("historico_vendas")
     .insert({
       venda_id: vendaData.id,
       tipo_acao: "criacao",
-      descricao: `Venda de aparelho ${aparelhoId} com ${pagamentos.length} forma(s) de pagamento`,
+      descricao: descricaoHistorico,
       usuario_id: usuarioId,
     });
 

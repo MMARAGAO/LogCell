@@ -42,6 +42,7 @@ export function UsuarioFormModal({
     telefone: "",
     cpf: "",
     ativo: true,
+    is_tecnico: false,
   });
 
   // Preenche o formulário quando editar
@@ -54,6 +55,7 @@ export function UsuarioFormModal({
         telefone: usuario.telefone || "",
         cpf: usuario.cpf || "",
         ativo: usuario.ativo,
+        is_tecnico: usuario.is_tecnico || false,
       });
     } else {
       setFormData({
@@ -63,6 +65,7 @@ export function UsuarioFormModal({
         telefone: "",
         cpf: "",
         ativo: true,
+        is_tecnico: false,
       });
     }
     setError(null);
@@ -132,6 +135,7 @@ export function UsuarioFormModal({
           telefone: formData.telefone || undefined,
           cpf: formData.cpf || undefined,
           ativo: formData.ativo,
+          is_tecnico: formData.is_tecnico,
         });
       } else {
         // Criar novo usuário
@@ -141,6 +145,7 @@ export function UsuarioFormModal({
           senha: formData.senha,
           telefone: formData.telefone || undefined,
           cpf: formData.cpf || undefined,
+          is_tecnico: formData.is_tecnico,
         });
       }
 
@@ -239,7 +244,8 @@ export function UsuarioFormModal({
                   <div className="text-sm text-default-500 bg-default-100 p-3 rounded-lg">
                     ℹ️ O usuário será criado como <strong>inativo</strong> e
                     precisará ser ativado por um administrador para acessar o
-                    sistema.
+                    sistema. Se marcado como <strong>técnico</strong>, poderá
+                    acessar o workspace de ordens de serviço.
                   </div>
                 </>
               )}
@@ -253,6 +259,14 @@ export function UsuarioFormModal({
                   Usuário Ativo
                 </Switch>
               )}
+
+              {/* É técnico? */}
+              <Switch
+                isSelected={formData.is_tecnico}
+                onValueChange={(value) => handleChange("is_tecnico", value)}
+              >
+                É técnico?
+              </Switch>
 
               {/* Mensagem de Erro */}
               {error && (

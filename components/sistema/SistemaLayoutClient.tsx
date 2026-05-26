@@ -9,26 +9,26 @@ interface SistemaLayoutClientProps {
   children: React.ReactNode;
 }
 
-/**
- * Componente Client para gerenciar estado da sidebar
- * Separado do layout para evitar que o layout seja Client Component
- */
 export function SistemaLayoutClient({ children }: SistemaLayoutClientProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {/* Sidebar (desktop: flex flow, mobile: overlay via fixed) */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-72">
-        {/* Header */}
+      {/* Main Content - no margin needed, sidebar is in flex flow on lg+ */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0 transition-all duration-300">
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-default-100/50">
-          <div className="container mx-auto p-4 lg:p-6">{children}</div>
+        <main className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-zinc-950">
+          <div className="p-4 lg:p-6">{children}</div>
         </main>
       </div>
     </div>

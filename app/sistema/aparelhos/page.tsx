@@ -55,8 +55,11 @@ import {
   PiggyBank,
   PackageX,
   History,
+  CreditCard,
+  Info,
 } from "lucide-react";
 
+import { PermissionGuard } from "@/components/PermissionGuard";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useToast } from "@/components/Toast";
@@ -72,6 +75,7 @@ import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { AparelhoFormModal } from "@/components/aparelhos/AparelhoFormModal";
 import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
 import { VendaAparelhoModal } from "@/components/aparelhos/VendaAparelhoModal";
+import { DetalhesAparelhoModal } from "@/components/aparelhos/DetalhesAparelhoModal";
 import { ModalDevolucaoAparelho } from "@/components/aparelhos/ModalDevolucaoAparelho";
 import { HistoricoDevolucoesAparelho } from "@/components/aparelhos/HistoricoDevolucoesAparelho";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -96,6 +100,7 @@ const ESTADOS = [
 const STATUS = [
   { value: "disponivel", label: "Disponível", color: "success" },
   { value: "vendido", label: "Vendido", color: "default" },
+  { value: "com_pagamento", label: "Com pagamento", color: "success" },
   { value: "reservado", label: "Reservado", color: "warning" },
   { value: "defeito", label: "Defeito", color: "danger" },
   { value: "transferido", label: "Transferido", color: "primary" },
@@ -165,8 +170,9 @@ export default function AparelhosPage() {
   >(undefined);
   const [scannerAberto, setScannerAberto] = useState(false);
   const [lojas, setLojas] = useState<Loja[]>([]);
-  const [loadingLojas, setLoadingLojas] = useState(false);
-  const [lojaSelecionada, setLojaSelecionada] = useState<string>("");
+  const [vendasInfo, setVendasInfo] = useState<Record<string, { valor_pago: number; saldo_devedor: number }>>({});
+  const [modalDetalhesAberto, setModalDetalhesAberto] = useState(false);
+  const [aparelhoParaDetalhes, setAparelhoParaDetalhes] = useState<Aparelho | undefined>(undefined);
 
   // Permissões
   const podeVisualizar = temPermissao("aparelhos.visualizar");
@@ -181,19 +187,11 @@ export default function AparelhosPage() {
   const podeVerDashboard = temPermissao("aparelhos.ver_dashboard");
   const podeRegistrarDevolucao = temPermissao("devolucoes.criar");
   const podeVerHistoricoDevolucao = temPermissao("devolucoes.visualizar");
-  const lojaIdFinal = todasLojas
-    ? lojaSelecionada
-      ? Number(lojaSelecionada)
-      : null
-    : lojaId;
-  const lojaNomeSelecionada =
-    lojas.find((loja) => loja.id === lojaIdFinal)?.nome ||
-    (lojaIdFinal ? `Loja ${lojaIdFinal}` : "");
+  const lojaIdFinal = todasLojas ? null : lojaId;
 
   useEffect(() => {
     const carregarLojas = async () => {
       if (!todasLojas) return;
-      setLoadingLojas(true);
       try {
         const { data, error } = await supabase
           .from("lojas")
@@ -205,43 +203,13 @@ export default function AparelhosPage() {
       } catch (error) {
         console.error("Erro ao carregar lojas:", error);
         setLojas([]);
-      } finally {
-        setLoadingLojas(false);
       }
     };
 
     carregarLojas();
   }, [todasLojas]);
 
-  useEffect(() => {
-    if (!todasLojas) return;
-    if (lojaSelecionada) return;
-    if (!lojas.length) return;
 
-    const lojaSalva = localStorage.getItem("aparelhos.lojaSelecionada");
-
-    if (lojaSalva && lojas.some((loja) => loja.id.toString() === lojaSalva)) {
-      setLojaSelecionada(lojaSalva);
-
-      return;
-    }
-
-    if (lojas.length === 1) {
-      setLojaSelecionada(lojas[0].id.toString());
-    }
-  }, [todasLojas, lojas, lojaSelecionada]);
-
-  useEffect(() => {
-    if (!todasLojas) return;
-    if (!lojaSelecionada) return;
-    localStorage.setItem("aparelhos.lojaSelecionada", lojaSelecionada);
-  }, [todasLojas, lojaSelecionada]);
-
-  useEffect(() => {
-    if (!loadingPermissoes && !todasLojas && lojaId) {
-      setLojaSelecionada(lojaId.toString());
-    }
-  }, [loadingPermissoes, todasLojas, lojaId]);
 
   // Carregar aparelhos e produtos
   useEffect(() => {
@@ -276,11 +244,36 @@ export default function AparelhosPage() {
       const filtrosComLoja: FiltrosAparelhos = {
         ...filtros,
         loja_id: lojaIdFinal || undefined,
+        status: filtros.status === "com_pagamento" ? undefined : filtros.status,
       };
 
       const aparelhosData = await getAparelhos(filtrosComLoja);
 
       setAparelhos(aparelhosData);
+
+      // Carregar dados de vendas (pagamento) para aparelhos vendidos
+      const vendasIds = aparelhosData
+        .filter((a) => a.status === "vendido" && a.venda_id)
+        .map((a) => a.venda_id) as string[];
+
+      if (vendasIds.length > 0) {
+        try {
+          const { data: vendas } = await supabase
+            .from("vendas")
+            .select("id, valor_pago, saldo_devedor")
+            .in("id", vendasIds);
+
+          const vendasMap: Record<string, { valor_pago: number; saldo_devedor: number }> = {};
+          vendas?.forEach((v) => {
+            vendasMap[v.id] = { valor_pago: v.valor_pago, saldo_devedor: v.saldo_devedor };
+          });
+          setVendasInfo(vendasMap);
+        } catch (err) {
+          console.error("Erro ao carregar dados de venda:", err);
+        }
+      } else {
+        setVendasInfo({});
+      }
 
       // Carregar fotos de todos os aparelhos
       const fotosMap: Record<string, FotoAparelho[]> = {};
@@ -340,16 +333,24 @@ export default function AparelhosPage() {
 
   // Filtrar aparelhos
   const aparelhosFiltrados = aparelhos.filter((aparelho) => {
+    // Filtro de busca
     if (busca) {
       const buscaLower = busca.toLowerCase();
 
-      return (
-        aparelho.marca?.toLowerCase().includes(buscaLower) ||
-        aparelho.modelo?.toLowerCase().includes(buscaLower) ||
-        aparelho.imei?.toLowerCase().includes(buscaLower) ||
-        aparelho.numero_serie?.toLowerCase().includes(buscaLower) ||
-        aparelho.cor?.toLowerCase().includes(buscaLower)
-      );
+      if (
+        !aparelho.marca?.toLowerCase().includes(buscaLower) &&
+        !aparelho.modelo?.toLowerCase().includes(buscaLower) &&
+        !aparelho.imei?.toLowerCase().includes(buscaLower) &&
+        !aparelho.numero_serie?.toLowerCase().includes(buscaLower) &&
+        !aparelho.cor?.toLowerCase().includes(buscaLower)
+      ) {
+        return false;
+      }
+    }
+
+    // Filtro "Com pagamento" (client-side)
+    if (filtros.status === "com_pagamento") {
+      return aparelho.status === "vendido" && aparelho.venda_id;
     }
 
     return true;
@@ -369,11 +370,6 @@ export default function AparelhosPage() {
   };
 
   const handleAbrirFormEditar = (aparelho: Aparelho) => {
-    if (todasLojas && !lojaIdFinal) {
-      showToast("Selecione uma loja antes de editar", "warning");
-
-      return;
-    }
     setAparelhoParaEditar(aparelho);
     setModalFormAberto(true);
   };
@@ -412,6 +408,12 @@ export default function AparelhosPage() {
 
       return;
     }
+    if (key === "gerenciar_pagamentos") {
+      setAparelhoParaReceber(aparelho);
+      setModalRecebimentoAberto(true);
+
+      return;
+    }
     if (key === "deletar") {
       handleAbrirConfirmDelete(aparelho);
 
@@ -420,11 +422,6 @@ export default function AparelhosPage() {
     if (key === "vender") {
       if (!podeVender) {
         showToast("Você não tem permissão para vender aparelhos", "warning");
-
-        return;
-      }
-      if (todasLojas && !lojaIdFinal) {
-        showToast("Selecione uma loja antes de vender", "warning");
 
         return;
       }
@@ -444,6 +441,12 @@ export default function AparelhosPage() {
       }
       setAparelhoParaReceber(aparelho);
       setModalRecebimentoAberto(true);
+
+      return;
+    }
+    if (key === "detalhes") {
+      setAparelhoParaDetalhes(aparelho);
+      setModalDetalhesAberto(true);
 
       return;
     }
@@ -496,347 +499,173 @@ export default function AparelhosPage() {
     return estadoObj?.label || estado;
   };
 
-  if (!podeVisualizar) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Card className="p-6">
-          <CardBody>
-            <p className="text-danger">
-              Você não tem permissão para visualizar aparelhos.
-            </p>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
-
-  if (loadingPermissoes) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner />
-      </div>
-    );
-  }
-
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <PermissionGuard permission={podeVisualizar} loading={loadingPermissoes} fallbackMessage="Você não tem permissão para visualizar aparelhos.">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <DevicePhoneMobileIcon className="w-8 h-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Aparelhos</h1>
-            <p className="text-sm text-default-500">
-              Gerencie o cadastro de aparelhos individuais
-            </p>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <DevicePhoneMobileIcon className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Aparelhos</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Gerencie o cadastro de aparelhos individuais
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-          {todasLojas ? (
-            <Select
-              className="w-full md:w-56"
-              isDisabled={loadingLojas}
-              label="Loja"
-              placeholder={
-                loadingLojas ? "Carregando lojas..." : "Selecione uma loja"
-              }
-              selectedKeys={lojaSelecionada ? [lojaSelecionada] : []}
-              onChange={(e) => setLojaSelecionada(e.target.value)}
-            >
-              {lojas.map((loja) => (
-                <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
-              ))}
-            </Select>
-          ) : null}
-          <Button
-            color="primary"
-            startContent={<TrendingUp className="w-5 h-5" />}
-            variant="flat"
-            onPress={() =>
-              (window.location.href = "/sistema/dashboard-aparelhos")
-            }
-          >
-            Dashboard
-          </Button>
-          <Button
-            color="secondary"
-            startContent={<DollarSign className="w-5 h-5" />}
-            variant="flat"
-            onPress={() => (window.location.href = "/sistema/caixa-aparelhos")}
-          >
-            Caixa de Aparelhos
-          </Button>
-          {podeCriar && (
+          <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+            {podeCriar && (
+              <Button
+                color="primary"
+                className="font-medium text-sm rounded-xl"
+                startContent={<PlusIcon className="w-4 h-4" />}
+                onPress={handleAbrirFormNovo}
+              >
+                Novo Aparelho
+              </Button>
+            )}
             <Button
-              color="primary"
-              startContent={<PlusIcon className="w-5 h-5" />}
-              onPress={handleAbrirFormNovo}
+              variant="flat"
+              className="font-medium text-sm rounded-xl"
+              startContent={<CreditCard className="w-4 h-4" />}
+              onPress={() => (window.location.href = "/sistema/configuracoes/taxas-cartao")}
             >
-              Novo Aparelho
+              Taxas de Cartão
             </Button>
-          )}
+          </div>
         </div>
+
+        {/* KPIs */}
+        {podeVerDashboard && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800">
+            <KpiCard icon={<ShoppingBag className="w-4 h-4" />} value={kpis.vendasHoje.toString()} label="Vendas (Hoje)" color="text-primary" bg="bg-primary/5" iconBg="bg-primary/10" />
+            <KpiCard icon={<Wallet className="w-4 h-4" />} value={formatarMoeda(kpis.recebimentosHoje)} label="Recebimentos (Hoje)" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
+            <KpiCard icon={<DollarSign className="w-4 h-4" />} value={formatarMoeda(kpis.aReceber)} label="A Receber" color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-900/20" iconBg="bg-orange-100 dark:bg-orange-900/40" />
+            <KpiCard icon={<TrendingUp className="w-4 h-4" />} value={kpis.vendasMes.toString()} label="Vendas (Mês)" color="text-indigo-600 dark:text-indigo-400" bg="bg-indigo-50 dark:bg-indigo-900/20" iconBg="bg-indigo-100 dark:bg-indigo-900/40" />
+            <KpiCard icon={<Box className="w-4 h-4" />} value={kpis.disponiveis.toString()} label="Disponíveis" color="text-gray-600 dark:text-gray-300" bg="bg-gray-50 dark:bg-zinc-800" iconBg="bg-gray-100 dark:bg-zinc-700" />
+            <KpiCard icon={<Coins className="w-4 h-4" />} value={formatarMoeda(kpis.valorVendidoMes)} label="Vendido (Mês)" color="text-amber-600 dark:text-amber-400" bg="bg-amber-50 dark:bg-amber-900/20" iconBg="bg-amber-100 dark:bg-amber-900/40" />
+            <KpiCard icon={<Gauge className="w-4 h-4" />} value={formatarMoeda(kpis.ticketMedioMes)} label="Ticket Médio" color="text-purple-600 dark:text-purple-400" bg="bg-purple-50 dark:bg-purple-900/20" iconBg="bg-purple-100 dark:bg-purple-900/40" />
+            <KpiCard icon={<PiggyBank className="w-4 h-4" />} value={formatarMoeda(kpis.lucroEstimadoMes)} label="Lucro Est. (Mês)" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
+          </div>
+        )}
       </div>
-
-      {/* KPIs - Linha 1 */}
-      {podeVerDashboard && (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <ShoppingBag className="w-5 h-5 text-primary" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Vendas de Aparelhos (Hoje)
-                  </p>
-                  <h3 className="text-2xl font-bold">{kpis.vendasHoje}</h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <Wallet className="w-5 h-5 text-success" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Recebimentos (Hoje)
-                  </p>
-                  <h3 className="text-2xl font-bold">
-                    {formatarMoeda(kpis.recebimentosHoje)}
-                  </h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <DollarSign className="w-5 h-5 text-warning" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">A Receber</p>
-                  <h3 className="text-2xl font-bold">
-                    {formatarMoeda(kpis.aReceber)}
-                  </h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <TrendingUp className="w-5 h-5 text-secondary" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">Vendas (Mês)</p>
-                  <h3 className="text-2xl font-bold">{kpis.vendasMes}</h3>
-                </div>
-              </CardHeader>
-            </Card>
-          </div>
-
-          {/* KPIs - Linha 2 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <Box className="w-5 h-5 text-default-700" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Aparelhos Disponíveis
-                  </p>
-                  <h3 className="text-2xl font-bold">{kpis.disponiveis}</h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <Coins className="w-5 h-5 text-amber-600" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Valor Vendido (Mês)
-                  </p>
-                  <h3 className="text-2xl font-bold">
-                    {formatarMoeda(kpis.valorVendidoMes)}
-                  </h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <Gauge className="w-5 h-5 text-purple-600" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Ticket Médio (Mês)
-                  </p>
-                  <h3 className="text-2xl font-bold">
-                    {formatarMoeda(kpis.ticketMedioMes)}
-                  </h3>
-                </div>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader className="flex gap-3 items-center">
-                <PiggyBank className="w-5 h-5 text-emerald-600" />
-                <div className="flex flex-col">
-                  <p className="text-small text-default-500">
-                    Lucro Estimado (Mês)
-                  </p>
-                  <h3 className="text-2xl font-bold">
-                    {formatarMoeda(kpis.lucroEstimadoMes)}
-                  </h3>
-                </div>
-              </CardHeader>
-            </Card>
-          </div>
-        </>
-      )}
 
       {/* Filtros e Busca */}
-      <Card>
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex gap-2 flex-1">
-                <Input
-                  className="flex-1"
-                  placeholder="Buscar por marca, modelo, IMEI, número de série..."
-                  startContent={<MagnifyingGlassIcon className="w-4 h-4" />}
-                  value={busca}
-                  onValueChange={setBusca}
-                />
-                <Button
-                  isIconOnly
-                  color="primary"
-                  title="Escanear IMEI"
-                  variant="flat"
-                  onPress={() => setScannerAberto(true)}
-                >
-                  <CameraIcon className="w-5 h-5" />
-                </Button>
-              </div>
-              <Select
-                className="w-full md:w-60"
-                placeholder="Filtrar por estado"
-                selectedKeys={filtros.estado ? [filtros.estado] : []}
-                startContent={<FunnelIcon className="w-4 h-4" />}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
+        <div className="flex flex-col gap-4">
+          {/* Busca */}
+          <div className="flex gap-2">
+            <Input
+              className="flex-1"
+              placeholder="Buscar por marca, modelo, IMEI, número de série..."
+              startContent={<MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />}
+              value={busca}
+              variant="bordered"
+              classNames={{
+                input: "text-sm",
+                inputWrapper: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              onValueChange={setBusca}
+            />
+            <Button
+              isIconOnly
+              color="primary"
+              title="Escanear IMEI"
+              variant="flat"
+              className="rounded-xl"
+              onPress={() => setScannerAberto(true)}
+            >
+              <CameraIcon className="w-5 h-5" />
+            </Button>
+          </div>
 
-                  setFiltros((prev) => ({
-                    ...prev,
-                    estado: (value || undefined) as any,
-                  }));
-                }}
+          {/* Filtros */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <Select
+              className="w-full md:w-60"
+              placeholder="Filtrar por estado"
+              selectedKeys={filtros.estado ? [filtros.estado] : []}
+              size="sm"
+              variant="bordered"
+              classNames={{
+                trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              startContent={<FunnelIcon className="w-3.5 h-3.5 text-gray-400" />}
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] as string;
+                setFiltros((prev) => ({ ...prev, estado: (value || undefined) as any }));
+              }}
+            >
+              {ESTADOS.map((estado) => (
+                <SelectItem key={estado.value}>{estado.label}</SelectItem>
+              ))}
+            </Select>
+            <Select
+              className="w-full md:w-60"
+              placeholder="Filtrar por status"
+              selectedKeys={filtros.status ? [filtros.status] : []}
+              size="sm"
+              variant="bordered"
+              classNames={{
+                trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              startContent={<FunnelIcon className="w-3.5 h-3.5 text-gray-400" />}
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] as string;
+                setFiltros((prev) => ({ ...prev, status: (value || undefined) as any }));
+              }}
+            >
+              {STATUS.map((status) => (
+                <SelectItem key={status.value}>{status.label}</SelectItem>
+              ))}
+            </Select>
+
+            {filtros.estado || filtros.status ? (
+              <Button
+                color="default"
+                size="sm"
+                variant="flat"
+                className="rounded-xl"
+                onPress={() => { setFiltros({}); setBusca(""); }}
               >
-                {ESTADOS.map((estado) => (
-                  <SelectItem key={estado.value}>{estado.label}</SelectItem>
-                ))}
-              </Select>
-              <Select
-                className="w-full md:w-60"
-                placeholder="Filtrar por status"
-                selectedKeys={filtros.status ? [filtros.status] : []}
-                startContent={<FunnelIcon className="w-4 h-4" />}
-                onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string;
+                Limpar Filtros
+              </Button>
+            ) : null}
+          </div>
 
-                  setFiltros((prev) => ({
-                    ...prev,
-                    status: (value || undefined) as any,
-                  }));
-                }}
+          {/* Toggle de Visualização */}
+          <div className="flex justify-between items-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {aparelhosFiltrados.length} aparelho(s) encontrado(s)
+            </p>
+            <div className="flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-xl p-1">
+              <Button
+                isIconOnly
+                color={visualizacao === "cards" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "cards" ? "solid" : "light"}
+                className="rounded-lg"
+                onPress={() => setVisualizacao("cards")}
               >
-                {STATUS.map((status) => (
-                  <SelectItem key={status.value}>{status.label}</SelectItem>
-                ))}
-              </Select>
-
-              {/* Filtros de Catálogo */}
-              <div className="flex gap-2">
-                <Button
-                  color="danger"
-                  size="sm"
-                  startContent={<TagIcon className="w-4 h-4" />}
-                  variant={filtros.promocao ? "solid" : "bordered"}
-                  onPress={() =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      promocao: filtros.promocao ? undefined : true,
-                    }))
-                  }
-                >
-                  Promoção
-                </Button>
-                <Button
-                  color="success"
-                  size="sm"
-                  startContent={<SparklesIcon className="w-4 h-4" />}
-                  variant={filtros.novidade ? "solid" : "bordered"}
-                  onPress={() =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      novidade: filtros.novidade ? undefined : true,
-                    }))
-                  }
-                >
-                  Novidade
-                </Button>
-                <Button
-                  color="warning"
-                  size="sm"
-                  startContent={<FireIcon className="w-4 h-4" />}
-                  variant={filtros.destaque ? "solid" : "bordered"}
-                  onPress={() =>
-                    setFiltros((prev) => ({
-                      ...prev,
-                      destaque: filtros.destaque ? undefined : true,
-                    }))
-                  }
-                >
-                  Destaque
-                </Button>
-              </div>
-
-              {(filtros.estado ||
-                filtros.status ||
-                filtros.promocao ||
-                filtros.novidade ||
-                filtros.destaque) && (
-                <Button
-                  color="default"
-                  variant="flat"
-                  onPress={() => {
-                    setFiltros({});
-                    setBusca("");
-                  }}
-                >
-                  Limpar Filtros
-                </Button>
-              )}
-            </div>
-
-            {/* Toggle de Visualização */}
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-default-500">
-                {aparelhosFiltrados.length} aparelho(s) encontrado(s)
-              </p>
-              <div className="flex gap-1 bg-default-100 rounded-lg p-1">
-                <Button
-                  isIconOnly
-                  color={visualizacao === "cards" ? "primary" : "default"}
-                  size="sm"
-                  variant={visualizacao === "cards" ? "solid" : "light"}
-                  onPress={() => setVisualizacao("cards")}
-                >
-                  <Squares2X2Icon className="w-4 h-4" />
-                </Button>
-                <Button
-                  isIconOnly
-                  color={visualizacao === "tabela" ? "primary" : "default"}
-                  size="sm"
-                  variant={visualizacao === "tabela" ? "solid" : "light"}
-                  onPress={() => setVisualizacao("tabela")}
-                >
-                  <TableCellsIcon className="w-4 h-4" />
-                </Button>
-              </div>
+                <Squares2X2Icon className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                color={visualizacao === "tabela" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "tabela" ? "solid" : "light"}
+                className="rounded-lg"
+                onPress={() => setVisualizacao("tabela")}
+              >
+                <TableCellsIcon className="w-4 h-4" />
+              </Button>
             </div>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
       {/* Visualização em Cards ou Tabela */}
       {visualizacao === "cards" ? (
@@ -844,22 +673,18 @@ export default function AparelhosPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => (
-              <Card key={i} className="h-80">
-                <CardBody className="animate-pulse">
-                  <div className="h-40 bg-default-200 rounded-lg mb-4" />
-                  <div className="h-4 bg-default-200 rounded mb-2" />
-                  <div className="h-4 bg-default-200 rounded w-2/3" />
-                </CardBody>
-              </Card>
+              <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 h-80 animate-pulse p-5">
+                <div className="h-40 bg-gray-200 dark:bg-zinc-700 rounded-xl mb-4" />
+                <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
+                <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-1/2" />
+              </div>
             ))
           ) : aparelhosPaginados.length === 0 ? (
             <div className="col-span-full">
-              <Card>
-                <CardBody className="text-center py-12">
-                  <DevicePhoneMobileIcon className="w-12 h-12 mx-auto text-default-400 mb-2" />
-                  <p className="text-default-500">Nenhum aparelho encontrado</p>
-                </CardBody>
-              </Card>
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12 text-center">
+                <DevicePhoneMobileIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+                <p className="text-sm text-gray-500 dark:text-gray-400">Nenhum aparelho encontrado</p>
+              </div>
             </div>
           ) : (
             aparelhosPaginados.map((aparelho) => {
@@ -868,13 +693,12 @@ export default function AparelhosPage() {
               const fotoAtual = fotos[fotoIndex];
 
               return (
-                <Card
+                <div
                   key={aparelho.id}
-                  className="hover:shadow-lg transition-shadow relative"
+                  className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow relative overflow-hidden"
                 >
-                  <CardBody className="p-0">
-                    {/* Carrossel de Fotos */}
-                    <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-50 overflow-hidden group">
+                  {/* Carrossel de Fotos */}
+                  <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/40 dark:to-primary-800/20 overflow-hidden group">
                       {fotos.length > 0 ? (
                         <>
                           <img
@@ -969,7 +793,7 @@ export default function AparelhosPage() {
                         </>
                       ) : (
                         <div className="flex items-center justify-center h-full">
-                          <DevicePhoneMobileIcon className="w-20 h-20 text-primary-300" />
+                          <DevicePhoneMobileIcon className="w-20 h-20 text-primary-300 dark:text-primary-600" />
                         </div>
                       )}
                     </div>
@@ -981,7 +805,7 @@ export default function AparelhosPage() {
                       <div>
                         <div className="flex justify-between items-start">
                           <h3 className="font-bold text-lg truncate">
-                            {aparelho.marca}
+                            {aparelho.modelo}
                           </h3>
                           {/* Ações do Card */}
                           <div className="">
@@ -1005,44 +829,18 @@ export default function AparelhosPage() {
                                 >
                                   Editar
                                 </DropdownItem>
-                                {podeVender &&
-                                aparelho.status === "disponivel" ? (
-                                  <DropdownItem
-                                    key="vender"
-                                    className="text-success"
-                                    color="success"
-                                    isDisabled={todasLojas && !lojaIdFinal}
-                                    startContent={
-                                      <ShoppingBagIcon className="w-4 h-4" />
-                                    }
-                                    onPress={() =>
-                                      handleAcaoCard("vender", aparelho)
-                                    }
-                                  >
-                                    Vender Aparelho
-                                  </DropdownItem>
-                                ) : null}
-                                {podeRegistrarDevolucao &&
-                                aparelho.status === "vendido" ? (
-                                  <DropdownItem
-                                    key="registrar_devolucao"
-                                    startContent={
-                                      <PackageX className="w-4 h-4" />
-                                    }
-                                  >
-                                    Registrar Devolucao / Troca / Garantia
-                                  </DropdownItem>
-                                ) : null}
-                                {podeVerHistoricoDevolucao ? (
-                                  <DropdownItem
-                                    key="historico_devolucoes"
-                                    startContent={
-                                      <History className="w-4 h-4" />
-                                    }
-                                  >
-                                    Historico de Devolucoes
-                                  </DropdownItem>
-                                ) : null}
+                                <DropdownItem
+                                  key="gerenciar_pagamentos"
+                                  startContent={<DollarSign className="w-4 h-4" />}
+                                >
+                                  Gerenciar Pagamentos
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="detalhes"
+                                  startContent={<Info className="w-4 h-4" />}
+                                >
+                                  Detalhes
+                                </DropdownItem>
                                 <DropdownItem
                                   key="deletar"
                                   className="text-danger"
@@ -1054,61 +852,13 @@ export default function AparelhosPage() {
                                 >
                                   Deletar
                                 </DropdownItem>
-                                <DropdownItem
-                                  key="status:disponivel"
-                                  isDisabled={aparelho.status === "disponivel"}
-                                  startContent={
-                                    <CheckCircleIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Marcar como Disponível
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="status:reservado"
-                                  isDisabled={aparelho.status === "reservado"}
-                                  startContent={
-                                    <ClockIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Marcar como Reservado
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="status:defeito"
-                                  isDisabled={aparelho.status === "defeito"}
-                                  startContent={
-                                    <ExclamationTriangleIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Marcar como Defeito
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="status:transferido"
-                                  isDisabled={aparelho.status === "transferido"}
-                                  startContent={
-                                    <ArrowRightIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Marcar como Transferido
-                                </DropdownItem>
-                                {podeReceber &&
-                                aparelho.status === "vendido" ? (
-                                  <DropdownItem
-                                    key="receber_pagamento"
-                                    color="success"
-                                    startContent={
-                                      <DollarSign className="w-4 h-4" />
-                                    }
-                                  >
-                                    Receber Pagamento
-                                  </DropdownItem>
-                                ) : null}
                               </DropdownMenu>
                             </Dropdown>
                           </div>
                         </div>
                         <div className="">
-                          <p className="text-sm text-default-600 truncate">
-                            {aparelho.modelo}
+                          <p className="text-sm text-default-500 truncate">
+                            {aparelho.marca}
                           </p>
                         </div>
                       </div>
@@ -1196,6 +946,14 @@ export default function AparelhosPage() {
                             Compra: {formatarMoeda(aparelho.valor_compra)}
                           </p>
                         )}
+                        {aparelho.status === "vendido" && aparelho.venda_id && vendasInfo[aparelho.venda_id] && (
+                          <div className="flex gap-3 text-[11px] text-default-500 mt-1">
+                            <span>Pago: <strong className="text-success">{formatarMoeda(vendasInfo[aparelho.venda_id].valor_pago)}</strong></span>
+                            {vendasInfo[aparelho.venda_id].saldo_devedor > 0 && (
+                              <span>Saldo: <strong className="text-warning">{formatarMoeda(vendasInfo[aparelho.venda_id].saldo_devedor)}</strong></span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Ações */}
@@ -1204,7 +962,6 @@ export default function AparelhosPage() {
                           <Button
                             className="flex-1"
                             color="success"
-                            isDisabled={todasLojas && !lojaIdFinal}
                             size="sm"
                             startContent={
                               <ShoppingBagIcon className="w-4 h-4" />
@@ -1244,23 +1001,29 @@ export default function AparelhosPage() {
                         )}
                       </div>
                     </div>
-                  </CardBody>
-                </Card>
+                  </div>
               );
             })
           )}
         </div>
       ) : (
         /* Tabela de Aparelhos */
-        <Card>
-          <CardBody>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+          <div className="overflow-x-auto">
             <Table
               aria-label="Tabela de aparelhos"
+              classNames={{
+                wrapper: "border-none shadow-none bg-transparent",
+                th: "bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider",
+                td: "text-sm text-gray-600 dark:text-gray-300",
+                tr: "border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+              }}
               bottomContent={
                 totalPaginas > 1 ? (
-                  <div className="flex w-full justify-center">
+                  <div className="flex w-full justify-center py-4">
                     <Pagination
                       showControls
+                      color="primary"
                       page={paginaAtual}
                       total={totalPaginas}
                       onChange={setPaginaAtual}
@@ -1290,7 +1053,7 @@ export default function AparelhosPage() {
                     <TableCell>
                       <div className="flex flex-col gap-1">
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">{aparelho.marca}</p>
+                          <p className="font-medium">{aparelho.modelo}</p>
                           {aparelho.promocao && (
                             <Chip color="danger" size="sm" variant="flat">
                               Promoção
@@ -1308,7 +1071,7 @@ export default function AparelhosPage() {
                           )}
                         </div>
                         <p className="text-xs text-default-500">
-                          {aparelho.modelo}
+                          {aparelho.marca}
                         </p>
                       </div>
                     </TableCell>
@@ -1390,9 +1153,17 @@ export default function AparelhosPage() {
                       </Dropdown>
                     </TableCell>
                     <TableCell>
-                      {aparelho.valor_venda
-                        ? formatarMoeda(aparelho.valor_venda)
-                        : "-"}
+                      <div>
+                        <span>{aparelho.valor_venda ? formatarMoeda(aparelho.valor_venda) : "-"}</span>
+                        {aparelho.status === "vendido" && aparelho.venda_id && vendasInfo[aparelho.venda_id] && (
+                          <div className="text-[11px] text-default-500 mt-0.5 leading-tight">
+                            <span>Pago: <strong className="text-success">{formatarMoeda(vendasInfo[aparelho.venda_id].valor_pago)}</strong></span>
+                            {vendasInfo[aparelho.venda_id].saldo_devedor > 0 && (
+                              <span> | Saldo: <strong className="text-warning">{formatarMoeda(vendasInfo[aparelho.venda_id].saldo_devedor)}</strong></span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{formatarData(aparelho.data_entrada)}</TableCell>
                     <TableCell>
@@ -1421,37 +1192,18 @@ export default function AparelhosPage() {
                               Editar
                             </DropdownItem>
                           ) : null}
-                          {podeVender && aparelho.status === "disponivel" ? (
-                            <DropdownItem
-                              key="vender"
-                              className="text-success"
-                              color="success"
-                              isDisabled={todasLojas && !lojaIdFinal}
-                              startContent={
-                                <ShoppingBagIcon className="w-4 h-4" />
-                              }
-                              onPress={() => handleAcaoCard("vender", aparelho)}
-                            >
-                              Vender Aparelho
-                            </DropdownItem>
-                          ) : null}
-                          {podeRegistrarDevolucao &&
-                          aparelho.status === "vendido" ? (
-                            <DropdownItem
-                              key="registrar_devolucao"
-                              startContent={<PackageX className="w-4 h-4" />}
-                            >
-                              Registrar Devolucao / Troca / Garantia
-                            </DropdownItem>
-                          ) : null}
-                          {podeVerHistoricoDevolucao ? (
-                            <DropdownItem
-                              key="historico_devolucoes"
-                              startContent={<History className="w-4 h-4" />}
-                            >
-                              Historico de Devolucoes
-                            </DropdownItem>
-                          ) : null}
+                          <DropdownItem
+                            key="gerenciar_pagamentos"
+                            startContent={<DollarSign className="w-4 h-4" />}
+                          >
+                            Gerenciar Pagamentos
+                          </DropdownItem>
+                          <DropdownItem
+                            key="detalhes"
+                            startContent={<Info className="w-4 h-4" />}
+                          >
+                            Detalhes
+                          </DropdownItem>
                           {podeDeletar && aparelho.status !== "vendido" ? (
                             <DropdownItem
                               key="deletar"
@@ -1462,49 +1214,6 @@ export default function AparelhosPage() {
                               Deletar
                             </DropdownItem>
                           ) : null}
-                          <DropdownItem
-                            key="status:disponivel"
-                            isDisabled={aparelho.status === "disponivel"}
-                            startContent={
-                              <CheckCircleIcon className="w-4 h-4" />
-                            }
-                          >
-                            Marcar como Disponivel
-                          </DropdownItem>
-                          <DropdownItem
-                            key="status:reservado"
-                            isDisabled={aparelho.status === "reservado"}
-                            startContent={<ClockIcon className="w-4 h-4" />}
-                          >
-                            Marcar como Reservado
-                          </DropdownItem>
-                          <DropdownItem
-                            key="status:defeito"
-                            isDisabled={aparelho.status === "defeito"}
-                            startContent={
-                              <ExclamationTriangleIcon className="w-4 h-4" />
-                            }
-                          >
-                            Marcar como Defeito
-                          </DropdownItem>
-                          <DropdownItem
-                            key="status:transferido"
-                            isDisabled={aparelho.status === "transferido"}
-                            startContent={
-                              <ArrowRightIcon className="w-4 h-4" />
-                            }
-                          >
-                            Marcar como Transferido
-                          </DropdownItem>
-                          {podeReceber && aparelho.status === "vendido" ? (
-                            <DropdownItem
-                              key="receber_pagamento"
-                              color="success"
-                              startContent={<DollarSign className="w-4 h-4" />}
-                            >
-                              Receber Pagamento
-                            </DropdownItem>
-                          ) : null}
                         </DropdownMenu>
                       </Dropdown>
                     </TableCell>
@@ -1512,12 +1221,12 @@ export default function AparelhosPage() {
                 ))}
               </TableBody>
             </Table>
-          </CardBody>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Paginação */}
-      {totalPaginas > 1 && (
+      {/* Paginação (apenas em cards, tabela já tem no bottomContent) */}
+      {visualizacao === "cards" && totalPaginas > 1 && (
         <div className="flex justify-center">
           <Pagination
             showControls
@@ -1557,6 +1266,7 @@ export default function AparelhosPage() {
         <RecebimentoAparelhoModal
           aparelho={aparelhoParaReceber}
           isOpen={modalRecebimentoAberto}
+          lojaId={lojaIdFinal || undefined}
           onClose={async (sucesso) => {
             setModalRecebimentoAberto(false);
             setAparelhoParaReceber(undefined);
@@ -1573,7 +1283,6 @@ export default function AparelhosPage() {
           aparelho={aparelhoParaVender}
           isOpen={modalVendaAberto}
           lojaId={lojaIdFinal || 1}
-          lojaNome={lojaNomeSelecionada}
           onClose={async (sucesso) => {
             setModalVendaAberto(false);
             setAparelhoParaVender(undefined);
@@ -1590,7 +1299,6 @@ export default function AparelhosPage() {
           aparelho={aparelhoParaDevolucao}
           isOpen={modalDevolucaoAberto}
           lojaId={lojaIdFinal || 1}
-          lojaNome={lojaNomeSelecionada}
           onClose={() => {
             setModalDevolucaoAberto(false);
             setAparelhoParaDevolucao(undefined);
@@ -1615,6 +1323,17 @@ export default function AparelhosPage() {
         />
       )}
 
+      {modalDetalhesAberto && aparelhoParaDetalhes && (
+        <DetalhesAparelhoModal
+          isOpen={modalDetalhesAberto}
+          aparelho={aparelhoParaDetalhes}
+          onClose={() => {
+            setModalDetalhesAberto(false);
+            setAparelhoParaDetalhes(undefined);
+          }}
+        />
+      )}
+
       <BarcodeScanner
         isOpen={scannerAberto}
         title="Escanear IMEI do Aparelho"
@@ -1624,6 +1343,21 @@ export default function AparelhosPage() {
           setScannerAberto(false);
         }}
       />
+    </div>
+    </PermissionGuard>
+  );
+}
+
+function KpiCard({ icon, value, label, color, bg, iconBg }: { icon: React.ReactNode; value: string; label: string; color: string; bg: string; iconBg: string }) {
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}>
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className={`text-sm font-bold truncate ${color}`}>{value}</p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{label}</p>
+      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import { useState, useEffect } from "react";
 import { CameraIcon } from "@heroicons/react/24/outline";
+import { createBrowserClient } from "@supabase/ssr";
 
 import { FotosAparelhoUpload } from "./FotosAparelhoUpload";
 
@@ -239,13 +240,45 @@ export function AparelhoFormModal({
     }
 
     setLoading(true);
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
     try {
       if (aparelho) {
+        // Pega dados antigos para auditoria
+        const { data: dadosAntigos } = await supabase
+          .from("aparelhos")
+          .select("marca, modelo, imei, valor_compra, valor_venda, status")
+          .eq("id", aparelho.id)
+          .single();
+
         await atualizarAparelho(aparelho.id, formData, usuario.id);
+
+        // Registra edição no histórico
+        await supabase.from("historico_aparelhos").insert({
+          aparelho_id: aparelho.id,
+          tipo_acao: "edicao",
+          descricao: `Aparelho editado por ${usuario.nome}`,
+          dados_antes: dadosAntigos,
+          dados_depois: { marca: formData.marca, modelo: formData.modelo, imei: formData.imei },
+          usuario_id: usuario.id,
+        });
+
         showToast("Aparelho atualizado com sucesso", "success");
         onClose(true);
       } else {
         const novoAparelho = await criarAparelho(formData, usuario.id);
+
+        // Registra criação no histórico
+        await supabase.from("historico_aparelhos").insert({
+          aparelho_id: novoAparelho.id,
+          tipo_acao: "criacao",
+          descricao: `Aparelho cadastrado — ${formData.marca} ${formData.modelo}`,
+          dados_depois: { marca: formData.marca, modelo: formData.modelo, imei: formData.imei, valor: formData.valor_venda },
+          usuario_id: usuario.id,
+        });
 
         setAparelhoRecemCriado(novoAparelho);
         showToast(

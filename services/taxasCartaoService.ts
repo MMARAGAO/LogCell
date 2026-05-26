@@ -223,7 +223,7 @@ export async function getTaxaAplicavel(
   }
 }
 
-// Simular taxa de cartao
+// Simular taxa de cartao (tenta DB primeiro, fallback para tabela fixa)
 export async function simularTaxaCartao(
   simulacao: SimulacaoTaxa,
 ): Promise<ResultadoSimulacaoTaxa> {
@@ -235,15 +235,42 @@ export async function simularTaxaCartao(
       forma_pagamento,
       parcelas,
       bandeira = "visa_mastercard",
+      loja_id,
+      taxa_inclusa = false,
     } = simulacao;
 
-    const taxaTabela = obterTaxaTabelaFixa(forma_pagamento, parcelas, bandeira);
+    let taxa_percentual: number;
+    let parcelasAplicadas: number;
 
-    const valor_base = valor_bruto;
-    const taxa_percentual = taxaTabela.taxa_percentual;
-    const coeficiente = taxaTabela.coeficiente;
-    const parcelasAplicadas = taxaTabela.parcelas;
-    const valor_brutoCalculado = coeficiente > 0 ? valor_base / coeficiente : 0;
+    // Tenta buscar taxa do banco de dados primeiro
+    const taxaDb = loja_id !== undefined
+      ? await getTaxaAplicavel(loja_id, tipo_produto, forma_pagamento, parcelas).catch(() => null)
+      : null;
+
+    if (taxaDb) {
+      taxa_percentual = taxaDb.taxa_percentual;
+      parcelasAplicadas = parcelas;
+    } else {
+      // Fallback para tabela fixa hardcoded
+      const taxaTabela = obterTaxaTabelaFixa(forma_pagamento, parcelas, bandeira);
+      taxa_percentual = taxaTabela.taxa_percentual;
+      parcelasAplicadas = taxaTabela.parcelas;
+    }
+
+    let valor_base: number;
+    let valor_brutoCalculado: number;
+    const coeficiente = 1 - (taxa_percentual / 100);
+
+    if (taxa_inclusa) {
+      // Valor digitado já é o valor bruto do cliente (com taxa inclusa)
+      valor_brutoCalculado = valor_bruto;
+      valor_base = valor_brutoCalculado * coeficiente;
+    } else {
+      // Valor digitado é o valor base, precisa fazer gross-up
+      valor_base = valor_bruto;
+      valor_brutoCalculado = coeficiente > 0 ? valor_base / coeficiente : 0;
+    }
+
     const valor_taxa = (valor_brutoCalculado * taxa_percentual) / 100;
     const valor_liquido = valor_brutoCalculado - valor_taxa;
     const lucro_sem_taxa = valor_base - valor_custo;

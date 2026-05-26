@@ -5,6 +5,45 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/action";
 import { CadastroUsuarioData } from "@/types";
 
+async function syncTecnico(
+  usuarioId: string,
+  nome: string,
+  telefone: string | null,
+  email: string,
+  ativo: boolean,
+  isTecnico: boolean,
+) {
+  if (isTecnico) {
+    const { data: existente } = await supabaseAdmin
+      .from("tecnicos")
+      .select("id")
+      .eq("id", usuarioId)
+      .single();
+
+    if (!existente) {
+      await supabaseAdmin.from("tecnicos").insert({
+        id: usuarioId,
+        nome,
+        telefone: telefone || "",
+        email: email || `${nome.toLowerCase().replace(/\s+/g, "")}@logcell.local`,
+        ativo,
+        usuario_id: usuarioId,
+        cor_agenda: "#3b82f6",
+      });
+    } else {
+      await supabaseAdmin
+        .from("tecnicos")
+        .update({ nome, telefone: telefone || "", email, ativo, atualizado_em: new Date().toISOString() })
+        .eq("id", usuarioId);
+    }
+  } else {
+    await supabaseAdmin
+      .from("tecnicos")
+      .update({ ativo: false, atualizado_em: new Date().toISOString() })
+      .eq("id", usuarioId);
+  }
+}
+
 // Cliente com permissões de admin para criar usuários
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,6 +136,7 @@ export async function cadastrarUsuario(dados: CadastroUsuarioData) {
         telefone: dados.telefone || null,
         cpf: dados.cpf || null,
         ativo: false, // Usuário criado como inativo, precisa de aprovação do admin
+        is_tecnico: dados.is_tecnico || false,
       })
       .select()
       .single();
@@ -135,6 +175,16 @@ export async function cadastrarUsuario(dados: CadastroUsuarioData) {
       console.error("Erro ao criar permissões:", permissoesError);
       // Não faz rollback aqui, pois as permissões podem ser criadas depois
     }
+
+    // 7. Sincroniza com tabela tecnicos se for técnico
+    await syncTecnico(
+      authData.user.id,
+      dados.nome,
+      dados.telefone || null,
+      dados.email,
+      false,
+      dados.is_tecnico || false,
+    );
 
     return {
       success: true,
@@ -185,6 +235,17 @@ export async function atualizarUsuario(
       };
     }
 
+    // Sincroniza com tabela tecnicos
+    const isTecnico = (dados as any).is_tecnico === true;
+    await syncTecnico(
+      id,
+      data.nome,
+      data.telefone,
+      data.email,
+      data.ativo,
+      isTecnico,
+    );
+
     return {
       success: true,
       usuario: data,
@@ -220,6 +281,12 @@ export async function deletarUsuario(id: string) {
       };
     }
 
+    // Desativa também na tabela tecnicos se existir
+    await supabaseAdmin
+      .from("tecnicos")
+      .update({ ativo: false, atualizado_em: new Date().toISOString() })
+      .eq("id", id);
+
     return {
       success: true,
       usuario: data,
@@ -254,6 +321,12 @@ export async function alternarStatusUsuario(id: string, ativo: boolean) {
         error: "Erro ao alterar status do usuário",
       };
     }
+
+    // Sincroniza status com tabela tecnicos
+    await supabaseAdmin
+      .from("tecnicos")
+      .update({ ativo, atualizado_em: new Date().toISOString() })
+      .eq("id", id);
 
     return {
       success: true,

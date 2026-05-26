@@ -29,9 +29,10 @@ import {
   Chip,
   Switch,
 } from "@heroui/react";
-import { CreditCard, Plus, Edit, Trash2, Save } from "lucide-react";
+import { CreditCard, Plus, Edit, Trash2, Save, ArrowLeft } from "lucide-react";
 
 import { useAuthContext } from "@/contexts/AuthContext";
+import { PermissionGuard } from "@/components/PermissionGuard";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useToast } from "@/components/Toast";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
@@ -57,7 +58,7 @@ const FORMAS_PAGAMENTO = [
 
 export default function TaxasCartaoPage() {
   const { usuario } = useAuthContext();
-  const { temPermissao } = usePermissoes();
+  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
   const { showToast } = useToast();
   const { lojaId } = useLojaFilter();
 
@@ -69,6 +70,8 @@ export default function TaxasCartaoPage() {
   const [taxaParaDeletar, setTaxaParaDeletar] = useState<TaxaCartao | null>(
     null,
   );
+  const [valoresEditados, setValoresEditados] = useState<Record<string, string>>({});
+  const [salvandoInline, setSalvandoInline] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<TaxaCartaoFormData>({
     loja_id: null,
@@ -190,6 +193,42 @@ export default function TaxasCartaoPage() {
     }
   };
 
+  const handleSalvarInline = async (id: string) => {
+    if (!usuario) return;
+
+    const novoValor = valoresEditados[id];
+    if (novoValor === undefined) return;
+
+    const taxa = taxas.find((t) => t.id === id);
+    if (!taxa) return;
+
+    const valorNumerico = parseFloat(novoValor);
+    if (isNaN(valorNumerico) || valorNumerico <= 0) {
+      showToast("Informe uma taxa válida", "error");
+      return;
+    }
+
+    try {
+      setSalvandoInline(id);
+      await atualizarTaxaCartao(id, { taxa_percentual: valorNumerico }, usuario.id);
+      showToast("Taxa atualizada", "success");
+      setValoresEditados((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setTaxas((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, taxa_percentual: valorNumerico } : t,
+        ),
+      );
+    } catch (error: any) {
+      showToast(error.message || "Erro ao salvar taxa", "error");
+    } finally {
+      setSalvandoInline(null);
+    }
+  };
+
   const handleToggleAtivo = async (taxa: TaxaCartao) => {
     if (!usuario) return;
 
@@ -211,25 +250,19 @@ export default function TaxasCartaoPage() {
     return FORMAS_PAGAMENTO.find((f) => f.value === forma)?.label || forma;
   };
 
-  if (!podeVisualizar) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Card className="p-6">
-          <CardBody>
-            <p className="text-danger">
-              Você não tem permissão para visualizar as configurações de taxas.
-            </p>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
-
   return (
+    <PermissionGuard permission={podeVisualizar} loading={loadingPermissoes} fallbackMessage="Você não tem permissão para visualizar as configurações de taxas.">
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
+          <Button
+            isIconOnly
+            variant="light"
+            onPress={() => (window.location.href = "/sistema/aparelhos")}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
           <CreditCard className="w-8 h-8 text-primary" />
           <div>
             <h1 className="text-2xl font-bold">Taxas de Cartão</h1>
@@ -282,9 +315,29 @@ export default function TaxasCartaoPage() {
                       : `${taxa.parcelas_min}x a ${taxa.parcelas_max}x`}
                   </TableCell>
                   <TableCell>
-                    <span className="font-bold text-danger">
-                      {taxa.taxa_percentual.toFixed(2)}%
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        className="w-24"
+                        isDisabled={!podeEditar || salvandoInline === taxa.id}
+                        min="0"
+                        size="sm"
+                        step="0.01"
+                        type="number"
+                        value={
+                          valoresEditados[taxa.id] !== undefined
+                            ? valoresEditados[taxa.id]
+                            : taxa.taxa_percentual.toFixed(2)
+                        }
+                        variant="bordered"
+                        onChange={(e) =>
+                          setValoresEditados((prev) => ({
+                            ...prev,
+                            [taxa.id]: e.target.value,
+                          }))
+                        }
+                      />
+                      <span className="text-default-400">%</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     {taxa.loja_id ? `Loja ${taxa.loja_id}` : "Todas"}
@@ -301,7 +354,19 @@ export default function TaxasCartaoPage() {
                     </Switch>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1">
+                      {podeEditar && valoresEditados[taxa.id] !== undefined && (
+                        <Button
+                          isIconOnly
+                          color="success"
+                          isLoading={salvandoInline === taxa.id}
+                          size="sm"
+                          variant="flat"
+                          onPress={() => handleSalvarInline(taxa.id)}
+                        >
+                          <Save className="w-4 h-4" />
+                        </Button>
+                      )}
                       {podeEditar && (
                         <>
                           <Button
@@ -509,5 +574,6 @@ export default function TaxasCartaoPage() {
         </ModalContent>
       </Modal>
     </div>
+    </PermissionGuard>
   );
 }

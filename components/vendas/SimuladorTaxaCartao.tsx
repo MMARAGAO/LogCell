@@ -32,6 +32,7 @@ interface SimuladorTaxaCartaoProps {
   valorVenda: number;
   valorCusto?: number;
   tipoProdutoPadrao?: TipoProdutoTaxa;
+  lojaId?: number | null;
   onSimulacaoChange?: (resultado: ResultadoSimulacaoTaxa | null) => void;
   mostrarDetalhes?: boolean;
 }
@@ -72,6 +73,7 @@ export function SimuladorTaxaCartao({
   valorVenda,
   valorCusto = 0,
   tipoProdutoPadrao = "todos",
+  lojaId,
   onSimulacaoChange,
   mostrarDetalhes = true,
 }: SimuladorTaxaCartaoProps) {
@@ -100,7 +102,7 @@ export function SimuladorTaxaCartao({
 
   useEffect(() => {
     realizarSimulacao();
-  }, [valorVenda, valorCusto, tipoProduto, formaPagamento, bandeira, parcelas]);
+  }, [valorVenda, valorCusto, tipoProduto, formaPagamento, bandeira, parcelas, lojaId]);
 
   const realizarSimulacao = async () => {
     if (valorVenda <= 0) {
@@ -118,6 +120,7 @@ export function SimuladorTaxaCartao({
         tipo_produto: tipoProduto,
         forma_pagamento: formaPagamento,
         parcelas,
+        loja_id: lojaId,
       });
 
       setResultado(simulacao);

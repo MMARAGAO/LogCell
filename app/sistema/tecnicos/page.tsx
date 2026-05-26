@@ -1,665 +1,630 @@
 "use client";
 
-import type { Tecnico } from "@/types/clientesTecnicos";
+import type { OrdemServico, OrdemServicoPeca } from "@/types/ordemServico";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardBody } from "@heroui/card";
+import { Button, ButtonGroup } from "@heroui/button";
+import { Input } from "@heroui/input";
+import { Tabs, Tab } from "@heroui/tabs";
+import { Divider } from "@heroui/divider";
+import { Pagination } from "@heroui/pagination";
+import { Select, SelectItem } from "@heroui/select";
 import {
-  Card,
-  CardBody,
-  Input,
-  useDisclosure,
-  Button,
-  Spinner,
-  Pagination,
-  Select,
-  SelectItem,
-  Chip,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  ButtonGroup,
-} from "@heroui/react";
-import {
-  Wrench,
-  Search,
-  Users,
-  UserPlus,
-  LayoutGrid,
-  List,
-  Filter,
-  Download,
-  SortAsc,
-  SortDesc,
-  MoreVertical,
-  Edit,
-  Trash2,
-  Phone,
-  Mail,
-  Briefcase,
-} from "lucide-react";
-import { useSearchParams } from "next/navigation";
+  MagnifyingGlassIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  CubeIcon,
+  WrenchScrewdriverIcon,
+  DocumentCheckIcon,
+  FireIcon,
+  ExclamationCircleIcon,
+  LockClosedIcon,
+  FunnelIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  CurrencyDollarIcon,
+  PhoneIcon,
+} from "@heroicons/react/24/outline";
+import { LayoutGrid, TableIcon } from "lucide-react";
+import { createBrowserClient } from "@supabase/ssr";
 
-import { formatarTelefone } from "@/lib/formatters";
-
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
-import { usePermissoes } from "@/hooks/usePermissoes";
-import {
-  buscarTecnicos,
-  deletarTecnico,
-  toggleTecnicoAtivo,
-} from "@/services/tecnicoService";
-import { TecnicoCard, TecnicoComLoginModal } from "@/components/tecnicos";
-import { ConfirmModal } from "@/components/ConfirmModal";
 
-// Hook para debounce
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+const ITENS_POR_PAGINA = 12;
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+const STATUS_STYLE: Record<string, { label: string; classes: string }> = {
+  aguardando: { label: "Aguardando", classes: "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700" },
+  em_diagnostico: { label: "Em Diagnóstico", classes: "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800" },
+  em_andamento: { label: "Em Andamento", classes: "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800" },
+  aguardando_peca: { label: "Aguardando Peça", classes: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800" },
+  aguardando_pecas: { label: "Aguardando Peças", classes: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800" },
+  concluido: { label: "Concluído", classes: "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800" },
+};
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-export default function TecnicosPage() {
-  const { usuario } = useAuth();
+export default function TecnicoWorkspacePage() {
+  const { usuario } = useAuthContext();
   const toast = useToast();
-  const { temPermissao, loading: loadingPermissoes } = usePermissoes();
-  const searchParams = useSearchParams();
-  const buscaParam = searchParams.get("busca");
-
-  const {
-    isOpen: isLoginModalOpen,
-    onOpen: onLoginModalOpen,
-    onClose: onLoginModalClose,
-  } = useDisclosure();
-  const {
-    isOpen: isDeleteOpen,
-    onOpen: onDeleteOpen,
-    onClose: onDeleteClose,
-  } = useDisclosure();
-
-  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
-  const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
-    undefined,
-  );
-  const [busca, setBusca] = useState("");
+  const [minhasOS, setMinhasOS] = useState<OrdemServico[]>([]);
+  const [osConcluidas, setOsConcluidas] = useState<OrdemServico[]>([]);
+  const [osDisponiveis, setOsDisponiveis] = useState<OrdemServico[]>([]);
+  const [osPecas, setOsPecas] = useState<Record<string, OrdemServicoPeca[]>>({});
   const [loading, setLoading] = useState(false);
-  const [tecnicoParaDeletar, setTecnicoParaDeletar] = useState<Tecnico | null>(
-    null,
-  );
+  const [selectedTab, setSelectedTab] = useState("disponiveis");
 
-  // UI States
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
-  const [sortBy, setSortBy] = useState<"nome" | "criado_em">("nome");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Paginação
-  const [page, setPage] = useState(1);
-  const itemsPerPage = 12;
-
-  // Debounce na busca
-  const buscaDebounced = useDebounce(busca, 500);
-
-  // Preencher busca vinda da URL
-  useEffect(() => {
-    if (buscaParam) {
-      setBusca(buscaParam);
-    }
-  }, [buscaParam]);
+  const [busca, setBusca] = useState("");
+  const [statusFiltro, setStatusFiltro] = useState<string>("");
+  const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [modoVisualizacao, setModoVisualizacao] = useState<"grid" | "table">("grid");
 
   useEffect(() => {
-    carregarTecnicos();
-  }, [filtroAtivo, buscaDebounced]);
+    if (usuario) carregarOrdens();
+  }, [usuario]);
 
-  // Reset página quando filtros mudarem
   useEffect(() => {
-    setPage(1);
-  }, [filtroAtivo, buscaDebounced]);
+    setPaginaAtual(1);
+  }, [busca, statusFiltro, ordenacao, selectedTab]);
 
-  const carregarTecnicos = async () => {
-    setLoading(true);
-    const { data, error } = await buscarTecnicos({
-      ativo: filtroAtivo,
-      busca: buscaDebounced || undefined,
-      idLoja: undefined,
-    });
-
-    if (error) {
-      toast.error(error);
-    } else {
-      setTecnicos(data || []);
-    }
-    setLoading(false);
-  };
-
-  const handleToggleStatus = async (tecnico: Tecnico) => {
+  const carregarOrdens = async () => {
     if (!usuario) return;
-
-    if (!temPermissao("tecnicos.editar")) {
-      toast.error("Você não tem permissão para alterar o status de técnicos");
-
-      return;
-    }
-
-    const { error } = await toggleTecnicoAtivo(
-      tecnico.id,
-      !tecnico.ativo,
-      usuario.id,
+    setLoading(true);
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success(
-        `Técnico ${tecnico.ativo ? "desativado" : "ativado"} com sucesso!`,
-      );
-      carregarTecnicos();
-    }
-  };
+    try {
+      const { data: minhas } = await supabase
+        .from("ordem_servico").select("*")
+        .eq("tecnico_responsavel", usuario.id)
+        .neq("status", "concluido")
+        .order("criado_em", { ascending: false });
 
-  const handleDeleteConfirm = (tecnico: Tecnico) => {
-    setTecnicoParaDeletar(tecnico);
-    onDeleteOpen();
-  };
+      setMinhasOS(minhas || []);
 
-  const handleDelete = async () => {
-    if (!tecnicoParaDeletar) return;
+      const { data: concluidas } = await supabase
+        .from("ordem_servico").select("*")
+        .eq("tecnico_responsavel", usuario.id)
+        .eq("status", "concluido")
+        .order("data_conclusao", { ascending: false })
+        .limit(50);
 
-    if (!temPermissao("tecnicos.deletar")) {
-      toast.error("Você não tem permissão para deletar técnicos");
-      onDeleteClose();
+      setOsConcluidas(concluidas || []);
 
-      return;
-    }
+      const { data: disponiveis } = await supabase
+        .from("ordem_servico").select("*")
+        .is("tecnico_responsavel", null)
+        .in("status", ["aguardando", "em_diagnostico"])
+        .order("criado_em", { ascending: true });
 
-    const { error } = await deletarTecnico(tecnicoParaDeletar.id);
+      setOsDisponiveis(disponiveis || []);
 
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success("Técnico excluído com sucesso!");
-      carregarTecnicos();
-    }
-    onDeleteClose();
-  };
+      if (minhas && minhas.length > 0) {
+        const { data: pecas } = await supabase
+          .from("ordem_servico_pecas")
+          .select("*, produto:produtos(id, descricao, codigo_barras)")
+          .in("id_ordem_servico", minhas.map((o) => o.id))
+          .eq("estoque_reservado", true);
 
-  const tecnicosAtivos = tecnicos.filter((t) => t.ativo).length;
-  const tecnicosInativos = tecnicos.filter((t) => !t.ativo).length;
-
-  // Ordenar técnicos
-  const tecnicosOrdenados = useMemo(() => {
-    const sorted = [...tecnicos].sort((a, b) => {
-      let comparison = 0;
-
-      if (sortBy === "nome") {
-        comparison = a.nome.localeCompare(b.nome);
-      } else if (sortBy === "criado_em") {
-        const dateA = a.criado_em ? new Date(a.criado_em).getTime() : 0;
-        const dateB = b.criado_em ? new Date(b.criado_em).getTime() : 0;
-
-        comparison = dateA - dateB;
+        if (pecas) {
+          const map: Record<string, OrdemServicoPeca[]> = {};
+          pecas.forEach((p) => { (map[p.id_ordem_servico] ??= []).push(p); });
+          setOsPecas(map);
+        }
       }
+    } catch {
+      toast.error("Erro ao carregar ordens");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      return sortOrder === "asc" ? comparison : -comparison;
+  const pegarOrdem = async (ordemId: string) => {
+    if (!usuario) return;
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    try {
+      await supabase.from("ordem_servico").update({
+        tecnico_responsavel: usuario.id,
+        status: "em_andamento",
+        atualizado_em: new Date().toISOString(),
+        atualizado_por: usuario.id,
+      }).eq("id", ordemId);
+
+      toast.success("Ordem atribuída com sucesso!");
+      carregarOrdens();
+    } catch {
+      toast.error("Erro ao atribuir ordem");
+    }
+  };
+
+  const ordensAtivas = useMemo(() => {
+    switch (selectedTab) {
+      case "disponiveis": return osDisponiveis;
+      case "minhas": return minhasOS;
+      case "concluidas": return osConcluidas;
+      default: return [];
+    }
+  }, [selectedTab, osDisponiveis, minhasOS, osConcluidas]);
+
+  const ordensFiltradas = useMemo(() => {
+    let lista = [...ordensAtivas];
+
+    if (busca) {
+      const b = busca.toLowerCase();
+      lista = lista.filter(
+        (os) =>
+          os.numero_os?.toString().includes(b) ||
+          os.cliente_nome?.toLowerCase().includes(b) ||
+          os.cliente_telefone?.includes(busca) ||
+          os.equipamento_tipo?.toLowerCase().includes(b) ||
+          os.equipamento_marca?.toLowerCase().includes(b),
+      );
+    }
+
+    if (statusFiltro) lista = lista.filter((os) => os.status === statusFiltro);
+
+    lista.sort((a, b) => {
+      switch (ordenacao) {
+        case "mais_antigas": return new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime();
+        case "numero_crescente": return (a.numero_os || 0) - (b.numero_os || 0);
+        case "numero_decrescente": return (b.numero_os || 0) - (a.numero_os || 0);
+        default: return new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime();
+      }
     });
 
-    return sorted;
-  }, [tecnicos, sortBy, sortOrder]);
+    return lista;
+  }, [ordensAtivas, busca, statusFiltro, ordenacao]);
 
-  // Paginação
-  const totalPages = Math.ceil(tecnicosOrdenados.length / itemsPerPage);
-  const tecnicosPaginados = tecnicosOrdenados.slice(
-    (page - 1) * itemsPerPage,
-    page * itemsPerPage,
-  );
-  const totalTecnicos = tecnicos.length;
+  const totalPaginas = Math.ceil(ordensFiltradas.length / ITENS_POR_PAGINA);
+  const indiceInicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+  const ordensPaginadas = ordensFiltradas.slice(indiceInicio, indiceInicio + ITENS_POR_PAGINA);
 
-  const getMenuItems = (tecnico: Tecnico) => {
-    const items: Array<{
-      key: string;
-      label: string;
-      icon: string;
-      onClick: () => void;
-      show: boolean;
-      color?: "danger" | "default";
-    }> = [
-      {
-        key: "os",
-        label: "Ver OS",
-        icon: "history",
-        onClick: () => toast.info("Funcionalidade em desenvolvimento"),
-        show: true,
-      },
-    ];
+  const stats = useMemo(() => ({
+    disponiveis: osDisponiveis.length,
+    em_andamento: minhasOS.length,
+    concluidas: osConcluidas.length,
+    total: osDisponiveis.length + minhasOS.length + osConcluidas.length,
+  }), [osDisponiveis, minhasOS, osConcluidas]);
 
-    if (temPermissao("tecnicos.editar")) {
-      items.push({
-        key: "toggle",
-        label: tecnico.ativo ? "Desativar" : "Ativar",
-        icon: "toggle",
-        onClick: () => handleToggleStatus(tecnico),
-        show: true,
-      });
-    }
-
-    if (temPermissao("tecnicos.deletar")) {
-      items.push({
-        key: "delete",
-        label: "Excluir",
-        icon: "delete",
-        onClick: () => handleDeleteConfirm(tecnico),
-        show: true,
-        color: "danger" as const,
-      });
-    }
-
-    return items.filter((item) => item.show);
+  const formatPhone = (tel?: string) => {
+    if (!tel) return "";
+    const n = tel.replace(/\D/g, "");
+    if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+    if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+    return tel;
   };
 
-  // Verificar permissão de visualizar
-  // Verificar loading primeiro
-  if (loading || loadingPermissoes) {
+  const OrdemCard = ({ ordem, isDisponivel, pecas }: { ordem: OrdemServico; isDisponivel: boolean; pecas?: OrdemServicoPeca[] }) => {
+    const isConcluida = ordem.status === "concluido";
+    const statusStyle = STATUS_STYLE[ordem.status] || STATUS_STYLE.aguardando;
+    const totalCusto = pecas?.reduce((a, p) => a + p.valor_custo * p.quantidade, 0) || 0;
+
     return (
-      <div className="flex justify-center items-center h-screen">
-        <Spinner size="lg" />
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">OS</span>
+              <span className="text-xs text-gray-300 dark:text-gray-600 font-mono">#{ordem.numero_os}</span>
+            </div>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{ordem.cliente_nome}</h3>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle.classes}`}>
+              {statusStyle.label}
+            </span>
+            {ordem.prioridade === "urgente" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800">
+                <FireIcon className="w-2.5 h-2.5" />
+              </span>
+            )}
+            {ordem.prioridade === "alta" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
+                <ExclamationCircleIcon className="w-2.5 h-2.5" />
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Info lines */}
+        <div className="space-y-1.5 mb-3">
+          <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
+            <WrenchScrewdriverIcon className="w-3.5 h-3.5 text-gray-400" />
+            <span>
+              {ordem.equipamento_tipo}
+              {ordem.equipamento_marca && ` - ${ordem.equipamento_marca}`}
+              {ordem.equipamento_modelo && ` ${ordem.equipamento_modelo}`}
+            </span>
+          </div>
+
+          {ordem.equipamento_senha && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+              <LockClosedIcon className="w-3.5 h-3.5" />
+              <span className="font-mono font-semibold">{ordem.equipamento_senha}</span>
+            </div>
+          )}
+
+          {ordem.cliente_telefone && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-500">
+              <PhoneIcon className="w-3.5 h-3.5" />
+              <span>{formatPhone(ordem.cliente_telefone)}</span>
+            </div>
+          )}
+
+          <div className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
+            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Defeito: </span>
+            {ordem.defeito_reclamado}
+          </div>
+
+          {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              <CurrencyDollarIcon className="w-3.5 h-3.5" />
+              <span>R$ {ordem.valor_orcamento.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Pecas */}
+        {pecas && pecas.length > 0 && (
+          <>
+            <Divider className="my-3" />
+            <div className="flex items-center gap-1.5 mb-1">
+              <CubeIcon className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Peças</span>
+              <span className="text-xs text-gray-500">{pecas.reduce((a, p) => a + p.quantidade, 0)} itens</span>
+              <span className="text-xs text-gray-400 ml-auto">R$ {totalCusto.toFixed(2)}</span>
+            </div>
+          </>
+        )}
+
+        {/* Action */}
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+          {isDisponivel ? (
+            <Button fullWidth color="primary" size="sm" className="font-medium text-xs rounded-xl" onPress={() => pegarOrdem(ordem.id)}>
+              Pegar OS
+            </Button>
+          ) : isConcluida ? (
+            <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+              <CheckCircleIcon className="w-4 h-4" />
+              Serviço Concluído
+            </div>
+          ) : (
+            <Button fullWidth as="a" color="primary" href={`/sistema/ordem-servico/tecnico/${ordem.id}`} size="sm" variant="flat" className="font-medium text-xs rounded-xl">
+              Dar Andamento →
+            </Button>
+          )}
+        </div>
       </div>
     );
-  }
+  };
 
-  if (!temPermissao("tecnicos.visualizar")) {
+  const TableRowOS = ({ ordem }: { ordem: OrdemServico }) => {
+    const statusStyle = STATUS_STYLE[ordem.status] || STATUS_STYLE.aguardando;
     return (
-      <div className="p-8 text-center">
-        <h1 className="text-2xl font-bold text-danger mb-4">Acesso Negado</h1>
-        <p className="text-default-500">
-          Você não tem permissão para visualizar técnicos.
-        </p>
+      <tr className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+        <td className="py-3 px-4">
+          <span className="text-xs text-gray-400 font-mono">#{ordem.numero_os}</span>
+        </td>
+        <td className="py-3 px-4">
+          <p className="text-sm font-medium text-gray-800 dark:text-white">{ordem.cliente_nome}</p>
+        </td>
+        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+          {ordem.equipamento_tipo}{ordem.equipamento_marca && ` ${ordem.equipamento_marca}`}
+        </td>
+        <td className="py-3 px-4">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle.classes}`}>
+            {statusStyle.label}
+          </span>
+        </td>
+        <td className="py-3 px-4 text-xs text-gray-400">
+          {new Date(ordem.criado_em).toLocaleDateString("pt-BR")}
+        </td>
+        <td className="py-3 px-4">
+          {selectedTab === "minhas" ? (
+            <Button as="a" color="primary" href={`/sistema/ordem-servico/tecnico/${ordem.id}`} size="sm" variant="flat" className="text-xs rounded-xl">
+              Abrir
+            </Button>
+          ) : selectedTab === "disponiveis" ? (
+            <Button color="primary" size="sm" variant="flat" className="text-xs rounded-xl" onPress={() => pegarOrdem(ordem.id)}>
+              Pegar
+            </Button>
+          ) : null}
+        </td>
+      </tr>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-gray-500">Carregando ordens...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wrench className="w-6 h-6" />
-            Técnicos
-          </h1>
-          <p className="text-default-500 text-sm">
-            Gerencie os técnicos com acesso ao sistema
-          </p>
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">Minhas Ordens de Serviço</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+          Gerencie suas ordens e pegue novas disponíveis
+        </p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800">
+          <StatCard icon={<CubeIcon className="w-4 h-4" />} value={stats.total} label="Total" color="text-gray-600 dark:text-gray-300" bg="bg-gray-50 dark:bg-zinc-800" iconBg="bg-gray-100 dark:bg-zinc-700" />
+          <StatCard icon={<ClockIcon className="w-4 h-4" />} value={stats.disponiveis} label="Disponíveis" color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-900/20" iconBg="bg-orange-100 dark:bg-orange-900/40" />
+          <StatCard icon={<WrenchScrewdriverIcon className="w-4 h-4" />} value={stats.em_andamento} label="Em Andamento" color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-900/20" iconBg="bg-blue-100 dark:bg-blue-900/40" />
+          <StatCard icon={<CheckCircleIcon className="w-4 h-4" />} value={stats.concluidas} label="Concluídas" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
         </div>
-        {temPermissao("tecnicos.criar") && (
+      </div>
+
+      {/* Busca + Filtros */}
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por número, cliente, equipamento..."
+            startContent={<MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />}
+            value={busca}
+            variant="bordered"
+            classNames={{
+              input: "text-sm",
+              inputWrapper: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+            }}
+            onChange={(e) => setBusca(e.target.value)}
+            onClear={() => setBusca("")}
+          />
           <Button
-            color="primary"
-            size="lg"
-            startContent={<UserPlus className="w-5 h-5" />}
-            onPress={onLoginModalOpen}
+            endContent={mostrarFiltros ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+            startContent={<FunnelIcon className="w-4 h-4" />}
+            variant="flat"
+            className="rounded-xl"
+            onPress={() => setMostrarFiltros(!mostrarFiltros)}
           >
-            Novo Técnico
+            {mostrarFiltros ? "Ocultar" : "Filtros"}
           </Button>
+          <ButtonGroup>
+            <Button
+              isIconOnly
+              color={modoVisualizacao === "grid" ? "primary" : "default"}
+              variant={modoVisualizacao === "grid" ? "solid" : "flat"}
+              className="rounded-l-xl"
+              onPress={() => setModoVisualizacao("grid")}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+            <Button
+              isIconOnly
+              color={modoVisualizacao === "table" ? "primary" : "default"}
+              variant={modoVisualizacao === "table" ? "solid" : "flat"}
+              className="rounded-r-xl"
+              onPress={() => setModoVisualizacao("table")}
+            >
+              <TableIcon className="w-4 h-4" />
+            </Button>
+          </ButtonGroup>
+        </div>
+
+        {mostrarFiltros && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+            <Select
+              label="Status"
+              labelPlacement="outside"
+              placeholder="Todos"
+              selectedKeys={statusFiltro ? [statusFiltro] : []}
+              size="sm"
+              variant="bordered"
+              classNames={{
+                trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              onSelectionChange={(keys) => setStatusFiltro(Array.from(keys)[0] as string || "")}
+            >
+              <SelectItem key="">Todos</SelectItem>
+              <SelectItem key="aguardando">Aguardando</SelectItem>
+              <SelectItem key="em_diagnostico">Em Diagnóstico</SelectItem>
+              <SelectItem key="em_andamento">Em Andamento</SelectItem>
+              <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
+              <SelectItem key="concluido">Concluído</SelectItem>
+            </Select>
+
+            <Select
+              label="Ordenar por"
+              labelPlacement="outside"
+              selectedKeys={[ordenacao]}
+              size="sm"
+              variant="bordered"
+              classNames={{
+                trigger: "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              onSelectionChange={(keys) => setOrdenacao(Array.from(keys)[0] as string)}
+            >
+              <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
+              <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
+              <SelectItem key="numero_crescente">Número (Crescente)</SelectItem>
+              <SelectItem key="numero_decrescente">Número (Decrescente)</SelectItem>
+            </Select>
+
+            <Button
+              className="self-end rounded-xl"
+              color="default"
+              size="sm"
+              variant="flat"
+              onPress={() => { setBusca(""); setStatusFiltro(""); setOrdenacao("mais_recentes"); }}
+            >
+              Limpar Filtros
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          isPressable
-          className={filtroAtivo === undefined ? "border-2 border-primary" : ""}
-          onPress={() => setFiltroAtivo(undefined)}
-        >
-          <CardBody className="text-center">
-            <p className="text-default-500 text-sm">Total de Técnicos</p>
-            <p className="text-3xl font-bold">{totalTecnicos}</p>
-          </CardBody>
-        </Card>
-        <Card
-          isPressable
-          className={filtroAtivo === true ? "border-2 border-success" : ""}
-          onPress={() => setFiltroAtivo(true)}
-        >
-          <CardBody className="text-center">
-            <p className="text-default-500 text-sm">Ativos</p>
-            <p className="text-3xl font-bold text-success">{tecnicosAtivos}</p>
-          </CardBody>
-        </Card>
-        <Card
-          isPressable
-          className={filtroAtivo === false ? "border-2 border-danger" : ""}
-          onPress={() => setFiltroAtivo(false)}
-        >
-          <CardBody className="text-center">
-            <p className="text-default-500 text-sm">Inativos</p>
-            <p className="text-3xl font-bold text-danger">{tecnicosInativos}</p>
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Busca e Filtros */}
-      <Card>
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Primeira linha: Busca e controles */}
-            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-start">
-              {/* Campo de busca */}
-              <div className="flex-1">
-                <Input
-                  isClearable
-                  classNames={{
-                    base: "w-full",
-                    mainWrapper: "h-full",
-                    input: "text-small",
-                    inputWrapper:
-                      "h-full font-normal text-default-500 bg-default-400/20 dark:bg-default-500/20",
-                  }}
-                  placeholder="Buscar por nome, telefone ou e-mail..."
-                  size="lg"
-                  startContent={
-                    <Search className="w-4 h-4 text-default-400 pointer-events-none flex-shrink-0" />
-                  }
-                  type="search"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  onClear={() => setBusca("")}
-                />
-                {(busca !== buscaDebounced || totalTecnicos > 0) && (
-                  <p className="text-xs text-default-400 mt-1 ml-1">
-                    {busca !== buscaDebounced ? (
-                      "Aguardando digitação..."
-                    ) : totalTecnicos > 0 ? (
-                      <>
-                        {totalTecnicos} técnico
-                        {totalTecnicos !== 1 ? "s" : ""} encontrado
-                        {totalTecnicos !== 1 ? "s" : ""}
-                      </>
-                    ) : null}
-                  </p>
-                )}
-              </div>
-
-              {/* Controles */}
-              <div className="flex gap-2 flex-shrink-0">
-                <Button
-                  className="min-w-[120px]"
-                  color={showFilters ? "primary" : "default"}
-                  size="lg"
-                  startContent={<Filter className="w-4 h-4" />}
-                  variant={showFilters ? "solid" : "flat"}
-                  onPress={() => setShowFilters(!showFilters)}
-                >
-                  Filtros
-                </Button>
-                <ButtonGroup size="lg">
-                  <Button
-                    isIconOnly
-                    color={viewMode === "cards" ? "primary" : "default"}
-                    variant={viewMode === "cards" ? "solid" : "flat"}
-                    onPress={() => setViewMode("cards")}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    color={viewMode === "table" ? "primary" : "default"}
-                    variant={viewMode === "table" ? "solid" : "flat"}
-                    onPress={() => setViewMode("table")}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </ButtonGroup>
-              </div>
+      {/* Tabs */}
+      <Tabs
+        classNames={{
+          tabList: "gap-6 w-full relative rounded-none p-0 border-b border-gray-100 dark:border-zinc-800",
+          cursor: "w-full bg-primary",
+          tab: "max-w-fit px-0 h-10",
+          tabContent: "group-data-[selected=true]:text-primary text-sm text-gray-500",
+        }}
+        color="primary"
+        selectedKey={selectedTab}
+        variant="underlined"
+        onSelectionChange={(key) => setSelectedTab(key as string)}
+      >
+        <Tab
+          key="disponiveis"
+          title={
+            <div className="flex items-center gap-2">
+              <ClockIcon className="w-4 h-4" />
+              <span>Disponíveis</span>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
+                {osDisponiveis.length}
+              </span>
             </div>
+          }
+        >
+          {renderList()}
+        </Tab>
+        <Tab
+          key="minhas"
+          title={
+            <div className="flex items-center gap-2">
+              <WrenchScrewdriverIcon className="w-4 h-4" />
+              <span>Em Andamento</span>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                {minhasOS.length}
+              </span>
+            </div>
+          }
+        >
+          {renderList()}
+        </Tab>
+        <Tab
+          key="concluidas"
+          title={
+            <div className="flex items-center gap-2">
+              <DocumentCheckIcon className="w-4 h-4" />
+              <span>Finalizadas</span>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                {osConcluidas.length}
+              </span>
+            </div>
+          }
+        >
+          {renderList()}
+        </Tab>
+      </Tabs>
+    </div>
+  );
 
-            {/* Filtros expandidos */}
-            {showFilters && (
-              <div className="pt-4 border-t border-divider">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Select
-                    classNames={{
-                      base: "items-center",
-                      label: "min-w-[100px]",
-                    }}
-                    label="Ordenar por"
-                    labelPlacement="outside-left"
-                    selectedKeys={[sortBy]}
-                    onChange={(e) =>
-                      setSortBy(e.target.value as "nome" | "criado_em")
-                    }
-                  >
-                    <SelectItem key="nome">Nome</SelectItem>
-                    <SelectItem key="criado_em">Data de Cadastro</SelectItem>
-                  </Select>
-
-                  <Select
-                    classNames={{
-                      base: "items-center",
-                      label: "min-w-[60px]",
-                    }}
-                    label="Ordem"
-                    labelPlacement="outside-left"
-                    selectedKeys={[sortOrder]}
-                    onChange={(e) =>
-                      setSortOrder(e.target.value as "asc" | "desc")
-                    }
-                  >
-                    <SelectItem
-                      key="asc"
-                      startContent={<SortAsc className="w-4 h-4" />}
-                    >
-                      Crescente
-                    </SelectItem>
-                    <SelectItem
-                      key="desc"
-                      startContent={<SortDesc className="w-4 h-4" />}
-                    >
-                      Decrescente
-                    </SelectItem>
-                  </Select>
-
-                  <div className="md:col-span-2 lg:col-span-2 flex justify-end">
-                    <Button
-                      color="primary"
-                      size="lg"
-                      startContent={<Download className="w-4 h-4" />}
-                      variant="flat"
-                      onPress={() => {
-                        toast.success("Funcionalidade em desenvolvimento");
-                      }}
-                    >
-                      Exportar Lista
-                    </Button>
-                  </div>
-                </div>
-              </div>
+  function renderList() {
+    if (ordensFiltradas.length === 0) {
+      return (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12">
+          <div className="text-center">
+            {selectedTab === "disponiveis" ? (
+              <ClockIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+            ) : selectedTab === "minhas" ? (
+              <WrenchScrewdriverIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+            ) : (
+              <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-emerald-700 mb-3" />
             )}
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {busca || statusFiltro
+                ? "Nenhuma OS encontrada com esses filtros"
+                : selectedTab === "disponiveis"
+                  ? "Não há ordens disponíveis no momento"
+                  : selectedTab === "minhas"
+                    ? "Você não tem ordens em andamento"
+                    : "Você ainda não concluiu nenhuma ordem"}
+            </p>
           </div>
-        </CardBody>
-      </Card>
-
-      {/* Lista de Técnicos */}
-      {loading ? (
-        <div className="flex justify-center items-center py-20">
-          <Spinner size="lg" />
         </div>
-      ) : tecnicos.length === 0 ? (
-        <Card>
-          <CardBody className="text-center py-12">
-            <Users className="w-16 h-16 mx-auto mb-4 text-default-300" />
-            <p className="text-default-500 mb-2">Nenhum técnico encontrado</p>
-            {temPermissao("tecnicos.criar") && (
-              <Button color="primary" variant="flat" onPress={onLoginModalOpen}>
-                Cadastrar primeiro técnico
-              </Button>
-            )}
-          </CardBody>
-        </Card>
-      ) : viewMode === "cards" ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {tecnicosPaginados.map((tecnico) => (
-              <TecnicoCard
-                key={tecnico.id}
-                menuItems={getMenuItems(tecnico)}
-                tecnico={tecnico}
+      );
+    }
+
+    return (
+      <>
+        <div className="flex justify-between items-center text-xs text-gray-400 mb-4">
+          <span>Mostrando {ordensPaginadas.length} de {ordensFiltradas.length} OS{ordensFiltradas.length !== 1 ? "'s" : ""}</span>
+          <span>Página {paginaAtual} de {totalPaginas || 1}</span>
+        </div>
+
+        {modoVisualizacao === "grid" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {ordensPaginadas.map((ordem) => (
+              <OrdemCard
+                key={ordem.id}
+                ordem={ordem}
+                isDisponivel={selectedTab === "disponiveis"}
+                pecas={selectedTab === "minhas" ? osPecas[ordem.id] : undefined}
               />
             ))}
           </div>
-          {totalPages > 1 && (
-            <div className="flex justify-center">
-              <Pagination
-                showControls
-                page={page}
-                total={totalPages}
-                onChange={setPage}
-              />
+        ) : (
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-100 dark:border-zinc-800">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Nº OS</th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Cliente</th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Equipamento</th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Data</th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ordensPaginadas.map((ordem) => (
+                    <TableRowOS key={ordem.id} ordem={ordem} />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </>
-      ) : (
-        <>
-          <Table aria-label="Tabela de técnicos">
-            <TableHeader>
-              <TableColumn>TÉCNICO</TableColumn>
-              <TableColumn>CONTATO</TableColumn>
-              <TableColumn>ESPECIALIDADE</TableColumn>
-              <TableColumn>STATUS</TableColumn>
-              <TableColumn>AÇÕES</TableColumn>
-            </TableHeader>
-            <TableBody>
-              {tecnicosPaginados.map((tecnico) => (
-                <TableRow key={tecnico.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <p className="font-semibold">{tecnico.nome}</p>
-                      {tecnico.email && (
-                        <p className="text-xs text-default-400 flex items-center gap-1">
-                          <Mail className="w-3 h-3" />
-                          {tecnico.email}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      {tecnico.telefone && (
-                        <p className="text-sm flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-default-400" />
-                          {formatarTelefone(tecnico.telefone)}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {tecnico.especialidades?.[0] ? (
-                      <div className="flex items-center gap-1">
-                        <Briefcase className="w-3 h-3 text-default-400" />
-                        <span className="text-sm">
-                          {tecnico.especialidades[0]}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-default-400">
-                        Não informado
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      color={tecnico.ativo ? "success" : "danger"}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {tecnico.ativo ? "Ativo" : "Inativo"}
-                    </Chip>
-                  </TableCell>
-                  <TableCell>
-                    <Dropdown>
-                      <DropdownTrigger>
-                        <Button isIconOnly size="sm" variant="light">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownTrigger>
-                      <DropdownMenu aria-label="Ações do técnico">
-                        <DropdownItem
-                          key="os"
-                          startContent={<Briefcase className="w-4 h-4" />}
-                          onPress={() =>
-                            toast.info("Funcionalidade em desenvolvimento")
-                          }
-                        >
-                          Ver OS
-                        </DropdownItem>
-                        {temPermissao("tecnicos.editar") ? (
-                          <DropdownItem
-                            key="toggle"
-                            startContent={<Edit className="w-4 h-4" />}
-                            onPress={() => handleToggleStatus(tecnico)}
-                          >
-                            {tecnico.ativo ? "Desativar" : "Ativar"}
-                          </DropdownItem>
-                        ) : null}
-                        {temPermissao("tecnicos.deletar") ? (
-                          <DropdownItem
-                            key="delete"
-                            className="text-danger"
-                            color="danger"
-                            startContent={<Trash2 className="w-4 h-4" />}
-                            onPress={() => handleDeleteConfirm(tecnico)}
-                          >
-                            Excluir
-                          </DropdownItem>
-                        ) : null}
-                      </DropdownMenu>
-                    </Dropdown>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {totalPages > 1 && (
-            <div className="flex justify-center">
-              <Pagination
-                showControls
-                page={page}
-                total={totalPages}
-                onChange={setPage}
-              />
-            </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
 
-      <TecnicoComLoginModal
-        isOpen={isLoginModalOpen}
-        onClose={onLoginModalClose}
-        onSuccess={carregarTecnicos}
-      />
+        {totalPaginas > 1 && (
+          <div className="flex justify-center mt-6">
+            <Pagination
+              showControls
+              color="primary"
+              page={paginaAtual}
+              size="lg"
+              total={totalPaginas}
+              onChange={setPaginaAtual}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
+}
 
-      <ConfirmModal
-        isOpen={isDeleteOpen}
-        message={`Tem certeza que deseja excluir o técnico ${tecnicoParaDeletar?.nome}?`}
-        title="Excluir Técnico"
-        onClose={onDeleteClose}
-        onConfirm={handleDelete}
-      />
+function StatCard({ icon, value, label, color, bg, iconBg }: { icon: React.ReactNode; value: number; label: string; color: string; bg: string; iconBg: string }) {
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}>
+        {icon}
+      </div>
+      <div>
+        <p className={`text-lg font-bold ${color}`}>{value}</p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">{label}</p>
+      </div>
     </div>
   );
 }

@@ -31,11 +31,13 @@ export interface TaxaCartaoFormData {
 
 export interface SimulacaoTaxa {
   valor_bruto: number;
-  valor_custo?: number; // Valor de compra do produto
+  valor_custo?: number;
   tipo_produto: TipoProdutoTaxa;
   forma_pagamento: FormaPagamentoTaxa;
   parcelas: number;
   bandeira?: BandeiraCartaoTaxa;
+  loja_id?: number | null;
+  taxa_inclusa?: boolean;
   taxa_aplicada?: TaxaCartao;
 }
 

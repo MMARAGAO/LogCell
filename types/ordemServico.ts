@@ -103,6 +103,9 @@ export interface OrdemServico {
   status: StatusOS;
   prioridade: PrioridadeOS;
 
+  // Bancada (câmera para streaming ao vivo)
+  bancada?: string;
+
   // Loja e Responsáveis
   id_loja: number;
   tecnico_responsavel?: string;

@@ -1675,6 +1675,7 @@ export function VendaAparelhoModal({
               <SimuladorTaxaCartao
                 mostrarDetalhes={true}
                 tipoProdutoPadrao="aparelho"
+                lojaId={lojaId}
                 valorCusto={valorCusto}
                 valorVenda={valorVendaNumerico}
                 onSimulacaoChange={setSimulacaoAtual}

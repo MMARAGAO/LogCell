@@ -1,35 +1,20 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import Link from "next/link";
 import {
-  HomeIcon,
-  CubeIcon,
-  BuildingStorefrontIcon,
-  UsersIcon,
-  UserCircleIcon,
-  XMarkIcon,
-  TruckIcon,
-  WrenchScrewdriverIcon,
-  UserGroupIcon,
-  CogIcon,
-  ArrowsRightLeftIcon,
-  ShoppingCartIcon,
-  ArrowUturnLeftIcon,
-  CurrencyDollarIcon,
-  DevicePhoneMobileIcon,
-  DocumentChartBarIcon,
+  HomeIcon, CubeIcon, BuildingStorefrontIcon, UsersIcon, UserCircleIcon,
+  XMarkIcon, TruckIcon, WrenchScrewdriverIcon, UserGroupIcon, CogIcon,
+  ArrowsRightLeftIcon, ShoppingCartIcon, ArrowUturnLeftIcon, CurrencyDollarIcon,
+  DevicePhoneMobileIcon, DocumentChartBarIcon,
 } from "@heroicons/react/24/outline";
 import {
-  HomeIcon as HomeIconSolid,
-  CubeIcon as CubeIconSolid,
+  HomeIcon as HomeIconSolid, CubeIcon as CubeIconSolid,
   BuildingStorefrontIcon as BuildingStorefrontIconSolid,
-  UsersIcon as UsersIconSolid,
-  UserCircleIcon as UserCircleIconSolid,
-  TruckIcon as TruckIconSolid,
-  WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
-  UserGroupIcon as UserGroupIconSolid,
-  CogIcon as CogIconSolid,
+  UsersIcon as UsersIconSolid, UserCircleIcon as UserCircleIconSolid,
+  TruckIcon as TruckIconSolid, WrenchScrewdriverIcon as WrenchScrewdriverIconSolid,
+  UserGroupIcon as UserGroupIconSolid, CogIcon as CogIconSolid,
   ArrowsRightLeftIcon as ArrowsRightLeftIconSolid,
   ShoppingCartIcon as ShoppingCartIconSolid,
   ArrowUturnLeftIcon as ArrowUturnLeftIconSolid,
@@ -37,9 +22,8 @@ import {
   DevicePhoneMobileIcon as DevicePhoneMobileIconSolid,
   DocumentChartBarIcon as DocumentChartBarIconSolid,
 } from "@heroicons/react/24/solid";
-import { PackageX } from "lucide-react";
+import { PackageX, ChevronLeft, ChevronRight } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
-import { Chip } from "@heroui/chip";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useFotoPerfil } from "@/hooks/useFotoPerfil";
@@ -49,309 +33,292 @@ import Logo from "@/components/Logo";
 
 interface SidebarProps {
   isOpen: boolean;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   onClose: () => void;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+const menuSections = [
+  {
+    label: "Dashboard",
+    items: [
+      { name: "Dashboard", href: "/sistema/dashboard", permissao: "dashboard.visualizar" as const, icon: HomeIcon, iconSolid: HomeIconSolid },
+      { name: "Meu Dashboard", href: "/sistema/dashboard-pessoal", permissao: "dashboard_pessoal.visualizar" as const, icon: UserCircleIcon, iconSolid: UserCircleIconSolid },
+    ],
+  },
+  {
+    label: "Operacional",
+    items: [
+      { name: "Estoque", href: "/sistema/estoque", permissao: "estoque.visualizar" as const, icon: CubeIcon, iconSolid: CubeIconSolid },
+      { name: "Aparelhos", href: "/sistema/aparelhos", permissao: "aparelhos.visualizar" as const, icon: DevicePhoneMobileIcon, iconSolid: DevicePhoneMobileIconSolid },
+      { name: "Transferências", href: "/sistema/transferencias", permissao: "transferencias.visualizar" as const, icon: ArrowsRightLeftIcon, iconSolid: ArrowsRightLeftIconSolid },
+    ],
+  },
+  {
+    label: "Vendas",
+    items: [
+      { name: "Vendas", href: "/sistema/vendas", permissao: "vendas.visualizar" as const, icon: ShoppingCartIcon, iconSolid: ShoppingCartIconSolid },
+      { name: "Devoluções", href: "/sistema/devolucoes", permissao: "devolucoes.visualizar" as const, icon: PackageX, iconSolid: PackageX },
+      { name: "Caixa", href: "/sistema/caixa", permissao: "caixa.visualizar" as const, icon: CurrencyDollarIcon, iconSolid: CurrencyDollarIconSolid },
+      { name: "Financeiro", href: "/sistema/financeiro", permissao: "financeiro.visualizar" as const, icon: DocumentChartBarIcon, iconSolid: DocumentChartBarIconSolid },
+    ],
+  },
+  {
+    label: "Serviços",
+    items: [
+      { name: "Ordem de Serviço", href: "/sistema/ordem-servico", permissao: "os.visualizar" as const, icon: WrenchScrewdriverIcon, iconSolid: WrenchScrewdriverIconSolid },
+      { name: "Minhas Ordens", href: "/sistema/tecnicos", permissao: "os.visualizar" as const, condicao: "isTecnico" as const, icon: WrenchScrewdriverIcon, iconSolid: WrenchScrewdriverIconSolid },
+      { name: "RMAs", href: "/sistema/rmas", permissao: "rma.visualizar" as const, icon: ArrowUturnLeftIcon, iconSolid: ArrowUturnLeftIconSolid },
+    ],
+  },
+  {
+    label: "Cadastros",
+    items: [
+      { name: "Clientes", href: "/sistema/clientes", permissao: "clientes.visualizar" as const, icon: UserGroupIcon, iconSolid: UserGroupIconSolid },
+      { name: "Lojas", href: "/sistema/lojas", permissao: "lojas.visualizar" as const, icon: BuildingStorefrontIcon, iconSolid: BuildingStorefrontIconSolid },
+      { name: "Fornecedores", href: "/sistema/fornecedores", permissao: "fornecedores.visualizar" as const, icon: TruckIcon, iconSolid: TruckIconSolid },
+      { name: "Técnicos", href: "/sistema/tecnicos", permissao: "tecnicos.visualizar" as const, icon: UsersIcon, iconSolid: UsersIconSolid },
+      { name: "Usuários", href: "/sistema/usuarios", permissao: "usuarios.visualizar" as const, icon: UsersIcon, iconSolid: UsersIconSolid },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { name: "Configurações", href: "/sistema/configuracoes", permissao: "configuracoes.gerenciar" as const, icon: CogIcon, iconSolid: CogIconSolid },
+    ],
+  },
+];
+
+function SidebarContent({
+  collapsed,
+  isDesktop,
+  onClose,
+  onToggleCollapse,
+  hideHeader,
+}: {
+  collapsed: boolean;
+  isDesktop: boolean;
+  onClose: () => void;
+  onToggleCollapse?: () => void;
+  hideHeader?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { usuario, loading: authLoading } = useAuthContext();
-  const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
+  const { fotoUrl } = useFotoPerfil();
   const { temPermissao, isAdmin, permissoes, loading } = usePermissoes();
   const menuLoading = authLoading || loading || !usuario;
-
-  // Determinar se é técnico
   const isTecnico = usuario?.tipo_usuario === "tecnico";
 
-  // Redirecionar logo baseado em permissões
   const handleLogoClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     if (menuLoading) return;
     if (isTecnico) {
-      router.push("/sistema/ordem-servico/tecnico");
-    } else {
-      const primeiraRota = getPrimeiraRotaDisponivel(
-        permissoes,
-        isAdmin,
-        false,
-      );
-
-      router.push(primeiraRota);
+      router.push("/sistema/tecnicos");
     }
+    const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, false);
+    router.push(primeiraRota);
     onClose();
   };
 
-  // Menu para TÉCNICOS (acesso restrito)
-  const menuItemsTecnico = [
-    {
-      name: "Minhas Ordens",
-      href: "/sistema/ordem-servico/tecnico",
-      icon: WrenchScrewdriverIcon,
-      iconSolid: WrenchScrewdriverIconSolid,
-      permissao: "os.visualizar" as const,
-    },
-    {
-      name: "Configurações",
-      href: "/sistema/configuracoes",
-      icon: CogIcon,
-      iconSolid: CogIconSolid,
-    },
-  ];
-
-  // Menu para ADMIN (acesso completo)
-  const menuItemsAdmin = [
-    {
-      name: "Dashboard",
-      href: "/sistema/dashboard",
-      icon: HomeIcon,
-      iconSolid: HomeIconSolid,
-      permissao: "dashboard.visualizar" as const,
-    },
-    {
-      name: "Meu Dashboard",
-      href: "/sistema/dashboard-pessoal",
-      icon: UserCircleIcon,
-      iconSolid: UserCircleIconSolid,
-      permissao: "dashboard_pessoal.visualizar" as const,
-    },
-    {
-      name: "Estoque",
-      href: "/sistema/estoque",
-      icon: CubeIcon,
-      iconSolid: CubeIconSolid,
-      permissao: "estoque.visualizar" as const,
-    },
-    {
-      name: "Aparelhos",
-      href: "/sistema/aparelhos",
-      icon: DevicePhoneMobileIcon,
-      iconSolid: DevicePhoneMobileIconSolid,
-      permissao: "aparelhos.visualizar" as const,
-    },
-    {
-      name: "Transferências",
-      href: "/sistema/transferencias",
-      icon: ArrowsRightLeftIcon,
-      iconSolid: ArrowsRightLeftIconSolid,
-      permissao: "transferencias.visualizar" as const,
-    },
-    {
-      name: "Vendas",
-      href: "/sistema/vendas",
-      icon: ShoppingCartIcon,
-      iconSolid: ShoppingCartIconSolid,
-      permissao: "vendas.visualizar" as const,
-    },
-    {
-      name: "Devoluções",
-      href: "/sistema/devolucoes",
-      icon: PackageX,
-      iconSolid: PackageX,
-      permissao: "devolucoes.visualizar" as const,
-    },
-    {
-      name: "Caixa",
-      href: "/sistema/caixa",
-      icon: CurrencyDollarIcon,
-      iconSolid: CurrencyDollarIconSolid,
-      permissao: "caixa.visualizar" as const,
-    },
-    {
-      name: "Financeiro",
-      href: "/sistema/financeiro",
-      icon: DocumentChartBarIcon,
-      iconSolid: DocumentChartBarIconSolid,
-      permissao: "financeiro.visualizar" as const,
-    },
-    {
-      name: "RMAs",
-      href: "/sistema/rmas",
-      icon: ArrowUturnLeftIcon,
-      iconSolid: ArrowUturnLeftIconSolid,
-      permissao: "rma.visualizar" as const,
-    },
-    {
-      name: "Lojas",
-      href: "/sistema/lojas",
-      icon: BuildingStorefrontIcon,
-      iconSolid: BuildingStorefrontIconSolid,
-      permissao: "lojas.visualizar" as const,
-    },
-    {
-      name: "Fornecedores",
-      href: "/sistema/fornecedores",
-      icon: TruckIcon,
-      iconSolid: TruckIconSolid,
-      permissao: "fornecedores.visualizar" as const,
-    },
-    {
-      name: "Ordem de Serviço",
-      href: "/sistema/ordem-servico",
-      icon: WrenchScrewdriverIcon,
-      iconSolid: WrenchScrewdriverIconSolid,
-      permissao: "os.visualizar" as const,
-    },
-    {
-      name: "Clientes",
-      href: "/sistema/clientes",
-      icon: UserGroupIcon,
-      iconSolid: UserGroupIconSolid,
-      permissao: "clientes.visualizar" as const,
-    },
-    {
-      name: "Técnicos",
-      href: "/sistema/tecnicos",
-      icon: UsersIcon,
-      iconSolid: UsersIconSolid,
-      permissao: "tecnicos.visualizar" as const,
-    },
-    {
-      name: "Usuários",
-      href: "/sistema/usuarios",
-      icon: UsersIcon,
-      iconSolid: UsersIconSolid,
-      permissao: "usuarios.visualizar" as const,
-    },
-  ];
-
-  // Selecionar menu baseado no tipo de usuário e filtrar por permissões
-  const menuItemsBase = isTecnico ? menuItemsTecnico : menuItemsAdmin;
-  const menuItems = menuLoading
-    ? []
-    : menuItemsBase.filter((item) => {
-        if (!item.permissao) return true;
-        if (isAdmin) return true;
-
-        return temPermissao(item.permissao as any);
-      });
-
   return (
     <>
-      {/* Overlay para mobile */}
+      {!hideHeader && (
+        <div className={`flex items-center h-16 shrink-0 border-b border-zinc-200/80 dark:border-zinc-700/80 ${collapsed ? "justify-center" : "px-5 gap-4"}`}>
+          {!collapsed && (
+            <button className="flex items-center cursor-pointer flex-1 gap-3" type="button" onClick={handleLogoClick}>
+              <div className="w-9 h-9 flex items-center justify-center text-primary shrink-0">
+                <Logo className="w-full h-full" />
+              </div>
+              <div className="min-w-0 text-left">
+                <span className="font-bold text-base tracking-tight text-zinc-900 dark:text-white block truncate">LogCell</span>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">Sistema de Gestão</p>
+              </div>
+            </button>
+          )}
+          {isDesktop && onToggleCollapse && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
+              aria-label={collapsed ? "Abrir menu lateral" : "Fechar menu lateral"}
+              className="
+                group relative flex h-8 w-8 shrink-0 items-center justify-center
+                overflow-hidden rounded-[8px]
+                border border-zinc-300/50 dark:border-zinc-600/60
+                bg-transparent
+                transition-all duration-300
+                hover:border-zinc-400 dark:hover:border-zinc-500
+                hover:bg-zinc-100 dark:hover:bg-zinc-800/30
+                active:scale-95
+              "
+            >
+              {/* Barra interna: move no eixo X e espelha */}
+              <motion.div
+                animate={
+                  collapsed
+                    ? { x: "calc(100% + 14px)", scaleX: -1 }
+                    : { x: 0, scaleX: 1 }
+                }
+                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                style={{ transformOrigin: "center" }}
+                className="
+                  absolute left-0 top-0 h-full w-[25%]
+                  overflow-hidden rounded-l-[9px]
+                  border-r border-zinc-300/50 dark:border-zinc-600/60
+                  bg-white/20 dark:bg-white/10 backdrop-blur-sm
+                "
+              >
+                {/* Textura de linhas diagonais */}
+                <div className="absolute inset-0 opacity-30 dark:opacity-20">
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <span
+                      key={index}
+                      className="absolute h-[100px] w-px rotate-45 bg-zinc-400 dark:bg-zinc-500"
+                      style={{ left: `${index * 7 - 12}px`, top: "-20px" }}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Seta: move no eixo X e rotaciona 180° */}
+              <div className="absolute left-[48%] top-1/2 z-10 flex h-3 w-3 -translate-y-1/2 items-center justify-center">
+                <motion.div
+                  animate={collapsed ? { x: "-94%", rotate: 180 } : { x: 0, rotate: 0 }}
+                  transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex h-full w-full items-center justify-center text-zinc-500 dark:text-zinc-400"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" className="block h-[18px] w-[18px]">
+                    <path
+                      d="M15 6L9 12L15 18"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </motion.div>
+              </div>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Navegação */}
+      <nav className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
+        <div className="space-y-5">
+          {menuSections.map((section) => {
+            const visibleItems = menuLoading ? [] : section.items.filter((item) => {
+              if ("condicao" in item && item.condicao === "isTecnico") {
+                return isTecnico;
+              }
+              if (!item.permissao) return true;
+              if (isAdmin) return true;
+              return temPermissao(item.permissao as any);
+            });
+            if (visibleItems.length === 0) return null;
+            return (
+              <div key={section.label}>
+                {!collapsed && (
+                  <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                    {section.label}
+                  </p>
+                )}
+                <div className="space-y-0.5">
+                  {visibleItems.map((item) => {
+                    const Icon = item.icon;
+                    const IconSolid = item.iconSolid;
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link key={item.href}
+                        className={`relative flex items-center rounded-lg text-sm transition-all duration-150 ${collapsed ? "justify-center py-2.5 mx-auto w-full" : "gap-3 px-3 py-2"} ${isActive ? "bg-primary/10 text-primary font-medium" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200"}`}
+                        href={item.href} onClick={onClose} title={collapsed ? item.name : undefined}>
+                        {isActive && !collapsed && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-full" />}
+                        <span className="relative">
+                          {isActive ? <IconSolid className="w-5 h-5 shrink-0" /> : <Icon className="w-5 h-5 shrink-0" />}
+                          {isActive && collapsed && <span className="absolute -right-1 -top-1 w-2 h-2 bg-primary rounded-full" />}
+                        </span>
+                        {!collapsed && item.name}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Usuário */}
+      <div className={`shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 ${collapsed ? "px-2 py-3" : "px-3 py-3"}`}>
+        <div className={`flex items-center ${collapsed ? "flex-col gap-3" : "gap-2 flex-col"}`}>
+          {collapsed ? (
+            <Avatar showFallback className="w-9 h-9 shrink-0" color="primary" name={usuario?.nome} size="sm" src={fotoUrl || undefined} />
+          ) : (
+            <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 w-full">
+              <Avatar showFallback className="w-9 h-9 shrink-0" color="primary" name={usuario?.nome} size="sm" src={fotoUrl || undefined} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">{usuario?.nome}</p>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{isTecnico ? "Técnico" : "Admin"}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function Sidebar({ isOpen, collapsed, onToggleCollapse, onClose }: SidebarProps) {
+  return (
+    <>
+      {/* Mobile overlay */}
       {isOpen && (
         <button
           aria-label="Fechar menu"
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
           type="button"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Mobile sidebar (fixed overlay, only visible when open) */}
       <aside
         className={`
-          fixed top-0 left-0 h-full bg-background/95 backdrop-blur-xl border-r border-divider/50 z-30
-          transition-transform duration-300 ease-in-out
-          w-72 flex flex-col shadow-xl
+          fixed top-0 left-0 h-full z-40 flex flex-col bg-white dark:bg-zinc-950 border-r border-zinc-200/80 dark:border-zinc-700/80
+          transition-transform duration-300 ease-in-out w-64
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0
+          lg:hidden
         `}
       >
-        {/* Header da Sidebar */}
-        <div className="flex items-center justify-between p-6 border-b border-divider/50">
-          <button
-            className="flex items-center gap-3 group cursor-pointer"
-            type="button"
-            onClick={handleLogoClick}
-          >
-            <div className="relative w-14 h-14 flex-shrink-0 group-hover:scale-110 transition-transform duration-200 flex items-center justify-center p-2">
-              <Logo className="w-full h-full text-foreground" />
+        <div className="flex items-center justify-between px-4 h-16 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 flex items-center justify-center text-primary shrink-0">
+              <Logo className="w-full h-full" />
             </div>
             <div>
-              <span className="font-bold text-xl tracking-tight">LogCell</span>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-default-500">
-                  {isTecnico ? "Área do Técnico" : "Admin Panel"}
-                </p>
-                <div className="flex items-center gap-1">
-                  <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
-                  <span className="text-[10px] text-success font-medium">
-                    Online
-                  </span>
-                </div>
-              </div>
+              <span className="font-bold text-base tracking-tight text-zinc-900 dark:text-white">LogCell</span>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-tight">Menu</p>
             </div>
-          </button>
-          <button
-            aria-label="Fechar menu"
-            className="lg:hidden p-2 hover:bg-default-100 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
-            onClick={onClose}
-          >
+          </div>
+          <button aria-label="Fechar menu" className="lg:hidden p-1.5 text-zinc-400 hover:text-zinc-600 rounded-lg hover:bg-zinc-100" onClick={onClose}>
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          <div className="space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const IconSolid = item.iconSolid;
-              const isActive = pathname === item.href;
-
-              return (
-                <Link
-                  key={item.href}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl
-                    transition-all duration-200 group
-                    ${
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                        : "text-foreground hover:bg-default-100 hover:scale-[1.02] active:scale-[0.98]"
-                    }
-                  `}
-                  href={item.href}
-                  onClick={onClose}
-                >
-                  {isActive ? (
-                    <IconSolid className="w-5 h-5 shrink-0" />
-                  ) : (
-                    <Icon className="w-5 h-5 shrink-0 group-hover:scale-110 transition-transform duration-200" />
-                  )}
-                  <span
-                    className={`font-medium ${isActive ? "font-semibold" : ""}`}
-                  >
-                    {item.name}
-                  </span>
-                  {isActive && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground" />
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-
-        {/* User Info - Movido para baixo */}
-        <div className="p-4 border-t border-divider/50 bg-default-50/50">
-          <div className="flex items-center gap-3">
-            <Avatar
-              isBordered
-              showFallback
-              className="shrink-0"
-              color="primary"
-              name={usuario?.nome}
-              size="md"
-              src={fotoUrl || undefined}
-            />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm truncate">{usuario?.nome}</p>
-              <p className="text-xs text-default-500 truncate mb-1">
-                {usuario?.email}
-              </p>
-              <Chip
-                className="h-5"
-                color={isTecnico ? "primary" : "success"}
-                size="sm"
-                variant="flat"
-              >
-                {isTecnico ? "Técnico" : "Admin"}
-              </Chip>
-            </div>
-          </div>
+        <div className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin">
+          <SidebarContent collapsed={false} isDesktop={false} onClose={onClose} hideHeader />
         </div>
+      </aside>
+
+      {/* Desktop sidebar (in flex flow) */}
+      <aside
+        className={`
+          hidden lg:flex flex-col bg-white dark:bg-zinc-950 border-r border-zinc-200/80 dark:border-zinc-700/80
+          transition-all duration-300 ease-in-out relative shrink-0
+          ${collapsed ? "w-16" : "w-64"}
+        `}
+      >
+        <SidebarContent collapsed={collapsed} isDesktop={true} onClose={onClose} onToggleCollapse={onToggleCollapse} />
+
       </aside>
     </>
   );
