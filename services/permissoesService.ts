@@ -145,6 +145,7 @@ export class PermissoesService {
         ajustar: false,
         ver_estatisticas: false,
         ver_preco_custo: false,
+        ver_estoque_outras_lojas: false,
       },
       lojas: {
         visualizar: false,
@@ -286,6 +287,7 @@ export class PermissoesService {
         ajustar: true,
         ver_estatisticas: true,
         ver_preco_custo: true,
+        ver_estoque_outras_lojas: true,
       },
       lojas: {
         visualizar: true,

@@ -40,9 +40,15 @@ interface ProdutoCardProps {
   onDeletar: (produto: any) => void;
   onToggleAtivo: (produto: any) => void;
   onBaixarRelatorio: (produto: any) => void;
-  canEdit: boolean;
-  canDelete: boolean;
   canAdjust: boolean;
+  canClonar: boolean;
+  canDelete: boolean;
+  canEdit: boolean;
+  canFornecedores: boolean;
+  canHistoricoEstoque: boolean;
+  canHistoricoProduto: boolean;
+  canRelatorio: boolean;
+  canTransferir: boolean;
   temVerPrecoCusto: boolean;
 }
 
@@ -59,8 +65,15 @@ export function ProdutoCard({
   onDeletar,
   onToggleAtivo,
   onBaixarRelatorio,
-  canEdit,
+  canAdjust,
+  canClonar,
   canDelete,
+  canEdit,
+  canFornecedores,
+  canHistoricoEstoque,
+  canHistoricoProduto,
+  canRelatorio,
+  canTransferir,
   temVerPrecoCusto,
 }: ProdutoCardProps) {
   const { fotos, loading: loadingFotos } = useFotosProduto(produto.id);
@@ -232,16 +245,18 @@ export function ProdutoCard({
       <Divider />
       <CardBody className="p-2 bg-default-50/50 dark:bg-default-50/5">
         <div className="flex gap-1.5">
-          <Button
-            className="flex-1 font-semibold"
-            color="primary"
-            size="sm"
-            startContent={<BuildingStorefrontIcon className="w-4 h-4" />}
-            variant="solid"
-            onPress={() => onAbrirEstoque(produto)}
-          >
-            Estoque
-          </Button>
+          {canAdjust && (
+            <Button
+              className="flex-1 font-semibold"
+              color="primary"
+              size="sm"
+              startContent={<BuildingStorefrontIcon className="w-4 h-4" />}
+              variant="solid"
+              onPress={() => onAbrirEstoque(produto)}
+            >
+              Estoque
+            </Button>
+          )}
 
           <Button
             isIconOnly
@@ -283,46 +298,58 @@ export function ProdutoCard({
                   Editar Produto
                 </DropdownItem>
               ) : null}
-              <DropdownItem
-                key="clonar"
-                color="secondary"
-                startContent={<DocumentDuplicateIcon className="w-4 h-4" />}
-              >
-                Clonar Produto
-              </DropdownItem>
-              <DropdownItem
-                key="relatorio"
-                color="success"
-                startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
-              >
-                Baixar Relatório PDF
-              </DropdownItem>
-              <DropdownItem
-                key="historico-produto"
-                startContent={<ClockIcon className="w-4 h-4" />}
-              >
-                Histórico do Produto
-              </DropdownItem>
-              <DropdownItem
-                key="historico-estoque"
-                startContent={<ArrowPathIcon className="w-4 h-4" />}
-              >
-                Histórico de Movimentações
-              </DropdownItem>
-              <DropdownItem
-                key="fornecedores"
-                color="secondary"
-                startContent={<TruckIcon className="w-4 h-4" />}
-              >
-                Gerenciar Fornecedores
-              </DropdownItem>
-              <DropdownItem
-                key="transferir"
-                color="primary"
-                startContent={<ArrowPathIcon className="w-4 h-4" />}
-              >
-                Transferir entre Lojas
-              </DropdownItem>
+              {canClonar ? (
+                <DropdownItem
+                  key="clonar"
+                  color="secondary"
+                  startContent={<DocumentDuplicateIcon className="w-4 h-4" />}
+                >
+                  Clonar Produto
+                </DropdownItem>
+              ) : null}
+              {canRelatorio ? (
+                <DropdownItem
+                  key="relatorio"
+                  color="success"
+                  startContent={<DocumentArrowDownIcon className="w-4 h-4" />}
+                >
+                  Baixar Relatório PDF
+                </DropdownItem>
+              ) : null}
+              {canHistoricoProduto ? (
+                <DropdownItem
+                  key="historico-produto"
+                  startContent={<ClockIcon className="w-4 h-4" />}
+                >
+                  Histórico do Produto
+                </DropdownItem>
+              ) : null}
+              {canHistoricoEstoque ? (
+                <DropdownItem
+                  key="historico-estoque"
+                  startContent={<ArrowPathIcon className="w-4 h-4" />}
+                >
+                  Histórico de Movimentações
+                </DropdownItem>
+              ) : null}
+              {canFornecedores ? (
+                <DropdownItem
+                  key="fornecedores"
+                  color="secondary"
+                  startContent={<TruckIcon className="w-4 h-4" />}
+                >
+                  Gerenciar Fornecedores
+                </DropdownItem>
+              ) : null}
+              {canTransferir ? (
+                <DropdownItem
+                  key="transferir"
+                  color="primary"
+                  startContent={<ArrowPathIcon className="w-4 h-4" />}
+                >
+                  Transferir entre Lojas
+                </DropdownItem>
+              ) : null}
               {canEdit ? (
                 <DropdownItem
                   key="toggle-ativo"

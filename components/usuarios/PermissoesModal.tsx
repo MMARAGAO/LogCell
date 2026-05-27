@@ -617,6 +617,14 @@ export function PermissoesModal({
                   >
                     Ver Preço de Custo
                   </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.ver_estoque_outras_lojas}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "ver_estoque_outras_lojas")
+                    }
+                  >
+                    Ver Estoque Outras Lojas
+                  </Checkbox>
                 </div>
               </div>
 

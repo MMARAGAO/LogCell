@@ -77,6 +77,7 @@ export interface PermissoesModulos {
     ajustar: boolean;
     ver_estatisticas: boolean;
     ver_preco_custo: boolean;
+    ver_estoque_outras_lojas: boolean;
   };
   lojas?: {
     visualizar: boolean;

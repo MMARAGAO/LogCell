@@ -21,8 +21,8 @@ export default function DevolucoesPage() {
 
   const [vendas, setVendas] = useState<VendaCompleta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingTabela, setLoadingTabela] = useState(false);
   const [busca, setBusca] = useState("");
+  const [debouncedBusca, setDebouncedBusca] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const itensPorPagina = 10;
   const [totalVendas, setTotalVendas] = useState(0);
@@ -34,7 +34,7 @@ export default function DevolucoesPage() {
 
   const selectVendas = `
     *,
-    cliente:clientes(id, nome, doc:doc, telefone),
+    cliente:clientes(id, nome, doc, telefone),
     loja:lojas(id, nome),
     vendedor:usuarios!vendas_vendedor_id_fkey(id, nome),
     itens:itens_venda(
@@ -58,68 +58,106 @@ export default function DevolucoesPage() {
     )
   `;
 
+  // Debounce da busca - só dispara após parar de digitar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedBusca(busca);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busca]);
+
+  const handleMudarPagina = (novaPagina: number) => {
+    setPaginaAtual(novaPagina);
+    carregarVendas(novaPagina, debouncedBusca);
+  };
+
   useEffect(() => {
     if (!loadingPermissoes) {
-      carregarVendas(paginaAtual, busca);
+      carregarVendas(paginaAtual, debouncedBusca);
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas, paginaAtual, busca]);
+  }, [loadingPermissoes, lojaId, podeVerTodasLojas, debouncedBusca]);
 
   const carregarVendas = async (pagina: number, termoBusca: string) => {
     try {
-      const isInitialLoad = vendas.length === 0;
-
-      if (isInitialLoad) {
-        setLoading(true);
-      } else {
-        setLoadingTabela(true);
-      }
 
       const offset = (pagina - 1) * itensPorPagina;
 
-      let query = supabase
+      // Busca total separadamente para evitar conflitos com joins complexos
+      let countQuery = supabase
         .from("vendas")
-        .select(selectVendas, { count: "exact" })
+        .select("id", { count: "exact" })
+        .in("status", ["concluida", "devolvida"])
+        .gt("valor_pago", 0);
+
+      let dataQuery = supabase
+        .from("vendas")
+        .select(selectVendas)
         .in("status", ["concluida", "devolvida"])
         .gt("valor_pago", 0)
         .order("criado_em", { ascending: false })
         .range(offset, offset + itensPorPagina - 1);
 
       if (lojaId !== null && !podeVerTodasLojas) {
-        query = query.eq("loja_id", lojaId);
+        countQuery = countQuery.eq("loja_id", lojaId);
+        dataQuery = dataQuery.eq("loja_id", lojaId);
       }
 
       if (termoBusca) {
         const ehNumerico = /^\d+$/.test(termoBusca);
 
         if (ehNumerico) {
-          query = query.eq("numero_venda", parseInt(termoBusca));
+          countQuery = countQuery.eq("numero_venda", parseInt(termoBusca));
+          dataQuery = dataQuery.eq("numero_venda", parseInt(termoBusca));
         } else {
-          const { data: clientes } = await supabase
+          const termos = termoBusca
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim()
+            .split(/\s+/)
+            .filter((t) => t.length > 0);
+
+          let clientesQuery = supabase
             .from("clientes")
-            .select("id")
-            .or(`nome.ilike.%${termoBusca}%,doc.ilike.%${termoBusca}%`);
+            .select("id");
+
+          termos.forEach((token) => {
+            clientesQuery = clientesQuery.or(
+              `nome.ilike.%${token}%,doc.ilike.%${token}%`,
+            );
+          });
+
+          const { data: clientes, error: clientesError } = await clientesQuery;
+
+          if (clientesError) {
+            console.error("Erro ao buscar clientes na devolução:", clientesError);
+          }
 
           const ids = (clientes || []).map((c) => c.id);
 
           if (ids.length > 0) {
-            query = query.in("cliente_id", ids);
+            countQuery = countQuery.in("cliente_id", ids);
+            dataQuery = dataQuery.in("cliente_id", ids);
           } else {
-            query = query.eq("cliente_id", -1);
+            countQuery = countQuery.eq("cliente_id", -1);
+            dataQuery = dataQuery.eq("cliente_id", -1);
           }
         }
       }
 
-      const { data, error, count } = await query;
+      const [countResult, dataResult] = await Promise.all([
+        countQuery,
+        dataQuery,
+      ]);
 
-      if (error) throw error;
+      if (countResult.error) throw countResult.error;
+      if (dataResult.error) throw dataResult.error;
 
-      setVendas((data || []) as VendaCompleta[]);
-      setTotalVendas(count || 0);
-    } catch (error) {
-      console.error("Erro ao carregar vendas:", error);
+      setVendas((dataResult.data || []) as VendaCompleta[]);
+      setTotalVendas(countResult.count || 0);
+    } catch (error: any) {
+      console.error("Erro ao carregar vendas:", error, { message: error?.message, details: error?.details, hint: error?.hint, code: error?.code });
     } finally {
       setLoading(false);
-      setLoadingTabela(false);
     }
   };
 
@@ -271,7 +309,7 @@ export default function DevolucoesPage() {
           </div>
           {totalPaginas > 1 && (
             <div className="flex items-center gap-2">
-              <Button className="rounded-xl text-xs" isDisabled={paginaAtual === 1} size="sm" variant="flat" onPress={() => setPaginaAtual(paginaAtual - 1)}>
+              <Button className="rounded-xl text-xs" isDisabled={paginaAtual === 1} size="sm" variant="flat" onPress={() => handleMudarPagina(paginaAtual - 1)}>
                 Anterior
                 </Button>
                 <span className="min-w-28 text-center text-xs font-medium text-slate-500 dark:text-zinc-400">
@@ -282,7 +320,7 @@ export default function DevolucoesPage() {
                   isDisabled={paginaAtual === totalPaginas}
                   size="sm"
                   variant="flat"
-                  onPress={() => setPaginaAtual(paginaAtual + 1)}
+                  onPress={() => handleMudarPagina(paginaAtual + 1)}
                 >
                   Próxima
                 </Button>
@@ -290,12 +328,6 @@ export default function DevolucoesPage() {
             )}
           </div>
           <div className="px-2 py-2 lg:px-3">
-            {loadingTabela && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[24px] bg-white/70 backdrop-blur-sm dark:bg-zinc-950/70">
-                <Spinner size="lg" />
-              </div>
-            )}
-
             <Table
               aria-label="Tabela de vendas concluídas"
               classNames={{

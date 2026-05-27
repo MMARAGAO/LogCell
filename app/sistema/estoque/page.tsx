@@ -210,7 +210,8 @@ export default function EstoquePage() {
       let dados = result.data;
 
       // Filtrar por loja se usuário não tiver acesso a todas
-      if (lojaId !== null && !podeVerTodasLojas) {
+      const podeVerOutrasLojas = podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas")
+      if (lojaId !== null && !podeVerOutrasLojas) {
         dados = dados.map((produto: any) => {
           const estoquesFiltrados =
             produto.estoques_lojas?.filter(
@@ -366,6 +367,10 @@ export default function EstoquePage() {
   };
 
   const handleToggleAtivo = async (produto: Produto) => {
+    if (!temPermissao("estoque.editar")) {
+      toast.error("Você não tem permissão para alterar o status do produto");
+      return;
+    }
     if (!user) return;
 
     const acao = produto.ativo ? "desativar" : "ativar";
@@ -424,6 +429,10 @@ export default function EstoquePage() {
   };
 
   const abrirModalEstoque = async (produto: Produto) => {
+    if (!temPermissao("estoque.ajustar")) {
+      toast.error("Você não tem permissão para movimentar estoque");
+      return;
+    }
     setProdutoSelecionado(produto);
     // Carregar estoques do produto
     try {
@@ -448,11 +457,19 @@ export default function EstoquePage() {
   };
 
   const abrirModalFornecedores = (produto: Produto) => {
+    if (!temPermissao("fornecedores.visualizar")) {
+      toast.error("Você não tem permissão para gerenciar fornecedores");
+      return;
+    }
     setProdutoSelecionado(produto);
     setModalFornecedores(true);
   };
 
   const abrirModalTransferencia = (produto: Produto) => {
+    if (!temPermissao("estoque.transferir")) {
+      toast.error("Você não tem permissão para transferir produtos");
+      return;
+    }
     setProdutoSelecionado(produto);
     setModalTransferencia(true);
   };
@@ -463,6 +480,10 @@ export default function EstoquePage() {
   };
 
   const handleClonarProduto = (produto: Produto) => {
+    if (!temPermissao("estoque.criar")) {
+      toast.error("Você não tem permissão para clonar produtos");
+      return;
+    }
     // Cria um "novo" produto baseado no existente
     // Remove ID e timestamps para criar um novo registro
     const produtoClonado: Partial<Produto> = {
@@ -782,8 +803,14 @@ export default function EstoquePage() {
               <ProdutoCard
                 key={produto.id}
                 canAdjust={temPermissao("estoque.ajustar")}
+                canClonar={temPermissao("estoque.criar")}
                 canDelete={temPermissao("estoque.deletar")}
                 canEdit={temPermissao("estoque.editar")}
+                canFornecedores={temPermissao("fornecedores.visualizar")}
+                canHistoricoEstoque={temPermissao("estoque.visualizar")}
+                canHistoricoProduto={temPermissao("estoque.visualizar")}
+                canRelatorio={temPermissao("relatorios.visualizar")}
+                canTransferir={temPermissao("estoque.transferir")}
                 produto={produto}
                 temVerPrecoCusto={temPermissao("estoque.ver_preco_custo")}
                 onAbrirEstoque={abrirModalEstoque}
@@ -985,61 +1012,75 @@ export default function EstoquePage() {
                               }
                             }}
                           >
-                            <DropdownItem
-                              key="estoque"
-                              startContent={
-                                <BuildingStorefrontIcon className="w-4 h-4" />
-                              }
-                            >
-                              Movimentar Estoque
-                            </DropdownItem>
-                            <DropdownItem
-                              key="historico-produto"
-                              startContent={<ClockIcon className="w-4 h-4" />}
-                            >
-                              Histórico do Produto
-                            </DropdownItem>
-                            <DropdownItem
-                              key="historico-estoque"
-                              startContent={<ClockIcon className="w-4 h-4" />}
-                            >
-                              Histórico de Estoque
-                            </DropdownItem>
+                            {temPermissao("estoque.ajustar") ? (
+                              <DropdownItem
+                                key="estoque"
+                                startContent={
+                                  <BuildingStorefrontIcon className="w-4 h-4" />
+                                }
+                              >
+                                Movimentar Estoque
+                              </DropdownItem>
+                            ) : null}
+                            {temPermissao("estoque.visualizar") ? (
+                              <DropdownItem
+                                key="historico-produto"
+                                startContent={<ClockIcon className="w-4 h-4" />}
+                              >
+                                Histórico do Produto
+                              </DropdownItem>
+                            ) : null}
+                            {temPermissao("estoque.visualizar") ? (
+                              <DropdownItem
+                                key="historico-estoque"
+                                startContent={<ClockIcon className="w-4 h-4" />}
+                              >
+                                Histórico de Estoque
+                              </DropdownItem>
+                            ) : null}
                             <DropdownItem
                               key="fotos"
                               startContent={<PhotoIcon className="w-4 h-4" />}
                             >
                               Gerenciar Fotos
                             </DropdownItem>
-                            <DropdownItem
-                              key="editar"
-                              startContent={<PencilIcon className="w-4 h-4" />}
-                            >
-                              Editar
-                            </DropdownItem>
-                            <DropdownItem
-                              key="clonar"
-                              color="secondary"
-                              startContent={
-                                <DocumentDuplicateIcon className="w-4 h-4" />
-                              }
-                            >
-                              Clonar Produto
-                            </DropdownItem>
-                            <DropdownItem
-                              key="toggle"
-                              startContent={<ArrowPathIcon className="w-4 h-4" />}
-                            >
-                              {produto.ativo ? "Desativar" : "Ativar"}
-                            </DropdownItem>
-                            <DropdownItem
-                              key="deletar"
-                              className="text-danger"
-                              color="danger"
-                              startContent={<TrashIcon className="w-4 h-4" />}
-                            >
-                              Excluir
-                            </DropdownItem>
+                            {temPermissao("estoque.editar") ? (
+                              <DropdownItem
+                                key="editar"
+                                startContent={<PencilIcon className="w-4 h-4" />}
+                              >
+                                Editar
+                              </DropdownItem>
+                            ) : null}
+                            {temPermissao("estoque.criar") ? (
+                              <DropdownItem
+                                key="clonar"
+                                color="secondary"
+                                startContent={
+                                  <DocumentDuplicateIcon className="w-4 h-4" />
+                                }
+                              >
+                                Clonar Produto
+                              </DropdownItem>
+                            ) : null}
+                            {temPermissao("estoque.editar") ? (
+                              <DropdownItem
+                                key="toggle"
+                                startContent={<ArrowPathIcon className="w-4 h-4" />}
+                              >
+                                {produto.ativo ? "Desativar" : "Ativar"}
+                              </DropdownItem>
+                            ) : null}
+                            {temPermissao("estoque.deletar") ? (
+                              <DropdownItem
+                                key="deletar"
+                                className="text-danger"
+                                color="danger"
+                                startContent={<TrashIcon className="w-4 h-4" />}
+                              >
+                                Excluir
+                              </DropdownItem>
+                            ) : null}
                           </DropdownMenu>
                         </Dropdown>
                       </TableCell>

@@ -9,7 +9,9 @@ export type TipoServicoGarantia =
   | "servico_geral"
   | "troca_vidro"
   | "troca_tampa"
-  | "venda_aparelho";
+  | "venda_aparelho"
+  | "display"
+  | "bateria";
 
 export interface TextoGarantia {
   id: number;
@@ -36,4 +38,6 @@ export const TIPOS_SERVICO_GARANTIA: Record<TipoServicoGarantia, string> = {
   troca_vidro: "Troca de Vidro",
   troca_tampa: "Troca de Tampa",
   venda_aparelho: "Venda de Aparelho",
+  display: "Display",
+  bateria: "Bateria",
 };

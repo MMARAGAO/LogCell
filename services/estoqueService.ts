@@ -375,9 +375,33 @@ export async function buscarProdutosPaginados(params: {
       });
     });
 
+    // Buscar todas as lojas ativas para preencher lojas sem registro
+    const { data: lojasAtivas } = await supabase
+      .from("lojas")
+      .select("id, nome")
+      .eq("ativo", true);
+
+    const lojasMap = new Map<number, string>();
+    (lojasAtivas || []).forEach((loja: any) => {
+      lojasMap.set(loja.id, loja.nome);
+    });
+
     // Combinar produtos com estoques
     const resultado = produtos.map((produto: any) => {
       const estoquesLoja = estoquesMap.get(produto.id) || [];
+
+      // Preencher lojas sem registro com quantidade 0
+      const lojasPresentes = new Set(estoquesLoja.map((e: any) => e.id_loja));
+      lojasMap.forEach((nome, id) => {
+        if (!lojasPresentes.has(id)) {
+          estoquesLoja.push({
+            id_loja: id,
+            loja_nome: nome,
+            quantidade: 0,
+          });
+        }
+      });
+
       const total_estoque = estoquesLoja.reduce(
         (sum: number, e: any) => sum + e.quantidade,
         0,
