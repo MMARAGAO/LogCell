@@ -78,6 +78,7 @@ export default function VendasAparelhosPage() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
+  const [debouncedBusca, setDebouncedBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<string>("");
   const [periodo, setPeriodo] = useState<string>("todas");
   const [dataInicio, setDataInicio] = useState("");
@@ -132,11 +133,18 @@ export default function VendasAparelhosPage() {
   }, [trocaModal]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedBusca(busca);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [busca]);
+
+  useEffect(() => {
+    setPaginaAtual(1);
     carregarVendas();
-  }, []);
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab]);
 
   async function carregarVendas() {
-    setLoading(true);
     try {
       // Monta filtros
       const filtros: any[] = [["eq", "status", '"vendido"']];
@@ -247,8 +255,6 @@ export default function VendasAparelhosPage() {
   const [kpis, setKpis] = useState({ vendasHoje: 0, pendentes: 0, faturamento: 0, lucroTotal: 0, total: 0, porTipo: {} as Record<string, number> });
   const [totalPaginasBackend, setTotalPaginasBackend] = useState(0);
   const vendasPaginadas = vendas;
-
-  useEffect(() => { setPaginaAtual(1); }, [busca, periodo, dataInicio, dataFim, selectedTab]);
 
   async function handleCancelarVenda(v: any) {
     const conf = await confirm({
