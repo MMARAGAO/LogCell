@@ -35,6 +35,7 @@ import { createBrowserClient } from "@supabase/ssr";
 
 import { formatarMoeda } from "@/lib/formatters";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useToast } from "@/components/Toast";
 import { DetalhesAparelhoModal } from "@/components/aparelhos/DetalhesAparelhoModal";
@@ -70,6 +71,7 @@ export default function VendasAparelhosPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
   const { usuario } = useAuthContext();
+  const { temPermissao } = usePermissoes();
   const toast = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -546,13 +548,15 @@ export default function VendasAparelhosPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
-          <KpiCard icon={<ShoppingBag className="w-4 h-4" />} value={kpis.vendasHoje.toString()} label="Vendas Hoje" color="text-primary" bg="bg-primary/5" iconBg="bg-primary/10" />
-          <KpiCard icon={<ClockIcon className="w-4 h-4" />} value={kpis.pendentes.toString()} label="Pendentes" color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-900/20" iconBg="bg-orange-100 dark:bg-orange-900/40" />
-          <KpiCard icon={<CheckCircleIcon className="w-4 h-4" />} value={kpis.total.toString()} label="Total" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
-          <KpiCard icon={<TrendingUp className="w-4 h-4" />} value={formatarMoeda(kpis.faturamento)} label="Faturamento" color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-900/20" iconBg="bg-blue-100 dark:bg-blue-900/40" />
-          <KpiCard icon={<PiggyBank className="w-4 h-4" />} value={formatarMoeda(kpis.lucroTotal)} label="Lucro Total" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
-        </div>
+        {temPermissao("aparelhos.ver_dashboard") && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
+            <KpiCard icon={<ShoppingBag className="w-4 h-4" />} value={kpis.vendasHoje.toString()} label="Vendas Hoje" color="text-primary" bg="bg-primary/5" iconBg="bg-primary/10" />
+            <KpiCard icon={<ClockIcon className="w-4 h-4" />} value={kpis.pendentes.toString()} label="Pendentes" color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-900/20" iconBg="bg-orange-100 dark:bg-orange-900/40" />
+            <KpiCard icon={<CheckCircleIcon className="w-4 h-4" />} value={kpis.total.toString()} label="Total" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
+            <KpiCard icon={<TrendingUp className="w-4 h-4" />} value={formatarMoeda(kpis.faturamento)} label="Faturamento" color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-900/20" iconBg="bg-blue-100 dark:bg-blue-900/40" />
+            <KpiCard icon={<PiggyBank className="w-4 h-4" />} value={formatarMoeda(kpis.lucroTotal)} label="Lucro Total" color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-50 dark:bg-emerald-900/20" iconBg="bg-emerald-100 dark:bg-emerald-900/40" />
+          </div>
+        )}
         {Object.keys(kpis.porTipo).length > 0 && (
           <div className="flex flex-wrap gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
             {Object.entries(kpis.porTipo).map(([tipo, valor]) => (
