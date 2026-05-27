@@ -237,6 +237,7 @@ export default function AparelhosPage() {
 
       const filtrosComLoja: FiltrosAparelhos = {
         ...filtros,
+        busca: busca || undefined,
         loja_id: lojaIdFinal || undefined,
         status: filtros.status === "com_pagamento" ? undefined : filtros.status,
       };
