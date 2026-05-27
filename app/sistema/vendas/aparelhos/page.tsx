@@ -802,12 +802,15 @@ export default function VendasAparelhosPage() {
                               </Button>
                             </DropdownTrigger>
                              <DropdownMenu aria-label="Ações" onAction={(key) => {
-                               if (key === "detalhes") setModalDetalhes(v);
-                              else if (key === "imprimir") imprimirRecibo(v);
-                              else if (key === "garantia") imprimirGarantia(v);
-                              else if (key === "editar") abrirEditarVenda(v);
-                              else if (key === "cancelar") handleCancelarVenda(v);
-                            }}>
+                                if (key === "detalhes") setModalDetalhes(v);
+                               else if (key === "imprimir") imprimirRecibo(v);
+                               else if (key === "garantia") imprimirGarantia(v);
+                               else if (key === "editar") abrirEditarVenda(v);
+                               else if (key === "brinde") setBrindeModal({ vendaId: v.venda_id, aparelhoId: v.id });
+                               else if (key === "troca") setTrocaModal({ vendaId: v.venda_id, aparelhoId: v.id });
+                               else if (key === "pagamentos") setModalPagamento(v);
+                               else if (key === "cancelar") handleCancelarVenda(v);
+                             }}>
                               <DropdownItem key="detalhes" startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}>Detalhes</DropdownItem>
                               <DropdownItem key="imprimir" startContent={<PrinterIcon className="w-4 h-4" />}>Imprimir Recibo</DropdownItem>
                               <DropdownItem key="garantia" startContent={<ShieldCheckIcon className="w-4 h-4" />}>Imprimir Garantia</DropdownItem>
