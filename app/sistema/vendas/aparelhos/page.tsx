@@ -1746,6 +1746,9 @@ export default function VendasAparelhosPage() {
                       Aparelho
                     </th>
                     <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Vendedor
+                    </th>
+                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Valor
                     </th>
                     <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
@@ -1778,6 +1781,11 @@ export default function VendasAparelhosPage() {
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
                           {v.marca} {v.modelo}
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
+                          {v.vendedor_nome && v.vendedor_nome !== "—"
+                            ? v.vendedor_nome
+                            : "—"}
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-800 dark:text-white">
                           {formatarMoeda(v.valor_exibido || 0)}
