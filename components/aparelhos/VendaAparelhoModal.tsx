@@ -797,7 +797,7 @@ export function VendaAparelhoModal({
   return (
     <>
       <Modal
-        isDismissable={!loading}
+        isDismissable={!loading && !descontoModalOpen}
         isOpen={isOpen}
         scrollBehavior="inside"
         size="5xl"

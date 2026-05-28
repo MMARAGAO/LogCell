@@ -412,6 +412,7 @@ export function NovaVendaModal({
   return (
     <>
       <Modal
+        isDismissable={!descontoModalOpen}
         isOpen={isOpen}
         scrollBehavior="inside"
         size="3xl"
