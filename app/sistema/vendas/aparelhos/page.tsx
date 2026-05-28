@@ -141,8 +141,11 @@ export default function VendasAparelhosPage() {
 
   useEffect(() => {
     setPaginaAtual(1);
-    carregarVendas();
   }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab]);
+
+  useEffect(() => {
+    carregarVendas();
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, paginaAtual]);
 
   async function carregarVendas() {
     try {
