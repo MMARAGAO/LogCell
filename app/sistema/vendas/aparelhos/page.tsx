@@ -1531,8 +1531,7 @@ export default function VendasAparelhosPage() {
                         <td className="py-3 px-4 text-sm font-medium text-gray-800 dark:text-white">
                           {formatarMoeda(v.valor_exibido || 0)}
                           {v.valor_exibido !== v.valor_venda &&
-                            v.venda?.valor_desconto &&
-                            Number(v.venda.valor_desconto) > 0 && (
+                            (v.venda?.valor_desconto ?? 0) > 0 && (
                               <span className="ml-2 text-[10px] text-gray-400 dark:text-gray-500 line-through">
                                 {formatarMoeda(v.valor_venda || 0)}
                               </span>
@@ -1703,12 +1702,11 @@ export default function VendasAparelhosPage() {
               >
                 {isQuitado ? "Concluída" : "Pendente"}
               </span>
-              {v.venda?.valor_desconto &&
-                Number(v.venda.valor_desconto) > 0 && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                    Desc. {formatarMoeda(Number(v.venda.valor_desconto))}
-                  </span>
-                )}
+              {(v.venda?.valor_desconto ?? 0) > 0 && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                  Desc. {formatarMoeda(Number(v.venda.valor_desconto))}
+                </span>
+              )}
             </div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
               {v.marca} {v.modelo}
@@ -1724,8 +1722,7 @@ export default function VendasAparelhosPage() {
               {formatarMoeda(v.valor_exibido || 0)}
             </p>
             {v.valor_exibido !== v.valor_venda &&
-              v.venda?.valor_desconto &&
-              Number(v.venda.valor_desconto) > 0 && (
+              (v.venda?.valor_desconto ?? 0) > 0 && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 line-through">
                   {formatarMoeda(v.valor_venda || 0)}
                 </p>

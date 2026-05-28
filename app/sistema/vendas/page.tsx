@@ -74,6 +74,8 @@ import { imprimirNotaVenda } from "@/lib/imprimirNotaVenda";
 interface Estatisticas {
   totalVendas: number;
   vendasHoje: number;
+  valorTotalVendido: number;
+  valorTotalHoje: number;
   faturamentoTotal: number;
   faturamentoHoje: number;
   ticketMedio: number;
@@ -223,6 +225,8 @@ export default function VendasPage() {
   const [estatisticas, setEstatisticas] = useState<Estatisticas>({
     totalVendas: 0,
     vendasHoje: 0,
+    valorTotalVendido: 0,
+    valorTotalHoje: 0,
     faturamentoTotal: 0,
     faturamentoHoje: 0,
     ticketMedio: 0,
@@ -450,6 +454,8 @@ export default function VendasPage() {
         ...prev,
         totalVendas: statsRes.totalVendas,
         vendasHoje: statsRes.vendasHoje,
+        valorTotalVendido: statsRes.valorTotalVendido,
+        valorTotalHoje: statsRes.valorTotalHoje,
         faturamentoTotal: statsRes.faturamentoTotal,
         faturamentoHoje: statsRes.faturamentoHoje,
         ticketMedio: statsRes.ticketMedio,
@@ -497,9 +503,18 @@ export default function VendasPage() {
       v.criado_em?.startsWith(hoje),
     );
 
+    const valorTotalVendido = vendasConcluidas.reduce(
+      (sum, v) => sum + Number(v.valor_total || 0),
+      0,
+    );
+
+    const valorTotalHoje = vendasHoje.reduce(
+      (sum, v) => sum + Number(v.valor_total || 0),
+      0,
+    );
+
     // Faturamento = soma dos valores PAGOS excluindo crédito do cliente (não valor_total)
     const faturamentoTotal = vendas.reduce((sum, v) => {
-      // Filtrar pagamentos que não sejam crédito do cliente
       const pagamentosReais =
         v.pagamentos?.filter(
           (p: any) => p.tipo_pagamento !== "credito_cliente",
@@ -515,7 +530,6 @@ export default function VendasPage() {
 
     // Faturamento hoje = soma dos pagamentos feitos hoje (exceto crédito)
     const faturamentoHoje = vendas.reduce((sum, v) => {
-      // Verificar se tem pagamentos de hoje que não sejam crédito
       const pagamentosHoje =
         v.pagamentos?.filter(
           (p: any) =>
@@ -540,11 +554,13 @@ export default function VendasPage() {
     setEstatisticas({
       totalVendas: vendasConcluidas.length,
       vendasHoje: vendasHoje.length,
+      valorTotalVendido,
+      valorTotalHoje,
       faturamentoTotal,
       faturamentoHoje,
       ticketMedio:
         vendasConcluidas.length > 0
-          ? faturamentoTotal / vendasConcluidas.length
+          ? valorTotalVendido / vendasConcluidas.length
           : 0,
       produtosVendidos,
       creditosAtivos: 0,
@@ -1447,18 +1463,18 @@ export default function VendasPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30">
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-                  Faturamento Total
+                  Total Vendido
                 </span>
                 <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                  {formatarMoeda(estatisticas.faturamentoTotal)}
+                  {formatarMoeda(estatisticas.valorTotalVendido)}
                 </span>
               </div>
               <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/30">
                 <span className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">
-                  Faturamento Hoje
+                  Vendido Hoje
                 </span>
                 <span className="text-lg font-bold text-green-700 dark:text-green-300">
-                  {formatarMoeda(estatisticas.faturamentoHoje)}
+                  {formatarMoeda(estatisticas.valorTotalHoje)}
                 </span>
               </div>
               <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30">
