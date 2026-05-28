@@ -117,6 +117,7 @@ export default function NovaTransferenciaPage() {
   useEffect(() => {
     if (lojaOrigemId && buscaProduto.length > 0) {
       const timer = setTimeout(() => buscarProdutos(), 300);
+
       return () => clearTimeout(timer);
     } else {
       setProdutos([]);
@@ -734,7 +735,7 @@ export default function NovaTransferenciaPage() {
               ))}
             </Select>
 
-            <div style={{ display: lojaOrigemId ? '' : 'none' }}>
+            <div style={{ display: lojaOrigemId ? "" : "none" }}>
               <Select
                 description="Os produtos adicionados terão esta loja como destino inicial"
                 isDisabled={loading}
@@ -799,7 +800,7 @@ export default function NovaTransferenciaPage() {
         </Card>
 
         {/* Passo 2: Produtos */}
-        <div style={{ display: lojaOrigemId ? '' : 'none' }}>
+        <div style={{ display: lojaOrigemId ? "" : "none" }}>
           <Card shadow="sm">
             <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">
               <span
@@ -1073,7 +1074,7 @@ export default function NovaTransferenciaPage() {
         </div>
 
         {/* Passo 3: Tabela de Itens + Observação */}
-        <div style={{ display: itensTransferencia.length > 0 ? '' : 'none' }}>
+        <div style={{ display: itensTransferencia.length > 0 ? "" : "none" }}>
           <div>
             <Card shadow="sm">
               <CardHeader className="flex items-center gap-2 px-4 sm:px-5 pt-4 sm:pt-5 pb-0">

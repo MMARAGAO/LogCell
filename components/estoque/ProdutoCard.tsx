@@ -278,15 +278,33 @@ export function ProdutoCard({
               aria-label="Ações do produto"
               onAction={(key) => {
                 switch (key) {
-                  case "editar": onEditar(produto); break;
-                  case "clonar": onClonar(produto); break;
-                  case "relatorio": onBaixarRelatorio(produto); break;
-                  case "historico-produto": onAbrirHistoricoProduto(produto); break;
-                  case "historico-estoque": onAbrirHistoricoEstoque(produto); break;
-                  case "fornecedores": onAbrirFornecedores(produto); break;
-                  case "transferir": onAbrirTransferencia(produto); break;
-                  case "toggle-ativo": onToggleAtivo(produto); break;
-                  case "deletar": onDeletar(produto); break;
+                  case "editar":
+                    onEditar(produto);
+                    break;
+                  case "clonar":
+                    onClonar(produto);
+                    break;
+                  case "relatorio":
+                    onBaixarRelatorio(produto);
+                    break;
+                  case "historico-produto":
+                    onAbrirHistoricoProduto(produto);
+                    break;
+                  case "historico-estoque":
+                    onAbrirHistoricoEstoque(produto);
+                    break;
+                  case "fornecedores":
+                    onAbrirFornecedores(produto);
+                    break;
+                  case "transferir":
+                    onAbrirTransferencia(produto);
+                    break;
+                  case "toggle-ativo":
+                    onToggleAtivo(produto);
+                    break;
+                  case "deletar":
+                    onDeletar(produto);
+                    break;
                 }
               }}
             >

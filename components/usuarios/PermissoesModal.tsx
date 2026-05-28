@@ -620,7 +620,10 @@ export function PermissoesModal({
                   <Checkbox
                     isSelected={permissoes.estoque?.ver_estoque_outras_lojas}
                     onValueChange={() =>
-                      handleTogglePermissao("estoque", "ver_estoque_outras_lojas")
+                      handleTogglePermissao(
+                        "estoque",
+                        "ver_estoque_outras_lojas",
+                      )
                     }
                   >
                     Ver Estoque Outras Lojas

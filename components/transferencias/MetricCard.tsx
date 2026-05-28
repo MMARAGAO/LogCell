@@ -56,7 +56,9 @@ export function MetricCard({
       <CardBody className="p-3 sm:p-4">
         <div className="flex items-start justify-between">
           <div className="space-y-0.5">
-            <p className={`text-lg sm:text-xl font-bold ${c.text} leading-tight`}>
+            <p
+              className={`text-lg sm:text-xl font-bold ${c.text} leading-tight`}
+            >
               {value}
             </p>
             <p className="text-[10px] sm:text-xs text-default-500 font-medium uppercase tracking-wider">

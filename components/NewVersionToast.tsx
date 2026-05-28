@@ -18,6 +18,7 @@ export function NewVersionToast() {
 
       if (!version) {
         setVersion(data.version);
+
         return;
       }
 
@@ -33,6 +34,7 @@ export function NewVersionToast() {
   useEffect(() => {
     fetchVersion();
     const interval = setInterval(fetchVersion, CHECK_INTERVAL);
+
     return () => clearInterval(interval);
   }, [fetchVersion]);
 
@@ -51,10 +53,10 @@ export function NewVersionToast() {
           Atualizar
         </Button>
         <button
-          className="text-white/60 hover:text-white ml-1"
-          onClick={() => setVisible(false)}
-          type="button"
           aria-label="Fechar"
+          className="text-white/60 hover:text-white ml-1"
+          type="button"
+          onClick={() => setVisible(false)}
         >
           ✕
         </button>

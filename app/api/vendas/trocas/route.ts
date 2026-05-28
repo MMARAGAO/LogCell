@@ -61,7 +61,9 @@ export async function POST(request: Request) {
 
       if (errDeleteAparelhos) {
         return NextResponse.json(
-          { error: `Erro ao deletar aparelhos de troca: ${errDeleteAparelhos.message}` },
+          {
+            error: `Erro ao deletar aparelhos de troca: ${errDeleteAparelhos.message}`,
+          },
           { status: 500 },
         );
       }
@@ -75,7 +77,9 @@ export async function POST(request: Request) {
 
     if (errDeletePagamentos) {
       return NextResponse.json(
-        { error: `Erro ao deletar pagamentos de troca: ${errDeletePagamentos.message}` },
+        {
+          error: `Erro ao deletar pagamentos de troca: ${errDeletePagamentos.message}`,
+        },
         { status: 500 },
       );
     }
@@ -108,7 +112,9 @@ export async function POST(request: Request) {
 
       if (errInsertAparelho) {
         return NextResponse.json(
-          { error: `Erro ao inserir aparelho de troca: ${errInsertAparelho.message}` },
+          {
+            error: `Erro ao inserir aparelho de troca: ${errInsertAparelho.message}`,
+          },
           { status: 500 },
         );
       }
@@ -126,7 +132,9 @@ export async function POST(request: Request) {
 
         if (errInsertPagamento) {
           return NextResponse.json(
-            { error: `Erro ao inserir pagamento de troca: ${errInsertPagamento.message}` },
+            {
+              error: `Erro ao inserir pagamento de troca: ${errInsertPagamento.message}`,
+            },
             { status: 500 },
           );
         }
@@ -147,7 +155,10 @@ export async function POST(request: Request) {
       .from("vendas")
       .update({
         valor_pago: novoTotalPago,
-        saldo_devedor: Math.max(0, Number(venda.valor_total || 0) - novoTotalPago),
+        saldo_devedor: Math.max(
+          0,
+          Number(venda.valor_total || 0) - novoTotalPago,
+        ),
         status:
           novoTotalPago >= Number(venda.valor_total || 0)
             ? "concluida"

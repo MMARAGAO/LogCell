@@ -12,7 +12,9 @@ export function middleware(request: NextRequest) {
     !pathname.startsWith("/manifest")
   ) {
     const response = NextResponse.next();
+
     response.headers.set("Cache-Control", "no-store, must-revalidate");
+
     return response;
   }
 

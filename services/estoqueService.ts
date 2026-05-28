@@ -285,6 +285,7 @@ export async function getFiltrosProdutos(): Promise<{
     };
   } catch (error) {
     console.error("Erro ao buscar filtros:", error);
+
     return { marcas: [], categorias: [] };
   }
 }
@@ -382,6 +383,7 @@ export async function buscarProdutosPaginados(params: {
       .eq("ativo", true);
 
     const lojasMap = new Map<number, string>();
+
     (lojasAtivas || []).forEach((loja: any) => {
       lojasMap.set(loja.id, loja.nome);
     });
@@ -392,6 +394,7 @@ export async function buscarProdutosPaginados(params: {
 
       // Preencher lojas sem registro com quantidade 0
       const lojasPresentes = new Set(estoquesLoja.map((e: any) => e.id_loja));
+
       lojasMap.forEach((nome, id) => {
         if (!lojasPresentes.has(id)) {
           estoquesLoja.push({

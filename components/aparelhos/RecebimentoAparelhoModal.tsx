@@ -329,7 +329,10 @@ export function RecebimentoAparelhoModal({
       return;
     }
 
-    const totalPago = pagamentos.reduce((sum, p) => sum + (p.liquido ?? p.valor), 0);
+    const totalPago = pagamentos.reduce(
+      (sum, p) => sum + (p.liquido ?? p.valor),
+      0,
+    );
 
     if (totalPago <= 0 && pagamentosRemovidos.length === 0) {
       showToast("Adicione pelo menos um pagamento", "warning");
@@ -362,6 +365,7 @@ export function RecebimentoAparelhoModal({
               .ilike("observacoes", trocaPattern)
               .limit(1)
               .single();
+
             if (device) {
               await supabase.from("aparelhos").delete().eq("id", device.id);
             }
@@ -804,7 +808,11 @@ export function RecebimentoAparelhoModal({
                           className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition-colors"
                         >
                           <td className="py-2.5 px-4 text-sm text-gray-700 dark:text-gray-300">
-                            {pag.tipo === "troca_aparelho" ? "Troca" : TIPOS_PAGAMENTO.find((t) => t.value === pag.tipo)?.label || pag.tipo}
+                            {pag.tipo === "troca_aparelho"
+                              ? "Troca"
+                              : TIPOS_PAGAMENTO.find(
+                                  (t) => t.value === pag.tipo,
+                                )?.label || pag.tipo}
                           </td>
                           <td className="py-2.5 px-4 text-sm font-medium text-gray-800 dark:text-white">
                             {formatarMoeda(pag.valor)}
@@ -839,11 +847,13 @@ export function RecebimentoAparelhoModal({
                                   Aparelho de troca
                                 </span>
                               )}
-                              {pag.taxa == null && pag.liquido == null && pag.tipo !== "troca_aparelho" && (
-                                <span className="text-gray-400 dark:text-gray-500">
-                                  —
-                                </span>
-                              )}
+                              {pag.taxa == null &&
+                                pag.liquido == null &&
+                                pag.tipo !== "troca_aparelho" && (
+                                  <span className="text-gray-400 dark:text-gray-500">
+                                    —
+                                  </span>
+                                )}
                             </div>
                           </td>
                           <td className="py-2.5 px-4">
@@ -928,7 +938,9 @@ export function RecebimentoAparelhoModal({
             <Button
               className="rounded-xl text-sm font-medium"
               color="primary"
-              isDisabled={!editando && (pagamentos.length === 0 || !clienteSelecionado)}
+              isDisabled={
+                !editando && (pagamentos.length === 0 || !clienteSelecionado)
+              }
               isLoading={loading}
               onPress={handleSubmit}
             >

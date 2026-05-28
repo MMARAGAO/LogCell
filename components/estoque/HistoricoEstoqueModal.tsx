@@ -278,10 +278,10 @@ export default function HistoricoEstoqueModal({
               {hasMore && (
                 <div className="text-center pt-2 pb-1">
                   <Button
-                    variant="flat"
                     color="primary"
                     isLoading={loadingMais}
                     size="sm"
+                    variant="flat"
                     onPress={carregarMais}
                   >
                     Carregar mais ({historico.length} de {total})

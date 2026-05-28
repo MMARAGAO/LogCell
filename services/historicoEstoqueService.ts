@@ -10,7 +10,11 @@ export async function getHistoricoProduto(
   produtoId: string,
   page: number = 0,
   pageSize: number = 50,
-): Promise<{ data: HistoricoEstoqueCompleto[]; hasMore: boolean; total: number }> {
+): Promise<{
+  data: HistoricoEstoqueCompleto[];
+  hasMore: boolean;
+  total: number;
+}> {
   try {
     const from = page * pageSize;
     const to = from + pageSize - 1;
@@ -64,6 +68,7 @@ export async function getHistoricoProduto(
         item.observacao
       ) {
         const match = item.observacao.match(transferIdRegex);
+
         if (match?.[1]) {
           transferIds.push(match[1]);
         }
@@ -75,12 +80,15 @@ export async function getHistoricoProduto(
     if (transferIds.length > 0) {
       const { data: transfers } = await supabase
         .from("transferencias")
-        .select("id, criado_por")
-        .in("id", transferIds.filter((id, i, arr) => arr.indexOf(id) === i));
+        .select("id, usuario_id")
+        .in(
+          "id",
+          transferIds.filter((id, i, arr) => arr.indexOf(id) === i),
+        );
 
       if (transfers) {
         const criadoPorIds = transfers
-          .map((t) => t.criado_por)
+          .map((t) => t.usuario_id)
           .filter((id, i, arr) => id && arr.indexOf(id) === i) as string[];
 
         if (criadoPorIds.length > 0) {
@@ -90,9 +98,12 @@ export async function getHistoricoProduto(
             .in("id", criadoPorIds);
 
           if (users) {
-            const userMap = Object.fromEntries(users.map((u) => [u.id, u.nome]));
+            const userMap = Object.fromEntries(
+              users.map((u) => [u.id, u.nome]),
+            );
+
             criadoPorMap = Object.fromEntries(
-              transfers.map((t) => [t.id, userMap[t.criado_por] || "Sistema"]),
+              transfers.map((t) => [t.id, userMap[t.usuario_id] || "Sistema"]),
             );
           }
         }

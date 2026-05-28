@@ -1489,8 +1489,10 @@ export class VendasService {
       }
       if (filtros?.data_fim) {
         const dataFim = new Date(filtros.data_fim);
+
         dataFim.setDate(dataFim.getDate() + 1);
         const diaSeguinte = dataFim.toISOString().split("T")[0];
+
         query = query.lt("criado_em", diaSeguinte);
       }
 
@@ -1501,7 +1503,10 @@ export class VendasService {
           .ilike("nome", `%${filtros.cliente_nome}%`);
 
         if (clientes && clientes.length > 0) {
-          query = query.in("cliente_id", clientes.map((c) => c.id));
+          query = query.in(
+            "cliente_id",
+            clientes.map((c) => c.id),
+          );
         } else {
           return [];
         }

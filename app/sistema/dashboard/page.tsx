@@ -172,7 +172,11 @@ export default function DashboardPage() {
     total: number;
     quantidade_total: number;
   }>({ total: 0, quantidade_total: 0 });
-  const [deviceSalesData, setDeviceSalesData] = useState<{ totalBruto: number; totalLucro: number; quantidade: number } | null>(null);
+  const [deviceSalesData, setDeviceSalesData] = useState<{
+    totalBruto: number;
+    totalLucro: number;
+    quantidade: number;
+  } | null>(null);
   const [loadingGraficos, setLoadingGraficos] = useState(false);
   const [cardDetalhado, setCardDetalhado] =
     useState<DashboardDetailCardKey | null>(null);
@@ -214,7 +218,13 @@ export default function DashboardPage() {
           .lte("data_venda", dataFim || hojeISO);
 
         if (deviceVendas && deviceVendas.length > 0) {
-          const vendaIds = Array.from(new Set(deviceVendas.map((a: any) => a.venda_id).filter(Boolean) as string[]));
+          const vendaIds = Array.from(
+            new Set(
+              deviceVendas
+                .map((a: any) => a.venda_id)
+                .filter(Boolean) as string[],
+            ),
+          );
 
           const { data: brindes } = await supabase
             .from("brindes_aparelhos")
@@ -228,16 +238,31 @@ export default function DashboardPage() {
             .in("tipo_pagamento", ["cartao_credito", "cartao_debito"]);
 
           const brindesPorVenda: Record<string, number> = {};
-          brindes?.forEach((b: any) => { brindesPorVenda[b.venda_id] = (brindesPorVenda[b.venda_id] || 0) + (b.valor_custo || 0); });
+
+          brindes?.forEach((b: any) => {
+            brindesPorVenda[b.venda_id] =
+              (brindesPorVenda[b.venda_id] || 0) + (b.valor_custo || 0);
+          });
 
           const taxasPorVenda: Record<string, number> = {};
-          taxas?.forEach((p: any) => { const t = (p.valor || 0) - (p.liquido || 0); if (t > 0) taxasPorVenda[p.venda_id] = (taxasPorVenda[p.venda_id] || 0) + t; });
+
+          taxas?.forEach((p: any) => {
+            const t = (p.valor || 0) - (p.liquido || 0);
+
+            if (t > 0)
+              taxasPorVenda[p.venda_id] = (taxasPorVenda[p.venda_id] || 0) + t;
+          });
 
           let totalBruto = 0;
           let totalLucro = 0;
           let quantidade = 0;
+
           deviceVendas.forEach((a: any) => {
-            const custo = (a.valor_compra || 0) + (brindesPorVenda[a.venda_id] || 0) + (taxasPorVenda[a.venda_id] || 0);
+            const custo =
+              (a.valor_compra || 0) +
+              (brindesPorVenda[a.venda_id] || 0) +
+              (taxasPorVenda[a.venda_id] || 0);
+
             totalBruto += a.valor_venda || 0;
             totalLucro += (a.valor_venda || 0) - custo;
             quantidade++;
@@ -247,7 +272,9 @@ export default function DashboardPage() {
         } else {
           setDeviceSalesData(null);
         }
-      } catch { setDeviceSalesData(null); }
+      } catch {
+        setDeviceSalesData(null);
+      }
 
       // Carregar dados dos gráficos
       await carregarGraficos();
@@ -1397,24 +1424,48 @@ export default function DashboardPage() {
               <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
                 <div className="flex items-center gap-2 mb-4">
                   <FaShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Vendas de Aparelhos</span>
+                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                    Vendas de Aparelhos
+                  </span>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Valor Bruto</p>
-                    <p className="text-xl font-bold text-foreground mt-1">{formatarMoeda(deviceSalesData.totalBruto)}</p>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
+                      Valor Bruto
+                    </p>
+                    <p className="text-xl font-bold text-foreground mt-1">
+                      {formatarMoeda(deviceSalesData.totalBruto)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Lucro Líquido</p>
-                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">{formatarMoeda(deviceSalesData.totalLucro)}</p>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
+                      Lucro Líquido
+                    </p>
+                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                      {formatarMoeda(deviceSalesData.totalLucro)}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">Quantidade</p>
-                    <p className="text-xl font-bold text-foreground mt-1">{deviceSalesData.quantidade}</p>
+                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
+                      Quantidade
+                    </p>
+                    <p className="text-xl font-bold text-foreground mt-1">
+                      {deviceSalesData.quantidade}
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                  Margem média: <strong>{deviceSalesData.totalBruto > 0 ? ((deviceSalesData.totalLucro / deviceSalesData.totalBruto) * 100).toFixed(1) : 0}%</strong>
+                  Margem média:{" "}
+                  <strong>
+                    {deviceSalesData.totalBruto > 0
+                      ? (
+                          (deviceSalesData.totalLucro /
+                            deviceSalesData.totalBruto) *
+                          100
+                        ).toFixed(1)
+                      : 0}
+                    %
+                  </strong>
                 </p>
               </div>
             )}

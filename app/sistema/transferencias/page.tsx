@@ -41,7 +41,6 @@ import {
   EyeIcon,
   PencilSquareIcon,
   MagnifyingGlassIcon,
-  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
@@ -60,7 +59,6 @@ import {
   confirmarTransferencia,
   cancelarTransferencia,
 } from "@/services/transferenciasService";
-import { exportarTransferenciasParaExcel } from "@/lib/exportarTransferencias";
 
 interface Loja {
   id: number;
@@ -95,9 +93,7 @@ export default function TransferenciasPage() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todas");
   const [filtroLoja, setFiltroLoja] = useState<string>("todas");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
-  const [visualizacao, setVisualizacao] = useState<"cards" | "tabela">(
-    "cards",
-  );
+  const [visualizacao, setVisualizacao] = useState<"cards" | "tabela">("cards");
   const [termoBusca, setTermoBusca] = useState("");
 
   const [transferenciaSelecionada, setTransferenciaSelecionada] =
@@ -126,7 +122,15 @@ export default function TransferenciasPage() {
       carregarTransferencias();
       carregarEstatisticas();
     }
-  }, [lojaId, podeVerTodasLojas, filtroStatus, filtroLoja, pagina, termoBusca, loadingPermissoes]);
+  }, [
+    lojaId,
+    podeVerTodasLojas,
+    filtroStatus,
+    filtroLoja,
+    pagina,
+    termoBusca,
+    loadingPermissoes,
+  ]);
 
   const carregarDados = async () => {
     setLoading(true);
@@ -459,7 +463,9 @@ export default function TransferenciasPage() {
               className="flex-1"
               placeholder="Pesquisar por loja, observação..."
               size="sm"
-              startContent={<MagnifyingGlassIcon className="h-4 w-4 text-default-400" />}
+              startContent={
+                <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
+              }
               value={termoBusca}
               variant="bordered"
               onClear={() => {
@@ -729,8 +735,8 @@ export default function TransferenciasPage() {
           {visualizacao === "tabela" && (
             <div className="overflow-x-auto rounded-xl border border-default-200">
               <Table
-                aria-label="Tabela de transferências"
                 removeWrapper
+                aria-label="Tabela de transferências"
                 classNames={{
                   th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider",
                   td: "text-sm",
@@ -771,14 +777,14 @@ export default function TransferenciasPage() {
                       >
                         <TableCell>
                           <Chip
-                            color={sc.color}
-                            size="sm"
-                            startContent={<SI className="h-3 w-3" />}
-                            variant="flat"
                             classNames={{
                               base: "px-2",
                               content: "text-xs font-semibold",
                             }}
+                            color={sc.color}
+                            size="sm"
+                            startContent={<SI className="h-3 w-3" />}
+                            variant="flat"
                           >
                             {t.status === "pendente"
                               ? "Pendente"
@@ -798,7 +804,11 @@ export default function TransferenciasPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Chip size="sm" variant="flat" classNames={{ content: "text-xs" }}>
+                          <Chip
+                            classNames={{ content: "text-xs" }}
+                            size="sm"
+                            variant="flat"
+                          >
                             {t.itens.length}
                           </Chip>
                         </TableCell>
@@ -809,14 +819,11 @@ export default function TransferenciasPage() {
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-default-500 whitespace-nowrap">
-                            {new Date(t.criado_em).toLocaleDateString(
-                              "pt-BR",
-                              {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              },
-                            )}
+                            {new Date(t.criado_em).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -825,19 +832,13 @@ export default function TransferenciasPage() {
                               isIconOnly
                               size="sm"
                               variant="light"
-                              onPress={() =>
-                                setTransferenciaSelecionada(t)
-                              }
+                              onPress={() => setTransferenciaSelecionada(t)}
                             >
                               <EyeIcon className="h-4 w-4" />
                             </Button>
                             <Dropdown>
                               <DropdownTrigger>
-                                <Button
-                                  isIconOnly
-                                  size="sm"
-                                  variant="light"
-                                >
+                                <Button isIconOnly size="sm" variant="light">
                                   <DocumentArrowDownIcon className="h-4 w-4" />
                                 </Button>
                               </DropdownTrigger>
@@ -846,11 +847,11 @@ export default function TransferenciasPage() {
                                   key="completo"
                                   description="Completo"
                                   onPress={async () => {
-                                    const {
-                                      gerarRelatorioTransferenciaPDF,
-                                    } = await import(
-                                      "@/lib/exportarTransferencias"
-                                    );
+                                    const { gerarRelatorioTransferenciaPDF } =
+                                      await import(
+                                        "@/lib/exportarTransferencias"
+                                      );
+
                                     gerarRelatorioTransferenciaPDF(t);
                                   }}
                                 >
@@ -865,6 +866,7 @@ export default function TransferenciasPage() {
                                     } = await import(
                                       "@/lib/exportarTransferencias"
                                     );
+
                                     gerarRelatorioTransferenciaDetalhado(t);
                                   }}
                                 >
@@ -879,6 +881,7 @@ export default function TransferenciasPage() {
                                     } = await import(
                                       "@/lib/exportarTransferencias"
                                     );
+
                                     gerarRelatorioTransferenciaResumido(t);
                                   }}
                                 >
@@ -903,15 +906,11 @@ export default function TransferenciasPage() {
                                   aria-label="Ações"
                                   onAction={(key) => {
                                     if (key === "editar") handleEditar(t);
-                                    if (key === "confirmar")
-                                      handleConfirmar(t);
-                                    if (key === "cancelar")
-                                      handleCancelar(t);
+                                    if (key === "confirmar") handleConfirmar(t);
+                                    if (key === "cancelar") handleCancelar(t);
                                   }}
                                 >
-                                  {temPermissao(
-                                    "transferencias.editar",
-                                  ) ? (
+                                  {temPermissao("transferencias.editar") ? (
                                     <DropdownItem
                                       key="editar"
                                       startContent={
@@ -962,7 +961,8 @@ export default function TransferenciasPage() {
       {totalRegistros > ITENS_POR_PAGINA && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <p className="text-xs sm:text-sm text-default-400">
-            Mostrando {Math.min((pagina - 1) * ITENS_POR_PAGINA + 1, totalRegistros)}-
+            Mostrando{" "}
+            {Math.min((pagina - 1) * ITENS_POR_PAGINA + 1, totalRegistros)}-
             {Math.min(pagina * ITENS_POR_PAGINA, totalRegistros)} de{" "}
             {totalRegistros} registro{totalRegistros > 1 ? "s" : ""}
           </p>

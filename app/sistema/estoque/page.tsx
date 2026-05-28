@@ -7,7 +7,6 @@ import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { Chip } from "@heroui/chip";
-import { Divider } from "@heroui/divider";
 import {
   Table,
   TableHeader,
@@ -80,7 +79,6 @@ import {
 } from "@/services/fotosProdutosService";
 import { LojasService } from "@/services/lojasService";
 import { formatarMoeda } from "@/lib/formatters";
-import { exportarEstoqueParaExcel } from "@/lib/exportarExcel";
 import { gerarRelatorioProdutoPDF } from "@/lib/exportarPDF";
 
 import { MetricCard } from "@/components/transferencias/MetricCard";
@@ -118,7 +116,9 @@ export default function EstoquePage() {
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todos");
   const [estoqueFiltro, setEstoqueFiltro] = useState<string>("todos");
   const [marcasDisponiveis, setMarcasDisponiveis] = useState<string[]>([]);
-  const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
+  const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>(
+    [],
+  );
 
   // Preencher busca vinda da URL
   useEffect(() => {
@@ -186,7 +186,14 @@ export default function EstoquePage() {
     if (!loadingPermissoes) {
       carregarProdutos();
     }
-  }, [busca, statusFiltro, marcaFiltro, categoriaFiltro, estoqueFiltro, paginaAtual]);
+  }, [
+    busca,
+    statusFiltro,
+    marcaFiltro,
+    categoriaFiltro,
+    estoqueFiltro,
+    paginaAtual,
+  ]);
 
   const carregarProdutos = async () => {
     try {
@@ -209,13 +216,14 @@ export default function EstoquePage() {
       let dados = result.data;
 
       // Filtrar por loja se usuário não tiver acesso a todas
-      const podeVerOutrasLojas = podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas")
+      const podeVerOutrasLojas =
+        podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas");
+
       if (lojaId !== null && !podeVerOutrasLojas) {
         dados = dados.map((produto: any) => {
           const estoquesFiltrados =
-            produto.estoques_lojas?.filter(
-              (e: any) => e.id_loja === lojaId,
-            ) || [];
+            produto.estoques_lojas?.filter((e: any) => e.id_loja === lojaId) ||
+            [];
 
           return {
             ...produto,
@@ -232,8 +240,7 @@ export default function EstoquePage() {
       if (estoqueFiltro === "baixo") {
         dados = dados.filter(
           (p: any) =>
-            p.total_estoque > 0 &&
-            p.total_estoque < (p.quantidade_minima || 5),
+            p.total_estoque > 0 && p.total_estoque < (p.quantidade_minima || 5),
         );
       } else if (estoqueFiltro === "sem") {
         dados = dados.filter((p: any) => p.total_estoque === 0);
@@ -271,6 +278,7 @@ export default function EstoquePage() {
   const carregarFiltros = async () => {
     try {
       const filtros = await getFiltrosProdutos();
+
       setMarcasDisponiveis(filtros.marcas);
       setCategoriasDisponiveis(filtros.categorias);
     } catch (error) {
@@ -368,6 +376,7 @@ export default function EstoquePage() {
   const handleToggleAtivo = async (produto: Produto) => {
     if (!temPermissao("estoque.editar")) {
       toast.error("Você não tem permissão para alterar o status do produto");
+
       return;
     }
     if (!user) return;
@@ -430,6 +439,7 @@ export default function EstoquePage() {
   const abrirModalEstoque = async (produto: Produto) => {
     if (!temPermissao("estoque.ajustar")) {
       toast.error("Você não tem permissão para movimentar estoque");
+
       return;
     }
     setProdutoSelecionado(produto);
@@ -458,6 +468,7 @@ export default function EstoquePage() {
   const abrirModalFornecedores = (produto: Produto) => {
     if (!temPermissao("fornecedores.visualizar")) {
       toast.error("Você não tem permissão para gerenciar fornecedores");
+
       return;
     }
     setProdutoSelecionado(produto);
@@ -467,6 +478,7 @@ export default function EstoquePage() {
   const abrirModalTransferencia = (produto: Produto) => {
     if (!temPermissao("estoque.transferir")) {
       toast.error("Você não tem permissão para transferir produtos");
+
       return;
     }
     setProdutoSelecionado(produto);
@@ -481,6 +493,7 @@ export default function EstoquePage() {
   const handleClonarProduto = (produto: Produto) => {
     if (!temPermissao("estoque.criar")) {
       toast.error("Você não tem permissão para clonar produtos");
+
       return;
     }
     // Cria um "novo" produto baseado no existente
@@ -642,8 +655,18 @@ export default function EstoquePage() {
                 variant={visualizacao === "cards" ? "solid" : "light"}
                 onPress={() => setVisualizacao("cards")}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
               </Button>
               <Button
@@ -654,8 +677,18 @@ export default function EstoquePage() {
                 variant={visualizacao === "tabela" ? "solid" : "light"}
                 onPress={() => setVisualizacao("tabela")}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                  />
                 </svg>
               </Button>
             </div>
@@ -708,6 +741,7 @@ export default function EstoquePage() {
               variant="bordered"
               onSelectionChange={(keys) => {
                 const value = Array.from(keys)[0] as string;
+
                 setEstoqueFiltro(value);
               }}
             >
@@ -729,6 +763,7 @@ export default function EstoquePage() {
                   | "todos"
                   | "ativos"
                   | "inativos";
+
                 setStatusFiltro(value);
               }}
             >
@@ -887,7 +922,9 @@ export default function EstoquePage() {
                       <TableCell>
                         {produto.marca ? (
                           <div>
-                            <p className="text-sm font-medium">{produto.marca}</p>
+                            <p className="text-sm font-medium">
+                              {produto.marca}
+                            </p>
                             {produto.modelos && (
                               <p className="text-xs text-default-400 mt-0.5">
                                 {produto.modelos}
@@ -932,10 +969,12 @@ export default function EstoquePage() {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          color={produto.total_estoque > 0 ? "primary" : "danger"}
+                          classNames={{ content: "text-xs font-semibold" }}
+                          color={
+                            produto.total_estoque > 0 ? "primary" : "danger"
+                          }
                           size="sm"
                           variant="flat"
-                          classNames={{ content: "text-xs font-semibold" }}
                         >
                           {produto.total_estoque} un
                         </Chip>
@@ -947,12 +986,12 @@ export default function EstoquePage() {
                             {produto.estoques_lojas.map((estoque: any) => (
                               <Chip
                                 key={estoque.id_loja}
+                                classNames={{ content: "text-xs" }}
                                 color={
                                   estoque.quantidade > 0 ? "success" : "danger"
                                 }
                                 size="sm"
                                 variant="dot"
-                                classNames={{ content: "text-xs" }}
                               >
                                 {estoque.loja_nome}: {estoque.quantidade}
                               </Chip>
@@ -964,10 +1003,10 @@ export default function EstoquePage() {
                       </TableCell>
                       <TableCell>
                         <Chip
+                          classNames={{ content: "text-xs font-semibold" }}
                           color={produto.ativo ? "success" : "danger"}
                           size="sm"
                           variant="flat"
-                          classNames={{ content: "text-xs font-semibold" }}
                         >
                           {produto.ativo ? "Ativo" : "Inativo"}
                         </Chip>
@@ -1046,7 +1085,9 @@ export default function EstoquePage() {
                             {temPermissao("estoque.editar") ? (
                               <DropdownItem
                                 key="editar"
-                                startContent={<PencilIcon className="w-4 h-4" />}
+                                startContent={
+                                  <PencilIcon className="w-4 h-4" />
+                                }
                               >
                                 Editar
                               </DropdownItem>
@@ -1065,7 +1106,9 @@ export default function EstoquePage() {
                             {temPermissao("estoque.editar") ? (
                               <DropdownItem
                                 key="toggle"
-                                startContent={<ArrowPathIcon className="w-4 h-4" />}
+                                startContent={
+                                  <ArrowPathIcon className="w-4 h-4" />
+                                }
                               >
                                 {produto.ativo ? "Desativar" : "Ativar"}
                               </DropdownItem>
@@ -1084,9 +1127,9 @@ export default function EstoquePage() {
                         </Dropdown>
                       </TableCell>
                     </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </CardBody>
         </Card>
@@ -1098,8 +1141,8 @@ export default function EstoquePage() {
           <div className="flex items-center gap-4">
             <p className="text-sm text-default-500">
               Mostrando {(paginaAtual - 1) * itensPorPagina + 1} a{" "}
-              {Math.min(paginaAtual * itensPorPagina, produtos.length)}{" "}
-              de {produtos.length} produto(s)
+              {Math.min(paginaAtual * itensPorPagina, produtos.length)} de{" "}
+              {produtos.length} produto(s)
             </p>
           </div>
           <Pagination

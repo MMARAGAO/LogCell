@@ -116,9 +116,7 @@ export class TransferenciasService {
   /**
    * Contar transferências por status com os mesmos filtros
    */
-  static async contarTransferencias(filtros?: {
-    loja_id?: number;
-  }): Promise<{
+  static async contarTransferencias(filtros?: { loja_id?: number }): Promise<{
     pendente: number;
     confirmada: number;
     cancelada: number;
@@ -137,6 +135,7 @@ export class TransferenciasService {
             `loja_origem_id.eq.${filtros.loja_id},loja_destino_id.eq.${filtros.loja_id}`,
           );
         }
+
         return q;
       };
 
@@ -156,6 +155,7 @@ export class TransferenciasService {
       };
     } catch (error) {
       console.error("Erro ao contar transferências:", error);
+
       return { pendente: 0, confirmada: 0, cancelada: 0, total: 0 };
     }
   }
@@ -270,8 +270,7 @@ export class TransferenciasService {
 
 // Exportar funções individuais para facilitar o uso
 export const buscarTransferencias = TransferenciasService.buscarTransferencias;
-export const contarTransferencias =
-  TransferenciasService.contarTransferencias;
+export const contarTransferencias = TransferenciasService.contarTransferencias;
 export const confirmarTransferencia =
   TransferenciasService.confirmarTransferencia;
 export const cancelarTransferencia =

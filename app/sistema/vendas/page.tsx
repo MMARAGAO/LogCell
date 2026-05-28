@@ -414,6 +414,7 @@ export default function VendasPage() {
       );
       setVendas([]);
       calcularEstatisticas([]);
+
       return;
     }
 
@@ -441,6 +442,7 @@ export default function VendasPage() {
   useEffect(() => {
     if (primeiraRender.current) return;
     const timer = setTimeout(() => carregarVendas(), 400);
+
     return () => clearTimeout(timer);
   }, [busca]);
 
@@ -448,10 +450,17 @@ export default function VendasPage() {
   useEffect(() => {
     if (primeiraRender.current) {
       primeiraRender.current = false;
+
       return;
     }
     carregarVendas();
-  }, [filtroDataInicio, filtroDataFim, filtroStatus, filtroLoja, filtroCliente]);
+  }, [
+    filtroDataInicio,
+    filtroDataFim,
+    filtroStatus,
+    filtroLoja,
+    filtroCliente,
+  ]);
 
   const calcularEstatisticas = (vendas: VendaCompleta[]) => {
     const hoje = new Date().toISOString().split("T")[0];
@@ -1204,6 +1213,7 @@ export default function VendasPage() {
   const vendasFiltradas = vendas.filter((venda) => {
     // Filtro de forma de pagamento
     let matchFormaPagamento = true;
+
     if (filtroFormaPagamento === "fiada") {
       matchFormaPagamento = venda.tipo === "fiada";
     } else if (filtroFormaPagamento !== "todas") {
@@ -1215,8 +1225,10 @@ export default function VendasPage() {
 
     // Filtro de vendas vencidas
     let matchVencida = true;
+
     if (filtroVencidas && venda.tipo === "fiada") {
       const hoje = new Date().toISOString().split("T")[0];
+
       matchVencida = Boolean(
         venda.status === "concluida" &&
           venda.saldo_devedor > 0 &&
@@ -1401,6 +1413,64 @@ export default function VendasPage() {
           </Button>
         </div>
       </div>
+
+      {/* Estatísticas */}
+      {temPermissao("vendas.ver_estatisticas_faturamento") && (
+        <Card className="mb-6">
+          <CardBody>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30">
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
+                  Faturamento Total
+                </span>
+                <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                  {formatarMoeda(estatisticas.faturamentoTotal)}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/30">
+                <span className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">
+                  Faturamento Hoje
+                </span>
+                <span className="text-lg font-bold text-green-700 dark:text-green-300">
+                  {formatarMoeda(estatisticas.faturamentoHoje)}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30">
+                <span className="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide">
+                  Total de Vendas
+                </span>
+                <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
+                  {estatisticas.totalVendas}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/30">
+                <span className="text-xs font-medium text-orange-600 dark:text-orange-400 uppercase tracking-wide">
+                  Vendas Hoje
+                </span>
+                <span className="text-lg font-bold text-orange-700 dark:text-orange-300">
+                  {estatisticas.vendasHoje}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-900/30">
+                <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 uppercase tracking-wide">
+                  Ticket Médio
+                </span>
+                <span className="text-lg font-bold text-cyan-700 dark:text-cyan-300">
+                  {formatarMoeda(estatisticas.ticketMedio)}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-900/20 dark:to-rose-900/30">
+                <span className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wide">
+                  Produtos Vendidos
+                </span>
+                <span className="text-lg font-bold text-rose-700 dark:text-rose-300">
+                  {estatisticas.produtosVendidos}
+                </span>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Filtros */}
       <Card className="mb-6">

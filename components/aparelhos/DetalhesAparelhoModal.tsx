@@ -379,20 +379,47 @@ export function DetalhesAparelhoModal({ isOpen, aparelho, onClose }: Props) {
                     {/* Trocas */}
                     {trocas.length > 0 && (
                       <div className="space-y-1.5">
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Aparelhos de Troca</p>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                          Aparelhos de Troca
+                        </p>
                         {trocas.map((t: any) => (
-                          <div key={t.id} className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800">
+                          <div
+                            key={t.id}
+                            className="flex items-center justify-between p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800"
+                          >
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">{t.modelo}</p>
+                              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                {t.modelo}
+                              </p>
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
-                                {t.imei && <span className="font-mono">IMEI: {t.imei}</span>}
-                                {(() => { try { const o = JSON.parse(t.observacoes || "{}"); return o.condicao ? <span>Cond.: {o.condicao}</span> : null; } catch { return null; } })()}
+                                {t.imei && (
+                                  <span className="font-mono">
+                                    IMEI: {t.imei}
+                                  </span>
+                                )}
+                                {(() => {
+                                  try {
+                                    const o = JSON.parse(t.observacoes || "{}");
+
+                                    return o.condicao ? (
+                                      <span>Cond.: {o.condicao}</span>
+                                    ) : null;
+                                  } catch {
+                                    return null;
+                                  }
+                                })()}
                                 {t.cor && <span>Cor: {t.cor}</span>}
-                                {t.armazenamento && <span>Arm.: {t.armazenamento}</span>}
-                                {t.saude_bateria != null && <span>Bat.: {t.saude_bateria}%</span>}
+                                {t.armazenamento && (
+                                  <span>Arm.: {t.armazenamento}</span>
+                                )}
+                                {t.saude_bateria != null && (
+                                  <span>Bat.: {t.saude_bateria}%</span>
+                                )}
                               </div>
                             </div>
-                            <span className="text-sm font-bold text-amber-700 dark:text-amber-300 shrink-0">{formatarMoeda(t.valor_venda || 0)}</span>
+                            <span className="text-sm font-bold text-amber-700 dark:text-amber-300 shrink-0">
+                              {formatarMoeda(t.valor_venda || 0)}
+                            </span>
                           </div>
                         ))}
                       </div>
