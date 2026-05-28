@@ -285,6 +285,7 @@ export default function VendasAparelhosPage() {
         hojeCount = 0;
       const porTipo: Record<string, number> = {};
       const brindesTotal: Record<string, number> = {};
+      const allVendasMap = new Map(allVendas?.map((v: any) => [v.id, v]));
 
       allBrindes?.forEach((b: any) => {
         brindesTotal[b.venda_id] =
@@ -361,7 +362,7 @@ export default function VendasAparelhosPage() {
           ? await supabase
               .from("vendas")
               .select(
-                "id, numero_venda, cliente_id, status, valor_total, criado_em",
+                "id, numero_venda, cliente_id, status, valor_total, valor_desconto, criado_em",
               )
               .in("id", vendasIds)
           : { data: [] };
@@ -437,6 +438,8 @@ export default function VendasAparelhosPage() {
             lucro: totalPago - (a.valor_compra || 0) - custoBrindes,
             venda,
             cliente: venda ? clientesMap.get(venda.cliente_id) : null,
+            // Usar valor_total da venda (com desconto) se disponível
+            valor_venda: venda?.valor_total ?? a.valor_venda,
           };
         }),
       );

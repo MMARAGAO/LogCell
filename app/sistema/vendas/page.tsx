@@ -80,6 +80,7 @@ interface Estatisticas {
   produtosVendidos: number;
   creditosAtivos: number;
   totalCreditos: number;
+  totalCount?: number;
 }
 
 interface Cliente {
@@ -228,6 +229,7 @@ export default function VendasPage() {
     produtosVendidos: 0,
     creditosAtivos: 0,
     totalCreditos: 0,
+    totalCount: 0,
   });
 
   // Estados de dados
@@ -452,6 +454,7 @@ export default function VendasPage() {
         faturamentoHoje: statsRes.faturamentoHoje,
         ticketMedio: statsRes.ticketMedio,
         produtosVendidos: statsRes.produtosVendidos,
+        totalCount: statsRes.totalCount,
       }));
     } else {
       calcularEstatisticas(dados);
@@ -1715,9 +1718,9 @@ export default function VendasPage() {
 
                   <div className="text-sm text-gray-600 px-2 py-2">
                     <span className="font-semibold">
-                      {vendasOrdenadas.length}
+                      {estatisticas.totalCount || vendasOrdenadas.length}
                     </span>{" "}
-                    {vendasOrdenadas.length === 1
+                    {(estatisticas.totalCount || vendasOrdenadas.length) === 1
                       ? "venda encontrada"
                       : "vendas encontradas"}
                   </div>
