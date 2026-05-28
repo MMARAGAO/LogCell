@@ -127,6 +127,23 @@ export function NovaVendaModal({
       if (venda.loja_id) {
         setLojaId(venda.loja_id);
       }
+
+      // Desconto existente
+      if (venda.venda_id) {
+        const { data: descontos } = await supabase
+          .from("descontos_venda")
+          .select("tipo, valor, motivo")
+          .eq("venda_id", venda.venda_id)
+          .maybeSingle();
+
+        if (descontos) {
+          setDescontoInfo({
+            tipo: descontos.tipo as "valor" | "percentual",
+            valor: descontos.valor,
+            motivo: descontos.motivo || "",
+          });
+        }
+      }
     };
 
     preencher();

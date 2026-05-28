@@ -440,6 +440,7 @@ export default function VendasAparelhosPage() {
             cliente: venda ? clientesMap.get(venda.cliente_id) : null,
             // Usar valor_total da venda (com desconto) se disponível
             valor_venda: venda?.valor_total ?? a.valor_venda,
+            valor_venda_original: a.valor_venda,
           };
         }),
       );
@@ -1531,6 +1532,13 @@ export default function VendasAparelhosPage() {
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-800 dark:text-white">
                           {formatarMoeda(v.valor_venda || 0)}
+                          {v.valor_venda_original &&
+                            v.venda?.valor_desconto &&
+                            Number(v.venda.valor_desconto) > 0 && (
+                              <span className="ml-2 text-[10px] text-gray-400 dark:text-gray-500 line-through">
+                                {formatarMoeda(v.valor_venda_original)}
+                              </span>
+                            )}
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
                           {formatarMoeda(v.pagamento_total)}
@@ -1697,6 +1705,12 @@ export default function VendasAparelhosPage() {
               >
                 {isQuitado ? "Concluída" : "Pendente"}
               </span>
+              {v.venda?.valor_desconto &&
+                Number(v.venda.valor_desconto) > 0 && (
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                    Desc. {formatarMoeda(Number(v.venda.valor_desconto))}
+                  </span>
+                )}
             </div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
               {v.marca} {v.modelo}
@@ -1711,6 +1725,13 @@ export default function VendasAparelhosPage() {
             <p className="text-lg font-bold text-gray-900 dark:text-white">
               {formatarMoeda(v.valor_venda || 0)}
             </p>
+            {v.valor_venda_original &&
+              v.venda?.valor_desconto &&
+              Number(v.venda.valor_desconto) > 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 line-through">
+                  {formatarMoeda(v.valor_venda_original)}
+                </p>
+              )}
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
               Pago: {formatarMoeda(v.pagamento_total)}
             </p>
