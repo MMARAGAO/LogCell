@@ -106,6 +106,8 @@ export function RecebimentoAparelhoModal({
       setEditando(false);
       setPagamentosRemovidos([]);
       setRemovidosData({});
+      setLoading(false);
+      setCarregandoPagamentos(false);
 
       if (aparelho.venda_id) {
         carregarPagamentosExistentes(aparelho.venda_id);
@@ -337,7 +339,7 @@ export function RecebimentoAparelhoModal({
   }
 
   async function handleSubmit() {
-    if (!clienteSelecionado) {
+    if (!editando && !clienteSelecionado) {
       showToast("Selecione um cliente", "warning");
 
       return;
@@ -972,7 +974,7 @@ export function RecebimentoAparelhoModal({
               isDisabled={
                 !editando && (pagamentos.length === 0 || !clienteSelecionado)
               }
-              isLoading={loading}
+              isLoading={loading || carregandoPagamentos}
               onPress={handleSubmit}
             >
               Registrar Pagamento
