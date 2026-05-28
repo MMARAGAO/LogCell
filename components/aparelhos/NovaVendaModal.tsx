@@ -295,18 +295,24 @@ export function NovaVendaModal({
           throw vendaUpdateError;
         }
 
-        // Remove descontos anteriores e insere o novo
+        // Remove descontos anteriores
+        await supabase.from("descontos_venda").delete().eq("venda_id", vendaId);
+
+        // Insere novo desconto se houver
         if (descontoInfo) {
-          await supabase
-            .from("descontos_venda")
-            .delete()
-            .eq("venda_id", vendaId);
           await supabase.from("descontos_venda").insert({
             venda_id: vendaId,
             tipo: descontoInfo.tipo,
             valor: descontoInfo.valor,
             motivo: descontoInfo.motivo,
             aplicado_por: usuario?.id,
+          });
+
+          await supabase.from("historico_vendas").insert({
+            venda_id: vendaId,
+            tipo_acao: "desconto",
+            descricao: `Desconto ${descontoInfo.tipo === "valor" ? `R$ ${descontoInfo.valor.toFixed(2)}` : `${descontoInfo.valor}%`} - ${descontoInfo.motivo}`,
+            usuario_id: usuario?.id,
           });
         }
 
