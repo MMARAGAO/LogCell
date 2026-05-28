@@ -382,7 +382,7 @@ export default function VendasAparelhosPage() {
           ? await supabase
               .from("vendas")
               .select(
-                "id, numero_venda, cliente_id, status, valor_total, valor_desconto, criado_em",
+                "id, numero_venda, cliente_id, status, valor_total, valor_desconto, vendedor_id, criado_em",
               )
               .in("id", vendasIds)
           : { data: [] };
@@ -434,6 +434,24 @@ export default function VendasAparelhosPage() {
         (vendasResult.data || []).map((v: any) => [v.id, v]),
       );
 
+      const vendedorIds = Array.from(
+        new Set(
+          (vendasResult.data || [])
+            .map((v: any) => v.vendedor_id)
+            .filter(Boolean) as string[],
+        ),
+      );
+      const vendedoresResult =
+        vendedorIds.length > 0
+          ? await supabase
+              .from("usuarios")
+              .select("id, nome")
+              .in("id", vendedorIds)
+          : { data: [] };
+      const vendedoresMap = new Map(
+        (vendedoresResult.data || []).map((v: any) => [v.id, v.nome]),
+      );
+
       setVendas(
         aparelhos.map((a) => {
           const venda = vendasMap.get(a.venda_id || "");
@@ -458,6 +476,9 @@ export default function VendasAparelhosPage() {
             lucro: totalPago - (a.valor_compra || 0) - custoBrindes,
             venda,
             cliente: venda ? clientesMap.get(venda.cliente_id) : null,
+            vendedor_nome: venda?.vendedor_id
+              ? vendedoresMap.get(venda.vendedor_id) || "—"
+              : "—",
             valor_exibido: venda?.valor_total ?? a.valor_venda,
           };
         }),
@@ -2009,6 +2030,18 @@ export default function VendasAparelhosPage() {
                 {v.cliente.doc}
               </span>
             )}
+          </div>
+        )}
+
+        {v.vendedor_nome && v.vendedor_nome !== "—" && (
+          <div className="flex items-center gap-2 mb-3 text-xs text-gray-500 dark:text-gray-400">
+            <UserIcon className="w-3.5 h-3.5" />
+            <span>
+              Vendedor:{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                {v.vendedor_nome}
+              </span>
+            </span>
           </div>
         )}
 
