@@ -26,6 +26,8 @@ import {
 import { formatarMoeda } from "@/lib/formatters";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { DescontoModal } from "@/components/vendas/DescontoModal";
 import { CadastroClienteModal } from "./CadastroClienteModal";
 import { CaixaService } from "@/services/caixaService";
 import type { Aparelho } from "@/types/aparelhos";
@@ -48,6 +50,7 @@ export function NovaVendaModal({
   );
   const { usuario } = useAuthContext();
   const toast = useToast();
+  const { temPermissao } = usePermissoes();
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -78,6 +81,22 @@ export function NovaVendaModal({
 
   const valorAparelho = aparelhoSelecionado?.valor_venda || 0;
 
+  const [descontoInfo, setDescontoInfo] = useState<{
+    tipo: "valor" | "percentual";
+    valor: number;
+    motivo: string;
+  } | null>(null);
+  const [descontoModalOpen, setDescontoModalOpen] = useState(false);
+
+  const valorDescontoCalculado = (): number => {
+    if (!descontoInfo) return 0;
+    if (descontoInfo.tipo === "percentual") {
+      return (valorAparelho * descontoInfo.valor) / 100;
+    }
+
+    return descontoInfo.valor;
+  };
+
   useEffect(() => {
     if (!isOpen) return;
     setStep(1);
@@ -85,6 +104,8 @@ export function NovaVendaModal({
     setClienteBusca("");
     setClientes([]);
     setAparelhoSelecionado(null);
+    setDescontoInfo(null);
+    setDescontoModalOpen(false);
     carregarLojas();
   }, [isOpen]);
 
@@ -233,14 +254,18 @@ export function NovaVendaModal({
 
         console.log("[NovaVenda] Editando venda:", vendaId);
 
+        const valorDescCalculado = valorDescontoCalculado();
+        const valorComDesconto = valorAparelho - valorDescCalculado;
+
         const { error: vendaUpdateError } = await supabase
           .from("vendas")
           .update({
             cliente_id: clienteSelecionado?.id || null,
             loja_id: lojaId,
             status: "concluida",
-            valor_total: valorAparelho,
-            valor_pago: valorAparelho,
+            valor_total: valorComDesconto,
+            valor_pago: valorComDesconto,
+            valor_desconto: valorDescCalculado,
             saldo_devedor: 0,
           })
           .eq("id", vendaId);
@@ -253,20 +278,38 @@ export function NovaVendaModal({
           throw vendaUpdateError;
         }
 
+        // Remove descontos anteriores e insere o novo
+        if (descontoInfo) {
+          await supabase
+            .from("descontos_venda")
+            .delete()
+            .eq("venda_id", vendaId);
+          await supabase.from("descontos_venda").insert({
+            venda_id: vendaId,
+            tipo: descontoInfo.tipo,
+            valor: descontoInfo.valor,
+            motivo: descontoInfo.motivo,
+            aplicado_por: usuario?.id,
+          });
+        }
+
         console.log("[NovaVenda] Venda atualizada com sucesso");
         toast.success("Venda atualizada com sucesso!");
         onClose(true);
       } else {
         // === CRIAÇÃO ===
+        const valorDescCalculado = valorDescontoCalculado();
+        const valorComDesconto = valorAparelho - valorDescCalculado;
+
         const vendaData = {
           cliente_id: clienteSelecionado?.id || null,
           loja_id: lojaId,
           vendedor_id: usuario?.id,
           status: "concluida",
           tipo: "normal",
-          valor_total: valorAparelho,
-          valor_pago: valorAparelho,
-          valor_desconto: 0,
+          valor_total: valorComDesconto,
+          valor_pago: valorComDesconto,
+          valor_desconto: valorDescCalculado,
           saldo_devedor: 0,
         };
 
@@ -289,6 +332,30 @@ export function NovaVendaModal({
         }
 
         console.log("[NovaVenda] Venda criada:", vendaCriada);
+
+        // Inserir desconto na tabela descontos_venda (para relatórios)
+        if (descontoInfo) {
+          const { error: errDesc } = await supabase
+            .from("descontos_venda")
+            .insert({
+              venda_id: vendaCriada.id,
+              tipo: descontoInfo.tipo,
+              valor: descontoInfo.valor,
+              motivo: descontoInfo.motivo,
+              aplicado_por: usuario?.id,
+            });
+
+          if (errDesc) {
+            console.error("[NovaVenda] Erro ao inserir desconto:", errDesc);
+          } else {
+            await supabase.from("historico_vendas").insert({
+              venda_id: vendaCriada.id,
+              tipo_acao: "desconto",
+              descricao: `Desconto aplicado: ${descontoInfo.tipo === "valor" ? `R$ ${descontoInfo.valor.toFixed(2)}` : `${descontoInfo.valor}%`} - ${descontoInfo.motivo}`,
+              usuario_id: usuario?.id,
+            });
+          }
+        }
 
         console.log("[NovaVenda] Atualizando status do aparelho...");
         const { error: errUpdate } = await supabase
@@ -588,6 +655,56 @@ export function NovaVendaModal({
                   {formatarMoeda(valorAparelho)}
                 </span>
               </div>
+
+              {temPermissao("vendas.aplicar_desconto") && (
+                <>
+                  <div className="pt-2">
+                    <Button
+                      className="w-full"
+                      color={descontoInfo ? "success" : "default"}
+                      size="sm"
+                      variant="flat"
+                      onPress={() => setDescontoModalOpen(true)}
+                    >
+                      {descontoInfo ? "Alterar Desconto" : "Aplicar Desconto"}
+                    </Button>
+                  </div>
+
+                  {descontoInfo && (
+                    <div className="bg-success-50 dark:bg-success-900/20 rounded-lg p-2 space-y-1">
+                      <div className="flex justify-between text-xs text-success">
+                        <span>
+                          Desconto (
+                          {descontoInfo.tipo === "percentual"
+                            ? `${descontoInfo.valor}%`
+                            : "R$"}
+                          )
+                        </span>
+                        <span className="font-semibold">
+                          - {formatarMoeda(valorDescontoCalculado())}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs font-bold">
+                        <span>Valor Final</span>
+                        <span className="text-primary">
+                          {formatarMoeda(
+                            valorAparelho - valorDescontoCalculado(),
+                          )}
+                        </span>
+                      </div>
+                      <Button
+                        className="mt-1"
+                        color="danger"
+                        size="sm"
+                        variant="light"
+                        onPress={() => setDescontoInfo(null)}
+                      >
+                        Remover desconto
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </ModalBody>
@@ -611,6 +728,16 @@ export function NovaVendaModal({
           </Button>
         </ModalFooter>
       </ModalContent>
+
+      <DescontoModal
+        isOpen={descontoModalOpen}
+        valorTotal={valorAparelho}
+        onAplicar={(tipo, valor, motivo) => {
+          setDescontoInfo({ tipo, valor, motivo });
+          setDescontoModalOpen(false);
+        }}
+        onClose={() => setDescontoModalOpen(false)}
+      />
 
       <CadastroClienteModal
         isOpen={cadastroClienteAberto}

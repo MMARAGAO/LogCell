@@ -62,6 +62,23 @@ export interface Permissoes {
 }
 ```
 
+### Tipos de filtro adicionais que precisam de `number | number[]`:
+
+**`types/aparelhos.ts`** — `FiltrosAparelhos.loja_id?: number`:
+```typescript
+loja_id?: number | number[];  // aceitar ambos
+```
+
+**`types/taxasCartao.ts`** — `FiltrosTaxaCartao.loja_id?: number`:
+```typescript
+loja_id?: number | number[];  // aceitar ambos
+```
+
+**`types/dashboardAparelhos.ts`** — `DashboardAparelhosFiltro.loja_id?: number`:
+```typescript
+loja_id?: number | number[];  // aceitar ambos
+```
+
 ---
 
 ## FASE 2 — Core hooks
@@ -294,6 +311,7 @@ loja_id: dados.loja_ids?.[0] || dados.loja_id || null,
 **Mudanças nos métodos que consultam `permissoes`:**
 - `getPermissoes(usuarioId)` — além de buscar em `permissoes`, buscar também em `usuario_lojas`
 - `salvarPermissoes()` — além de salvar em `permissoes`, upsert em `usuario_lojas`
+- `removerPermissoes(usuarioId)` — também limpar registros em `usuario_lojas`
 
 ### 3c. `app/sistema/usuarios/actions/index.ts` (cadastro de usuário)
 
@@ -306,6 +324,66 @@ if (dados.loja_ids?.length > 0) {
       loja_id,
     }))
   );
+}
+```
+
+### 3d. 🔴 `app/api/aparelhos/pagamento/route.ts` — Validar loja contra permissões
+
+**Problema de segurança:** Este endpoint cria venda com `loja_id` vindo do body da requisição **sem validar se o usuário tem acesso àquela loja**. Usa `supabaseAdmin` (service role, bypass RLS).
+
+**Solução:** Após obter o `usuarioId` (do token), verificar se o usuário tem acesso à `lojaId`:
+```typescript
+// Validar acesso do usuário à loja
+const { data: temAcesso } = await supabaseAdmin
+  .from("usuario_lojas")
+  .select("loja_id")
+  .eq("usuario_id", usuarioId)
+  .eq("loja_id", lojaId)
+  .maybeSingle();
+
+// Fallback: verificar na tabela permissoes (migração)
+if (!temAcesso) {
+  const { data: perm } = await supabaseAdmin
+    .from("permissoes")
+    .select("loja_id, todas_lojas")
+    .eq("usuario_id", usuarioId)
+    .single();
+
+  if (!perm?.todas_lojas && perm?.loja_id !== lojaId) {
+    return NextResponse.json({ error: "Acesso negado a esta loja" }, { status: 403 });
+  }
+}
+```
+
+### 3e. 🔴 `services/pagamentoAparelhosService.ts` — Hardcoded `loja_id: 1`
+
+**Linha 41:** `loja_id: 1` hardcoded. Possível bug já existente onde pagamentos são sempre associados à loja 1.
+
+**Solução:** Verificar se este `loja_id: 1` deveria vir de um parâmetro ou do contexto do usuário. Se for intencional (loja padrão), documentar. Caso contrário, corrigir para receber o `lojaId` do caller.
+
+**Problema de segurança:** Este endpoint cria venda com `loja_id` vindo do body da requisição **sem validar se o usuário tem acesso àquela loja**. Usa `supabaseAdmin` (service role, bypass RLS).
+
+**Solução:** Após obter o `usuarioId` (do token), verificar se o usuário tem acesso à `lojaId`:
+```typescript
+// Validar acesso do usuário à loja
+const { data: temAcesso } = await supabaseAdmin
+  .from("usuario_lojas")
+  .select("loja_id")
+  .eq("usuario_id", usuarioId)
+  .eq("loja_id", lojaId)
+  .maybeSingle();
+
+// Fallback: verificar na tabela permissoes (migração)
+if (!temAcesso) {
+  const { data: perm } = await supabaseAdmin
+    .from("permissoes")
+    .select("loja_id, todas_lojas")
+    .eq("usuario_id", usuarioId)
+    .single();
+
+  if (!perm?.todas_lojas && perm?.loja_id !== lojaId) {
+    return NextResponse.json({ error: "Acesso negado a esta loja" }, { status: 403 });
+  }
 }
 ```
 
@@ -374,6 +452,15 @@ const dadosSalvar = {
 Cada uma segue o padrão:
 - Destructurar `lojaIds` do hook (além de `lojaId`)
 - Trocar `.eq("campo", lojaId)` → `.in("campo", lojaIds)`
+
+### ⚠️ Atenção: useEffect com dependência `lojaId`
+
+Páginas que têm `useEffect` com `lojaId` na lista de dependências **não recarregarão dados quando lojas forem adicionadas** (pois `lojaId` compat continua sendo o primeiro elemento, não muda de `[5]` para `[5,6]`).
+
+**Solução:** Adicionar `lojaIds` como dependência adicional nos `useEffect` de:
+- `app/sistema/vendas/page.tsx` — linha ~335
+- `app/sistema/devolucoes/page.tsx` — linha ~78
+- `app/sistema/configuracoes/taxas-cartao/page.tsx` — linha ~95
 
 ### 5a. `app/sistema/vendas/page.tsx`
 
@@ -502,32 +589,148 @@ const { lojaId, lojaIds } = useLojaFilter();
 
 ## FASE 5i — Páginas faltantes (NOVO)
 
-### 5i1. `app/sistema/dashboard/page.tsx`
+### 5i1. `app/sistema/dashboard/page.tsx` + `services/dashboardService.ts`
 
-**Status:** Esta página NÃO usa `useLojaFilter`. Tem seu próprio `lojaId` local (seletor) e faz consultas `.eq("loja_id"` diretas.
+#### 5i1a. Mudanças no tipo `FiltroDashboard` (`types/dashboard.ts`)
 
-**Estratégia:**
-- Adicionar `useLojaFilter()` para obter `lojaIds` e `podeVerTodasLojas`
-- Seletor de loja: mostrar apenas lojas que o usuário tem acesso
-- Consultas `.eq()` que usam o seletor já funcionam (recebem valor específico do dropdown)
-
-**Linha ~161:** Adicionar:
+`FiltroDashboard.loja_id` atualmente é `number` — precisa aceitar ambos:
 ```typescript
-const { lojaIds, podeVerTodasLojas } = useLojaFilter();
+export interface FiltroDashboard {
+  data_inicio: string;
+  data_fim: string;
+  loja_id?: number | number[];  // aceita ambos
+}
 ```
 
-**Seletor de loja:** Filtrar opções:
+#### 5i1b. Mudanças na página (`app/sistema/dashboard/page.tsx`)
+
+- Adicionar `useLojaFilter()` para obter `lojaIds`
+- Seletor de loja: mostrar apenas lojas que o usuário tem acesso
+
 ```typescript
+const { lojaIds, podeVerTodasLojas } = useLojaFilter();
+
 const lojasDisponiveis = podeVerTodasLojas
   ? lojas
   : lojas.filter(l => lojaIds.includes(l.id));
 ```
 
+#### 5i1c. Mudanças no `services/dashboardService.ts`
+
+**⚠️ Perigo:** Este serviço tem verificações **client-side** que usam `!==` com `loja_id`:
+```typescript
+// Exemplo — linha ~644
+if (loja_id && p.venda?.loja_id !== loja_id) return;
+```
+Isso QUEBRA com array porque `array !== number` é sempre `true` — filtraria TODOS os resultados.
+
+**Estratégia — 6 ocorrências (linhas ~644, 703, 801, 959, 1151, 1184, 1236):**
+```typescript
+// Antes (quebra com array):
+if (loja_id && p.venda?.loja_id !== loja_id) return;
+
+// Depois:
+if (loja_id && (Array.isArray(loja_id)
+  ? !loja_id.includes(p.venda?.loja_id)
+  : p.venda?.loja_id !== loja_id
+)) return;
+```
+
+#### 5i1d. Estratégia para RPCs
+
+O `dashboardService.ts` chama 4 RPCs do PostgreSQL que aceitam `p_loja_id` como `bigint`:
+- `calcular_metricas_vendas`
+- `calcular_metricas_os`
+- `calcular_os_por_tipo_cliente`
+- `calcular_metricas_adicionais`
+
+Essas **definições não estão no repositório** (estão no Supabase). Como aceitam 1 valor:
+```typescript
+const lojaIdRPC = Array.isArray(loja_id) ? loja_id[0] : loja_id;
+```
+**Limitação conhecida:** RPCs só calculam para a PRIMEIRA loja do usuário.
+
 ### 5i2. `app/sistema/relatorios/lucro/page.tsx`
 
-**Status:** Não usa `useLojaFilter`. Tem seletor de loja próprio.
+**Status:** Não usa `useLojaFilter`. Tem seletor de loja próprio (`lojaFiltro`). Usuário pode selecionar qualquer loja sem validação de permissão.
 
-**Estratégia:** Mesma do dashboard — adicionar `useLojaFilter` e filtrar opções do seletor.
+**Estratégia:** Adicionar `useLojaFilter` e filtrar opções do seletor:
+```typescript
+const { lojaIds, podeVerTodasLojas } = useLojaFilter();
+
+const lojasDisponiveis = podeVerTodasLojas
+  ? lojas
+  : lojas.filter(l => lojaIds.includes(l.id));
+```
+
+### 5i3. 🟠 `app/sistema/fornecedores/page.tsx` (NOVO)
+
+**Status:** Não filtra por loja **nenhuma**. Carrega todos os fornecedores sem filtro.
+
+**Estratégia:** Adicionar `useLojaFilter` e aplicar filtro no service:
+```typescript
+const { aplicarFiltroLoja, precisaFiltro } = useLojaFilter();
+// Ao montar a query, aplicar filtro:
+if (precisaFiltro) {
+  query = aplicarFiltroLoja(query, "id_loja"); // se fornecedores têm id_loja
+}
+```
+
+### 5i4. 🟠 `app/sistema/rmas/page.tsx` + `types/rma.ts` (NOVO)
+
+**Status:** Página não filtra por loja. `FiltrosRMA.loja_id` é `number`.
+
+**Estratégia:**
+- `types/rma.ts`: `loja_id?: number` → `loja_id?: number | number[]`
+- Página: adicionar `useLojaFilter` e aplicar filtro:
+```typescript
+const { lojaIds, podeVerTodasLojas } = useLojaFilter();
+
+// Ao chamar rmaService
+const filtros: FiltrosRMA = {};
+if (!podeVerTodasLojas && lojaIds.length > 0) {
+  filtros.loja_id = lojaIds;
+}
+const dados = await buscarRMAs(filtros);
+```
+- `services/rmaService.ts`: trocar `.eq("loja_id", filtros.loja_id)` para aceitar `number | number[]`
+
+### 5i5. 🔴 `app/sistema/vendas/aparelhos/page.tsx` (NOVO)
+
+**Status:** Nenhum filtro de loja. Usa `usePermissoes()` apenas para `temPermissao`. Consultas Supape diretas sem filtrar por loja. **Linha 542:** `loja_id: 1` hardcoded ao inserir brinde (bug).
+
+**Estratégia:**
+- Adicionar `useLojaFilter()` para obter `lojaIds`
+- Aplicar filtro nas queries de vendas/aparelhos
+- Substituir `loja_id: 1` hardcoded por valor vindo do contexto ou parâmetro:
+
+```typescript
+const { lojaIds, aplicarFiltroLoja, precisaFiltro } = useLojaFilter();
+
+// Aplicar filtro nas queries:
+if (precisaFiltro) {
+  query = aplicarFiltroLoja(query, "loja_id");
+}
+
+// Corrigir hardcoded loja_id:
+// Antes: loja_id: 1
+// Depois: loja_id: lojaIds[0] || 1  (ou remover se não aplicável)
+```
+
+### 5i6. 🔴 `app/sistema/transferencias/nova/page.tsx` (NOVO)
+
+**Status:** Carrega **todas as lojas** nos selects de origem/destino sem validar permissão do usuário. Usa `useAuth()` (não tem acesso a `lojaId`/`lojaIds`).
+
+**Estratégia:**
+- Adicionar `usePermissoes()` para obter `temAcessoLoja` ou `lojaIds`
+- Filtrar as lojas disponíveis nos selects de origem/destino:
+
+```typescript
+const { temAcessoLoja } = usePermissoes();
+
+// Ao carregar lojas, filtrar:
+const lojasPermitidas = lojas.filter(l => temAcessoLoja(l.id));
+```
 
 ---
 
@@ -576,6 +779,41 @@ const { lojaId: defaultLojaId, lojaIds: defaultLojaIds } = useLojaFilter();
 ### 6f. `components/vendas/HistoricoTrocas.tsx` (NOVO)
 
 **Linha 74:** `.eq("loja_id", lojaId)` — mesma verificação de 6e.
+
+### 6g. 🟠 `components/estoque/TransferenciaModal.tsx` (NOVO)
+
+**Problema:** Carrega **todas** as lojas para os selects de origem/destino sem filtrar pelas lojas que o usuário tem acesso.
+
+**Estratégia:** Usar `usePermissoes()` ou `useLojaFilter()` para filtrar as lojas disponíveis:
+```typescript
+const { temAcessoLoja } = usePermissoes();
+
+const lojasDisponiveis = lojas.filter(l => temAcessoLoja(l.id));
+```
+
+**Seletor de origem:** só mostrar lojas que o usuário tem acesso.
+**Seletor de destino:** mostrar lojas destino (pode ser qualquer loja?) — verificar regra de negócio.
+
+### 6h. 🟡 `components/Sidebar.tsx` + `components/Header.tsx` — Exibir loja atual (NOVO)
+
+**Problema:** Nenhum dos dois componentes mostra a loja atual do usuário ou permite alternar entre lojas para usuários com múltiplas lojas.
+
+**Estratégia:**
+- Adicionar `usePermissoes()` para obter `lojaIds`, `todasLojas`, `perfil`
+- Exibir `mensagemAcesso` ou um seletor de loja no Header (ao lado do nome do usuário)
+- Para usuários com múltiplas lojas, exibir um badge ou dropdown mostrando as lojas ativas
+
+```typescript
+// Header.tsx — adicionar seletor de loja
+const { lojaIds, todasLojas, perfil } = usePermissoes();
+
+{perfil !== "admin" && lojaIds.length > 0 && (
+  <div className="flex items-center gap-1 text-xs text-default-500">
+    <Store className="w-3 h-3" />
+    <span>{todasLojas ? "Todas as lojas" : `${lojaIds.length} loja(s)`}</span>
+  </div>
+)}
+```
 
 ---
 
@@ -632,7 +870,10 @@ const channelLojas = supabase
 
 **Status:** Consulta `permissoes_usuarios` (possivelmente uma view no banco). Pode ser que essa view precise incluir `usuario_lojas`.
 
-**Estratégia:** Por enquanto, manter como está. Verificar se `permissoes_usuarios` é uma view ou tabela. Se for view, atualizar definição posteriormente.
+**Estratégia:** Por enquanto, manter como está. A view `permissoes_usuarios` **não tem definição SQL neste repositório** — está apenas no Supabase. Será necessário:
+1. Localizar a definição da view no Supabase Studio
+2. Verificar se ela expõe `loja_id` (único) — se sim, decidir se atualiza ou ignora (o endpoint é de API, não usado pelo frontend principal)
+3. Se a view precisar de atualização, executar `CREATE OR REPLACE VIEW` no Supabase
 
 ---
 
@@ -648,30 +889,103 @@ Muitos serviços em `services/` fazem consultas `.eq("loja_id"` ou `.eq("id_loja
 
 | Serviço | Campos | Risco |
 |---------|--------|-------|
-| `services/vendasService.ts` | `loja_id` | 🟠 — usado em `filtros` |
+| `services/vendasService.ts` | `loja_id` | 🟠 — `.eq()` em `listarVendas` |
+| `services/transferenciasService.ts` | `loja_origem_id`, `loja_destino_id` | 🔴 — **OR query com string interpolation** (ver abaixo) |
+| `services/taxasCartaoService.ts` | `loja_id` | 🔴 — **OR query com string interpolation** |
 | `services/estoqueService.ts` | `id_loja` | 🟢 — página usa filtro client-side |
-| `services/ordemServicoService.ts` | `id_loja` | 🟠 — usado em `filtros` |
-| `services/caixaService.ts` | `loja_id` | 🟠 — usado em `filtros` |
-| `services/financeiroService.ts` | `loja_id`, `id_loja` | 🟠 — usado em `filtros` |
-| `services/dashboardService.ts` | `loja_id`, `venda.loja_id` | 🟠 — dashboard page |
-| `services/taxasCartaoService.ts` | `loja_id` | 🟠 — taxas-cartao page |
+| `services/ordemServicoService.ts` | `id_loja` | 🟠 — `.eq()` em `buscarOrdensServico` |
+| `services/caixaService.ts` | `loja_id` | 🟠 — `.eq()` em `listarCaixas`, `buscarHistorico` |
+| `services/financeiroService.ts` | `loja_id`, `id_loja` | 🟠 — `.eq()` em folha, contas, custos |
+| `services/dashboardService.ts` | `loja_id`, `venda.loja_id` | 🔴 — **`.eq()` + `!==` client-side + RPCs** (FASE 5i1) |
 | `services/metasService.ts` | `loja_id` | 🟢 — manter 1 loja por meta |
 | `services/rmaService.ts` | `loja_id` | 🟢 — página não usa hook |
-| `services/aparelhosService.ts` | `loja_id` | 🟠 — aparelhos page |
-| `services/aparelhosDashboardService.ts` | `loja_id` | 🟠 — aparelhos page |
-| `services/caixaAparelhosService.ts` | `loja_id` | 🟠 — aparelhos page |
-| `services/dashboardAparelhosService.ts` | `loja_id` | 🟠 — aparelhos page |
-| `services/brindesAparelhosService.ts` | `loja_id` | 🟠 — aparelhos page |
-| `services/transferenciasService.ts` | `loja_origem_id`, `loja_destino_id` | 🟠 — transferencias page |
-| `services/tecnicoService.ts` | `id_loja` | 🟢 — não usa hook |
-| `services/tecnicosService.ts` | `id_loja` | 🟢 — não usa hook |
-| `services/ordemServicoEstoqueService.ts` | `id_loja` | 🟢 — não usa hook |
-| `services/clienteService.ts` | `id_loja` | 🟢 — não usa hook |
-| `services/historicoEstoqueService.ts` | `id_loja` | 🟢 — não usa hook |
-| `services/lojasFotosService.ts` | `loja_id` | 🟢 — não usa hook |
+| `services/aparelhosService.ts` | `loja_id` | 🟠 — `.eq()` em `buscarAparelhos` |
+| `services/aparelhosDashboardService.ts` | `loja_id` | 🟠 — `.eq()` em métricas |
+| `services/caixaAparelhosService.ts` | `loja_id` | 🟠 — `.eq()` |
+| `services/dashboardAparelhosService.ts` | `loja_id` | 🟠 — `.eq()` |
+| `services/brindesAparelhosService.ts` | `loja_id` | 🟠 — `.eq()` |
+| `services/historicoEstoqueService.ts` | `id_loja` | 🟠 — `.eq()` |
+| `services/ordemServicoDevolucoesService.ts` | `id_loja` | 🔴 — filtro **client-side** com `!==` (3 métodos) |
+| `services/rmaService.ts` | `loja_id` | 🟠 — tipo precisa `number \| number[]` |
+| `services/tecnicoService.ts` | `id_loja` | 🟢 — sem hook |
+| `services/tecnicosService.ts` | `id_loja` | 🟢 — sem hook |
+| `services/ordemServicoEstoqueService.ts` | `id_loja` | 🟢 — sem hook |
+| `services/clienteService.ts` | `id_loja` | 🟢 — sem hook |
+| `services/lojasFotosService.ts` | `loja_id` | 🟢 — sem hook |
+
+### ⚠️ ATENÇÃO: OR queries com string interpolation
+
+**`services/transferenciasService.ts`** (linhas 50-54, 132-138):
+```typescript
+query.or(`loja_origem_id.eq.${filtros.loja_id},loja_destino_id.eq.${filtros.loja_id}`);
+```
+Se `filtros.loja_id` virar array `[1, 2]`, o resultado seria `loja_origem_id.eq.1,2,loja_destino_id.eq.1,2` — SQL inválido. **QUEBRA**.
+
+**`services/taxasCartaoService.ts`** (linha 112):
+```typescript
+query.or(`loja_id.eq.${filtros.loja_id},loja_id.is.null`);
+```
+Mesmo problema.
+
+**Estratégia para OR queries:**
+```typescript
+// Versão segura para ambos os casos
+if (Array.isArray(lojaId)) {
+  // Construir OR manualmente para cada loja
+  const conditions = lojaId.map(id =>
+    `loja_origem_id.eq.${id},loja_destino_id.eq.${id}`
+  ).join(',');
+  query = query.or(conditions);
+} else if (lojaId) {
+  query = query.or(`loja_origem_id.eq.${lojaId},loja_destino_id.eq.${lojaId}`);
+}
+```
+
+### ⚠️ `services/rmaService.ts` — tipo `loja_id` precisa suportar array
+
+```typescript
+// types/rma.ts — FiltrosRMA
+loja_id?: number;  →  loja_id?: number | number[];
+
+// services/rmaService.ts
+if (filtros?.loja_id) {
+  query = Array.isArray(filtros.loja_id)
+    ? query.in("loja_id", filtros.loja_id)
+    : query.eq("loja_id", filtros.loja_id);
+}
+```
+
+### ⚠️ Filtros client-side com `!==` (quebram com array)
+
+**`services/ordemServicoDevolucoesService.ts`** (linhas 132-140, 188-196, 244-251):
+```typescript
+if (loja_id) {
+  result = result.filter((dev) => {
+    const os = Array.isArray(dev.ordem_servico) ? (dev.ordem_servico as any[])[0] : dev.ordem_servico;
+    return (os as any)?.id_loja === loja_id;
+  });
+}
+```
+
+**Estratégia — mesmo padrão do dashboardService.ts (FASE 5i1c):**
+```typescript
+if (loja_id) {
+  result = result.filter((dev) => {
+    const os = Array.isArray(dev.ordem_servico) ? (dev.ordem_servico as any[])[0] : dev.ordem_servico;
+    const idLoja = (os as any)?.id_loja;
+    return Array.isArray(loja_id) ? loja_id.includes(idLoja) : idLoja === loja_id;
+  });
+}
+```
+
+### RPC functions — ponto cego
+
+Serviços como `dashboardService.ts` chamam RPCs (`calcular_metricas_vendas`, etc.) que aceitam `p_loja_id` como `bigint` único. **Definições não estão no repositório.**
+
+Estratégia: passar `Array.isArray(loja_id) ? loja_id[0] : loja_id` — RPCs só calculam para a primeira loja.
 
 ### Estratégia de implementação segura:
-Para cada serviço 🟠, criar overload que aceita `number | number[]`:
+Para cada serviço 🟠, usar overload que aceita `number | number[]`:
 ```typescript
 // Antes
 query = query.eq("loja_id", lojaId);
@@ -679,7 +993,7 @@ query = query.eq("loja_id", lojaId);
 // Depois — aceita ambos
 if (Array.isArray(lojaId)) {
   query = query.in("loja_id", lojaId);
-} else {
+} else if (lojaId !== undefined) {
   query = query.eq("loja_id", lojaId);
 }
 ```
@@ -724,6 +1038,12 @@ Após tudo estável em produção:
 - [ ] **FASE 5i1:** `dashboard/page.tsx` 🟠
 - [ ] **FASE 5i2:** `relatorios/lucro/page.tsx` 🟠
 
+### Páginas adicionais:
+- [ ] **FASE 5i3:** `fornecedores/page.tsx` 🟠
+- [ ] **FASE 5i4:** `rmas/page.tsx` + `types/rma.ts` 🟠
+- [ ] **FASE 5i5:** `vendas/aparelhos/page.tsx` 🔴 (sem filtro + loja_id hardcoded)
+- [ ] **FASE 5i6:** `transferencias/nova/page.tsx` 🔴 (sem validação de permissão)
+
 ### Componentes mais sensíveis:
 - [ ] **FASE 6a:** `DashboardPessoal.tsx` 🔴
 - [ ] **FASE 6b:** `financeiro/page.tsx` 🔴
@@ -731,6 +1051,41 @@ Após tudo estável em produção:
 - [ ] **FASE 6d:** `NovaVendaModal.tsx` 🟢 (já funciona via `temAcessoLoja`)
 - [ ] **FASE 6e:** `TrocarProdutoModal.tsx` 🟠
 - [ ] **FASE 6f:** `HistoricoTrocas.tsx` 🟠
+- [ ] **FASE 6g:** `TransferenciaModal.tsx` 🟠
+- [ ] **FASE 6h:** `Sidebar.tsx` + `Header.tsx` 🟡 (exibir loja atual)
+
+### Segurança:
+- [ ] **FASE 3d:** `api/aparelhos/pagamento/route.ts` 🔴 — validar loja contra permissões
+- [ ] **FASE 3e:** `services/pagamentoAparelhosService.ts` 🔴 — hardcoded `loja_id: 1`
+
+### Tipos de filtro adicionais:
+- [ ] **FASE 1 — `types/aparelhos.ts`**: `FiltrosAparelhos.loja_id` → `number | number[]`
+- [ ] **FASE 1 — `types/taxasCartao.ts`**: `FiltrosTaxaCartao.loja_id` → `number | number[]`
+- [ ] **FASE 1 — `types/dashboardAparelhos.ts`**: `DashboardAparelhosFiltro.loja_id` → `number | number[]`
 
 ### Serviços (análise individual):
-- [ ] **FASE 8:** Verificar serviços 🟠 (lista detalhada acima)
+- [ ] **FASE 8 — vendasService.ts** 🟠
+- [ ] **FASE 8 — transferenciasService.ts** 🔴 (OR query)
+- [ ] **FASE 8 — taxasCartaoService.ts** 🔴 (OR query)
+- [ ] **FASE 8 — ordemServicoService.ts** 🟠
+- [ ] **FASE 8 — caixaService.ts** 🟠
+- [ ] **FASE 8 — financeiroService.ts** 🟠
+- [ ] **FASE 8 — dashboardService.ts** 🔴 (inclui RPCs + `!==`)
+- [ ] **FASE 8 — aparelhosService.ts** 🟠
+- [ ] **FASE 8 — aparelhosDashboardService.ts** 🟠
+- [ ] **FASE 8 — caixaAparelhosService.ts** 🟠
+- [ ] **FASE 8 — dashboardAparelhosService.ts** 🟠
+- [ ] **FASE 8 — brindesAparelhosService.ts** 🟠
+- [ ] **FASE 8 — historicoEstoqueService.ts** 🟠
+- [ ] **FASE 8 — rmaService.ts** 🟠
+- [ ] **FASE 8 — ordemServicoDevolucoesService.ts** 🔴 (filtro `!==`)
+
+### useEffect com dependência `lojaId`:
+- [ ] **FASE 5 — vendas/page.tsx** adicionar `lojaIds` nas deps 🟡
+- [ ] **FASE 5 — devolucoes/page.tsx** adicionar `lojaIds` nas deps 🟡
+- [ ] **FASE 5 — taxas-cartao/page.tsx** adicionar `lojaIds` nas deps 🟡
+
+### Pendências no Supabase (fora do código):
+- [ ] **RPC functions:** Localizar definições de `calcular_metricas_vendas` etc. no Supabase
+- [ ] **View `permissoes_usuarios`:** Localizar definição e verificar se precisa de atualização
+- [ ] **RPCs `inserir_loja_com_usuario` etc.:** Verificar o que fazem com `usuario_id`

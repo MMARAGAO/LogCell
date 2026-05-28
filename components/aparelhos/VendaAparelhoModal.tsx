@@ -34,10 +34,13 @@ import {
   X,
   Gift,
   AlertCircle,
+  Percent,
 } from "lucide-react";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
+import { usePermissoes } from "@/hooks/usePermissoes";
+import { DescontoModal } from "@/components/vendas/DescontoModal";
 import { SimuladorTaxaCartao } from "@/components/vendas/SimuladorTaxaCartao";
 import { formatarMoeda, formatarTelefone } from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
@@ -150,6 +153,7 @@ export function VendaAparelhoModal({
 }: VendaAparelhoModalProps) {
   const { usuario } = useAuthContext();
   const { showToast } = useToast();
+  const { temPermissao } = usePermissoes();
 
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteSelecionadoId, setClienteSelecionadoId] = useState("");
@@ -198,6 +202,13 @@ export function VendaAparelhoModal({
   const [simulacaoAtual, setSimulacaoAtual] =
     useState<ResultadoSimulacaoTaxa | null>(null);
 
+  const [descontoInfo, setDescontoInfo] = useState<{
+    tipo: "valor" | "percentual";
+    valor: number;
+    motivo: string;
+  } | null>(null);
+  const [descontoModalOpen, setDescontoModalOpen] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -220,6 +231,8 @@ export function VendaAparelhoModal({
     setParcelasPagamento(1);
     setDataPagamento(new Date().toISOString().split("T")[0]);
     setErrosValidacao([]);
+    setDescontoInfo(null);
+    setDescontoModalOpen(false);
   }, [isOpen, aparelho.id, aparelho.valor_venda, lojaId]);
 
   useEffect(() => {
@@ -314,7 +327,13 @@ export function VendaAparelhoModal({
   const valorTroca = aparelhoTroca?.valor_avaliado || 0;
   const valorPago =
     formasPagamento.reduce((sum, f) => sum + f.valor, 0) + valorTroca;
-  const saldoDevedor = valorVendaNumerico - valorPago;
+  const valorDescontoCalculado = descontoInfo
+    ? descontoInfo.tipo === "percentual"
+      ? (valorVendaNumerico * descontoInfo.valor) / 100
+      : descontoInfo.valor
+    : 0;
+  const valorComDesconto = valorVendaNumerico - valorDescontoCalculado;
+  const saldoDevedor = valorComDesconto - valorPago;
   const custoBrindes = brindes.reduce((sum, b) => sum + b.valor_custo, 0);
   const brindesSemEstoque = brindes
     .filter((brinde) => brinde.origem === "estoque" && brinde.produto_id)
@@ -585,9 +604,9 @@ export function VendaAparelhoModal({
           vendedor_id: usuario.id,
           status: "concluida",
           tipo: "normal",
-          valor_total: valorVendaNumerico,
-          valor_pago: valorVendaNumerico,
-          valor_desconto: 0,
+          valor_total: valorComDesconto,
+          valor_pago: valorComDesconto,
+          valor_desconto: valorDescontoCalculado,
           saldo_devedor: 0,
           observacoes:
             observacoes ||
@@ -599,6 +618,30 @@ export function VendaAparelhoModal({
         .single();
 
       if (erroVenda) throw erroVenda;
+
+      // Inserir desconto na tabela descontos_venda (para relatórios)
+      if (descontoInfo) {
+        const { error: errDesc } = await supabase
+          .from("descontos_venda")
+          .insert({
+            venda_id: venda.id,
+            tipo: descontoInfo.tipo,
+            valor: descontoInfo.valor,
+            motivo: descontoInfo.motivo,
+            aplicado_por: usuario.id,
+          });
+
+        if (errDesc) {
+          console.error("[VendaAparelho] Erro ao inserir desconto:", errDesc);
+        } else {
+          await supabase.from("historico_vendas").insert({
+            venda_id: venda.id,
+            tipo_acao: "desconto",
+            descricao: `Desconto aplicado: ${descontoInfo.tipo === "valor" ? `R$ ${descontoInfo.valor.toFixed(2)}` : `${descontoInfo.valor}%`} - ${descontoInfo.motivo}`,
+            usuario_id: usuario.id,
+          });
+        }
+      }
 
       // 4. Cadastrar aparelho de troca no estoque (se houver)
       let aparelhoTrocaId: string | null = null;
@@ -975,6 +1018,74 @@ export function VendaAparelhoModal({
                   />
                 </CardBody>
               </Card>
+
+              {/* Desconto */}
+              {temPermissao("vendas.aplicar_desconto") && (
+                <Card className="border border-default-200 shadow-sm">
+                  <CardBody className="gap-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Percent className="w-4 h-4 text-success" />
+                        Desconto
+                      </h3>
+                    </div>
+
+                    {!descontoInfo ? (
+                      <Button
+                        color="success"
+                        size="sm"
+                        startContent={<Percent className="w-4 h-4" />}
+                        variant="flat"
+                        onPress={() => setDescontoModalOpen(true)}
+                      >
+                        Aplicar Desconto
+                      </Button>
+                    ) : (
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-default-600">
+                            Valor Original
+                          </span>
+                          <span className="font-medium">
+                            {formatarMoeda(valorVendaNumerico)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-success">
+                          <span>
+                            Desconto (
+                            {descontoInfo.tipo === "percentual"
+                              ? `${descontoInfo.valor}%`
+                              : "R$"}
+                            )
+                          </span>
+                          <span className="font-semibold">
+                            - {formatarMoeda(valorDescontoCalculado)}
+                          </span>
+                        </div>
+                        <Divider className="my-1" />
+                        <div className="flex justify-between font-bold">
+                          <span>Valor Final</span>
+                          <span className="text-primary">
+                            {formatarMoeda(valorComDesconto)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-default-400 italic mt-1">
+                          Motivo: {descontoInfo.motivo}
+                        </p>
+                        <Button
+                          className="mt-1"
+                          color="danger"
+                          size="sm"
+                          variant="light"
+                          onPress={() => setDescontoInfo(null)}
+                        >
+                          Remover desconto
+                        </Button>
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              )}
 
               {/* Brindes */}
               <Card className="border border-default-200 shadow-sm">
@@ -1717,6 +1828,16 @@ export function VendaAparelhoModal({
           </Button>
         </ModalFooter>
       </ModalContent>
+
+      <DescontoModal
+        isOpen={descontoModalOpen}
+        valorTotal={valorVendaNumerico}
+        onAplicar={(tipo, valor, motivo) => {
+          setDescontoInfo({ tipo, valor, motivo });
+          setDescontoModalOpen(false);
+        }}
+        onClose={() => setDescontoModalOpen(false)}
+      />
     </Modal>
   );
 }
