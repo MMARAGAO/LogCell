@@ -438,9 +438,7 @@ export default function VendasAparelhosPage() {
             lucro: totalPago - (a.valor_compra || 0) - custoBrindes,
             venda,
             cliente: venda ? clientesMap.get(venda.cliente_id) : null,
-            // Usar valor_total da venda (com desconto) se disponível
-            valor_venda: venda?.valor_total ?? a.valor_venda,
-            valor_venda_original: a.valor_venda,
+            valor_exibido: venda?.valor_total ?? a.valor_venda,
           };
         }),
       );
@@ -514,7 +512,7 @@ export default function VendasAparelhosPage() {
       v.imei || "",
       v.valor_venda || 0,
       v.pagamento_total,
-      (v.valor_venda || 0) - v.pagamento_total,
+      (v.valor_exibido || 0) - v.pagamento_total,
       v.venda?.status === "concluida" ? "Concluída" : "Pendente",
       v.data_venda ? new Date(v.data_venda).toLocaleDateString("pt-BR") : "",
     ]);
@@ -741,7 +739,7 @@ export default function VendasAparelhosPage() {
           `<tr><td>${TIPO_LABEL[p.tipo_pagamento] || p.tipo_pagamento}</td><td style="text-align:right">${formatarMoeda(p.liquido ?? p.valor)}</td></tr>`,
       )
       .join("");
-    const saldo = (v.valor_venda || 0) - v.pagamento_total;
+    const saldo = (v.valor_exibido || 0) - v.pagamento_total;
 
     win.document.write(`
       <html><head><title>Recibo #${v.venda?.numero_venda}</title>
@@ -770,7 +768,7 @@ export default function VendasAparelhosPage() {
         <table>
           <tr><th>Pagamento</th><th style="text-align:right">Valor</th></tr>
           ${pagtoHTML}
-          <tr class="total"><td>Total</td><td style="text-align:right">${formatarMoeda(v.valor_venda || 0)}</td></tr>
+          <tr class="total"><td>Total</td><td style="text-align:right">${formatarMoeda(v.valor_exibido || 0)}</td></tr>
           <tr><td>Pago</td><td style="text-align:right">${formatarMoeda(v.pagamento_total)}</td></tr>
           <tr><td>Status</td><td style="text-align:right"><span class="status">${saldo <= 0 ? "Pago" : "Pendente"}</span></td></tr>
         </table>
@@ -1514,7 +1512,7 @@ export default function VendasAparelhosPage() {
                 <tbody>
                   {vendasPaginadas.map((v) => {
                     const saldo =
-                      (v.valor_venda || 0) - (v.pagamento_total || 0);
+                      (v.valor_exibido || 0) - (v.pagamento_total || 0);
 
                     return (
                       <tr
@@ -1531,12 +1529,12 @@ export default function VendasAparelhosPage() {
                           {v.marca} {v.modelo}
                         </td>
                         <td className="py-3 px-4 text-sm font-medium text-gray-800 dark:text-white">
-                          {formatarMoeda(v.valor_venda || 0)}
-                          {v.valor_venda_original &&
+                          {formatarMoeda(v.valor_exibido || 0)}
+                          {v.valor_exibido !== v.valor_venda &&
                             v.venda?.valor_desconto &&
                             Number(v.venda.valor_desconto) > 0 && (
                               <span className="ml-2 text-[10px] text-gray-400 dark:text-gray-500 line-through">
-                                {formatarMoeda(v.valor_venda_original)}
+                                {formatarMoeda(v.valor_venda || 0)}
                               </span>
                             )}
                         </td>
@@ -1684,7 +1682,7 @@ export default function VendasAparelhosPage() {
   }
 
   function renderCard(v: any) {
-    const saldo = (v.valor_venda || 0) - (v.pagamento_total || 0);
+    const saldo = (v.valor_exibido || 0) - (v.pagamento_total || 0);
     const isQuitado = saldo <= 0;
 
     return (
@@ -1723,13 +1721,13 @@ export default function VendasAparelhosPage() {
           </div>
           <div className="text-right shrink-0">
             <p className="text-lg font-bold text-gray-900 dark:text-white">
-              {formatarMoeda(v.valor_venda || 0)}
+              {formatarMoeda(v.valor_exibido || 0)}
             </p>
-            {v.valor_venda_original &&
+            {v.valor_exibido !== v.valor_venda &&
               v.venda?.valor_desconto &&
               Number(v.venda.valor_desconto) > 0 && (
                 <p className="text-xs text-gray-400 dark:text-gray-500 line-through">
-                  {formatarMoeda(v.valor_venda_original)}
+                  {formatarMoeda(v.valor_venda || 0)}
                 </p>
               )}
             <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
