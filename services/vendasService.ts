@@ -1470,6 +1470,7 @@ export class VendasService {
           devolucoes:devolucoes_venda(id)
         `,
         )
+        .limit(100000)
         .order("criado_em", { ascending: false });
 
       if (filtros?.cliente_id) {

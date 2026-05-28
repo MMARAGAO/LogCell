@@ -419,7 +419,15 @@ export default function VendasPage() {
     }
 
     console.log("📤 Filtros que serão enviados:", filtros);
-    const dados = await VendasService.listarVendas(filtros);
+
+    const [dados, statsRes] = await Promise.all([
+      VendasService.listarVendas(filtros),
+      fetch("/api/vendas/estatisticas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filtros),
+      }).then((r) => r.json()),
+    ]);
 
     console.log("📦 Vendas carregadas:", dados.length, "vendas");
 
@@ -431,8 +439,23 @@ export default function VendasPage() {
     console.log("🏪 Lojas presentes nas vendas:", lojasNasVendas);
 
     console.log("🔍 Primeira venda:", dados[0]);
+    console.log("📊 Estatisticas do servidor:", statsRes);
+
     setVendas(dados);
-    calcularEstatisticas(dados);
+
+    if (!statsRes.error) {
+      setEstatisticas((prev) => ({
+        ...prev,
+        totalVendas: statsRes.totalVendas,
+        vendasHoje: statsRes.vendasHoje,
+        faturamentoTotal: statsRes.faturamentoTotal,
+        faturamentoHoje: statsRes.faturamentoHoje,
+        ticketMedio: statsRes.ticketMedio,
+        produtosVendidos: statsRes.produtosVendidos,
+      }));
+    } else {
+      calcularEstatisticas(dados);
+    }
   };
 
   // Pular o primeiro render (já carregado pelo useEffect de inicialização)
