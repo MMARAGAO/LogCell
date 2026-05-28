@@ -500,7 +500,9 @@ export function RecebimentoAparelhoModal({
                 {aparelho.marca} {aparelho.modelo}
               </p>
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                {formatarMoeda(aparelho.valor_venda || 0)}
+                {formatarMoeda(
+                  (aparelho as any).valor_exibido || aparelho.valor_venda || 0,
+                )}
               </p>
             </div>
 
