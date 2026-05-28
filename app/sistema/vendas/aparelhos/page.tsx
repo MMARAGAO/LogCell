@@ -167,7 +167,7 @@ export default function VendasAparelhosPage() {
       }
 
       // Busca total de registros (para KPIs) - busca IDs de todas as vendas do periodo
-      let allQuery = supabase.from("aparelhos").select("venda_id, data_venda, valor_venda, valor_compra").eq("status", "vendido");
+      let allQuery = supabase.from("aparelhos").select("venda_id, data_venda, valor_venda, valor_compra").eq("status", "vendido").not("venda_id", "is", null);
       filtros.forEach((f) => { if (f[0] === "gte") allQuery = allQuery.gte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "lte") allQuery = allQuery.lte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "or") allQuery = allQuery.or(f[1].replace(/%25/g, "%")); });
@@ -214,7 +214,7 @@ export default function VendasAparelhosPage() {
       setTotalPaginasBackend(totalPages);
 
       // Busca página atual com dados completos
-      let query = supabase.from("aparelhos").select("*, loja:lojas(id, nome)").eq("status", "vendido");
+      let query = supabase.from("aparelhos").select("*, loja:lojas(id, nome)").eq("status", "vendido").not("venda_id", "is", null);
       filtros.forEach((f) => {
         if (f[0] === "gte") query = query.gte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "lte") query = query.lte(f[1], f[2].replace(/"/g, ""));
