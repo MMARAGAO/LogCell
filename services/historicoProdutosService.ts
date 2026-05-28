@@ -12,20 +12,24 @@ export interface HistoricoProduto {
 }
 
 /**
- * Buscar histórico de alterações de um produto
+ * Buscar histórico de alterações de um produto (com paginação)
  * (alterações em campos como descrição, preço, marca, etc)
  */
 export async function getHistoricoProduto(
   produtoId: string,
-  limit: number = 50,
-): Promise<HistoricoProduto[]> {
+  page: number = 0,
+  pageSize: number = 50,
+): Promise<{ data: HistoricoProduto[]; hasMore: boolean; total: number }> {
   try {
-    const { data, error } = await supabase
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabase
       .from("historico_produtos")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("produto_id", produtoId)
       .order("data_alteracao", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error) throw error;
 
@@ -48,12 +52,18 @@ export async function getHistoricoProduto(
       }
     }
 
-    return historico.map((item: any) => ({
+    const dataFormatada = historico.map((item: any) => ({
       ...item,
       usuario_nome: item.usuario_id
         ? usuarios[item.usuario_id] || "Sistema"
         : "Sistema",
     }));
+
+    return {
+      data: dataFormatada,
+      hasMore: from + pageSize < (count ?? 0),
+      total: count ?? 0,
+    };
   } catch (error) {
     console.error("Erro ao buscar histórico do produto:", error);
     throw error;

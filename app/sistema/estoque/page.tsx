@@ -72,7 +72,6 @@ import {
   buscarProdutosPaginados,
   getFiltrosProdutos,
 } from "@/services/estoqueService";
-import { getHistoricoProduto } from "@/services/historicoEstoqueService";
 import {
   getFotosProduto,
   uploadFotoProduto,
@@ -1151,7 +1150,6 @@ export default function EstoquePage() {
               setModalHistorico(false);
               setProdutoSelecionado(null);
             }}
-            onLoadHistorico={getHistoricoProduto}
           />
 
           <HistoricoProdutoModal

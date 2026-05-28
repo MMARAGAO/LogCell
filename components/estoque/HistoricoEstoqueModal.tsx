@@ -15,24 +15,29 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { HistoricoEstoqueCompleto } from "@/types";
+import { getHistoricoProduto } from "@/services/historicoEstoqueService";
 
 interface HistoricoEstoqueModalProps {
   isOpen: boolean;
   onClose: () => void;
   produtoId: string;
   produtoNome: string;
-  onLoadHistorico: (produtoId: string) => Promise<HistoricoEstoqueCompleto[]>;
 }
+
+const PAGE_SIZE = 50;
 
 export default function HistoricoEstoqueModal({
   isOpen,
   onClose,
   produtoId,
   produtoNome,
-  onLoadHistorico,
 }: HistoricoEstoqueModalProps) {
   const [historico, setHistorico] = useState<HistoricoEstoqueCompleto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMais, setLoadingMais] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (isOpen && produtoId) {
@@ -43,13 +48,32 @@ export default function HistoricoEstoqueModal({
   const carregarHistorico = async () => {
     setLoading(true);
     try {
-      const dados = await onLoadHistorico(produtoId);
+      const result = await getHistoricoProduto(produtoId, 0, PAGE_SIZE);
 
-      setHistorico(dados);
+      setHistorico(result.data);
+      setHasMore(result.hasMore);
+      setTotal(result.total);
+      setPage(0);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const carregarMais = async () => {
+    setLoadingMais(true);
+    try {
+      const nextPage = page + 1;
+      const result = await getHistoricoProduto(produtoId, nextPage, PAGE_SIZE);
+
+      setHistorico((prev) => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Erro ao carregar mais histórico:", error);
+    } finally {
+      setLoadingMais(false);
     }
   };
 
@@ -242,6 +266,20 @@ export default function HistoricoEstoqueModal({
                   </div>
                 </div>
               ))}
+
+              {hasMore && (
+                <div className="text-center pt-2 pb-1">
+                  <Button
+                    variant="flat"
+                    color="primary"
+                    isLoading={loadingMais}
+                    size="sm"
+                    onPress={carregarMais}
+                  >
+                    Carregar mais ({historico.length} de {total})
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 text-default-500">

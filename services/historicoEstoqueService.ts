@@ -5,14 +5,17 @@ import { HistoricoEstoqueCompleto } from "@/types";
  * Serviço para gerenciamento de histórico de movimentações de estoque
  */
 
-// Buscar histórico de um produto
+// Buscar histórico de um produto (com paginação)
 export async function getHistoricoProduto(
   produtoId: string,
-  limit: number = 50,
-): Promise<HistoricoEstoqueCompleto[]> {
+  page: number = 0,
+  pageSize: number = 50,
+): Promise<{ data: HistoricoEstoqueCompleto[]; hasMore: boolean; total: number }> {
   try {
-    // Query 1: Buscar histórico
-    const { data, error } = await supabase
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    const { data, error, count } = await supabase
       .from("historico_estoque")
       .select(
         `
@@ -20,16 +23,17 @@ export async function getHistoricoProduto(
         produto:produtos(descricao, marca),
         loja:lojas(nome)
       `,
+        { count: "exact" },
       )
       .eq("id_produto", produtoId)
       .order("criado_em", { ascending: false })
-      .limit(limit);
+      .range(from, to);
 
     if (error) throw error;
 
     const historico = data || [];
 
-    // Query 2: Buscar nomes dos usuários
+    // Buscar nomes dos usuários
     const usuarioIds = Array.from(
       new Set(historico.map((h) => h.usuario_id).filter(Boolean)),
     );
@@ -51,7 +55,7 @@ export async function getHistoricoProduto(
     }
 
     // Combinar dados
-    return historico.map((item: any) => ({
+    const dataFormatada = historico.map((item: any) => ({
       ...item,
       produto_descricao: item.produto?.descricao || "",
       produto_marca: item.produto?.marca || "",
@@ -60,6 +64,12 @@ export async function getHistoricoProduto(
         ? usuariosMap[item.usuario_id] || "Sistema"
         : "Sistema",
     }));
+
+    return {
+      data: dataFormatada,
+      hasMore: from + pageSize < (count ?? 0),
+      total: count ?? 0,
+    };
   } catch (error) {
     console.error("Erro ao buscar histórico do produto:", error);
     throw error;

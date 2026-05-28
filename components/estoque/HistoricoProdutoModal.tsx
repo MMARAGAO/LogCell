@@ -23,6 +23,8 @@ interface HistoricoProdutoModalProps {
   produtoNome: string;
 }
 
+const PAGE_SIZE = 50;
+
 export function HistoricoProdutoModal({
   isOpen,
   onClose,
@@ -31,6 +33,10 @@ export function HistoricoProdutoModal({
 }: HistoricoProdutoModalProps) {
   const [historico, setHistorico] = useState<HistoricoProduto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMais, setLoadingMais] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (isOpen && produtoId) {
@@ -41,13 +47,32 @@ export function HistoricoProdutoModal({
   async function carregarHistorico() {
     try {
       setLoading(true);
-      const data = await getHistoricoProduto(produtoId);
+      const result = await getHistoricoProduto(produtoId, 0, PAGE_SIZE);
 
-      setHistorico(data);
+      setHistorico(result.data);
+      setHasMore(result.hasMore);
+      setTotal(result.total);
+      setPage(0);
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function carregarMais() {
+    try {
+      setLoadingMais(true);
+      const nextPage = page + 1;
+      const result = await getHistoricoProduto(produtoId, nextPage, PAGE_SIZE);
+
+      setHistorico((prev) => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Erro ao carregar mais histórico:", error);
+    } finally {
+      setLoadingMais(false);
     }
   }
 
@@ -168,6 +193,20 @@ export function HistoricoProdutoModal({
                   </div>
                 </div>
               ))}
+
+              {hasMore && (
+                <div className="text-center pt-2 pb-1">
+                  <Button
+                    variant="flat"
+                    color="primary"
+                    isLoading={loadingMais}
+                    size="sm"
+                    onPress={carregarMais}
+                  >
+                    Carregar mais ({historico.length} de {total})
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </ModalBody>
