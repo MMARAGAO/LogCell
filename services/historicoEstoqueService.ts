@@ -54,16 +54,69 @@ export async function getHistoricoProduto(
       }
     }
 
+    // Buscar solicitantes das transferências
+    const transferIds: string[] = [];
+    const transferIdRegex = /Transferencia #([a-f0-9-]+)/i;
+
+    for (const item of historico) {
+      if (
+        item.tipo_movimentacao?.includes("transferencia") &&
+        item.observacao
+      ) {
+        const match = item.observacao.match(transferIdRegex);
+        if (match?.[1]) {
+          transferIds.push(match[1]);
+        }
+      }
+    }
+
+    let criadoPorMap: Record<string, string> = {};
+
+    if (transferIds.length > 0) {
+      const { data: transfers } = await supabase
+        .from("transferencias")
+        .select("id, criado_por")
+        .in("id", transferIds.filter((id, i, arr) => arr.indexOf(id) === i));
+
+      if (transfers) {
+        const criadoPorIds = transfers
+          .map((t) => t.criado_por)
+          .filter((id, i, arr) => id && arr.indexOf(id) === i) as string[];
+
+        if (criadoPorIds.length > 0) {
+          const { data: users } = await supabase
+            .from("usuarios")
+            .select("id, nome")
+            .in("id", criadoPorIds);
+
+          if (users) {
+            const userMap = Object.fromEntries(users.map((u) => [u.id, u.nome]));
+            criadoPorMap = Object.fromEntries(
+              transfers.map((t) => [t.id, userMap[t.criado_por] || "Sistema"]),
+            );
+          }
+        }
+      }
+    }
+
     // Combinar dados
-    const dataFormatada = historico.map((item: any) => ({
-      ...item,
-      produto_descricao: item.produto?.descricao || "",
-      produto_marca: item.produto?.marca || "",
-      loja_nome: item.loja?.nome || "",
-      usuario_nome: item.usuario_id
-        ? usuariosMap[item.usuario_id] || "Sistema"
-        : "Sistema",
-    }));
+    const dataFormatada = historico.map((item: any) => {
+      const transferId = item.observacao?.match(transferIdRegex)?.[1];
+
+      return {
+        ...item,
+        produto_descricao: item.produto?.descricao || "",
+        produto_marca: item.produto?.marca || "",
+        loja_nome: item.loja?.nome || "",
+        usuario_nome: item.usuario_id
+          ? usuariosMap[item.usuario_id] || "Sistema"
+          : "Sistema",
+        usuario_origem_nome:
+          transferId && criadoPorMap[transferId]
+            ? criadoPorMap[transferId]
+            : undefined,
+      };
+    });
 
     return {
       data: dataFormatada,

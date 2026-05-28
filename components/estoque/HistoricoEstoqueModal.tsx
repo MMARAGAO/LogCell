@@ -255,10 +255,18 @@ export default function HistoricoEstoqueModal({
                           </p>
                         )}
 
-                        {/* Usuário */}
-                        {item.usuario_nome && (
+                        {/* Usuários */}
+                        {item.usuario_origem_nome && (
                           <p className="text-xs text-default-400 mt-2">
-                            Por: {item.usuario_nome}
+                            Solicitado por: {item.usuario_origem_nome}
+                          </p>
+                        )}
+                        {item.usuario_nome && (
+                          <p className="text-xs text-default-400">
+                            {item.usuario_origem_nome
+                              ? "Confirmado por:"
+                              : "Por:"}{" "}
+                            {item.usuario_nome}
                           </p>
                         )}
                       </div>

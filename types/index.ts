@@ -327,6 +327,7 @@ export interface HistoricoEstoqueCompleto extends HistoricoEstoque {
   produto_marca?: string;
   loja_nome?: string;
   usuario_nome?: string;
+  usuario_origem_nome?: string;
 }
 
 export interface FotoProduto {
