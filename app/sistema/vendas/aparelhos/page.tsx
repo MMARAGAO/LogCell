@@ -60,6 +60,7 @@ import { DetalhesAparelhoModal } from "@/components/aparelhos/DetalhesAparelhoMo
 import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
 import { NovaVendaModal } from "@/components/aparelhos/NovaVendaModal";
 import { DescontoModal } from "@/components/vendas/DescontoModal";
+import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
 
 const ITENS_POR_PAGINA = 12;
 const TIPO_LABEL: Record<string, string> = {
@@ -117,6 +118,13 @@ export default function VendasAparelhosPage() {
   const [modalDesconto, setModalDesconto] = useState<any>(null);
   const [descontoAplicarModalOpen, setDescontoAplicarModalOpen] =
     useState(false);
+  const [modalTrocarVendedorOpen, setModalTrocarVendedorOpen] = useState(false);
+  const [vendaParaTrocarVendedor, setVendaParaTrocarVendedor] =
+    useState<any>(null);
+  const [usuariosAtivos, setUsuariosAtivos] = useState<any[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+  const [novoVendedorId, setNovoVendedorId] = useState("");
+  const [salvandoVendedor, setSalvandoVendedor] = useState(false);
   const [brindeModal, setBrindeModal] = useState<{
     vendaId: string;
     aparelhoId: string;
@@ -625,6 +633,43 @@ export default function VendasAparelhosPage() {
     toast.success("Desconto removido!");
     carregarVendas();
   }
+
+  useEffect(() => {
+    if (modalTrocarVendedorOpen) {
+      setLoadingUsuarios(true);
+      import("@/services/authService").then(({ AuthService }) => {
+        AuthService.getUsuariosAtivos().then((usuarios) => {
+          setUsuariosAtivos(usuarios);
+          setLoadingUsuarios(false);
+        });
+      });
+      setNovoVendedorId("");
+    }
+  }, [modalTrocarVendedorOpen]);
+
+  const handleConfirmarTrocaVendedor = async () => {
+    if (!vendaParaTrocarVendedor?.venda_id || !novoVendedorId) return;
+    setSalvandoVendedor(true);
+    try {
+      const { data, error } = await import("@/lib/supabaseClient").then(
+        ({ supabase }) =>
+          supabase
+            .from("vendas")
+            .update({ vendedor_id: novoVendedorId })
+            .eq("id", vendaParaTrocarVendedor.venda_id),
+      );
+
+      if (error) throw error;
+      toast.success("Vendedor alterado com sucesso!");
+      setModalTrocarVendedorOpen(false);
+      setVendaParaTrocarVendedor(null);
+      carregarVendas();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao trocar vendedor");
+    } finally {
+      setSalvandoVendedor(false);
+    }
+  };
 
   function adicionarTrocaPendente() {
     if (!trocaForm.modelo) {
@@ -1618,6 +1663,21 @@ export default function VendasAparelhosPage() {
         onAplicar={handleAplicarDesconto}
         onClose={() => setDescontoAplicarModalOpen(false)}
       />
+
+      <TrocaDeVendedor
+        isOpen={modalTrocarVendedorOpen}
+        loadingUsuarios={loadingUsuarios}
+        salvando={salvandoVendedor}
+        usuarios={usuariosAtivos}
+        vendedorAtualId={vendaParaTrocarVendedor?.venda?.vendedor_id || null}
+        vendedorSelecionado={novoVendedorId}
+        onClose={() => {
+          setModalTrocarVendedorOpen(false);
+          setVendaParaTrocarVendedor(null);
+        }}
+        onConfirmar={handleConfirmarTrocaVendedor}
+        onSelecionarVendedor={setNovoVendedorId}
+      />
     </div>
   );
 
@@ -1758,6 +1818,10 @@ export default function VendasAparelhosPage() {
                                   handleCancelarVenda(v);
                                 else if (key === "desconto")
                                   setModalDesconto(v);
+                                else if (key === "vendedor") {
+                                  setVendaParaTrocarVendedor(v);
+                                  setModalTrocarVendedorOpen(true);
+                                }
                               }}
                             >
                               <DropdownItem
@@ -1821,6 +1885,12 @@ export default function VendasAparelhosPage() {
                                 {v.venda?.valor_desconto > 0
                                   ? "Editar Desconto"
                                   : "Aplicar Desconto"}
+                              </DropdownItem>
+                              <DropdownItem
+                                key="vendedor"
+                                startContent={<UserIcon className="w-4 h-4" />}
+                              >
+                                Trocar Vendedor
                               </DropdownItem>
                               <DropdownItem
                                 key="cancelar"
@@ -2016,6 +2086,10 @@ export default function VendasAparelhosPage() {
                 else if (key === "editar") abrirEditarVenda(v);
                 else if (key === "cancelar") handleCancelarVenda(v);
                 else if (key === "desconto") setModalDesconto(v);
+                else if (key === "vendedor") {
+                  setVendaParaTrocarVendedor(v);
+                  setModalTrocarVendedorOpen(true);
+                }
               }}
             >
               <DropdownItem
@@ -2061,6 +2135,12 @@ export default function VendasAparelhosPage() {
                 {v.venda?.valor_desconto > 0
                   ? "Editar Desconto"
                   : "Aplicar Desconto"}
+              </DropdownItem>
+              <DropdownItem
+                key="vendedor"
+                startContent={<UserIcon className="w-4 h-4" />}
+              >
+                Trocar Vendedor
               </DropdownItem>
               <DropdownItem
                 key="cancelar"
