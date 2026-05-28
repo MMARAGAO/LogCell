@@ -8,6 +8,13 @@ import { Select, SelectItem } from "@heroui/select";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Divider } from "@heroui/divider";
 import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/react";
+import {
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
@@ -40,6 +47,7 @@ import {
   LayoutGrid,
   TableIcon,
   EllipsisVertical,
+  Percent,
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -51,6 +59,7 @@ import { useToast } from "@/components/Toast";
 import { DetalhesAparelhoModal } from "@/components/aparelhos/DetalhesAparelhoModal";
 import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
 import { NovaVendaModal } from "@/components/aparelhos/NovaVendaModal";
+import { DescontoModal } from "@/components/vendas/DescontoModal";
 
 const ITENS_POR_PAGINA = 12;
 const TIPO_LABEL: Record<string, string> = {
@@ -105,6 +114,9 @@ export default function VendasAparelhosPage() {
   const [modalPagamento, setModalPagamento] = useState<any>(null);
   const [modalNovaVenda, setModalNovaVenda] = useState(false);
   const [vendaParaEditar, setVendaParaEditar] = useState<any>(null);
+  const [modalDesconto, setModalDesconto] = useState<any>(null);
+  const [descontoAplicarModalOpen, setDescontoAplicarModalOpen] =
+    useState(false);
   const [brindeModal, setBrindeModal] = useState<{
     vendaId: string;
     aparelhoId: string;
@@ -557,6 +569,61 @@ export default function VendasAparelhosPage() {
   async function abrirEditarVenda(v: any) {
     setVendaParaEditar(v);
     setModalNovaVenda(true);
+  }
+
+  async function handleAplicarDesconto(
+    tipo: "valor" | "percentual",
+    valor: number,
+    motivo: string,
+  ) {
+    if (!modalDesconto?.venda_id) return;
+    const vendaId = modalDesconto.venda_id;
+    const valorVenda = modalDesconto.valor_venda || 0;
+    const valorDesconto =
+      tipo === "percentual" ? (valorVenda * valor) / 100 : valor;
+
+    await supabase.from("descontos_venda").delete().eq("venda_id", vendaId);
+    await supabase.from("descontos_venda").insert({
+      venda_id: vendaId,
+      tipo,
+      valor,
+      motivo,
+      aplicado_por: usuario?.id,
+    });
+
+    await supabase
+      .from("vendas")
+      .update({
+        valor_total: valorVenda - valorDesconto,
+        valor_desconto: valorDesconto,
+        saldo_devedor: Math.max(0, valorVenda - valorDesconto),
+      })
+      .eq("id", vendaId);
+
+    setDescontoAplicarModalOpen(false);
+    setModalDesconto(null);
+    toast.success("Desconto aplicado com sucesso!");
+    carregarVendas();
+  }
+
+  async function handleRemoverDesconto(v: any) {
+    if (!v?.venda_id) return;
+    const vendaId = v.venda_id;
+    const valorVenda = v.valor_venda || 0;
+
+    await supabase.from("descontos_venda").delete().eq("venda_id", vendaId);
+    await supabase
+      .from("vendas")
+      .update({
+        valor_total: valorVenda,
+        valor_desconto: 0,
+        saldo_devedor: Math.max(0, valorVenda - (v.pagamento_total || 0)),
+      })
+      .eq("id", vendaId);
+
+    setModalDesconto(null);
+    toast.success("Desconto removido!");
+    carregarVendas();
   }
 
   function adicionarTrocaPendente() {
@@ -1448,6 +1515,109 @@ export default function VendasAparelhosPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Desconto */}
+      {modalDesconto && (
+        <Modal
+          isOpen={!!modalDesconto}
+          size="sm"
+          onClose={() => setModalDesconto(null)}
+        >
+          <ModalContent>
+            <ModalHeader>
+              <div className="flex items-center gap-2">
+                <Percent className="w-4 h-4 text-success" />
+                <span>Gerenciar Desconto</span>
+              </div>
+            </ModalHeader>
+            <ModalBody className="gap-4 py-4">
+              <div className="space-y-2">
+                <p className="text-sm font-semibold">
+                  {modalDesconto.marca} {modalDesconto.modelo}
+                </p>
+                <p className="text-2xl font-bold">
+                  {formatarMoeda(
+                    modalDesconto.valor_exibido ||
+                      modalDesconto.valor_venda ||
+                      0,
+                  )}
+                </p>
+                {modalDesconto.valor_exibido !== modalDesconto.valor_venda && (
+                  <p className="text-sm text-gray-400 line-through">
+                    {formatarMoeda(modalDesconto.valor_venda || 0)}
+                  </p>
+                )}
+              </div>
+
+              {modalDesconto.venda?.valor_desconto > 0 ? (
+                <div className="bg-success-50 dark:bg-success-900/20 rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-success font-medium">
+                      Desconto aplicado
+                    </span>
+                    <span className="font-bold text-success">
+                      -{" "}
+                      {formatarMoeda(
+                        Number(modalDesconto.venda?.valor_desconto),
+                      )}
+                    </span>
+                  </div>
+                  <Button
+                    className="w-full"
+                    color="danger"
+                    size="sm"
+                    variant="flat"
+                    onPress={() => handleRemoverDesconto(modalDesconto)}
+                  >
+                    Remover Desconto
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Nenhum desconto aplicado nesta venda.
+                </p>
+              )}
+            </ModalBody>
+            <ModalFooter className="flex gap-2">
+              {modalDesconto.venda?.valor_desconto > 0 ? (
+                <Button
+                  className="flex-1"
+                  color="primary"
+                  size="sm"
+                  variant="flat"
+                  onPress={() => setDescontoAplicarModalOpen(true)}
+                >
+                  Editar Desconto
+                </Button>
+              ) : (
+                <Button
+                  className="flex-1"
+                  color="success"
+                  size="sm"
+                  startContent={<Percent className="w-4 h-4" />}
+                  onPress={() => setDescontoAplicarModalOpen(true)}
+                >
+                  Aplicar Desconto
+                </Button>
+              )}
+              <Button
+                className="flex-1"
+                variant="light"
+                onPress={() => setModalDesconto(null)}
+              >
+                Fechar
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
+
+      <DescontoModal
+        isOpen={descontoAplicarModalOpen}
+        valorTotal={modalDesconto?.valor_venda || 0}
+        onAplicar={handleAplicarDesconto}
+        onClose={() => setDescontoAplicarModalOpen(false)}
+      />
     </div>
   );
 
@@ -1586,6 +1756,8 @@ export default function VendasAparelhosPage() {
                                   setModalPagamento(v);
                                 else if (key === "cancelar")
                                   handleCancelarVenda(v);
+                                else if (key === "desconto")
+                                  setModalDesconto(v);
                               }}
                             >
                               <DropdownItem
@@ -1641,6 +1813,14 @@ export default function VendasAparelhosPage() {
                                 }
                               >
                                 Gerenciar Pagamentos
+                              </DropdownItem>
+                              <DropdownItem
+                                key="desconto"
+                                startContent={<Percent className="w-4 h-4" />}
+                              >
+                                {v.venda?.valor_desconto > 0
+                                  ? "Editar Desconto"
+                                  : "Aplicar Desconto"}
                               </DropdownItem>
                               <DropdownItem
                                 key="cancelar"
@@ -1835,6 +2015,7 @@ export default function VendasAparelhosPage() {
                 else if (key === "pagamentos") setModalPagamento(v);
                 else if (key === "editar") abrirEditarVenda(v);
                 else if (key === "cancelar") handleCancelarVenda(v);
+                else if (key === "desconto") setModalDesconto(v);
               }}
             >
               <DropdownItem
@@ -1872,6 +2053,14 @@ export default function VendasAparelhosPage() {
                 startContent={<CurrencyDollarIcon className="w-4 h-4" />}
               >
                 Gerenciar Pagamentos
+              </DropdownItem>
+              <DropdownItem
+                key="desconto"
+                startContent={<Percent className="w-4 h-4" />}
+              >
+                {v.venda?.valor_desconto > 0
+                  ? "Editar Desconto"
+                  : "Aplicar Desconto"}
               </DropdownItem>
               <DropdownItem
                 key="cancelar"
