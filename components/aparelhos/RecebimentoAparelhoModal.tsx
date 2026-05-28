@@ -440,6 +440,9 @@ export function RecebimentoAparelhoModal({
               venda_id: vendaId,
               descricao: b.descricao,
               valor_custo: b.valor,
+              loja_id: lojaId || 1,
+              data_ocorrencia: new Date().toISOString(),
+              criado_por: usuario?.id,
             })),
           );
         }
