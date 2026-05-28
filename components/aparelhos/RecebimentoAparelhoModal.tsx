@@ -146,6 +146,20 @@ export function RecebimentoAparelhoModal({
           })),
         );
       }
+
+      const { data: brindesDB } = await supabase
+        .from("brindes_aparelhos")
+        .select("*")
+        .eq("venda_id", vendaId);
+
+      if (brindesDB && brindesDB.length > 0) {
+        setBrindes(
+          brindesDB.map((b: any) => ({
+            descricao: b.descricao,
+            valor: Number(b.valor_custo || 0),
+          })),
+        );
+      }
     } catch {
       showToast("Erro ao carregar pagamentos existentes", "error");
     } finally {
@@ -411,6 +425,21 @@ export function RecebimentoAparelhoModal({
             },
             usuario_id: usuario?.id,
           });
+        }
+
+        // Salva brindes (remove antigos e insere os atuais)
+        await supabase
+          .from("brindes_aparelhos")
+          .delete()
+          .eq("venda_id", vendaId);
+        if (brindes.length > 0) {
+          await supabase.from("brindes_aparelhos").insert(
+            brindes.map((b) => ({
+              venda_id: vendaId,
+              descricao: b.descricao,
+              valor_custo: b.valor,
+            })),
+          );
         }
       } else {
         const res = await fetch("/api/aparelhos/pagamento", {
