@@ -65,6 +65,13 @@ export function formatarData(data: string | Date | null | undefined): string {
   return new Intl.DateTimeFormat("pt-BR").format(dataObj);
 }
 
+export function formatarDataUtc(data: string | null | undefined): string {
+  if (!data) return "-";
+  const parts = data.split("T")[0].split("-");
+  if (parts.length !== 3) return data;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
 /**
  * Formata uma data com hora no padrão brasileiro (dd/mm/yyyy HH:mm)
  * @param data - String ou objeto Date

@@ -51,7 +51,7 @@ import {
 } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 
-import { formatarMoeda } from "@/lib/formatters";
+import { formatarMoeda, formatarDataUtc } from "@/lib/formatters";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useConfirm } from "@/hooks/useConfirm";
@@ -653,7 +653,7 @@ export default function VendasAparelhosPage() {
       v.pagamento_total,
       (v.valor_exibido || 0) - v.pagamento_total,
       v.venda?.status === "concluida" ? "Concluída" : "Pendente",
-      v.data_venda ? new Date(v.data_venda).toLocaleDateString("pt-BR") : "",
+      v.data_venda ? formatarDataUtc(v.data_venda) : "",
     ]);
 
     const cabecalho =
@@ -882,7 +882,7 @@ export default function VendasAparelhosPage() {
     if (!win) return;
     const garantiaDias = v.garantia_dias || 90;
     const dataVenda = v.data_venda
-      ? new Date(v.data_venda).toLocaleDateString("pt-BR")
+      ? formatarDataUtc(v.data_venda)
       : "";
     const dataFimGarantia = v.data_venda
       ? new Date(
@@ -990,7 +990,7 @@ export default function VendasAparelhosPage() {
         <p class="sub">Comprovante de Venda</p>
         <div class="info">
           <strong>Venda #${v.venda?.numero_venda}</strong><br>
-          Data: ${v.data_venda ? new Date(v.data_venda).toLocaleDateString("pt-BR") : ""}<br>
+          Data: ${v.data_venda ? formatarDataUtc(v.data_venda) : ""}<br>
           Cliente: ${v.cliente?.nome || "—"}<br>
           ${v.cliente?.telefone ? `Tel: ${v.cliente.telefone}` : ""}
         </div>
@@ -1911,7 +1911,7 @@ export default function VendasAparelhosPage() {
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-400">
                           {v.data_venda
-                            ? new Date(v.data_venda).toLocaleDateString("pt-BR")
+                            ? formatarDataUtc(v.data_venda)
                             : "—"}
                         </td>
                         <td className="py-3 px-4">
@@ -2096,7 +2096,7 @@ export default function VendasAparelhosPage() {
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {v.imei && <span className="font-mono">{v.imei}</span>}
               {v.data_venda &&
-                ` • ${new Date(v.data_venda).toLocaleDateString("pt-BR")}`}
+                ` • ${formatarDataUtc(v.data_venda)}`}
             </p>
           </div>
           <div className="text-right shrink-0">
