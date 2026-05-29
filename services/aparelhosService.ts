@@ -12,7 +12,7 @@ import {
 // Buscar todos os aparelhos com filtros
 export async function getAparelhos(
   filtros?: FiltrosAparelhos,
-): Promise<Aparelho[]> {
+): Promise<{ data: Aparelho[]; count: number }> {
   try {
     let query = supabase
       .from("aparelhos")
@@ -24,6 +24,7 @@ export async function getAparelhos(
           nome
         )
       `,
+        { count: "exact", head: false },
       )
       .order("criado_em", { ascending: false });
 
@@ -34,7 +35,7 @@ export async function getAparelhos(
 
     // Filtrar por marca
     if (filtros?.marca) {
-      query = query.ilike("marca", `%${filtros.marca}%`);
+      query = query.eq("marca", filtros.marca);
     }
 
     // Filtrar por modelo
@@ -45,6 +46,16 @@ export async function getAparelhos(
     // Filtrar por estado
     if (filtros?.estado) {
       query = query.eq("estado", filtros.estado);
+    }
+
+    // Filtrar por condição
+    if (filtros?.condicao) {
+      query = query.eq("condicao", filtros.condicao);
+    }
+
+    // Filtrar por armazenamento
+    if (filtros?.armazenamento) {
+      query = query.eq("armazenamento", filtros.armazenamento);
     }
 
     // Filtrar por status
@@ -72,6 +83,14 @@ export async function getAparelhos(
       query = query.eq("novidade", filtros.novidade);
     }
 
+    // Filtrar por data de entrada
+    if (filtros?.data_entrada_inicio) {
+      query = query.gte("data_entrada", filtros.data_entrada_inicio);
+    }
+    if (filtros?.data_entrada_fim) {
+      query = query.lte("data_entrada", `${filtros.data_entrada_fim}T23:59:59`);
+    }
+
     // Busca por marca, modelo, IMEI, número de série
     if (filtros?.busca) {
       query = query.or(
@@ -79,11 +98,18 @@ export async function getAparelhos(
       );
     }
 
-    const { data, error } = await query;
+    // Paginação
+    if (filtros?.page && filtros?.pageSize) {
+      const from = (filtros.page - 1) * filtros.pageSize;
+      const to = from + filtros.pageSize - 1;
+      query = query.range(from, to);
+    }
+
+    const { data, error, count } = await query;
 
     if (error) throw error;
 
-    return data || [];
+    return { data: data || [], count: count || 0 };
   } catch (error) {
     console.error("Erro ao buscar aparelhos:", error);
     throw error;

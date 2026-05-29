@@ -98,6 +98,22 @@ const STATUS = [
   { value: "transferido", label: "Transferido", color: "primary" },
 ];
 
+const MARCAS = [
+  "Apple", "Samsung", "Motorola", "Xiaomi", "LG", "Multilaser", "Positivo",
+  "Asus", "Nokia", "Huawei", "Sony", "Google", "OnePlus", "Realme", "Outro",
+];
+
+const ARMAZENAMENTOS = [
+  "8GB", "16GB", "32GB", "64GB", "128GB", "256GB", "512GB", "1TB",
+];
+
+const CONDICOES = [
+  { value: "perfeito", label: "Perfeito" },
+  { value: "bom", label: "Bom" },
+  { value: "regular", label: "Regular" },
+  { value: "ruim", label: "Ruim" },
+];
+
 export default function AparelhosPage() {
   const { usuario } = useAuthContext();
   const { showToast } = useToast();
@@ -119,6 +135,7 @@ export default function AparelhosPage() {
   const [busca, setBusca] = useState("");
   const [filtros, setFiltros] = useState<FiltrosAparelhos>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [totalRegistros, setTotalRegistros] = useState(0);
   const [visualizacao, setVisualizacao] = useState<"tabela" | "cards">("cards");
   const itensPorPagina = 20;
 
@@ -210,7 +227,7 @@ export default function AparelhosPage() {
     if (podeVisualizar) {
       carregarDados();
     }
-  }, [lojaIdFinal, podeVisualizar, filtros]);
+  }, [lojaIdFinal, podeVisualizar, filtros, paginaAtual]);
 
   useEffect(() => {
     if (podeVisualizar && podeVerDashboard) {
@@ -240,11 +257,14 @@ export default function AparelhosPage() {
         busca: busca || undefined,
         loja_id: lojaIdFinal || undefined,
         status: filtros.status === "com_pagamento" ? undefined : filtros.status,
+        page: paginaAtual,
+        pageSize: itensPorPagina,
       };
 
-      const aparelhosData = await getAparelhos(filtrosComLoja);
+      const { data: aparelhosData, count } = await getAparelhos(filtrosComLoja);
 
       setAparelhos(aparelhosData);
+      setTotalRegistros(count);
 
       // Buscar pagamentos dinamicamente (soma agregada)
       const vendasIds = aparelhosData
@@ -272,7 +292,7 @@ export default function AparelhosPage() {
 
       setVendasInfo(vendasMap);
 
-      // Carregar fotos de todos os aparelhos
+      // Carregar fotos dos aparelhos da página atual
       const fotosMap: Record<string, FotoAparelho[]> = {};
       const indexMap: Record<string, number> = {};
 
@@ -328,37 +348,8 @@ export default function AparelhosPage() {
     }));
   };
 
-  // Filtrar aparelhos
-  const aparelhosFiltrados = aparelhos.filter((aparelho) => {
-    // Filtro de busca
-    if (busca) {
-      const buscaLower = busca.toLowerCase();
-
-      if (
-        !aparelho.marca?.toLowerCase().includes(buscaLower) &&
-        !aparelho.modelo?.toLowerCase().includes(buscaLower) &&
-        !aparelho.imei?.toLowerCase().includes(buscaLower) &&
-        !aparelho.numero_serie?.toLowerCase().includes(buscaLower) &&
-        !aparelho.cor?.toLowerCase().includes(buscaLower)
-      ) {
-        return false;
-      }
-    }
-
-    // Filtro "Com pagamento" (client-side)
-    if (filtros.status === "com_pagamento") {
-      return aparelho.status === "vendido" && aparelho.venda_id;
-    }
-
-    return true;
-  });
-
-  // Paginação
-  const totalPaginas = Math.ceil(aparelhosFiltrados.length / itensPorPagina);
-  const aparelhosPaginados = aparelhosFiltrados.slice(
-    (paginaAtual - 1) * itensPorPagina,
-    paginaAtual * itensPorPagina,
-  );
+  // Paginação server-side
+  const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
 
   // Handlers
   const handleAbrirFormNovo = () => {
@@ -668,6 +659,7 @@ export default function AparelhosPage() {
                     ...prev,
                     estado: (value || undefined) as any,
                   }));
+                  setPaginaAtual(1);
                 }}
               >
                 {ESTADOS.map((estado) => (
@@ -694,14 +686,112 @@ export default function AparelhosPage() {
                     ...prev,
                     status: (value || undefined) as any,
                   }));
+                  setPaginaAtual(1);
                 }}
               >
                 {STATUS.map((status) => (
                   <SelectItem key={status.value}>{status.label}</SelectItem>
                 ))}
               </Select>
+              <Select
+                className="w-full md:w-60"
+                classNames={{
+                  trigger:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Filtrar por marca"
+                selectedKeys={filtros.marca ? [filtros.marca] : []}
+                size="sm"
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setFiltros((prev) => ({ ...prev, marca: value || undefined }));
+                  setPaginaAtual(1);
+                }}
+              >
+                {MARCAS.map((marca) => (
+                  <SelectItem key={marca}>{marca}</SelectItem>
+                ))}
+              </Select>
+              <Select
+                className="w-full md:w-48"
+                classNames={{
+                  trigger:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Armazenamento"
+                selectedKeys={filtros.armazenamento ? [filtros.armazenamento] : []}
+                size="sm"
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setFiltros((prev) => ({ ...prev, armazenamento: value || undefined }));
+                  setPaginaAtual(1);
+                }}
+              >
+                {ARMAZENAMENTOS.map((arm) => (
+                  <SelectItem key={arm}>{arm}</SelectItem>
+                ))}
+              </Select>
+              <Select
+                className="w-full md:w-48"
+                classNames={{
+                  trigger:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Condição"
+                selectedKeys={filtros.condicao ? [filtros.condicao] : []}
+                size="sm"
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setFiltros((prev) => ({ ...prev, condicao: (value || undefined) as any }));
+                  setPaginaAtual(1);
+                }}
+              >
+                {CONDICOES.map((c) => (
+                  <SelectItem key={c.value}>{c.label}</SelectItem>
+                ))}
+              </Select>
+            </div>
 
-              {filtros.estado || filtros.status ? (
+            <div className="flex flex-col md:flex-row gap-3">
+              <Input
+                className="w-full md:w-52"
+                classNames={{
+                  input: "text-sm",
+                  inputWrapper:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Data entrada início"
+                size="sm"
+                type="date"
+                value={filtros.data_entrada_inicio || ""}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFiltros((prev) => ({ ...prev, data_entrada_inicio: value || undefined }));
+                  setPaginaAtual(1);
+                }}
+              />
+              <Input
+                className="w-full md:w-52"
+                classNames={{
+                  input: "text-sm",
+                  inputWrapper:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Data entrada fim"
+                size="sm"
+                type="date"
+                value={filtros.data_entrada_fim || ""}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFiltros((prev) => ({ ...prev, data_entrada_fim: value || undefined }));
+                  setPaginaAtual(1);
+                }}
+              />
+
+              {filtros.estado || filtros.status || filtros.marca || filtros.armazenamento || filtros.condicao || filtros.data_entrada_inicio || filtros.data_entrada_fim ? (
                 <Button
                   className="rounded-xl"
                   color="default"
@@ -710,6 +800,7 @@ export default function AparelhosPage() {
                   onPress={() => {
                     setFiltros({});
                     setBusca("");
+                    setPaginaAtual(1);
                   }}
                 >
                   Limpar Filtros
@@ -720,7 +811,7 @@ export default function AparelhosPage() {
             {/* Toggle de Visualização */}
             <div className="flex justify-between items-center">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {aparelhosFiltrados.length} aparelho(s) encontrado(s)
+                {totalRegistros} aparelho(s) encontrado(s)
               </p>
               <div className="flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-xl p-1">
                 <Button
@@ -763,7 +854,7 @@ export default function AparelhosPage() {
                   <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-1/2" />
                 </div>
               ))
-            ) : aparelhosPaginados.length === 0 ? (
+            ) : aparelhos.length === 0 ? (
               <div className="col-span-full">
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12 text-center">
                   <DevicePhoneMobileIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
@@ -773,7 +864,7 @@ export default function AparelhosPage() {
                 </div>
               </div>
             ) : (
-              aparelhosPaginados.map((aparelho) => {
+              aparelhos.map((aparelho) => {
                 const fotos = fotosAparelhos[aparelho.id] || [];
                 const fotoIndex = fotoAtualIndex[aparelho.id] || 0;
                 const fotoAtual = fotos[fotoIndex];
@@ -1157,7 +1248,7 @@ export default function AparelhosPage() {
                   emptyContent="Nenhum aparelho encontrado"
                   isLoading={loading}
                 >
-                  {aparelhosPaginados.map((aparelho) => (
+                  {aparelhos.map((aparelho) => (
                     <TableRow key={aparelho.id}>
                       <TableCell>
                         <div className="flex flex-col gap-1">

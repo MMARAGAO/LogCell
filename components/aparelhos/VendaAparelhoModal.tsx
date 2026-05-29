@@ -704,7 +704,13 @@ export function VendaAparelhoModal({
             valor: aparelhoTroca.valor_avaliado,
             data_pagamento: new Date().toISOString(),
             criado_por: usuario.id,
-            observacao: `Troca de aparelho: ${aparelhoTroca.marca} ${aparelhoTroca.modelo} - IMEI: ${aparelhoTroca.imei || aparelhoTroca.numero_serie || "N/A"}`,
+            observacao: JSON.stringify({
+              modelo: `${aparelhoTroca.marca} ${aparelhoTroca.modelo}`,
+              imei: aparelhoTroca.imei || null,
+              cor: aparelhoTroca.cor || null,
+              armazenamento: aparelhoTroca.armazenamento || null,
+              condicao: aparelhoTroca.condicao || null,
+            }),
           });
 
         if (erroPagamentoTroca) throw erroPagamentoTroca;

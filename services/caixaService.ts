@@ -118,7 +118,9 @@ export class CaixaService {
     status?: "aberto" | "fechado";
     data_inicio?: string;
     data_fim?: string;
-  }): Promise<CaixaCompleto[]> {
+    page?: number;
+    pageSize?: number;
+  }): Promise<{ data: CaixaCompleto[]; count: number }> {
     try {
       let query = supabase
         .from("caixas")
@@ -129,6 +131,7 @@ export class CaixaService {
           usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome),
           usuario_fechamento_info:usuarios!caixas_usuario_fechamento_fkey(id, nome)
         `,
+          { count: "exact", head: false },
         )
         .order("data_abertura", { ascending: false });
 
@@ -148,15 +151,21 @@ export class CaixaService {
         query = query.lte("data_abertura", filtros.data_fim);
       }
 
-      const { data, error } = await query;
+      if (filtros?.page && filtros?.pageSize) {
+        const from = (filtros.page - 1) * filtros.pageSize;
+        const to = from + filtros.pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
-      return (data as CaixaCompleto[]) || [];
+      return { data: (data as CaixaCompleto[]) || [], count: count || 0 };
     } catch (error: any) {
       console.error("Erro ao listar caixas:", error);
 
-      return [];
+      return { data: [], count: 0 };
     }
   }
 
@@ -188,7 +197,7 @@ export class CaixaService {
       const dataFechamento = caixa.data_fechamento || new Date().toISOString();
 
       // Buscar pagamentos de vendas do período (buscar pelo momento do pagamento)
-      const { data: pagamentosVendas, error: erroPagamentos } = await supabase
+      const { data: pagamentosRaw, error: erroPagamentos } = await supabase
         .from("pagamentos_venda")
         .select(
           `
@@ -206,33 +215,12 @@ export class CaixaService {
         `,
         )
         .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
-
-      // Se houver erro de pagamentos, continua com array vazio
-
-      // Filtrar apenas pagamentos de vendas da loja correta (independente do status da venda)
-      const pagamentosLoja =
-        pagamentosVendas?.filter(
-          (pag: any) => pag.venda?.loja_id === caixa.loja_id,
-        ) || [];
-
-      console.log("💰 DEBUG CAIXA - Pagamentos encontrados:", {
-        total: pagamentosLoja.length,
-        soma_valores: pagamentosLoja.reduce(
-          (sum: number, p: any) => sum + Number(p.valor),
-          0,
-        ),
-        pagamentos: pagamentosLoja.map((p: any) => ({
-          venda_id: p.venda?.id,
-          numero_venda: p.venda?.numero_venda,
-          valor_pagamento: p.valor,
-          tipo_pagamento: p.tipo_pagamento,
-          criado_em: p.criado_em,
-        })),
-      });
+        .lte("criado_em", dataFechamento)
+        .eq("venda.loja_id", caixa.loja_id);
+      const pagamentosLoja = pagamentosRaw || [];
 
       // Buscar devoluções do período
-      const { data: devolucoes, error: erroDevolucoes } = await supabase
+      const { data: devolucoesRaw, error: erroDevolucoes } = await supabase
         .from("devolucoes_venda")
         .select(
           `
@@ -250,14 +238,9 @@ export class CaixaService {
         `,
         )
         .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
-
-      // Se houver erro de devoluções, continua com array vazio
-
-      // Filtrar devoluções da loja
-      const devolucoesLoja =
-        devolucoes?.filter((d: any) => d.venda?.loja_id === caixa.loja_id) ||
-        [];
+        .lte("criado_em", dataFechamento)
+        .eq("venda.loja_id", caixa.loja_id);
+      const devolucoesLoja = devolucoesRaw || [];
 
       // Buscar ordens de serviço pagas no período
       console.log("🔍 Buscando OS do período:", {
@@ -469,26 +452,6 @@ export class CaixaService {
         0;
 
       // Buscar quebras do período
-      // Primeiro buscar TODAS as quebras da loja para debug
-      const { data: todasQuebras } = await supabase
-        .from("quebra_pecas")
-        .select("*")
-        .eq("id_loja", caixa.loja_id);
-
-      console.log("🔍 DEBUG CAIXA - TODAS as quebras da loja:", {
-        total: todasQuebras?.length || 0,
-        loja_id: caixa.loja_id,
-        range_busca: { dataAbertura, dataFechamento },
-        quebras: todasQuebras?.map((q: any) => ({
-          id: q.id,
-          criado_em: q.criado_em,
-          valor_total: q.valor_total,
-          id_loja: q.id_loja,
-          dentro_range:
-            q.criado_em >= dataAbertura && q.criado_em <= dataFechamento,
-        })),
-      });
-
       const { data: quebras, error: erroQuebras } = await supabase
         .from("quebra_pecas")
         .select("*")
@@ -525,7 +488,7 @@ export class CaixaService {
           .lte("criado_em", dataFechamento);
 
       // Se houver erro, continua com array vazio
-      const { data: devolucoesOS } = await supabase
+      const { data: devolucoesOSRaw } = await supabase
         .from("devolu_ordem_servico")
         .select(
           `
@@ -538,12 +501,9 @@ export class CaixaService {
         `,
         )
         .gte("criado_em", dataAbertura)
-        .lte("criado_em", dataFechamento);
-
-      // Se houver erro, continua com array vazio
-      const devolucoesOSLoja = (devolucoesOS || []).filter(
-        (dev: any) => dev.ordem_servico?.id_loja === caixa.loja_id,
-      );
+        .lte("criado_em", dataFechamento)
+        .eq("ordem_servico.id_loja", caixa.loja_id);
+      const devolucoesOSLoja = devolucoesOSRaw || [];
 
       // Separar devoluções de OS por tipo (reembolso vs crédito)
       const devolucoesOSReembolso = devolucoesOSLoja.filter(
@@ -638,6 +598,235 @@ export class CaixaService {
     } catch (error: any) {
       console.error("Erro ao buscar resumo do caixa:", error);
       throw error;
+    }
+  }
+
+  // Buscar saldo esperado de múltiplos caixas de uma só vez (elimina N+1)
+  static async buscarSaldosEsperados(
+    caixas: CaixaCompleto[],
+  ): Promise<Map<string, number>> {
+    if (caixas.length === 0) return new Map();
+
+    const dataMin = caixas.reduce(
+      (min, c) => (c.data_abertura < min ? c.data_abertura : min),
+      caixas[0].data_abertura,
+    );
+    const dataMax = caixas.reduce(
+      (max, c) =>
+        (c.data_fechamento || new Date().toISOString()) > max
+          ? (c.data_fechamento || new Date().toISOString())
+          : max,
+      caixas[0].data_fechamento || new Date().toISOString(),
+    );
+    const lojaId = caixas[0].loja_id;
+
+    // 1. Buscar todos os pagamentos de vendas do período
+    const { data: pagamentosVendas } = await supabase
+      .from("pagamentos_venda")
+      .select(
+        `
+        id,
+        tipo_pagamento,
+        valor,
+        criado_em,
+        venda:vendas!pagamentos_venda_venda_id_fkey(id, loja_id, criado_em)
+      `,
+      )
+      .gte("criado_em", dataMin)
+      .lte("criado_em", dataMax)
+      .eq("venda.loja_id", lojaId);
+
+    // 2. Buscar todas as devoluções do período
+    const { data: devolucoes } = await supabase
+      .from("devolucoes_venda")
+      .select(
+        `
+        id,
+        valor_total,
+        criado_em,
+        tipo,
+        venda_id,
+        venda:vendas!devolucoes_venda_venda_id_fkey(id, loja_id, criado_em, valor_total)
+      `,
+      )
+      .gte("criado_em", dataMin)
+      .lte("criado_em", dataMax)
+      .eq("venda.loja_id", lojaId);
+
+    // 3. Buscar todos os pagamentos de OS do período
+    const { data: pagamentosOS } = await supabase
+      .from("ordem_servico_pagamentos")
+      .select(
+        `
+        id,
+        id_ordem_servico,
+        valor,
+        criado_em,
+        ordem_servico:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(id_loja)
+      `,
+      )
+      .gte("criado_em", dataMin)
+      .lte("criado_em", dataMax)
+      .eq("ordem_servico.id_loja", lojaId);
+
+    // 4. Buscar todas as sangrias destes caixas
+    const caixaIds = caixas.map((c) => c.id);
+    const { data: sangrias } = await supabase
+      .from("sangrias_caixa")
+      .select("id, caixa_id, valor, criado_em")
+      .in("caixa_id", caixaIds);
+
+    // 5. Buscar devoluções de OS do período
+    const { data: devolucoesOS } = await supabase
+      .from("devolu_ordem_servico")
+      .select(
+        `
+        id,
+        id_ordem_servico,
+        tipo_devolucao,
+        valor_total,
+        criado_em,
+        ordem_servico:ordem_servico(id_loja)
+      `,
+      )
+      .gte("criado_em", dataMin)
+      .lte("criado_em", dataMax)
+      .eq("ordem_servico.id_loja", lojaId);
+
+    // Calcular saldo esperado para cada caixa
+    const result = new Map<string, number>();
+
+    for (const caixa of caixas) {
+      const dataAbertura = caixa.data_abertura;
+      const dataFechamento =
+        caixa.data_fechamento || new Date().toISOString();
+
+      // Filtrar pagamentos dentro do período deste caixa
+      const pagamentosLoja = (pagamentosVendas || []).filter(
+        (pag: any) =>
+          pag.criado_em >= dataAbertura && pag.criado_em <= dataFechamento,
+      );
+
+      // Filtrar devoluções dentro do período deste caixa
+      const devolucoesLoja = (devolucoes || []).filter(
+        (dev: any) =>
+          dev.criado_em >= dataAbertura && dev.criado_em <= dataFechamento,
+      );
+
+      // Identificar devoluções sem crédito no mesmo dia
+      const vendasDevolvidasSemCredito = new Set<string>();
+      devolucoesLoja.forEach((dev: any) => {
+        if (dev.tipo !== "sem_credito") return;
+        const vendaCriadaEm = new Date(dev.venda?.criado_em);
+        const devolucaoCriadaEm = new Date(dev.criado_em);
+        const caixaAberturaData = new Date(caixa.data_abertura);
+        const mesmodia =
+          vendaCriadaEm.toDateString() === caixaAberturaData.toDateString() &&
+          devolucaoCriadaEm.toDateString() === caixaAberturaData.toDateString();
+        if (mesmodia && dev.venda_id) {
+          vendasDevolvidasSemCredito.add(dev.venda_id);
+        }
+      });
+
+      // Calcular total de pagamentos sem crédito
+      let totalPagamentosSemCredito = 0;
+      pagamentosLoja.forEach((pag: any) => {
+        if (vendasDevolvidasSemCredito.has(pag.venda?.id)) return;
+        if (pag.tipo_pagamento === "credito_cliente") return;
+        totalPagamentosSemCredito += Number(pag.valor);
+      });
+
+      // Calcular total de OS
+      const totalOS = (pagamentosOS || [])
+        .filter(
+          (os: any) =>
+            os.criado_em >= dataAbertura && os.criado_em <= dataFechamento,
+        )
+        .reduce((sum: number, os: any) => sum + Number(os.valor), 0);
+
+      // Calcular total de devoluções sem crédito
+      const totalDevolucoesDinheiro = devolucoesLoja
+        .filter((d: any) => d.tipo === "sem_credito")
+        .reduce((sum: number, d: any) => sum + Number(d.valor_total), 0);
+
+      // Calcular total de sangrias deste caixa
+      const totalSangrias = (sangrias || [])
+        .filter((s: any) => s.caixa_id === caixa.id)
+        .reduce((sum: number, s: any) => sum + Number(s.valor), 0);
+
+      // Calcular total de reembolsos de OS
+      const totalDevolucoesOSReembolso = (devolucoesOS || [])
+        .filter(
+          (dev: any) =>
+            dev.criado_em >= dataAbertura &&
+            dev.criado_em <= dataFechamento &&
+            dev.tipo_devolucao === "reembolso",
+        )
+        .reduce((sum: number, dev: any) => sum + Number(dev.valor_total), 0);
+
+      const saldoEsperado =
+        Number(caixa.saldo_inicial) +
+        totalPagamentosSemCredito +
+        totalOS -
+        totalDevolucoesDinheiro -
+        totalDevolucoesOSReembolso -
+        totalSangrias;
+
+      result.set(caixa.id, saldoEsperado);
+    }
+
+    return result;
+  }
+
+  // Buscar resumo agregado do histórico (totais de todos os caixas, sem paginação)
+  static async buscarResumoHistorico(filtros?: {
+    loja_id?: number;
+    data_inicio?: string;
+    data_fim?: string;
+  }): Promise<{
+    totalCaixas: number;
+    totalSaldoInicial: number;
+    totalSaldoFinal: number;
+  }> {
+    try {
+      let query = supabase
+        .from("caixas")
+        .select("saldo_inicial, saldo_final", { count: "exact", head: false })
+        .eq("status", "fechado");
+
+      if (filtros?.loja_id) {
+        query = query.eq("loja_id", filtros.loja_id);
+      }
+
+      if (filtros?.data_inicio) {
+        query = query.gte("data_abertura", filtros.data_inicio);
+      }
+
+      if (filtros?.data_fim) {
+        query = query.lte("data_abertura", filtros.data_fim);
+      }
+
+      const { data, count, error } = await query;
+
+      if (error) throw error;
+
+      const totalSaldoInicial = (data || []).reduce(
+        (sum: number, c: any) => sum + Number(c.saldo_inicial || 0),
+        0,
+      );
+      const totalSaldoFinal = (data || []).reduce(
+        (sum: number, c: any) => sum + Number(c.saldo_final || 0),
+        0,
+      );
+
+      return {
+        totalCaixas: count || 0,
+        totalSaldoInicial,
+        totalSaldoFinal,
+      };
+    } catch (error: any) {
+      console.error("Erro ao buscar resumo do histórico:", error);
+      return { totalCaixas: 0, totalSaldoInicial: 0, totalSaldoFinal: 0 };
     }
   }
 
@@ -903,6 +1092,37 @@ export class CaixaService {
       console.error("Erro ao buscar sangrias:", error);
 
       return [];
+    }
+  }
+
+  // Buscar IDs de vendas que possuem aparelhos
+  static async buscarVendasComAparelhos(caixaId: string): Promise<Set<string>> {
+    try {
+      const { data: caixa } = await supabase
+        .from("caixas")
+        .select("data_abertura, data_fechamento, loja_id")
+        .eq("id", caixaId)
+        .single();
+
+      if (!caixa) return new Set();
+
+      const dataAbertura = caixa.data_abertura;
+      const dataFechamento = caixa.data_fechamento || new Date().toISOString();
+
+      const { data: aparelhos } = await supabase
+        .from("aparelhos")
+        .select("venda_id")
+        .not("venda_id", "is", null)
+        .eq("loja_id", caixa.loja_id)
+        .gte("data_venda", dataAbertura)
+        .lte("data_venda", dataFechamento);
+
+      if (!aparelhos) return new Set();
+
+      return new Set(aparelhos.map((a: any) => a.venda_id));
+    } catch (error: any) {
+      console.error("Erro ao buscar vendas com aparelhos:", error);
+      return new Set();
     }
   }
 

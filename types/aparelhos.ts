@@ -141,10 +141,16 @@ export interface FiltrosAparelhos {
   marca?: string;
   modelo?: string;
   estado?: EstadoAparelho;
+  condicao?: CondicaoAparelho;
+  armazenamento?: string;
   status?: StatusAparelho | "com_pagamento";
   busca?: string; // Para IMEI, número série, marca, modelo
+  data_entrada_inicio?: string;
+  data_entrada_fim?: string;
   exibir_catalogo?: boolean;
   destaque?: boolean;
   promocao?: boolean;
   novidade?: boolean;
+  page?: number;
+  pageSize?: number;
 }

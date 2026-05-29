@@ -82,6 +82,12 @@ export default function CaixaPage() {
   const [dataInicioHistorico, setDataInicioHistorico] = useState("");
   const [dataFimHistorico, setDataFimHistorico] = useState("");
   const [paginaHistorico, setPaginaHistorico] = useState(1);
+  const [totalHistoricos, setTotalHistoricos] = useState(0);
+  const [resumoHistorico, setResumoHistorico] = useState({
+    totalCaixas: 0,
+    totalSaldoInicial: 0,
+    totalSaldoFinal: 0,
+  });
 
   // Modais
   const [modalAbrirAberto, setModalAbrirAberto] = useState(false);
@@ -120,25 +126,26 @@ export default function CaixaPage() {
 
   useEffect(() => {
     if (abaAtiva === "historico") {
-      carregarHistorico();
+      carregarHistorico(1, true);
     }
   }, [abaAtiva, lojaFiltroHistorico, dataInicioHistorico, dataFimHistorico]);
+
+  useEffect(() => {
+    if (abaAtiva === "historico") {
+      carregarHistorico(paginaHistorico, false);
+    }
+  }, [paginaHistorico]);
 
   const totalPaginasHistorico = useMemo(() => {
     return Math.max(
       1,
-      Math.ceil(historicosCaixa.length / ITENS_POR_PAGINA_HISTORICO),
+      Math.ceil(totalHistoricos / ITENS_POR_PAGINA_HISTORICO),
     );
-  }, [historicosCaixa.length]);
+  }, [totalHistoricos]);
 
   const historicosPaginados = useMemo(() => {
-    const indiceInicial = (paginaHistorico - 1) * ITENS_POR_PAGINA_HISTORICO;
-
-    return historicosCaixa.slice(
-      indiceInicial,
-      indiceInicial + ITENS_POR_PAGINA_HISTORICO,
-    );
-  }, [historicosCaixa, paginaHistorico]);
+    return historicosCaixa;
+  }, [historicosCaixa]);
 
   useEffect(() => {
     if (paginaHistorico > totalPaginasHistorico) {
@@ -186,20 +193,20 @@ export default function CaixaPage() {
     }
   };
 
-  const carregarHistorico = async () => {
+  const carregarHistorico = async (page: number = 1, showLoading: boolean = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
 
       const filtros: any = {
         status: "fechado",
+        page,
+        pageSize: ITENS_POR_PAGINA_HISTORICO,
       };
 
       if (lojaFiltroHistorico !== "todos") {
         filtros.loja_id = parseInt(lojaFiltroHistorico);
       } else if (lojaId !== null && !podeVerTodasLojas) {
-        // Aplicar filtro de loja do usuário se não tiver acesso a todas
         filtros.loja_id = lojaId;
-        console.log(`🏪 Filtrando histórico de caixa da loja ${lojaId}`);
       }
 
       if (dataInicioHistorico) {
@@ -210,49 +217,32 @@ export default function CaixaPage() {
         filtros.data_fim = dataFimHistorico;
       }
 
-      const historicos = await CaixaService.listarCaixas(filtros);
+      const filtrosResumo: any = {};
+      if (filtros.loja_id) filtrosResumo.loja_id = filtros.loja_id;
+      if (filtros.data_inicio) filtrosResumo.data_inicio = filtros.data_inicio;
+      if (filtros.data_fim) filtrosResumo.data_fim = filtros.data_fim;
 
-      const CONCURRENCY_LIMIT = 3;
+      const [paginatedResult, resumo] = await Promise.all([
+        CaixaService.listarCaixas(filtros),
+        CaixaService.buscarResumoHistorico(filtrosResumo),
+      ]);
 
-      const processInBatches = async (items: CaixaCompleto[]) => {
-        const results: CaixaCompleto[] = [];
-        const queue = [...items];
+      const { data: historicos, count } = paginatedResult;
+      setTotalHistoricos(count);
+      setResumoHistorico(resumo);
 
-        const worker = async () => {
-          while (queue.length > 0) {
-            const caixa = queue.shift()!;
+      if (historicos.length > 0) {
+        const saldos = await CaixaService.buscarSaldosEsperados(historicos);
 
-            try {
-              const resumoHistorico = await CaixaService.buscarResumoCaixa(
-                caixa.id,
-              );
+        const historicosComSaldo = historicos.map((caixa) => ({
+          ...caixa,
+          saldo_esperado: saldos.get(caixa.id),
+        })) as CaixaCompleto[];
 
-              results.push({
-                ...caixa,
-                saldo_esperado: resumoHistorico.saldo_esperado,
-              } as CaixaCompleto);
-            } catch (error) {
-              console.error(
-                "Erro ao calcular saldo esperado para caixa histórico:",
-                error,
-              );
-
-              results.push(caixa);
-            }
-          }
-        };
-
-        await Promise.all(
-          Array.from({ length: CONCURRENCY_LIMIT }, () => worker()),
-        );
-
-        return results;
-      };
-
-      const historicosComSaldoEsperado = await processInBatches(historicos);
-
-      setHistoricosCaixa(historicosComSaldoEsperado);
-      setPaginaHistorico(1);
+        setHistoricosCaixa(historicosComSaldo);
+      } else {
+        setHistoricosCaixa([]);
+      }
     } catch (error) {
       console.error("Erro ao carregar histórico:", error);
     } finally {
@@ -426,7 +416,7 @@ export default function CaixaPage() {
     return `${horas}h ${minutos}min`;
   };
 
-  const gerarPDFCaixa = async () => {
+  const gerarPDFCaixa = async (tipoRelatorio: "completo" | "aparelhos" | "outros" = "completo") => {
     if (!caixaDetalhes || !resumo) return;
 
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
@@ -492,10 +482,25 @@ export default function CaixaPage() {
       }
     }
 
+    // Buscar IDs das vendas que possuem aparelhos
+    let vendasComAparelhos = new Set<string>();
+    if (tipoRelatorio !== "completo") {
+      try {
+        vendasComAparelhos = await CaixaService.buscarVendasComAparelhos(caixaDetalhes.id!);
+      } catch (error) {
+        console.error("Erro ao buscar vendas com aparelhos:", error);
+      }
+    }
+
     // Título
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text("Relatório de Caixa", pageWidth / 2, 20, { align: "center" });
+    const titulo = tipoRelatorio === "aparelhos"
+      ? "Relatório de Caixa - Venda de Aparelhos"
+      : tipoRelatorio === "outros"
+        ? "Relatório de Caixa - Demais Vendas"
+        : "Relatório de Caixa";
+    doc.text(titulo, pageWidth / 2, 20, { align: "center" });
 
     // Informações do Caixa
     doc.setFontSize(10);
@@ -524,83 +529,96 @@ export default function CaixaPage() {
       doc.text(fechadoTexto, 15, 63, { maxWidth: pageWidth - 30 });
     }
 
-    // Resumo Financeiro
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Resumo Financeiro", 15, caixaDetalhes.data_fechamento ? 80 : 73);
+    // Resumo Financeiro (só no relatório completo)
+    let yPos: number;
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    let yPos = caixaDetalhes.data_fechamento ? 88 : 81;
+    if (tipoRelatorio === "completo") {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo Financeiro", 15, caixaDetalhes.data_fechamento ? 80 : 73);
 
-    doc.text(`Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`, 15, yPos);
-    yPos += 7;
-    doc.text(
-      `Total Entradas: ${formatarMoeda(resumo.total_entradas)}`,
-      15,
-      yPos,
-    );
-    yPos += 7;
-    doc.text(`Total Saídas: ${formatarMoeda(resumo.total_saidas)}`, 15, yPos);
-    yPos += 7;
-    doc.text(
-      `Saldo Movimentado: ${formatarMoeda(resumo.total_entradas - resumo.total_saidas)}`,
-      15,
-      yPos,
-    );
-    yPos += 7;
-    doc.text(
-      `Saldo Esperado: ${formatarMoeda(resumo.saldo_esperado)}`,
-      15,
-      yPos,
-    );
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      yPos = caixaDetalhes.data_fechamento ? 88 : 81;
 
-    // Total Geral do Caixa
-    yPos += 10;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.setFillColor(59, 130, 246);
-    doc.rect(15, yPos - 5, pageWidth - 30, 10, "F");
-    doc.setTextColor(255, 255, 255);
-    const totalGeral =
-      resumo.saldo_inicial + resumo.total_entradas - resumo.total_saidas;
-
-    doc.text(
-      `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
-      pageWidth / 2,
-      yPos,
-      { align: "center" },
-    );
-    doc.setTextColor(0, 0, 0);
-    yPos += 12;
-
-    if (
-      caixaDetalhes.saldo_final !== null &&
-      caixaDetalhes.saldo_final !== undefined
-    ) {
+      doc.text(`Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`, 15, yPos);
       yPos += 7;
       doc.text(
-        `Saldo Final: ${formatarMoeda(caixaDetalhes.saldo_final)}`,
+        `Total Entradas: ${formatarMoeda(resumo.total_entradas)}`,
         15,
         yPos,
       );
       yPos += 7;
-      const diferenca = caixaDetalhes.saldo_final - resumo.saldo_esperado;
-      const diferencaColor = diferenca >= 0 ? [34, 197, 94] : [239, 68, 68];
+      doc.text(`Total Saídas: ${formatarMoeda(resumo.total_saidas)}`, 15, yPos);
+      yPos += 7;
+      doc.text(
+        `Saldo Movimentado: ${formatarMoeda(resumo.total_entradas - resumo.total_saidas)}`,
+        15,
+        yPos,
+      );
+      yPos += 7;
+      doc.text(
+        `Saldo Esperado: ${formatarMoeda(resumo.saldo_esperado)}`,
+        15,
+        yPos,
+      );
 
-      doc.setTextColor(diferencaColor[0], diferencaColor[1], diferencaColor[2]);
-      doc.text(`Diferença: ${formatarMoeda(diferenca)}`, 15, yPos);
+      // Total Geral do Caixa
+      yPos += 10;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(59, 130, 246);
+      doc.rect(15, yPos - 5, pageWidth - 30, 10, "F");
+      doc.setTextColor(255, 255, 255);
+      const totalGeral =
+        resumo.saldo_inicial + resumo.total_entradas - resumo.total_saidas;
+
+      doc.text(
+        `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
+        pageWidth / 2,
+        yPos,
+        { align: "center" },
+      );
       doc.setTextColor(0, 0, 0);
-    }
+      yPos += 12;
 
-    // Verificar se precisa de nova página
-    if (yPos > 240) {
-      doc.addPage();
-      yPos = 20;
+      if (
+        caixaDetalhes.saldo_final !== null &&
+        caixaDetalhes.saldo_final !== undefined
+      ) {
+        yPos += 7;
+        doc.text(
+          `Saldo Final: ${formatarMoeda(caixaDetalhes.saldo_final)}`,
+          15,
+          yPos,
+        );
+        yPos += 7;
+        const diferenca = caixaDetalhes.saldo_final - resumo.saldo_esperado;
+        const diferencaColor = diferenca >= 0 ? [34, 197, 94] : [239, 68, 68];
+
+        doc.setTextColor(diferencaColor[0], diferencaColor[1], diferencaColor[2]);
+        doc.text(`Diferença: ${formatarMoeda(diferenca)}`, 15, yPos);
+        doc.setTextColor(0, 0, 0);
+      }
+
+      // Verificar se precisa de nova página
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      }
+    } else {
+      yPos = 35;
     }
 
     // ===== VENDAS =====
-    const vendas = movimentacoes.filter((mov) => mov.tipo === "venda");
+    let vendas = movimentacoes.filter((mov) => mov.tipo === "venda");
+
+    if (tipoRelatorio === "aparelhos") {
+      vendas = vendas.filter((mov) => mov.referencia_id && vendasComAparelhos.has(mov.referencia_id));
+    } else if (tipoRelatorio === "outros") {
+      vendas = vendas.filter((mov) => !mov.referencia_id || !vendasComAparelhos.has(mov.referencia_id));
+    }
+
     const vendasPorFormaPagamento: {
       [key: string]: Array<{
         cliente: string;
@@ -829,6 +847,8 @@ export default function CaixaPage() {
       doc.setTextColor(0, 0, 0);
       yPos += 12;
     }
+    // Seções abaixo (OS, Devoluções, Sangrias) só aparecem no relatório completo
+    if (tipoRelatorio === "completo") {
     const ordensServico = movimentacoes.filter(
       // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
       (mov) => {
@@ -1364,6 +1384,7 @@ export default function CaixaPage() {
 
       yPos = (doc as any).lastAutoTable.finalY;
     }
+    }
 
     // Rodapé
     const pageCount = doc.getNumberOfPages();
@@ -1696,7 +1717,7 @@ export default function CaixaPage() {
                   className="mt-auto"
                   color="primary"
                   isLoading={loading}
-                  onPress={carregarHistorico}
+                  onPress={() => carregarHistorico(1)}
                 >
                   Filtrar
                 </Button>
@@ -1705,7 +1726,7 @@ export default function CaixaPage() {
           </Card>
 
           {/* Resumo Estatístico */}
-          {historicosCaixa.length > 0 && (
+          {resumoHistorico.totalCaixas > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
               <Card>
                 <CardBody className="p-4">
@@ -1718,7 +1739,7 @@ export default function CaixaPage() {
                         Total de Caixas
                       </p>
                       <p className="text-xl font-bold">
-                        {historicosCaixa.length}
+                        {resumoHistorico.totalCaixas}
                       </p>
                     </div>
                   </div>
@@ -1736,13 +1757,7 @@ export default function CaixaPage() {
                         Saldo Total Inicial
                       </p>
                       <p className="text-xl font-bold text-success">
-                        {formatarMoeda(
-                          historicosCaixa.reduce(
-                            (sum, c) =>
-                              sum + parseFloat(c.saldo_inicial.toString()),
-                            0,
-                          ),
-                        )}
+                        {formatarMoeda(resumoHistorico.totalSaldoInicial)}
                       </p>
                     </div>
                   </div>
@@ -1760,14 +1775,7 @@ export default function CaixaPage() {
                         Saldo Total Final
                       </p>
                       <p className="text-xl font-bold text-primary">
-                        {formatarMoeda(
-                          historicosCaixa.reduce(
-                            (sum, c) =>
-                              sum +
-                              parseFloat(c.saldo_final?.toString() || "0"),
-                            0,
-                          ),
-                        )}
+                        {formatarMoeda(resumoHistorico.totalSaldoFinal)}
                       </p>
                     </div>
                   </div>
@@ -1786,14 +1794,7 @@ export default function CaixaPage() {
                       </p>
                       <p className="text-xl font-bold text-warning">
                         {formatarMoeda(
-                          historicosCaixa.reduce((sum, c) => {
-                            const diferenca = c.saldo_final
-                              ? parseFloat(c.saldo_final.toString()) -
-                                parseFloat(c.saldo_inicial.toString())
-                              : 0;
-
-                            return sum + diferenca;
-                          }, 0),
+                          resumoHistorico.totalSaldoFinal - resumoHistorico.totalSaldoInicial,
                         )}
                       </p>
                     </div>
@@ -2766,11 +2767,18 @@ export default function CaixaPage() {
           </ModalBody>
           <ModalFooter>
             <Button
-              color="primary"
-              startContent={<ExternalLink className="w-4 h-4" />}
-              onPress={gerarPDFCaixa}
+              color="success"
+              startContent={<Smartphone className="w-4 h-4" />}
+              onPress={() => gerarPDFCaixa("aparelhos")}
             >
-              Visualizar PDF
+              Relatório Aparelhos
+            </Button>
+            <Button
+              color="primary"
+              startContent={<ShoppingCart className="w-4 h-4" />}
+              onPress={() => gerarPDFCaixa("outros")}
+            >
+              Relatório Demais Vendas
             </Button>
             <Button onPress={() => setModalDetalhesAberto(false)}>
               Fechar

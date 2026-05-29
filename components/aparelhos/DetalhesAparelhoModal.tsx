@@ -351,6 +351,18 @@ export function DetalhesAparelhoModal({ isOpen, aparelho, onClose }: Props) {
                                 {TIPO_LABEL[p.tipo_pagamento] ||
                                   p.tipo_pagamento}
                               </p>
+                              {p.tipo_pagamento === "troca_aparelho" && p.observacao && (
+                                <p className="text-[11px] text-amber-500 dark:text-amber-400 mt-0.5">
+                                  {(() => {
+                                    try {
+                                      const d = typeof p.observacao === "string"
+                                        ? JSON.parse(p.observacao)
+                                        : p.observacao;
+                                      return [d.modelo, d.imei, d.cor, d.armazenamento].filter(Boolean).join(" · ");
+                                    } catch { return p.observacao; }
+                                  })()}
+                                </p>
+                              )}
                               <div className="flex items-center gap-2 text-[11px] text-gray-400">
                                 {p.parcelas > 1 && <span>{p.parcelas}x</span>}
                                 {p.taxa_percentual != null && (

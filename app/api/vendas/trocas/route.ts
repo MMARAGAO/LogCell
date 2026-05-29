@@ -37,38 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const pattern = `%"venda_id":"${vendaId}"%`;
-
-    const { data: antigos, error: errBuscaAntigos } = await supabaseAdmin
-      .from("aparelhos")
-      .select("id")
-      .eq("marca", "Troca")
-      .ilike("observacoes", pattern);
-
-    if (errBuscaAntigos) {
-      return NextResponse.json(
-        { error: `Erro ao buscar trocas antigas: ${errBuscaAntigos.message}` },
-        { status: 500 },
-      );
-    }
-
-    if (antigos && antigos.length > 0) {
-      const ids = antigos.map((item) => item.id);
-      const { error: errDeleteAparelhos } = await supabaseAdmin
-        .from("aparelhos")
-        .delete()
-        .in("id", ids);
-
-      if (errDeleteAparelhos) {
-        return NextResponse.json(
-          {
-            error: `Erro ao deletar aparelhos de troca: ${errDeleteAparelhos.message}`,
-          },
-          { status: 500 },
-        );
-      }
-    }
-
+    // Deletar pagamentos de troca antigos
     const { error: errDeletePagamentos } = await supabaseAdmin
       .from("pagamentos_venda")
       .delete()
@@ -84,41 +53,8 @@ export async function POST(request: Request) {
       );
     }
 
+    // Inserir novos pagamentos de troca
     for (const troca of trocas) {
-      const { error: errInsertAparelho } = await supabaseAdmin
-        .from("aparelhos")
-        .insert({
-          marca: "Troca",
-          modelo: troca.modelo,
-          imei: troca.imei || null,
-          cor: troca.cor || null,
-          armazenamento: troca.armazenamento || null,
-          saude_bateria: troca.bateria ? parseInt(troca.bateria, 10) : null,
-          estado: "usado",
-          condicao: null,
-          valor_compra: 0,
-          valor_venda: troca.valor || 0,
-          loja_id: venda.loja_id || 1,
-          status: "disponivel",
-          criado_por: usuarioId,
-          data_entrada: new Date().toISOString().split("T")[0],
-          observacoes: JSON.stringify({
-            tipo: "troca",
-            venda_id: vendaId,
-            numero_venda: venda.numero_venda,
-            condicao: troca.condicao || null,
-          }),
-        });
-
-      if (errInsertAparelho) {
-        return NextResponse.json(
-          {
-            error: `Erro ao inserir aparelho de troca: ${errInsertAparelho.message}`,
-          },
-          { status: 500 },
-        );
-      }
-
       if (troca.valor > 0) {
         const { error: errInsertPagamento } = await supabaseAdmin
           .from("pagamentos_venda")
@@ -126,8 +62,16 @@ export async function POST(request: Request) {
             venda_id: vendaId,
             tipo_pagamento: "troca_aparelho",
             valor: troca.valor,
+            liquido: null,
             data_pagamento: new Date().toISOString().split("T")[0],
             criado_por: usuarioId,
+            observacao: JSON.stringify({
+              modelo: troca.modelo || null,
+              imei: troca.imei || null,
+              cor: troca.cor || null,
+              armazenamento: troca.armazenamento || null,
+              condicao: troca.condicao || null,
+            }),
           });
 
         if (errInsertPagamento) {
@@ -141,6 +85,7 @@ export async function POST(request: Request) {
       }
     }
 
+    // Recalcular total pago e atualizar venda
     const { data: pagamentos } = await supabaseAdmin
       .from("pagamentos_venda")
       .select("valor, liquido")

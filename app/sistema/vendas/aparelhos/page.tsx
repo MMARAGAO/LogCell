@@ -63,6 +63,19 @@ import { DescontoModal } from "@/components/vendas/DescontoModal";
 import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
 
 const ITENS_POR_PAGINA = 12;
+const MARCAS = [
+  "Apple", "Samsung", "Motorola", "Xiaomi", "LG", "Multilaser", "Positivo",
+  "Asus", "Nokia", "Huawei", "Sony", "Google", "OnePlus", "Realme", "Outro",
+];
+const FORMAS_PAGAMENTO = [
+  { value: "dinheiro", label: "Dinheiro" },
+  { value: "pix", label: "PIX" },
+  { value: "cartao_credito", label: "Cartão de Crédito" },
+  { value: "cartao_debito", label: "Cartão de Débito" },
+  { value: "transferencia", label: "Transferência" },
+  { value: "boleto", label: "Boleto" },
+  { value: "credito_cliente", label: "Crédito Cliente" },
+];
 const TIPO_LABEL: Record<string, string> = {
   dinheiro: "Dinheiro",
   pix: "PIX",
@@ -104,6 +117,9 @@ export default function VendasAparelhosPage() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [marcaFiltro, setMarcaFiltro] = useState("");
+  const [formaPagamentoFiltro, setFormaPagamentoFiltro] = useState("");
+  const [clienteFiltro, setClienteFiltro] = useState("");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [selectedTab, setSelectedTab] = useState("todas");
   const [cancelando, setCancelando] = useState<string | null>(null);
@@ -159,35 +175,34 @@ export default function VendasAparelhosPage() {
       return;
     }
     const carregarTrocas = async () => {
-      const pattern = `%"venda_id":"${trocaModal.vendaId}"%`;
-      const { data } = await supabase
-        .from("aparelhos")
-        .select(
-          "id, modelo, imei, condicao, saude_bateria, cor, armazenamento, valor_venda, observacoes",
-        )
-        .eq("marca", "Troca")
-        .ilike("observacoes", pattern);
+      const { data: pagtosTroca } = await supabase
+        .from("pagamentos_venda")
+        .select("valor, observacao")
+        .eq("venda_id", trocaModal.vendaId)
+        .eq("tipo_pagamento", "troca_aparelho");
 
-      if (data) {
+      if (pagtosTroca) {
         setTrocasPendentes(
-          data.map((t: any) => {
+          pagtosTroca.map((p: any) => {
             const obs = (() => {
               try {
-                return JSON.parse(t.observacoes || "{}");
+                return typeof p.observacao === "string"
+                  ? JSON.parse(p.observacao)
+                  : {};
               } catch {
                 return {};
               }
             })();
 
             return {
-              localId: t.id?.toString?.() || crypto.randomUUID(),
-              modelo: t.modelo || "",
-              imei: t.imei || "",
-              condicao: obs.condicao || t.condicao || "",
-              bateria: t.saude_bateria?.toString() || "",
-              cor: t.cor || "",
-              armazenamento: t.armazenamento || "",
-              valor: t.valor_venda || 0,
+              localId: crypto.randomUUID(),
+              modelo: obs.modelo || "",
+              imei: obs.imei || "",
+              condicao: obs.condicao || "",
+              bateria: obs.bateria || "",
+              cor: obs.cor || "",
+              armazenamento: obs.armazenamento || "",
+              valor: p.valor || 0,
             };
           }),
         );
@@ -207,13 +222,17 @@ export default function VendasAparelhosPage() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab]);
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro]);
 
   useEffect(() => {
-    carregarVendas();
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, paginaAtual]);
+    carregarVendas(true);
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro]);
 
-  async function carregarVendas() {
+  useEffect(() => {
+    carregarVendas(false);
+  }, [paginaAtual]);
+
+  async function carregarVendas(calcularKpis: boolean = true) {
     try {
       // Monta filtros
       const filtros: any[] = [["eq", "status", '"vendido"']];
@@ -221,7 +240,7 @@ export default function VendasAparelhosPage() {
       if (busca) {
         filtros.push([
           "or",
-          `marca.ilike.%25${busca}%25,modelo.ilike.%25${busca}%25,imei.ilike.%25${busca}%25`,
+          `marca.ilike.%25${busca}%25,modelo.ilike.%25${busca}%25,imei.ilike.%25${busca}%25,numero_serie.ilike.%25${busca}%25,cor.ilike.%25${busca}%25`,
         ]);
       }
       if (periodo === "hoje" || selectedTab === "hoje") {
@@ -248,6 +267,70 @@ export default function VendasAparelhosPage() {
           filtros.push(["lte", "data_venda", `"${dataFim}T23:59:59"`]);
       }
 
+      // Filtro por marca
+      if (marcaFiltro) {
+        filtros.push(["eq", "marca", `"${marcaFiltro}"`]);
+      }
+
+      // Filtro por status da venda
+      if (statusFiltro) {
+        const statusVenda = statusFiltro === "concluida" ? "concluida" : "em_andamento";
+        const { data: vendasStatus } = await supabase
+          .from("vendas")
+          .select("id")
+          .eq("status", statusVenda);
+
+        const vendasIdsStatus = Array.from(new Set(vendasStatus?.map((v: any) => v.id) || []));
+
+        if (vendasIdsStatus.length > 0) {
+          filtros.push(["in", "venda_id", `(${vendasIdsStatus.map((id) => `"${id}"`).join(",")})`]);
+        } else {
+          filtros.push(["eq", "venda_id", '""']);
+        }
+      }
+
+      // Filtro por forma de pagamento
+      let vendasIdsFormaPagamento: string[] | null = null;
+      if (formaPagamentoFiltro) {
+        const { data: pagtos } = await supabase
+          .from("pagamentos_venda")
+          .select("venda_id")
+          .eq("tipo_pagamento", formaPagamentoFiltro);
+        vendasIdsFormaPagamento = Array.from(new Set(pagtos?.map((p: any) => p.venda_id) || []));
+        if (vendasIdsFormaPagamento.length > 0) {
+          filtros.push(["in", "venda_id", `(${vendasIdsFormaPagamento.map((id) => `"${id}"`).join(",")})`]);
+        } else {
+          filtros.push(["eq", "venda_id", '""']); // força resultado vazio
+        }
+      }
+
+      // Filtro por cliente
+      if (clienteFiltro) {
+        const { data: clientes } = await supabase
+          .from("clientes")
+          .select("id")
+          .ilike("nome", `%${clienteFiltro}%`);
+
+        const clienteIds = clientes?.map((c: any) => c.id) || [];
+
+        if (clienteIds.length > 0) {
+          const { data: vendasCliente } = await supabase
+            .from("vendas")
+            .select("id")
+            .in("cliente_id", clienteIds);
+
+          const vendasIdsCliente = Array.from(new Set(vendasCliente?.map((v: any) => v.id) || []));
+
+          if (vendasIdsCliente.length > 0) {
+            filtros.push(["in", "venda_id", `(${vendasIdsCliente.map((id) => `"${id}"`).join(",")})`]);
+          } else {
+            filtros.push(["eq", "venda_id", '""']);
+          }
+        } else {
+          filtros.push(["eq", "venda_id", '""']);
+        }
+      }
+
       // Busca total de registros (para KPIs) - busca IDs de todas as vendas do periodo
       let allQuery = supabase
         .from("aparelhos")
@@ -255,93 +338,102 @@ export default function VendasAparelhosPage() {
         .eq("status", "vendido")
         .not("venda_id", "is", null);
 
+      let allQueryBuilder: any = allQuery;
       filtros.forEach((f) => {
         if (f[0] === "gte")
-          allQuery = allQuery.gte(f[1], f[2].replace(/"/g, ""));
+          allQueryBuilder = allQueryBuilder.gte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "lte")
-          allQuery = allQuery.lte(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "or")
-          allQuery = allQuery.or(f[1].replace(/%25/g, "%"));
+          allQueryBuilder = allQueryBuilder.lte(f[1], f[2].replace(/"/g, ""));
+        else if (f[0] === "eq")
+          allQueryBuilder = allQueryBuilder.eq(f[1], f[2].replace(/"/g, ""));
+        else if (f[0] === "in") {
+          const ids = f[2].replace(/[\(\)"]/g, "").split(",").filter(Boolean);
+          if (ids.length > 0) allQueryBuilder = allQueryBuilder.in(f[1], ids);
+        } else if (f[0] === "or")
+          allQueryBuilder = allQueryBuilder.or(f[1].replace(/%25/g, "%"));
       });
+      allQuery = allQueryBuilder;
       const { data: allData } = await allQuery;
       const totalRegistros = allData?.length || 0;
 
-      // KPIs: calcula de todos os registros
-      const hoje = new Date().toISOString().split("T")[0];
-      const allVendasIds = Array.from(
-        new Set(
-          allData?.map((a: any) => a.venda_id).filter(Boolean) as string[],
-        ),
-      );
-      const { data: allPagtos } =
-        allVendasIds.length > 0
-          ? await supabase
-              .from("pagamentos_venda")
-              .select("venda_id, valor, liquido, tipo_pagamento")
-              .in("venda_id", allVendasIds)
-          : { data: [] };
-      const { data: allBrindes } =
-        allVendasIds.length > 0
-          ? await supabase
-              .from("brindes_aparelhos")
-              .select("venda_id, valor_custo")
-              .in("venda_id", allVendasIds)
-          : { data: [] };
-      const { data: allVendas } =
-        allVendasIds.length > 0
-          ? await supabase
-              .from("vendas")
-              .select("id, status")
-              .in("id", allVendasIds)
-          : { data: [] };
-      const allVendasStatus = new Map(
-        allVendas?.map((v: any) => [v.id, v.status]),
-      );
+      // KPIs: calcula de todos os registros (só quando filtros mudam)
+      if (calcularKpis) {
+        const hoje = new Date().toISOString().split("T")[0];
+        const allVendasIds = Array.from(
+          new Set(
+            allData?.map((a: any) => a.venda_id).filter(Boolean) as string[],
+          ),
+        );
+        const { data: allPagtos } =
+          allVendasIds.length > 0
+            ? await supabase
+                .from("pagamentos_venda")
+                .select("venda_id, valor, liquido, tipo_pagamento")
+                .in("venda_id", allVendasIds)
+            : { data: [] };
+        const { data: allBrindes } =
+          allVendasIds.length > 0
+            ? await supabase
+                .from("brindes_aparelhos")
+                .select("venda_id, valor_custo")
+                .in("venda_id", allVendasIds)
+            : { data: [] };
+        const { data: allVendas } =
+          allVendasIds.length > 0
+            ? await supabase
+                .from("vendas")
+                .select("id, status")
+                .in("id", allVendasIds)
+            : { data: [] };
+        const allVendasStatus = new Map(
+          allVendas?.map((v: any) => [v.id, v.status]),
+        );
 
-      let totalPagos = 0,
-        totalLucro = 0,
-        totalQtd = 0,
-        pendentes = 0,
-        hojeCount = 0;
-      const porTipo: Record<string, number> = {};
-      const brindesTotal: Record<string, number> = {};
-      const allVendasMap = new Map(allVendas?.map((v: any) => [v.id, v]));
+        let totalPagos = 0,
+          totalLucro = 0,
+          totalQtd = 0,
+          pendentes = 0,
+          hojeCount = 0;
+        const porTipo: Record<string, number> = {};
+        const brindesTotal: Record<string, number> = {};
+        const allVendasMap = new Map(allVendas?.map((v: any) => [v.id, v]));
 
-      allBrindes?.forEach((b: any) => {
-        brindesTotal[b.venda_id] =
-          (brindesTotal[b.venda_id] || 0) + (b.valor_custo || 0);
-      });
-      allPagtos?.forEach((p: any) => {
-        const vid = p.venda_id;
-        const val = p.liquido ?? p.valor;
+        allBrindes?.forEach((b: any) => {
+          brindesTotal[b.venda_id] =
+            (brindesTotal[b.venda_id] || 0) + (b.valor_custo || 0);
+        });
+        allPagtos?.forEach((p: any) => {
+          const vid = p.venda_id;
+          const val = p.liquido ?? p.valor;
 
-        if (allVendasStatus.get(vid) === "cancelada") return;
-        totalPagos += val;
-        const tipo = p.tipo_pagamento || "outros";
+          if (allVendasStatus.get(vid) === "cancelada") return;
+          totalPagos += val;
+          const tipo = p.tipo_pagamento || "outros";
 
-        porTipo[tipo] = (porTipo[tipo] || 0) + val;
-      });
-      allData?.forEach((a: any) => {
-        totalQtd++;
-        const custoBrindes = brindesTotal[a.venda_id] || 0;
-        const pagtoValor =
-          allPagtos
-            ?.filter((p: any) => p.venda_id === a.venda_id)
-            .reduce((s: number, p: any) => s + (p.liquido ?? p.valor), 0) || 0;
+          porTipo[tipo] = (porTipo[tipo] || 0) + val;
+        });
+        allData?.forEach((a: any) => {
+          totalQtd++;
+          const custoBrindes = brindesTotal[a.venda_id] || 0;
+          const pagtoValor =
+            allPagtos
+              ?.filter((p: any) => p.venda_id === a.venda_id)
+              .reduce((s: number, p: any) => s + (p.liquido ?? p.valor), 0) || 0;
 
-        totalLucro += pagtoValor - (a.valor_compra || 0) - custoBrindes;
-        if (allVendasStatus.get(a.venda_id) === "em_andamento") pendentes++;
-        if (a.data_venda?.startsWith(hoje)) hojeCount++;
-      });
+          totalLucro += pagtoValor - (a.valor_compra || 0) - custoBrindes;
+          if (allVendasStatus.get(a.venda_id) === "em_andamento") pendentes++;
+          if (a.data_venda?.startsWith(hoje)) hojeCount++;
+        });
 
-      setKpis({
-        vendasHoje: hojeCount,
-        pendentes,
-        faturamento: totalPagos,
-        lucroTotal: totalLucro,
-        total: totalQtd,
-        porTipo,
-      });
+        setKpis({
+          vendasHoje: hojeCount,
+          pendentes,
+          faturamento: totalPagos,
+          lucroTotal: totalLucro,
+          total: totalQtd,
+          porTipo,
+        });
+      }
 
       // Paginação backend
       const totalPages = Math.ceil(totalRegistros / ITENS_POR_PAGINA);
@@ -357,12 +449,18 @@ export default function VendasAparelhosPage() {
         .eq("status", "vendido")
         .not("venda_id", "is", null);
 
+      let queryBuilder: any = query;
       filtros.forEach((f) => {
-        if (f[0] === "gte") query = query.gte(f[1], f[2].replace(/"/g, ""));
+        if (f[0] === "gte") queryBuilder = queryBuilder.gte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "lte")
-          query = query.lte(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "or") query = query.or(f[1].replace(/%25/g, "%"));
+          queryBuilder = queryBuilder.lte(f[1], f[2].replace(/"/g, ""));
+        else if (f[0] === "eq") queryBuilder = queryBuilder.eq(f[1], f[2].replace(/"/g, ""));
+        else if (f[0] === "in") {
+          const ids = f[2].replace(/[\(\)"]/g, "").split(",").filter(Boolean);
+          if (ids.length > 0) queryBuilder = queryBuilder.in(f[1], ids);
+        } else if (f[0] === "or") queryBuilder = queryBuilder.or(f[1].replace(/%25/g, "%"));
       });
+      query = queryBuilder;
       const { data: aparelhos } = await query
         .order("data_venda", { ascending: false })
         .range(inicio, inicio + ITENS_POR_PAGINA - 1);
@@ -391,7 +489,7 @@ export default function VendasAparelhosPage() {
           ? await supabase
               .from("pagamentos_venda")
               .select(
-                "venda_id, tipo_pagamento, valor, liquido, taxa_percentual, parcelas, editado",
+                "venda_id, tipo_pagamento, valor, liquido, taxa_percentual, parcelas, editado, observacao",
               )
               .in("venda_id", vendasIds)
           : { data: [] };
@@ -1151,21 +1249,26 @@ export default function VendasAparelhosPage() {
                 />
               </>
             )}
-            <Button
-              className="self-end rounded-xl"
-              color="default"
-              size="sm"
-              variant="flat"
-              onPress={() => {
-                setBusca("");
-                setStatusFiltro("");
-                setPeriodo("todas");
-                setDataInicio("");
-                setDataFim("");
+            <Select
+              classNames={{
+                trigger:
+                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
               }}
+              label="Marca"
+              labelPlacement="outside"
+              placeholder="Todas"
+              selectedKeys={marcaFiltro ? [marcaFiltro] : []}
+              size="sm"
+              variant="bordered"
+              onSelectionChange={(keys) =>
+                setMarcaFiltro((Array.from(keys)[0] as string) || "")
+              }
             >
-              Limpar Filtros
-            </Button>
+              <SelectItem key="">Todas</SelectItem>
+              <>{MARCAS.map((m) => (
+                <SelectItem key={m}>{m}</SelectItem>
+              ))}</>
+            </Select>
           </div>
         )}
       </div>
@@ -2056,24 +2159,35 @@ export default function VendasAparelhosPage() {
         {v.pagamentos?.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
             {v.pagamentos.map((p: any, i: number) => (
-              <span
-                key={i}
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                  p.tipo_pagamento === "dinheiro"
-                    ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                    : p.tipo_pagamento === "pix"
-                      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                      : p.tipo_pagamento === "cartao_credito"
-                        ? "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800"
-                        : p.tipo_pagamento === "troca_aparelho"
-                          ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                          : "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700"
-                }`}
-              >
-                {TIPO_LABEL[p.tipo_pagamento] || p.tipo_pagamento}:{" "}
-                {formatarMoeda(p.liquido ?? p.valor)}
-                {p.editado && <span className="ml-0.5 opacity-60">✎</span>}
-              </span>
+              <div key={i} className="flex flex-col gap-0.5">
+                <span
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                    p.tipo_pagamento === "dinheiro"
+                      ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                      : p.tipo_pagamento === "pix"
+                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
+                        : p.tipo_pagamento === "cartao_credito"
+                          ? "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800"
+                          : p.tipo_pagamento === "troca_aparelho"
+                            ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
+                            : "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700"
+                  }`}
+                >
+                  {TIPO_LABEL[p.tipo_pagamento] || p.tipo_pagamento}:{" "}
+                  {formatarMoeda(p.liquido ?? p.valor)}
+                  {p.editado && <span className="ml-0.5 opacity-60">✎</span>}
+                </span>
+                {p.tipo_pagamento === "troca_aparelho" && p.observacao && (
+                  <span className="text-[9px] text-amber-500 dark:text-amber-400 ml-2 leading-tight">
+                    {(() => {
+                      try {
+                        const d = typeof p.observacao === "string" ? JSON.parse(p.observacao) : p.observacao;
+                        return [d.modelo, d.imei, d.cor, d.armazenamento].filter(Boolean).join(" · ");
+                      } catch { return p.observacao; }
+                    })()}
+                  </span>
+                )}
+              </div>
             ))}
           </div>
         )}
