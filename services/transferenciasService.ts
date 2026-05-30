@@ -161,6 +161,156 @@ export class TransferenciasService {
   }
 
   /**
+   * Analisar disponibilidade de cada item da transferência
+   */
+  static async analisarDisponibilidade(
+    transferencia: TransferenciaCompleta,
+  ): Promise<{
+    podeConfirmar: boolean;
+    itens: Array<{
+      item_id: string;
+      produto_id: string;
+      produto_descricao: string;
+      quantidade_solicitada: number;
+      estoque_atual: number;
+      saldo_disponivel: number;
+      tem_problema: boolean;
+      transferencias_conflitantes: Array<{
+        id: string;
+        de_para: string;
+        quantidade: number;
+        confirmado_por: string;
+        confirmado_em: string;
+      }>;
+    }>;
+  }> {
+    const resultado: any[] = [];
+
+    for (const item of transferencia.itens) {
+      const { data: estoque } = await supabase
+        .from("estoque_lojas")
+        .select("quantidade")
+        .eq("id_produto", item.produto_id)
+        .eq("id_loja", transferencia.loja_origem_id)
+        .single();
+
+      const estoqueAtual = estoque?.quantidade || 0;
+
+      // Buscar transferências confirmadas APÓS a criação desta
+      // que consumiram o mesmo produto da mesma loja de origem
+      const { data: conflitos } = await supabase
+        .from("transferencias_itens")
+        .select(`
+          quantidade,
+          transferencia_id
+        `)
+        .eq("produto_id", item.produto_id)
+        .neq("transferencia_id", transferencia.id);
+
+      const transferenciasConflitantes: Array<{
+        id: string;
+        de_para: string;
+        quantidade: number;
+        confirmado_por: string;
+        confirmado_em: string;
+      }> = [];
+
+      if (conflitos && conflitos.length > 0) {
+        const ids = conflitos.map((c: any) => c.transferencia_id);
+        const { data: transferencias_conf } = await supabase
+          .from("transferencias")
+          .select(`
+            id, status, confirmado_em, loja_origem_id,
+            loja_origem:lojas!loja_origem_id(nome),
+            loja_destino:lojas!loja_destino_id(nome),
+            confirmado_por_usuario:usuarios!confirmado_por(nome)
+          `)
+
+          .in("id", ids);
+
+        for (const raw of transferencias_conf || []) {
+          const tc: any = raw;
+          if (
+            tc.status === "confirmada" &&
+            tc.confirmado_em > transferencia.criado_em &&
+            tc.loja_origem_id === transferencia.loja_origem_id
+          ) {
+            const item_conflito = conflitos.find(
+              (c: any) => c.transferencia_id === tc.id,
+            );
+            transferenciasConflitantes.push({
+              id: tc.id,
+              de_para: `${tc.loja_origem?.nome || "?"} → ${tc.loja_destino?.nome || "?"}`,
+              quantidade: item_conflito?.quantidade || 0,
+              confirmado_por: tc.confirmado_por_usuario?.nome || "N/A",
+              confirmado_em: new Date(tc.confirmado_em).toLocaleString("pt-BR"),
+            });
+          }
+        }
+      }
+
+      const totalConsumido = transferenciasConflitantes.reduce(
+        (s: number, c: any) => s + c.quantidade,
+        0,
+      );
+
+      resultado.push({
+        item_id: item.id,
+        produto_id: item.produto_id,
+        produto_descricao: item.produto_descricao || "Produto",
+        quantidade_solicitada: item.quantidade,
+        estoque_atual: estoqueAtual,
+        saldo_disponivel: estoqueAtual,
+        tem_problema: estoqueAtual < item.quantidade,
+        transferencias_conflitantes: transferenciasConflitantes,
+      });
+    }
+
+    return {
+      podeConfirmar: resultado.every((r) => !r.tem_problema),
+      itens: resultado,
+    };
+  }
+
+  /**
+   * Confirmar transferência com ajustes de quantidade nos itens problemáticos
+   */
+  static async confirmarComAjustes(
+    transferencia_id: string,
+    usuario_id: string,
+    ajustes: Array<{ item_id: string; nova_quantidade: number }>,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      for (const ajuste of ajustes) {
+        const { error } = await supabase
+          .from("transferencias_itens")
+          .update({ quantidade: ajuste.nova_quantidade })
+          .eq("id", ajuste.item_id);
+
+        if (error) throw error;
+      }
+
+      const { data, error } = await supabase.rpc("confirmar_transferencia", {
+        p_transferencia_id: transferencia_id,
+        p_usuario_id: usuario_id,
+      });
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string };
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Erro ao confirmar transferência com ajustes:", error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Confirmar transferência (executa a movimentação de estoque)
    */
   static async confirmarTransferencia(
@@ -273,6 +423,10 @@ export const buscarTransferencias = TransferenciasService.buscarTransferencias;
 export const contarTransferencias = TransferenciasService.contarTransferencias;
 export const confirmarTransferencia =
   TransferenciasService.confirmarTransferencia;
+export const confirmarComAjustes =
+  TransferenciasService.confirmarComAjustes;
+export const analisarDisponibilidade =
+  TransferenciasService.analisarDisponibilidade;
 export const cancelarTransferencia =
   TransferenciasService.cancelarTransferencia;
 export const buscarTransferenciaPorId =

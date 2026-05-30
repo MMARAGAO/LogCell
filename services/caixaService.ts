@@ -217,7 +217,21 @@ export class CaixaService {
         .gte("criado_em", dataAbertura)
         .lte("criado_em", dataFechamento)
         .eq("venda.loja_id", caixa.loja_id);
-      const pagamentosLoja = pagamentosRaw || [];
+      const pagamentosLoja = (pagamentosRaw || []).filter(
+        (pag: any) => pag.venda?.loja_id === caixa.loja_id,
+      );
+
+      // Buscar IDs de vendas que possuem aparelhos (para separar no resumo)
+      const vendaIdsNoPeriodo = pagamentosLoja
+        .map((p: any) => p.venda?.id)
+        .filter(Boolean);
+      const { data: aparelhosNoPeriodo } = await supabase
+        .from("aparelhos")
+        .select("venda_id")
+        .in("venda_id", vendaIdsNoPeriodo.length > 0 ? vendaIdsNoPeriodo : ['00000000-0000-0000-0000-000000000000']);
+      const vendasComAparelhos = new Set<string>(
+        (aparelhosNoPeriodo || []).map((a: any) => a.venda_id),
+      );
 
       // Buscar devoluções do período
       const { data: devolucoesRaw, error: erroDevolucoes } = await supabase
@@ -304,7 +318,9 @@ export class CaixaService {
 
       // Calcular resumo de vendas por forma de pagamento
       const porFormaPagamento: { [key: string]: number } = {};
+      const porFormaPagamentoAparelhos: { [key: string]: number } = {};
       let totalVendas = 0;
+      let totalVendasAparelhos = 0;
       let totalVendasDinheiro = 0; // Vendas que entram dinheiro no caixa (sem crédito)
 
       // Identificar vendas que foram devolvidas SEM CREDITO no mesmo dia do caixa
@@ -348,19 +364,27 @@ export class CaixaService {
         );
         const forma = pag.tipo_pagamento;
         const valor = Number(pag.valor);
+        const ehAparelho = vendasComAparelhos.has(pag.venda?.id);
 
         console.log(`🔍 Processando pagamento:`, {
           numero_venda: pag.venda?.numero_venda,
           valor,
           forma,
           vendaDevolvida,
+          ehAparelho,
           vai_contar: !vendaDevolvida,
         });
 
         // Se não foi devolvida SEM CRÉDITO no mesmo dia, conta normalmente
         if (!vendaDevolvida) {
-          porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
-          totalVendas += valor;
+          if (ehAparelho) {
+            porFormaPagamentoAparelhos[forma] =
+              (porFormaPagamentoAparelhos[forma] || 0) + valor;
+            totalVendasAparelhos += valor;
+          } else {
+            porFormaPagamento[forma] = (porFormaPagamento[forma] || 0) + valor;
+            totalVendas += valor;
+          }
         }
 
         // Só soma no dinheiro físico se não for crédito do cliente (crédito da loja)
@@ -377,6 +401,13 @@ export class CaixaService {
         (pag: any) =>
           pag.tipo_pagamento !== "credito_cliente" &&
           !vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id),
+      ).length;
+
+      const quantidadeAparelhos = pagamentosLoja.filter(
+        (pag: any) =>
+          pag.tipo_pagamento !== "credito_cliente" &&
+          !vendasDevolvidasSemCreditoMesmoDia.has(pag.venda?.id) &&
+          vendasComAparelhos.has(pag.venda?.id),
       ).length;
 
       // Calcular total de pagamentos de venda que entram no caixa (sem credito_cliente)
@@ -397,6 +428,14 @@ export class CaixaService {
         pagamentosLoja.reduce((sum: number, pag: any) => {
           // Não contar crédito do cliente
           if (pag.tipo_pagamento === "credito_cliente") return sum;
+
+          return sum + Number(pag.valor);
+        }, 0);
+
+      const totalAparelhosSemCreditoIncluindoDevolvidas =
+        pagamentosLoja.reduce((sum: number, pag: any) => {
+          if (pag.tipo_pagamento === "credito_cliente") return sum;
+          if (!vendasComAparelhos.has(pag.venda?.id)) return sum;
 
           return sum + Number(pag.valor);
         }, 0);
@@ -537,9 +576,14 @@ export class CaixaService {
 
       return {
         vendas: {
-          quantidade: quantidadePagamentosReais, // Apenas pagamentos que geram entrada de dinheiro
-          total: totalPagamentosSemCreditoIncluindoDevolvidas, // Todos os pagamentos sem credito_cliente para mostrar no relatório
+          quantidade: quantidadePagamentosReais - quantidadeAparelhos, // Apenas vendas sem aparelho
+          total: totalPagamentosSemCreditoIncluindoDevolvidas - totalAparelhosSemCreditoIncluindoDevolvidas, // Total sem aparelho
           por_forma_pagamento: porFormaPagamento,
+        },
+        vendas_aparelhos: {
+          quantidade: quantidadeAparelhos,
+          total: totalAparelhosSemCreditoIncluindoDevolvidas,
+          por_forma_pagamento: porFormaPagamentoAparelhos,
         },
         devolucoes: {
           quantidade: devolucoesLoja.length,
@@ -701,16 +745,20 @@ export class CaixaService {
       const dataFechamento =
         caixa.data_fechamento || new Date().toISOString();
 
-      // Filtrar pagamentos dentro do período deste caixa
+      // Filtrar pagamentos dentro do período deste caixa (e da loja correta)
       const pagamentosLoja = (pagamentosVendas || []).filter(
         (pag: any) =>
-          pag.criado_em >= dataAbertura && pag.criado_em <= dataFechamento,
+          pag.venda?.loja_id === lojaId &&
+          pag.criado_em >= dataAbertura &&
+          pag.criado_em <= dataFechamento,
       );
 
-      // Filtrar devoluções dentro do período deste caixa
+      // Filtrar devoluções dentro do período deste caixa (e da loja correta)
       const devolucoesLoja = (devolucoes || []).filter(
         (dev: any) =>
-          dev.criado_em >= dataAbertura && dev.criado_em <= dataFechamento,
+          dev.venda?.loja_id === lojaId &&
+          dev.criado_em >= dataAbertura &&
+          dev.criado_em <= dataFechamento,
       );
 
       // Identificar devoluções sem crédito no mesmo dia

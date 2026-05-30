@@ -52,11 +52,14 @@ import { InputModal } from "@/components/InputModal";
 import { MetricCard } from "@/components/transferencias/MetricCard";
 import { TransferenciaCard } from "@/components/transferencias/TransferenciaCard";
 import { DetalhesTransferenciaModal } from "@/components/transferencias/DetalhesTransferenciaModal";
+import { ModalAjustarTransferencia } from "@/components/transferencias/ModalAjustarTransferencia";
 import { supabase } from "@/lib/supabaseClient";
 import {
   buscarTransferencias,
   contarTransferencias,
   confirmarTransferencia,
+  confirmarComAjustes,
+  analisarDisponibilidade,
   cancelarTransferencia,
 } from "@/services/transferenciasService";
 
@@ -107,6 +110,12 @@ export default function TransferenciasPage() {
   const [cancelarModal, setCancelarModal] = useState({
     isOpen: false,
     transferencia: null as TransferenciaCompleta | null,
+  });
+
+  const [ajustarModal, setAjustarModal] = useState({
+    isOpen: false,
+    transferencia: null as TransferenciaCompleta | null,
+    itens: [] as Array<any>,
   });
 
   const carregouInicial = useRef(false);
@@ -234,6 +243,8 @@ export default function TransferenciasPage() {
 
     const transferencia = confirmarModal.transferencia;
 
+    setProcessando(transferencia.id);
+
     const itensComProblema = [];
 
     for (const item of transferencia.itens) {
@@ -254,18 +265,16 @@ export default function TransferenciasPage() {
     }
 
     if (itensComProblema.length > 0) {
-      const mensagem = itensComProblema
-        .map(
-          (item) =>
-            `• ${item.produto}: Disponível ${item.disponivel}, Necessário ${item.necessario}`,
-        )
-        .join("\n");
-
-      toast.error(
-        `Estoque insuficiente na loja de origem:\n\n${mensagem}\n\nVerifique o estoque antes de confirmar a transferência.`,
-      );
       setConfirmarModal({ isOpen: false, transferencia: null });
+
+      const analise = await analisarDisponibilidade(transferencia);
+
       setProcessando(null);
+      setAjustarModal({
+        isOpen: true,
+        transferencia,
+        itens: analise.itens,
+      });
 
       return;
     }
@@ -289,6 +298,36 @@ export default function TransferenciasPage() {
     } catch (error: any) {
       console.error("Erro ao confirmar transferência:", error);
       toast.error(error.message || "Erro ao confirmar transferência");
+    } finally {
+      setProcessando(null);
+    }
+  };
+
+  const confirmarComAjustesModal = async (
+    ajustes: Array<{ item_id: string; nova_quantidade: number }>,
+  ) => {
+    if (!usuario || !ajustarModal.transferencia) return;
+
+    setAjustarModal({ isOpen: false, transferencia: null, itens: [] });
+    setProcessando(ajustarModal.transferencia.id);
+
+    try {
+      const resultado = await confirmarComAjustes(
+        ajustarModal.transferencia.id,
+        usuario.id,
+        ajustes,
+      );
+
+      if (resultado.success) {
+        toast.success("Transferência confirmada com sucesso!");
+        await carregarTransferencias();
+        setTransferenciaSelecionada(null);
+      } else {
+        toast.error(resultado.error || "Erro ao confirmar transferência");
+      }
+    } catch (error: any) {
+      console.error("Erro ao confirmar com ajustes:", error);
+      toast.error(error.message || "Erro ao confirmar com ajustes");
     } finally {
       setProcessando(null);
     }
@@ -994,6 +1033,7 @@ export default function TransferenciasPage() {
         confirmColor="primary"
         confirmText="Confirmar Transferência"
         isOpen={confirmarModal.isOpen}
+        isLoading={!!processando}
         message={
           confirmarModal.transferencia
             ? `Confirmar transferência de ${confirmarModal.transferencia.itens.length} produto(s) da ${confirmarModal.transferencia.loja_origem} para ${confirmarModal.transferencia.loja_destino}?\n\nEsta ação irá movimentar o estoque e não poderá ser desfeita.`
@@ -1004,6 +1044,25 @@ export default function TransferenciasPage() {
           setConfirmarModal({ isOpen: false, transferencia: null })
         }
         onConfirm={confirmarTransferenciaModal}
+      />
+
+      {/* Modal de Ajuste de Quantidades */}
+      <ModalAjustarTransferencia
+        isOpen={ajustarModal.isOpen}
+        transferencia={
+          ajustarModal.transferencia
+            ? {
+                loja_origem: ajustarModal.transferencia.loja_origem || "",
+                loja_destino: ajustarModal.transferencia.loja_destino || "",
+              }
+            : null
+        }
+        itens={ajustarModal.itens}
+        processando={!!processando}
+        onClose={() =>
+          setAjustarModal({ isOpen: false, transferencia: null, itens: [] })
+        }
+        onConfirmar={confirmarComAjustesModal}
       />
 
       {/* Modal de Cancelamento */}

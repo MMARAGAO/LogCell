@@ -486,7 +486,19 @@ export default function CaixaPage() {
     let vendasComAparelhos = new Set<string>();
     if (tipoRelatorio !== "completo") {
       try {
-        vendasComAparelhos = await CaixaService.buscarVendasComAparelhos(caixaDetalhes.id!);
+        const vendaIds = movimentacoes
+          .filter((m) => m.tipo === "venda")
+          .map((m) => m.referencia_id)
+          .filter(Boolean);
+        if (vendaIds.length > 0) {
+          const { data: aparelhos } = await supabase
+            .from("aparelhos")
+            .select("venda_id")
+            .in("venda_id", vendaIds);
+          vendasComAparelhos = new Set(
+            (aparelhos || []).map((a: any) => a.venda_id),
+          );
+        }
       } catch (error) {
         console.error("Erro ao buscar vendas com aparelhos:", error);
       }
@@ -602,12 +614,12 @@ export default function CaixaPage() {
       }
 
       // Verificar se precisa de nova página
-      if (yPos > 240) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       }
     } else {
-      yPos = 35;
+      yPos = 75;
     }
 
     // ===== VENDAS =====
@@ -671,7 +683,7 @@ export default function CaixaPage() {
 
     if (vendas.length > 0) {
       // Verificar se precisa de nova página antes da seção
-      if (yPos > 230) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       }
@@ -692,6 +704,8 @@ export default function CaixaPage() {
         "dinheiro",
         "cartao_debito",
         "cartao_credito",
+        "troca_aparelho",
+        "credito_cliente",
         "transferencia",
         "boleto",
         "nao_informado",
@@ -701,6 +715,8 @@ export default function CaixaPage() {
         dinheiro: "Dinheiro",
         cartao_debito: "Cartão de Débito",
         cartao_credito: "Cartão de Crédito",
+        troca_aparelho: "Troca de Aparelho",
+        credito_cliente: "Crédito do Cliente",
         transferencia: "Transferência",
         boleto: "Boleto",
         nao_informado: "Não Informado",
@@ -710,8 +726,10 @@ export default function CaixaPage() {
         const vendas = vendasPorFormaPagamento[forma] || [];
         const total = vendas.reduce((sum, v) => sum + v.valor, 0);
 
+        if (total === 0) return;
+
         // Verificar se precisa de nova página para o subtítulo
-        if (yPos > 250) {
+        if (yPos > 260) {
           doc.addPage();
           yPos = 20;
         }
@@ -729,7 +747,7 @@ export default function CaixaPage() {
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         vendas.forEach((venda) => {
-          if (yPos > 275) {
+          if (yPos > 272) {
             doc.addPage();
             yPos = 20;
           }
@@ -756,7 +774,7 @@ export default function CaixaPage() {
         yPos += 4;
       });
 
-      if (yPos > 270) {
+      if (yPos > 262) {
         doc.addPage();
         yPos = 20;
       }
@@ -779,7 +797,7 @@ export default function CaixaPage() {
     const vendasComCredito = vendasPorFormaPagamento["credito_cliente"] || [];
 
     if (vendasComCredito.length > 0) {
-      if (yPos > 230) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       }
@@ -815,7 +833,7 @@ export default function CaixaPage() {
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       vendasComCredito.forEach((venda) => {
-        if (yPos > 275) {
+        if (yPos > 272) {
           doc.addPage();
           yPos = 20;
         }
@@ -847,8 +865,8 @@ export default function CaixaPage() {
       doc.setTextColor(0, 0, 0);
       yPos += 12;
     }
-    // Seções abaixo (OS, Devoluções, Sangrias) só aparecem no relatório completo
-    if (tipoRelatorio === "completo") {
+    // OS aparece no completo e demais vendas
+    if (tipoRelatorio !== "aparelhos") {
     const ordensServico = movimentacoes.filter(
       // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
       (mov) => {
@@ -941,7 +959,7 @@ export default function CaixaPage() {
 
     if (totalOSValidas > 0) {
       // Verificar se precisa de nova página antes da seção
-      if (yPos > 230) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       }
@@ -978,8 +996,10 @@ export default function CaixaPage() {
         const ordens = osPorFormaPagamento[forma] || [];
         const total = ordens.reduce((sum, o) => sum + o.valor, 0);
 
+        if (total === 0) return;
+
         // Verificar se precisa de nova página para o subtítulo
-        if (yPos > 250) {
+        if (yPos > 260) {
           doc.addPage();
           yPos = 20;
         }
@@ -997,7 +1017,7 @@ export default function CaixaPage() {
         doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
         ordens.forEach((ordem) => {
-          if (yPos > 275) {
+          if (yPos > 272) {
             doc.addPage();
             yPos = 20;
           }
@@ -1024,7 +1044,7 @@ export default function CaixaPage() {
         yPos += 4;
       });
 
-      if (yPos > 270) {
+      if (yPos > 262) {
         doc.addPage();
         yPos = 20;
       }
@@ -1041,6 +1061,9 @@ export default function CaixaPage() {
       doc.setTextColor(0, 0, 0);
       yPos += 12;
     }
+    }
+    // Demais detalhamentos (Tipo, Devoluções, Sangrias, Quebras) só no completo
+    if (tipoRelatorio === "completo") {
 
     // Detalhamento por Tipo
     if (yPos > 250) {
@@ -1095,7 +1118,7 @@ export default function CaixaPage() {
         resumo.devolucoes_sem_credito.quantidade > 0) &&
       devolucoesDetalhadas.length > 0
     ) {
-      if (yPos > 240) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       } else {
@@ -1109,7 +1132,7 @@ export default function CaixaPage() {
 
       // Para cada devolução, mostrar cabeçalho e itens
       devolucoesDetalhadas.forEach((dev, index) => {
-        if (yPos > 250) {
+        if (yPos > 260) {
           doc.addPage();
           yPos = 20;
         }
@@ -1233,7 +1256,7 @@ export default function CaixaPage() {
 
     // ===== SANGRIAS MANUAIS =====
     if (sangriasManual.length > 0) {
-      if (yPos > 240) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       } else {
@@ -1281,7 +1304,7 @@ export default function CaixaPage() {
 
     // ===== REEMBOLSOS =====
     if (reembolsos.length > 0) {
-      if (yPos > 240) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       } else {
@@ -1339,7 +1362,7 @@ export default function CaixaPage() {
     const reembolsosOS = resumo.devolu_os_reembolso?.lista || [];
 
     if (reembolsosOS && reembolsosOS.length > 0) {
-      if (yPos > 240) {
+      if (yPos > 245) {
         doc.addPage();
         yPos = 20;
       } else {
@@ -2068,6 +2091,17 @@ export default function CaixaPage() {
                       <p className="text-xl font-bold text-success">
                         {formatarMoeda(resumo.total_entradas)}
                       </p>
+                      <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] leading-tight">
+                        <span className="text-default-500">
+                          Vendas: <strong className="text-success/80">{formatarMoeda(resumo.vendas.total)}</strong>
+                          {resumo.vendas_aparelhos.quantidade > 0 && (
+                            <> · Aparelhos: <strong className="text-success/80">{formatarMoeda(resumo.vendas_aparelhos.total)}</strong></>
+                          )}
+                        </span>
+                        <span className="text-default-500">
+                          OS: <strong className="text-success/80">{formatarMoeda(resumo.ordens_servico.total)}</strong>
+                        </span>
+                      </div>
                     </CardBody>
                   </Card>
                   <Card className="bg-danger/10 border border-danger/20">
@@ -2159,6 +2193,42 @@ export default function CaixaPage() {
                     </div>
                   </CardBody>
                 </Card>
+
+                {/* Vendas de Aparelhos */}
+                {resumo.vendas_aparelhos.quantidade > 0 && (
+                  <Card className="border-primary/30">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-5 h-5 text-primary" />
+                        <span className="font-bold">
+                          Vendas de Aparelhos ({resumo.vendas_aparelhos.quantidade})
+                        </span>
+                        <span className="text-success font-bold ml-auto">
+                          {formatarMoeda(resumo.vendas_aparelhos.total)}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardBody>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {Object.entries(
+                          resumo.vendas_aparelhos.por_forma_pagamento,
+                        ).map(([forma, valor]) => (
+                          <div
+                            key={forma}
+                            className="bg-primary/5 p-3 rounded border border-primary/20"
+                          >
+                            <p className="text-xs text-default-600 capitalize">
+                              {forma.replace("_", " ")}
+                            </p>
+                            <p className="font-bold">
+                              {formatarMoeda(valor as number)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardBody>
+                  </Card>
+                )}
 
                 {/* Ordens de Serviço */}
                 <Card>
