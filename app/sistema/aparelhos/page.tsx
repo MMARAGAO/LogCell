@@ -791,7 +791,30 @@ export default function AparelhosPage() {
                 }}
               />
 
-              {filtros.estado || filtros.status || filtros.marca || filtros.armazenamento || filtros.condicao || filtros.data_entrada_inicio || filtros.data_entrada_fim ? (
+              <Select
+                className="w-full md:w-48"
+                classNames={{
+                  trigger:
+                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                }}
+                placeholder="Ordenar por"
+                selectedKeys={filtros.order_by ? [filtros.order_by] : ["criado_em"]}
+                size="sm"
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+                  setFiltros((prev) => ({ ...prev, order_by: value || undefined }));
+                  setPaginaAtual(1);
+                }}
+              >
+                <SelectItem key="criado_em">Data de Criação</SelectItem>
+                <SelectItem key="atualizado_em">Última Modificação</SelectItem>
+                <SelectItem key="data_entrada">Data de Entrada</SelectItem>
+                <SelectItem key="data_venda">Data da Venda</SelectItem>
+                <SelectItem key="valor_venda">Valor</SelectItem>
+              </Select>
+
+              {filtros.estado || filtros.status || filtros.marca || filtros.armazenamento || filtros.condicao || filtros.data_entrada_inicio || filtros.data_entrada_fim || filtros.order_by ? (
                 <Button
                   className="rounded-xl"
                   color="default"

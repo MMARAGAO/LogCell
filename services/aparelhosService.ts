@@ -26,7 +26,7 @@ export async function getAparelhos(
       `,
         { count: "exact", head: false },
       )
-      .order("criado_em", { ascending: false });
+      .order(filtros?.order_by || "criado_em", { ascending: false });
 
     // Filtrar por loja
     if (filtros?.loja_id) {

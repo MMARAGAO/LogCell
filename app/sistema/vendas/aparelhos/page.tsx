@@ -120,6 +120,7 @@ export default function VendasAparelhosPage() {
   const [marcaFiltro, setMarcaFiltro] = useState("");
   const [formaPagamentoFiltro, setFormaPagamentoFiltro] = useState("");
   const [clienteFiltro, setClienteFiltro] = useState("");
+  const [ordenacao, setOrdenacao] = useState("atualizado_em");
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [selectedTab, setSelectedTab] = useState("todas");
   const [cancelando, setCancelando] = useState<string | null>(null);
@@ -222,11 +223,11 @@ export default function VendasAparelhosPage() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro]);
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro, ordenacao]);
 
   useEffect(() => {
     carregarVendas(true);
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro]);
+  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro, ordenacao]);
 
   useEffect(() => {
     carregarVendas(false);
@@ -462,7 +463,7 @@ export default function VendasAparelhosPage() {
       });
       query = queryBuilder;
       const { data: aparelhos } = await query
-        .order("data_venda", { ascending: false })
+        .order(ordenacao, { ascending: false })
         .range(inicio, inicio + ITENS_POR_PAGINA - 1);
 
       if (!aparelhos) {
@@ -1269,6 +1270,80 @@ export default function VendasAparelhosPage() {
                 <SelectItem key={m}>{m}</SelectItem>
               ))}</>
             </Select>
+            <Select
+              classNames={{
+                trigger:
+                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              label="Forma Pagamento"
+              labelPlacement="outside"
+              placeholder="Todas"
+              selectedKeys={formaPagamentoFiltro ? [formaPagamentoFiltro] : []}
+              size="sm"
+              variant="bordered"
+              onSelectionChange={(keys) =>
+                setFormaPagamentoFiltro((Array.from(keys)[0] as string) || "")
+              }
+            >
+              <SelectItem key="">Todas</SelectItem>
+              <>{FORMAS_PAGAMENTO.map((fp) => (
+                <SelectItem key={fp.value}>{fp.label}</SelectItem>
+              ))}</>
+            </Select>
+            <Input
+              classNames={{
+                inputWrapper:
+                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              isClearable
+              label="Cliente"
+              labelPlacement="outside"
+              placeholder="Nome do cliente"
+              size="sm"
+              type="text"
+              value={clienteFiltro}
+              variant="bordered"
+              onChange={(e) => setClienteFiltro(e.target.value)}
+              onClear={() => setClienteFiltro("")}
+            />
+            <Select
+              classNames={{
+                trigger:
+                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+              }}
+              label="Ordenar por"
+              labelPlacement="outside"
+              placeholder="Última Modificação"
+              selectedKeys={[ordenacao]}
+              size="sm"
+              variant="bordered"
+              onSelectionChange={(keys) =>
+                setOrdenacao(Array.from(keys)[0] as string)
+              }
+            >
+              <SelectItem key="atualizado_em">Última Modificação</SelectItem>
+              <SelectItem key="data_venda">Data da Venda</SelectItem>
+              <SelectItem key="valor_venda">Valor</SelectItem>
+            </Select>
+            <Button
+              className="self-end rounded-xl"
+              color="default"
+              size="sm"
+              variant="flat"
+              onPress={() => {
+                setBusca("");
+                setStatusFiltro("");
+                setPeriodo("todas");
+                setDataInicio("");
+                setDataFim("");
+                setMarcaFiltro("");
+                setFormaPagamentoFiltro("");
+                setClienteFiltro("");
+                setOrdenacao("atualizado_em");
+              }}
+            >
+              Limpar Filtros
+            </Button>
           </div>
         )}
       </div>

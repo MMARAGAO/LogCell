@@ -153,4 +153,5 @@ export interface FiltrosAparelhos {
   novidade?: boolean;
   page?: number;
   pageSize?: number;
+  order_by?: string;
 }
