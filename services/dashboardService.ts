@@ -42,7 +42,10 @@ export class DashboardService {
       return [];
     }
 
-    const batch = data || [];
+    const batch = (data || []).filter((pag: any) => {
+      if (!loja_id) return true;
+      return pag.venda?.loja_id === loja_id;
+    });
 
     batch.forEach((pagamento: any) => {
       if (pagamento.venda_id) {
@@ -104,7 +107,10 @@ export class DashboardService {
       throw error;
     }
 
-    const batch = data || [];
+    const batch = (data || []).filter((item: any) => {
+      if (!loja_id) return true;
+      return item.venda?.loja_id === loja_id;
+    });
 
     batch.forEach((item: any) => {
       const produtoId = item.produto_id;
@@ -173,7 +179,10 @@ export class DashboardService {
       throw errorPecas;
     }
 
-    const batchPecas = dataPecas || [];
+    const batchPecas = (dataPecas || []).filter((peca: any) => {
+      if (!loja_id) return true;
+      return peca.os?.id_loja === loja_id;
+    });
 
     batchPecas.forEach((peca: any) => {
       const produtoId =
@@ -1547,7 +1556,10 @@ export class DashboardService {
 
       if (error) throw error;
 
-      const batch = data || [];
+      const batch = (data || []).filter((pag: any) => {
+        if (!loja_id) return true;
+        return pag.venda?.loja_id === loja_id;
+      });
 
       batch.forEach((pagamento) => {
         const venda = pagamento.venda as any;
@@ -1650,7 +1662,10 @@ export class DashboardService {
 
       if (error) throw error;
 
-      const batch = data || [];
+      const batch = (data || []).filter((pag: any) => {
+        if (!loja_id) return true;
+        return pag.venda?.loja_id === loja_id;
+      });
 
       batch.forEach((pagamento) => {
         const venda = pagamento.venda as any;
@@ -1692,7 +1707,7 @@ export class DashboardService {
         agrupado[vendedorId].lucro_vendas += valorPagamento;
       });
 
-      const queryOSPayments = supabase
+      let queryOSPayments = supabase
         .from("ordem_servico_pagamentos")
         .select(
           "id_ordem_servico, valor, os:ordem_servico!ordem_servico_pagamentos_id_ordem_servico_fkey(criado_por, id_loja, status)",
@@ -1702,12 +1717,19 @@ export class DashboardService {
         .neq("os.status", "cancelado")
         .limit(2000);
 
+      if (loja_id) {
+        queryOSPayments = queryOSPayments.eq("os.id_loja", loja_id);
+      }
+
       const { data: dataOSPayments, error: errorOSPayments } =
         await queryOSPayments;
 
       if (errorOSPayments) throw errorOSPayments;
 
-      const batchOSPayments = dataOSPayments || [];
+      const batchOSPayments = (dataOSPayments || []).filter((pag: any) => {
+        if (!loja_id) return true;
+        return pag.os?.id_loja === loja_id;
+      });
 
       batchOSPayments.forEach((pagamento) => {
         const os = pagamento.os as any;

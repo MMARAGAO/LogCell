@@ -427,7 +427,7 @@ export default function VendasPage() {
     console.log("📤 Filtros que serão enviados:", filtros);
 
     const [dados, statsRes] = await Promise.all([
-      VendasService.listarVendas(filtros),
+      VendasService.listarVendas({ ...filtros, excluir_aparelhos: true }),
       fetch("/api/vendas/estatisticas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

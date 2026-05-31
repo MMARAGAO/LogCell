@@ -209,13 +209,19 @@ export default function DashboardPage() {
 
       // Busca dados de aparelhos vendidos
       try {
-        const { data: deviceVendas } = await supabase
+        let deviceQuery = supabase
           .from("aparelhos")
           .select("venda_id, valor_venda, valor_compra, data_venda")
           .eq("status", "vendido")
           .not("venda_id", "is", null)
           .gte("data_venda", dataInicio || "2000-01-01")
           .lte("data_venda", dataFim || hojeISO);
+
+        if (lojaId) {
+          deviceQuery = deviceQuery.eq("loja_id", Number(lojaId));
+        }
+
+        const { data: deviceVendas } = await deviceQuery;
 
         if (deviceVendas && deviceVendas.length > 0) {
           const vendaIds = Array.from(
