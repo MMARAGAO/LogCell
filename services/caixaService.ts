@@ -689,8 +689,7 @@ export class CaixaService {
       `,
       )
       .gte("criado_em", dataMin)
-      .lte("criado_em", dataMax)
-      .eq("venda.loja_id", lojaId);
+      .lte("criado_em", dataMax);
 
     // 2. Buscar todas as devoluções do período
     const { data: devolucoes } = await supabase
@@ -706,8 +705,7 @@ export class CaixaService {
       `,
       )
       .gte("criado_em", dataMin)
-      .lte("criado_em", dataMax)
-      .eq("venda.loja_id", lojaId);
+      .lte("criado_em", dataMax);
 
     // 3. Buscar todos os pagamentos de OS do período
     const { data: pagamentosOS } = await supabase
@@ -722,8 +720,7 @@ export class CaixaService {
       `,
       )
       .gte("criado_em", dataMin)
-      .lte("criado_em", dataMax)
-      .eq("ordem_servico.id_loja", lojaId);
+      .lte("criado_em", dataMax);
 
     // 4. Buscar todas as sangrias destes caixas
     const caixaIds = caixas.map((c) => c.id);
@@ -746,8 +743,7 @@ export class CaixaService {
       `,
       )
       .gte("criado_em", dataMin)
-      .lte("criado_em", dataMax)
-      .eq("ordem_servico.id_loja", lojaId);
+      .lte("criado_em", dataMax);
 
     // Calcular saldo esperado para cada caixa
     const result = new Map<string, number>();
@@ -797,11 +793,13 @@ export class CaixaService {
         totalPagamentosSemCredito += Number(pag.valor);
       });
 
-      // Calcular total de OS
+      // Calcular total de OS (da loja correta)
       const totalOS = (pagamentosOS || [])
         .filter(
           (os: any) =>
-            os.criado_em >= dataAbertura && os.criado_em <= dataFechamento,
+            os.ordem_servico?.id_loja === caixa.loja_id &&
+            os.criado_em >= dataAbertura &&
+            os.criado_em <= dataFechamento,
         )
         .reduce((sum: number, os: any) => sum + Number(os.valor), 0);
 
@@ -815,10 +813,11 @@ export class CaixaService {
         .filter((s: any) => s.caixa_id === caixa.id)
         .reduce((sum: number, s: any) => sum + Number(s.valor), 0);
 
-      // Calcular total de reembolsos de OS
+      // Calcular total de reembolsos de OS (da loja correta)
       const totalDevolucoesOSReembolso = (devolucoesOS || [])
         .filter(
           (dev: any) =>
+            dev.ordem_servico?.id_loja === caixa.loja_id &&
             dev.criado_em >= dataAbertura &&
             dev.criado_em <= dataFechamento &&
             dev.tipo_devolucao === "reembolso",

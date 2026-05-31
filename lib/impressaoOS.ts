@@ -2286,7 +2286,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.text(aparelho.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
-      y += doc.getTextDimensions(aparelho.defeito_reclamado).h + 4;
+      y += doc.getTextDimensions(aparelho.defeito_reclamado, { maxWidth: pageWidth - 10 }).h + 4;
 
       // ========== SERVIÇO ==========
       doc.setFont("helvetica", "bold");
@@ -2303,7 +2303,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
         aparelho.laudo_diagnostico || "A definir após diagnóstico";
 
       doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-      y += doc.getTextDimensions(servico).h + 4;
+      y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 4;
 
       // ========== VALORES ==========
       doc.setFont("helvetica", "bold");
@@ -2374,7 +2374,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.text(os.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
-    y += doc.getTextDimensions(os.defeito_reclamado).h + 4;
+    y += doc.getTextDimensions(os.defeito_reclamado, { maxWidth: pageWidth - 10 }).h + 4;
 
     // ========== SERVIÇO ==========
     doc.setFont("helvetica", "bold");
@@ -2390,7 +2390,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     const servico = os.laudo_diagnostico || "A definir após diagnóstico";
 
     doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-    y += doc.getTextDimensions(servico).h + 4;
+    y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 4;
 
     // ========== VALORES ==========
     doc.setFont("helvetica", "bold");
