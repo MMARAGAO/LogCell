@@ -1474,22 +1474,6 @@ export class VendasService {
         .limit(100000)
         .order("criado_em", { ascending: false });
 
-      if (filtros?.excluir_aparelhos) {
-        const { data: aparelhos } = await supabase
-          .from("aparelhos")
-          .select("venda_id")
-          .not("venda_id", "is", null)
-          .eq("status", "vendido");
-
-        const ids = (aparelhos || [])
-          .map((a: any) => a.venda_id)
-          .filter(Boolean);
-
-        if (ids.length > 0) {
-          query = query.not("id", "in", `(${ids.join(",")})`);
-        }
-      }
-
       if (filtros?.cliente_id) {
         query = query.eq("cliente_id", filtros.cliente_id);
       }
@@ -1534,7 +1518,23 @@ export class VendasService {
 
       if (error) throw error;
 
-      return (data as VendaCompleta[]) || [];
+      let resultado = (data as VendaCompleta[]) || [];
+
+      if (filtros?.excluir_aparelhos) {
+        const { data: aparelhos } = await supabase
+          .from("aparelhos")
+          .select("venda_id")
+          .not("venda_id", "is", null)
+          .eq("status", "vendido");
+
+        const idsExcluir = new Set(
+          (aparelhos || []).map((a: any) => a.venda_id).filter(Boolean),
+        );
+
+        resultado = resultado.filter((v) => !idsExcluir.has(v.id));
+      }
+
+      return resultado;
     } catch (error) {
       console.error("Erro ao listar vendas:", error);
 
