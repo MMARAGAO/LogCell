@@ -200,10 +200,12 @@ export class TransferenciasService {
       // que consumiram o mesmo produto da mesma loja de origem
       const { data: conflitos } = await supabase
         .from("transferencias_itens")
-        .select(`
+        .select(
+          `
           quantidade,
           transferencia_id
-        `)
+        `,
+        )
         .eq("produto_id", item.produto_id)
         .neq("transferencia_id", transferencia.id);
 
@@ -219,17 +221,20 @@ export class TransferenciasService {
         const ids = conflitos.map((c: any) => c.transferencia_id);
         const { data: transferencias_conf } = await supabase
           .from("transferencias")
-          .select(`
+          .select(
+            `
             id, status, confirmado_em, loja_origem_id,
             loja_origem:lojas!loja_origem_id(nome),
             loja_destino:lojas!loja_destino_id(nome),
             confirmado_por_usuario:usuarios!confirmado_por(nome)
-          `)
+          `,
+          )
 
           .in("id", ids);
 
         for (const raw of transferencias_conf || []) {
           const tc: any = raw;
+
           if (
             tc.status === "confirmada" &&
             tc.confirmado_em > transferencia.criado_em &&
@@ -238,6 +243,7 @@ export class TransferenciasService {
             const item_conflito = conflitos.find(
               (c: any) => c.transferencia_id === tc.id,
             );
+
             transferenciasConflitantes.push({
               id: tc.id,
               de_para: `${tc.loja_origem?.nome || "?"} → ${tc.loja_destino?.nome || "?"}`,
@@ -306,6 +312,7 @@ export class TransferenciasService {
       return { success: true };
     } catch (error: any) {
       console.error("Erro ao confirmar transferência com ajustes:", error);
+
       return { success: false, error: error.message };
     }
   }
@@ -423,8 +430,7 @@ export const buscarTransferencias = TransferenciasService.buscarTransferencias;
 export const contarTransferencias = TransferenciasService.contarTransferencias;
 export const confirmarTransferencia =
   TransferenciasService.confirmarTransferencia;
-export const confirmarComAjustes =
-  TransferenciasService.confirmarComAjustes;
+export const confirmarComAjustes = TransferenciasService.confirmarComAjustes;
 export const analisarDisponibilidade =
   TransferenciasService.analisarDisponibilidade;
 export const cancelarTransferencia =

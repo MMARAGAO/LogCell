@@ -42,7 +42,9 @@ interface Props {
   itens: ItemAnalise[];
   processando: boolean;
   onClose: () => void;
-  onConfirmar: (ajustes: Array<{ item_id: string; nova_quantidade: number }>) => void;
+  onConfirmar: (
+    ajustes: Array<{ item_id: string; nova_quantidade: number }>,
+  ) => void;
 }
 
 export function ModalAjustarTransferencia({
@@ -57,8 +59,12 @@ export function ModalAjustarTransferencia({
 
   const getQuantidade = (item: ItemAnalise) => {
     if (item.tem_problema) {
-      return ajustes[item.item_id] ?? Math.min(item.estoque_atual, item.quantidade_solicitada);
+      return (
+        ajustes[item.item_id] ??
+        Math.min(item.estoque_atual, item.quantidade_solicitada)
+      );
     }
+
     return item.quantidade_solicitada;
   };
 
@@ -73,6 +79,7 @@ export function ModalAjustarTransferencia({
         item_id: i.item_id,
         nova_quantidade: getQuantidade(i),
       }));
+
     onConfirmar(ajustesList);
   };
 
@@ -82,11 +89,11 @@ export function ModalAjustarTransferencia({
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      size="3xl"
-      scrollBehavior="inside"
       hideCloseButton={processando}
+      isOpen={isOpen}
+      scrollBehavior="inside"
+      size="3xl"
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -98,7 +105,9 @@ export function ModalAjustarTransferencia({
           </div>
           {transferencia && (
             <p className="text-sm text-default-500 font-normal">
-              {transferencia.loja_origem} <ArrowRightIcon className="w-3 h-3 inline" /> {transferencia.loja_destino}
+              {transferencia.loja_origem}{" "}
+              <ArrowRightIcon className="w-3 h-3 inline" />{" "}
+              {transferencia.loja_destino}
             </p>
           )}
         </ModalHeader>
@@ -132,11 +141,11 @@ export function ModalAjustarTransferencia({
                   </div>
                   <div className="w-24">
                     <Input
+                      label="Nova qtd"
+                      max={item.estoque_atual}
+                      min={0}
                       size="sm"
                       type="number"
-                      label="Nova qtd"
-                      min={0}
-                      max={item.estoque_atual}
                       value={String(getQuantidade(item))}
                       onValueChange={(v) =>
                         setAjustes((prev) => ({
@@ -161,10 +170,8 @@ export function ModalAjustarTransferencia({
                         className="flex items-center gap-2 text-xs bg-default-100 rounded px-2 py-1 mb-1"
                       >
                         <CheckCircleIcon className="w-3 h-3 text-success shrink-0" />
-                        <span className="text-default-600">
-                          {tc.de_para}
-                        </span>
-                        <Chip size="sm" variant="flat" color="warning">
+                        <span className="text-default-600">{tc.de_para}</span>
+                        <Chip color="warning" size="sm" variant="flat">
                           {tc.quantidade} un
                         </Chip>
                         <span className="text-default-400 ml-auto">
@@ -181,7 +188,8 @@ export function ModalAjustarTransferencia({
             <div className="mt-2">
               <p className="text-xs text-success font-semibold mb-2 flex items-center gap-1">
                 <CheckCircleIcon className="w-3 h-3" />
-                Itens com estoque suficiente ({itens.filter((i) => !i.tem_problema).length}):
+                Itens com estoque suficiente (
+                {itens.filter((i) => !i.tem_problema).length}):
               </p>
               <div className="flex flex-wrap gap-2">
                 {itens
@@ -189,9 +197,9 @@ export function ModalAjustarTransferencia({
                   .map((item) => (
                     <Chip
                       key={item.item_id}
+                      color="success"
                       size="sm"
                       variant="flat"
-                      color="success"
                     >
                       {item.produto_descricao} ({item.quantidade_solicitada} un)
                     </Chip>
@@ -208,23 +216,20 @@ export function ModalAjustarTransferencia({
 
           {hasError && (
             <p className="text-xs text-danger mt-1">
-              Corrija os valores acima — nenhum item pode exceder o estoque disponível.
+              Corrija os valores acima — nenhum item pode exceder o estoque
+              disponível.
             </p>
           )}
         </ModalBody>
         <ModalFooter>
-          <Button
-            variant="light"
-            onPress={onClose}
-            isDisabled={processando}
-          >
+          <Button isDisabled={processando} variant="light" onPress={onClose}>
             Cancelar Transferência
           </Button>
           <Button
             color="primary"
-            onPress={handleConfirmar}
-            isLoading={processando}
             isDisabled={hasError}
+            isLoading={processando}
+            onPress={handleConfirmar}
           >
             {itensComAjuste.length > 0
               ? "Confirmar com Ajustes"

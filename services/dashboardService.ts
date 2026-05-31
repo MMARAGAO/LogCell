@@ -44,6 +44,7 @@ export class DashboardService {
 
     const batch = (data || []).filter((pag: any) => {
       if (!loja_id) return true;
+
       return pag.venda?.loja_id === loja_id;
     });
 
@@ -109,6 +110,7 @@ export class DashboardService {
 
     const batch = (data || []).filter((item: any) => {
       if (!loja_id) return true;
+
       return item.venda?.loja_id === loja_id;
     });
 
@@ -181,6 +183,7 @@ export class DashboardService {
 
     const batchPecas = (dataPecas || []).filter((peca: any) => {
       if (!loja_id) return true;
+
       return peca.os?.id_loja === loja_id;
     });
 
@@ -1558,6 +1561,7 @@ export class DashboardService {
 
       const batch = (data || []).filter((pag: any) => {
         if (!loja_id) return true;
+
         return pag.venda?.loja_id === loja_id;
       });
 
@@ -1664,6 +1668,7 @@ export class DashboardService {
 
       const batch = (data || []).filter((pag: any) => {
         if (!loja_id) return true;
+
         return pag.venda?.loja_id === loja_id;
       });
 
@@ -1728,6 +1733,7 @@ export class DashboardService {
 
       const batchOSPayments = (dataOSPayments || []).filter((pag: any) => {
         if (!loja_id) return true;
+
         return pag.os?.id_loja === loja_id;
       });
 

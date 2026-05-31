@@ -99,12 +99,32 @@ const STATUS = [
 ];
 
 const MARCAS = [
-  "Apple", "Samsung", "Motorola", "Xiaomi", "LG", "Multilaser", "Positivo",
-  "Asus", "Nokia", "Huawei", "Sony", "Google", "OnePlus", "Realme", "Outro",
+  "Apple",
+  "Samsung",
+  "Motorola",
+  "Xiaomi",
+  "LG",
+  "Multilaser",
+  "Positivo",
+  "Asus",
+  "Nokia",
+  "Huawei",
+  "Sony",
+  "Google",
+  "OnePlus",
+  "Realme",
+  "Outro",
 ];
 
 const ARMAZENAMENTOS = [
-  "8GB", "16GB", "32GB", "64GB", "128GB", "256GB", "512GB", "1TB",
+  "8GB",
+  "16GB",
+  "32GB",
+  "64GB",
+  "128GB",
+  "256GB",
+  "512GB",
+  "1TB",
 ];
 
 const CONDICOES = [
@@ -705,7 +725,11 @@ export default function AparelhosPage() {
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
-                  setFiltros((prev) => ({ ...prev, marca: value || undefined }));
+
+                  setFiltros((prev) => ({
+                    ...prev,
+                    marca: value || undefined,
+                  }));
                   setPaginaAtual(1);
                 }}
               >
@@ -720,12 +744,18 @@ export default function AparelhosPage() {
                     "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
                 }}
                 placeholder="Armazenamento"
-                selectedKeys={filtros.armazenamento ? [filtros.armazenamento] : []}
+                selectedKeys={
+                  filtros.armazenamento ? [filtros.armazenamento] : []
+                }
                 size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
-                  setFiltros((prev) => ({ ...prev, armazenamento: value || undefined }));
+
+                  setFiltros((prev) => ({
+                    ...prev,
+                    armazenamento: value || undefined,
+                  }));
                   setPaginaAtual(1);
                 }}
               >
@@ -745,7 +775,11 @@ export default function AparelhosPage() {
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
-                  setFiltros((prev) => ({ ...prev, condicao: (value || undefined) as any }));
+
+                  setFiltros((prev) => ({
+                    ...prev,
+                    condicao: (value || undefined) as any,
+                  }));
                   setPaginaAtual(1);
                 }}
               >
@@ -769,7 +803,10 @@ export default function AparelhosPage() {
                 value={filtros.data_entrada_inicio || ""}
                 variant="bordered"
                 onValueChange={(value) => {
-                  setFiltros((prev) => ({ ...prev, data_entrada_inicio: value || undefined }));
+                  setFiltros((prev) => ({
+                    ...prev,
+                    data_entrada_inicio: value || undefined,
+                  }));
                   setPaginaAtual(1);
                 }}
               />
@@ -786,7 +823,10 @@ export default function AparelhosPage() {
                 value={filtros.data_entrada_fim || ""}
                 variant="bordered"
                 onValueChange={(value) => {
-                  setFiltros((prev) => ({ ...prev, data_entrada_fim: value || undefined }));
+                  setFiltros((prev) => ({
+                    ...prev,
+                    data_entrada_fim: value || undefined,
+                  }));
                   setPaginaAtual(1);
                 }}
               />
@@ -798,12 +838,18 @@ export default function AparelhosPage() {
                     "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
                 }}
                 placeholder="Ordenar por"
-                selectedKeys={filtros.order_by ? [filtros.order_by] : ["criado_em"]}
+                selectedKeys={
+                  filtros.order_by ? [filtros.order_by] : ["criado_em"]
+                }
                 size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
-                  setFiltros((prev) => ({ ...prev, order_by: value || undefined }));
+
+                  setFiltros((prev) => ({
+                    ...prev,
+                    order_by: value || undefined,
+                  }));
                   setPaginaAtual(1);
                 }}
               >
@@ -814,7 +860,14 @@ export default function AparelhosPage() {
                 <SelectItem key="valor_venda">Valor</SelectItem>
               </Select>
 
-              {filtros.estado || filtros.status || filtros.marca || filtros.armazenamento || filtros.condicao || filtros.data_entrada_inicio || filtros.data_entrada_fim || filtros.order_by ? (
+              {filtros.estado ||
+              filtros.status ||
+              filtros.marca ||
+              filtros.armazenamento ||
+              filtros.condicao ||
+              filtros.data_entrada_inicio ||
+              filtros.data_entrada_fim ||
+              filtros.order_by ? (
                 <Button
                   className="rounded-xl"
                   color="default"

@@ -41,7 +41,6 @@ import {
   Clock,
   AlertTriangle,
   History,
-  ExternalLink,
   Banknote,
   Smartphone,
   CreditCard,
@@ -137,10 +136,7 @@ export default function CaixaPage() {
   }, [paginaHistorico]);
 
   const totalPaginasHistorico = useMemo(() => {
-    return Math.max(
-      1,
-      Math.ceil(totalHistoricos / ITENS_POR_PAGINA_HISTORICO),
-    );
+    return Math.max(1, Math.ceil(totalHistoricos / ITENS_POR_PAGINA_HISTORICO));
   }, [totalHistoricos]);
 
   const historicosPaginados = useMemo(() => {
@@ -193,7 +189,10 @@ export default function CaixaPage() {
     }
   };
 
-  const carregarHistorico = async (page: number = 1, showLoading: boolean = true) => {
+  const carregarHistorico = async (
+    page: number = 1,
+    showLoading: boolean = true,
+  ) => {
     try {
       if (showLoading) setLoading(true);
 
@@ -218,6 +217,7 @@ export default function CaixaPage() {
       }
 
       const filtrosResumo: any = {};
+
       if (filtros.loja_id) filtrosResumo.loja_id = filtros.loja_id;
       if (filtros.data_inicio) filtrosResumo.data_inicio = filtros.data_inicio;
       if (filtros.data_fim) filtrosResumo.data_fim = filtros.data_fim;
@@ -228,16 +228,27 @@ export default function CaixaPage() {
       ]);
 
       const { data: historicos, count } = paginatedResult;
+
       setTotalHistoricos(count);
       setResumoHistorico(resumo);
 
       if (historicos.length > 0) {
-        const saldos = await CaixaService.buscarSaldosEsperados(historicos);
+        const { saldos, aparelhosPorCaixa } =
+          await CaixaService.buscarSaldosEsperados(historicos);
 
-        const historicosComSaldo = historicos.map((caixa) => ({
-          ...caixa,
-          saldo_esperado: saldos.get(caixa.id),
-        })) as CaixaCompleto[];
+        const podeVerAparelhos = temPermissao("caixa.ver_aparelhos");
+
+        const historicosComSaldo = historicos.map((caixa) => {
+          const saldoBase = saldos.get(caixa.id) || 0;
+          const aparelhosValor = aparelhosPorCaixa.get(caixa.id) || 0;
+
+          return {
+            ...caixa,
+            saldo_esperado: podeVerAparelhos
+              ? saldoBase
+              : saldoBase - aparelhosValor,
+          };
+        }) as CaixaCompleto[];
 
         setHistoricosCaixa(historicosComSaldo);
       } else {
@@ -416,7 +427,9 @@ export default function CaixaPage() {
     return `${horas}h ${minutos}min`;
   };
 
-  const gerarPDFCaixa = async (tipoRelatorio: "completo" | "aparelhos" | "outros" = "completo") => {
+  const gerarPDFCaixa = async (
+    tipoRelatorio: "completo" | "aparelhos" | "outros" = "completo",
+  ) => {
     if (!caixaDetalhes || !resumo) return;
 
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
@@ -484,17 +497,20 @@ export default function CaixaPage() {
 
     // Buscar IDs das vendas que possuem aparelhos
     let vendasComAparelhos = new Set<string>();
+
     if (tipoRelatorio !== "completo") {
       try {
         const vendaIds = movimentacoes
           .filter((m) => m.tipo === "venda")
           .map((m) => m.referencia_id)
           .filter(Boolean);
+
         if (vendaIds.length > 0) {
           const { data: aparelhos } = await supabase
             .from("aparelhos")
             .select("venda_id")
             .in("venda_id", vendaIds);
+
           vendasComAparelhos = new Set(
             (aparelhos || []).map((a: any) => a.venda_id),
           );
@@ -507,11 +523,13 @@ export default function CaixaPage() {
     // Título
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    const titulo = tipoRelatorio === "aparelhos"
-      ? "Relatório de Caixa - Venda de Aparelhos"
-      : tipoRelatorio === "outros"
-        ? "Relatório de Caixa - Demais Vendas"
-        : "Relatório de Caixa";
+    const titulo =
+      tipoRelatorio === "aparelhos"
+        ? "Relatório de Caixa - Venda de Aparelhos"
+        : tipoRelatorio === "outros"
+          ? "Relatório de Caixa - Demais Vendas"
+          : "Relatório de Caixa";
+
     doc.text(titulo, pageWidth / 2, 20, { align: "center" });
 
     // Informações do Caixa
@@ -547,13 +565,21 @@ export default function CaixaPage() {
     if (tipoRelatorio === "completo") {
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Resumo Financeiro", 15, caixaDetalhes.data_fechamento ? 80 : 73);
+      doc.text(
+        "Resumo Financeiro",
+        15,
+        caixaDetalhes.data_fechamento ? 80 : 73,
+      );
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       yPos = caixaDetalhes.data_fechamento ? 88 : 81;
 
-      doc.text(`Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`, 15, yPos);
+      doc.text(
+        `Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`,
+        15,
+        yPos,
+      );
       yPos += 7;
       doc.text(
         `Total Entradas: ${formatarMoeda(resumo.total_entradas)}`,
@@ -608,7 +634,11 @@ export default function CaixaPage() {
         const diferenca = caixaDetalhes.saldo_final - resumo.saldo_esperado;
         const diferencaColor = diferenca >= 0 ? [34, 197, 94] : [239, 68, 68];
 
-        doc.setTextColor(diferencaColor[0], diferencaColor[1], diferencaColor[2]);
+        doc.setTextColor(
+          diferencaColor[0],
+          diferencaColor[1],
+          diferencaColor[2],
+        );
         doc.text(`Diferença: ${formatarMoeda(diferenca)}`, 15, yPos);
         doc.setTextColor(0, 0, 0);
       }
@@ -626,9 +656,14 @@ export default function CaixaPage() {
     let vendas = movimentacoes.filter((mov) => mov.tipo === "venda");
 
     if (tipoRelatorio === "aparelhos") {
-      vendas = vendas.filter((mov) => mov.referencia_id && vendasComAparelhos.has(mov.referencia_id));
+      vendas = vendas.filter(
+        (mov) => mov.referencia_id && vendasComAparelhos.has(mov.referencia_id),
+      );
     } else if (tipoRelatorio === "outros") {
-      vendas = vendas.filter((mov) => !mov.referencia_id || !vendasComAparelhos.has(mov.referencia_id));
+      vendas = vendas.filter(
+        (mov) =>
+          !mov.referencia_id || !vendasComAparelhos.has(mov.referencia_id),
+      );
     }
 
     const vendasPorFormaPagamento: {
@@ -867,546 +902,552 @@ export default function CaixaPage() {
     }
     // OS aparece no completo e demais vendas
     if (tipoRelatorio !== "aparelhos") {
-    const ordensServico = movimentacoes.filter(
-      // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
-      (mov) => {
-        if (mov.tipo === "ordem_servico") {
-          console.log("DEBUG OS IDDDDDDDDDDDDDDDDDDDDDDS:", {
-            mov_id_loja: mov.id_loja,
-            caixa_loja_id: caixaDetalhes.loja?.id,
-            mov,
+      const ordensServico = movimentacoes.filter(
+        // Filtrar apenas ordens de serviço válidas (com número e valor definidos)
+        (mov) => {
+          if (mov.tipo === "ordem_servico") {
+            console.log("DEBUG OS IDDDDDDDDDDDDDDDDDDDDDDS:", {
+              mov_id_loja: mov.id_loja,
+              caixa_loja_id: caixaDetalhes.loja?.id,
+              mov,
+            });
+          }
+
+          return (
+            mov.tipo === "ordem_servico" &&
+            mov.descricao &&
+            mov.descricao.split(" - ")[0] !== "" &&
+            mov.valor !== undefined &&
+            mov.valor !== null &&
+            mov.valor > 0 &&
+            String(mov.id_loja) === String(caixaDetalhes.loja?.id)
+          );
+        },
+      );
+      const osPorFormaPagamento: {
+        [key: string]: Array<{
+          cliente: string;
+          valor: number;
+          numero: string;
+          data: string;
+        }>;
+      } = {};
+
+      // Processar OS e seus pagamentos
+      ordensServico.forEach((mov) => {
+        // Extrair número da OS e cliente da descrição
+        const descricaoParts = mov.descricao.split(" - ");
+        const numeroOS = descricaoParts[0] || "";
+        const cliente = descricaoParts[1] || "Cliente não informado";
+
+        // Ignorar OS sem número ou valor
+        if (
+          !numeroOS ||
+          mov.valor === undefined ||
+          mov.valor === null ||
+          mov.valor <= 0
+        )
+          return;
+
+        // Formatar data e hora
+        const dataHora = new Date(mov.data).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        if (mov.pagamentos && mov.pagamentos.length > 0) {
+          mov.pagamentos.forEach((pag: any) => {
+            const forma = pag.tipo_pagamento || "nao_informado";
+
+            if (!osPorFormaPagamento[forma]) {
+              osPorFormaPagamento[forma] = [];
+            }
+            // Ignorar pagamentos sem valor
+            if (pag.valor === undefined || pag.valor === null || pag.valor <= 0)
+              return;
+            osPorFormaPagamento[forma].push({
+              cliente,
+              valor: pag.valor,
+              numero: numeroOS,
+              data: dataHora,
+            });
           });
-        }
-
-        return (
-          mov.tipo === "ordem_servico" &&
-          mov.descricao &&
-          mov.descricao.split(" - ")[0] !== "" &&
-          mov.valor !== undefined &&
-          mov.valor !== null &&
-          mov.valor > 0 &&
-          String(mov.id_loja) === String(caixaDetalhes.loja?.id)
-        );
-      },
-    );
-    const osPorFormaPagamento: {
-      [key: string]: Array<{
-        cliente: string;
-        valor: number;
-        numero: string;
-        data: string;
-      }>;
-    } = {};
-
-    // Processar OS e seus pagamentos
-    ordensServico.forEach((mov) => {
-      // Extrair número da OS e cliente da descrição
-      const descricaoParts = mov.descricao.split(" - ");
-      const numeroOS = descricaoParts[0] || "";
-      const cliente = descricaoParts[1] || "Cliente não informado";
-
-      // Ignorar OS sem número ou valor
-      if (
-        !numeroOS ||
-        mov.valor === undefined ||
-        mov.valor === null ||
-        mov.valor <= 0
-      )
-        return;
-
-      // Formatar data e hora
-      const dataHora = new Date(mov.data).toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      if (mov.pagamentos && mov.pagamentos.length > 0) {
-        mov.pagamentos.forEach((pag: any) => {
-          const forma = pag.tipo_pagamento || "nao_informado";
+        } else {
+          const forma = mov.forma_pagamento || "nao_informado";
 
           if (!osPorFormaPagamento[forma]) {
             osPorFormaPagamento[forma] = [];
           }
-          // Ignorar pagamentos sem valor
-          if (pag.valor === undefined || pag.valor === null || pag.valor <= 0)
-            return;
           osPorFormaPagamento[forma].push({
             cliente,
-            valor: pag.valor,
+            valor: mov.valor,
             numero: numeroOS,
             data: dataHora,
           });
-        });
-      } else {
-        const forma = mov.forma_pagamento || "nao_informado";
-
-        if (!osPorFormaPagamento[forma]) {
-          osPorFormaPagamento[forma] = [];
         }
-        osPorFormaPagamento[forma].push({
-          cliente,
-          valor: mov.valor,
-          numero: numeroOS,
-          data: dataHora,
-        });
-      }
-    });
+      });
 
-    // Só renderizar a seção se houver pelo menos uma OS válida
-    const totalOSValidas = Object.values(osPorFormaPagamento).flat().length;
+      // Só renderizar a seção se houver pelo menos uma OS válida
+      const totalOSValidas = Object.values(osPorFormaPagamento).flat().length;
 
-    if (totalOSValidas > 0) {
-      // Verificar se precisa de nova página antes da seção
-      if (yPos > 245) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      yPos += 10;
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(147, 51, 234);
-      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.text("ORDENS DE SERVIÇO", pageWidth / 2, yPos, { align: "center" });
-      doc.setTextColor(0, 0, 0);
-      yPos += 13;
-
-      // Formas de pagamento das OS
-      const formasOrdenadas = [
-        "dinheiro",
-        "pix",
-        "cartao_credito",
-        "cartao_debito",
-        "transferencia",
-        "cheque",
-      ];
-      const nomesFormas: any = {
-        dinheiro: "Dinheiro",
-        pix: "PIX",
-        cartao_credito: "Cartão de Crédito",
-        cartao_debito: "Cartão de Débito",
-        transferencia: "Transferência",
-        cheque: "Cheque",
-      };
-
-      formasOrdenadas.forEach((forma) => {
-        const ordens = osPorFormaPagamento[forma] || [];
-        const total = ordens.reduce((sum, o) => sum + o.valor, 0);
-
-        if (total === 0) return;
-
-        // Verificar se precisa de nova página para o subtítulo
-        if (yPos > 260) {
+      if (totalOSValidas > 0) {
+        // Verificar se precisa de nova página antes da seção
+        if (yPos > 245) {
           doc.addPage();
           yPos = 20;
         }
 
-        yPos += 2;
-        doc.setFontSize(10);
+        yPos += 10;
+        doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
-        doc.setFillColor(233, 213, 255); // Roxo claro
-        doc.rect(18, yPos - 4, pageWidth - 36, 6, "F");
+        doc.setFillColor(147, 51, 234);
+        doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text("ORDENS DE SERVIÇO", pageWidth / 2, yPos, { align: "center" });
         doc.setTextColor(0, 0, 0);
-        doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
-        yPos += 8;
+        yPos += 13;
 
-        // Lista de clientes
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        ordens.forEach((ordem) => {
-          if (yPos > 272) {
+        // Formas de pagamento das OS
+        const formasOrdenadas = [
+          "dinheiro",
+          "pix",
+          "cartao_credito",
+          "cartao_debito",
+          "transferencia",
+          "cheque",
+        ];
+        const nomesFormas: any = {
+          dinheiro: "Dinheiro",
+          pix: "PIX",
+          cartao_credito: "Cartão de Crédito",
+          cartao_debito: "Cartão de Débito",
+          transferencia: "Transferência",
+          cheque: "Cheque",
+        };
+
+        formasOrdenadas.forEach((forma) => {
+          const ordens = osPorFormaPagamento[forma] || [];
+          const total = ordens.reduce((sum, o) => sum + o.valor, 0);
+
+          if (total === 0) return;
+
+          // Verificar se precisa de nova página para o subtítulo
+          if (yPos > 260) {
             doc.addPage();
             yPos = 20;
           }
-          // Limitar tamanho do nome do cliente
-          const nomeCliente =
-            ordem.cliente.length > 40
-              ? ordem.cliente.substring(0, 37) + "..."
-              : ordem.cliente;
 
-          doc.text(
-            `${ordem.data} - ${ordem.numero} - ${nomeCliente}`,
-            25,
-            yPos,
-            {
-              maxWidth: pageWidth - 60,
-            },
-          );
-          doc.text(formatarMoeda(ordem.valor), pageWidth - 20, yPos, {
-            align: "right",
+          yPos += 2;
+          doc.setFontSize(10);
+          doc.setFont("helvetica", "bold");
+          doc.setFillColor(233, 213, 255); // Roxo claro
+          doc.rect(18, yPos - 4, pageWidth - 36, 6, "F");
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${nomesFormas[forma]} - ${formatarMoeda(total)}`, 22, yPos);
+          yPos += 8;
+
+          // Lista de clientes
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          ordens.forEach((ordem) => {
+            if (yPos > 272) {
+              doc.addPage();
+              yPos = 20;
+            }
+            // Limitar tamanho do nome do cliente
+            const nomeCliente =
+              ordem.cliente.length > 40
+                ? ordem.cliente.substring(0, 37) + "..."
+                : ordem.cliente;
+
+            doc.text(
+              `${ordem.data} - ${ordem.numero} - ${nomeCliente}`,
+              25,
+              yPos,
+              {
+                maxWidth: pageWidth - 60,
+              },
+            );
+            doc.text(formatarMoeda(ordem.valor), pageWidth - 20, yPos, {
+              align: "right",
+            });
+            yPos += 4.5;
           });
-          yPos += 4.5;
+
+          yPos += 4;
         });
 
-        yPos += 4;
-      });
-
-      if (yPos > 262) {
-        doc.addPage();
-        yPos = 20;
-      }
-
-      yPos += 3;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(147, 51, 234);
-      doc.text(
-        `Total de OS: ${ordensServico.length} - ${formatarMoeda(ordensServico.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
-        20,
-        yPos,
-      );
-      doc.setTextColor(0, 0, 0);
-      yPos += 12;
-    }
-    }
-    // Demais detalhamentos (Tipo, Devoluções, Sangrias, Quebras) só no completo
-    if (tipoRelatorio === "completo") {
-
-    // Detalhamento por Tipo
-    if (yPos > 250) {
-      doc.addPage();
-      yPos = 20;
-    }
-
-    yPos += 10;
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Resumo por Tipo", 15, yPos);
-
-    yPos += 8;
-    const detalhamentoData = [
-      ["Tipo", "Quantidade", "Total"],
-      [
-        "Vendas",
-        (resumo.vendas?.quantidade || 0).toString(),
-        formatarMoeda(resumo.vendas?.total || 0),
-      ],
-      [
-        "Ordens de Serviço",
-        (resumo.ordens_servico?.quantidade || 0).toString(),
-        formatarMoeda(resumo.ordens_servico?.total || 0),
-      ],
-      [
-        "Sangrias",
-        (resumo.sangrias?.quantidade || 0).toString(),
-        formatarMoeda(resumo.sangrias?.total || 0),
-      ],
-      [
-        "Quebras",
-        (resumo.quebras?.quantidade || 0).toString(),
-        formatarMoeda(resumo.quebras?.total || 0),
-      ],
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [detalhamentoData[0]],
-      body: detalhamentoData.slice(1),
-      theme: "striped",
-      headStyles: { fillColor: [59, 130, 246] },
-      margin: { left: 15, right: 15 },
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY;
-
-    // Detalhamento de Devoluções
-    if (
-      (resumo.devolucoes.quantidade > 0 ||
-        resumo.devolucoes_sem_credito.quantidade > 0) &&
-      devolucoesDetalhadas.length > 0
-    ) {
-      if (yPos > 245) {
-        doc.addPage();
-        yPos = 20;
-      } else {
-        yPos += 15;
-      }
-
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.text("Detalhamento de Devoluções", 15, yPos);
-      yPos += 5;
-
-      // Para cada devolução, mostrar cabeçalho e itens
-      devolucoesDetalhadas.forEach((dev, index) => {
-        if (yPos > 260) {
+        if (yPos > 262) {
           doc.addPage();
           yPos = 20;
         }
 
-        yPos += 8;
-
-        // Cabeçalho da devolução
-        doc.setFontSize(11);
+        yPos += 3;
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(239, 68, 68);
+        doc.setTextColor(147, 51, 234);
         doc.text(
-          `Devolução ${index + 1}: Venda #${dev.venda?.numero_venda} - ${dev.venda?.cliente?.nome || "Cliente"}`,
-          15,
+          `Total de OS: ${ordensServico.length} - ${formatarMoeda(ordensServico.reduce((sum, v) => sum + (v.valor || 0), 0))}`,
+          20,
           yPos,
         );
         doc.setTextColor(0, 0, 0);
+        yPos += 12;
+      }
+    }
+    // Demais detalhamentos (Tipo, Devoluções, Sangrias, Quebras) só no completo
+    if (tipoRelatorio === "completo") {
+      // Detalhamento por Tipo
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      yPos += 10;
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo por Tipo", 15, yPos);
+
+      yPos += 8;
+      const detalhamentoData = [
+        ["Tipo", "Quantidade", "Total"],
+        [
+          "Vendas",
+          (resumo.vendas?.quantidade || 0).toString(),
+          formatarMoeda(resumo.vendas?.total || 0),
+        ],
+        [
+          "Ordens de Serviço",
+          (resumo.ordens_servico?.quantidade || 0).toString(),
+          formatarMoeda(resumo.ordens_servico?.total || 0),
+        ],
+        [
+          "Sangrias",
+          (resumo.sangrias?.quantidade || 0).toString(),
+          formatarMoeda(resumo.sangrias?.total || 0),
+        ],
+        [
+          "Quebras",
+          (resumo.quebras?.quantidade || 0).toString(),
+          formatarMoeda(resumo.quebras?.total || 0),
+        ],
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [detalhamentoData[0]],
+        body: detalhamentoData.slice(1),
+        theme: "striped",
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 15, right: 15 },
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY;
+
+      // Detalhamento de Devoluções
+      if (
+        (resumo.devolucoes.quantidade > 0 ||
+          resumo.devolucoes_sem_credito.quantidade > 0) &&
+        devolucoesDetalhadas.length > 0
+      ) {
+        if (yPos > 245) {
+          doc.addPage();
+          yPos = 20;
+        } else {
+          yPos += 15;
+        }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Detalhamento de Devoluções", 15, yPos);
         yPos += 5;
 
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text(
-          `Data: ${formatarData(dev.criado_em)} | Tipo: ${dev.tipo === "com_credito" ? "Com Crédito" : "Sem Crédito"} | Forma: ${dev.forma_pagamento || "N/A"} | Total: ${formatarMoeda(dev.valor_total)}`,
-          15,
-          yPos,
-        );
-        yPos += 5;
+        // Para cada devolução, mostrar cabeçalho e itens
+        devolucoesDetalhadas.forEach((dev, index) => {
+          if (yPos > 260) {
+            doc.addPage();
+            yPos = 20;
+          }
 
-        if (dev.motivo) {
-          doc.setFont("helvetica", "italic");
-          doc.setTextColor(100, 100, 100);
-          doc.text(`Motivo: ${dev.motivo}`, 15, yPos);
+          yPos += 8;
+
+          // Cabeçalho da devolução
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(239, 68, 68);
+          doc.text(
+            `Devolução ${index + 1}: Venda #${dev.venda?.numero_venda} - ${dev.venda?.cliente?.nome || "Cliente"}`,
+            15,
+            yPos,
+          );
           doc.setTextColor(0, 0, 0);
           yPos += 5;
-        }
 
-        yPos += 2;
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "normal");
+          doc.text(
+            `Data: ${formatarData(dev.criado_em)} | Tipo: ${dev.tipo === "com_credito" ? "Com Crédito" : "Sem Crédito"} | Forma: ${dev.forma_pagamento || "N/A"} | Total: ${formatarMoeda(dev.valor_total)}`,
+            15,
+            yPos,
+          );
+          yPos += 5;
 
-        // Criar mapa de itens devolvidos
-        const itensDevolvidos = new Map();
+          if (dev.motivo) {
+            doc.setFont("helvetica", "italic");
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Motivo: ${dev.motivo}`, 15, yPos);
+            doc.setTextColor(0, 0, 0);
+            yPos += 5;
+          }
 
-        dev.itens?.forEach((item: any) => {
-          itensDevolvidos.set(item.item_venda_id, item.quantidade);
-        });
+          yPos += 2;
 
-        // Tabela de todos os itens da venda
-        if (dev.venda?.itens && dev.venda.itens.length > 0) {
-          const itensData = [
-            [
-              "Produto",
-              "Qtd Original",
-              "Qtd Devolvida",
-              "Qtd Restante",
-              "Valor Unit.",
-              "Status",
-            ],
-            ...dev.venda.itens.map((item: any) => {
-              const qtdDevolvidaNestaDevolucao =
-                itensDevolvidos.get(item.id) || 0;
-              const qtdRestante = item.quantidade - item.devolvido;
-              const status =
-                item.devolvido === item.quantidade
-                  ? "Devolvido Total"
-                  : item.devolvido > 0
-                    ? "Parcial"
-                    : "Nao Devolvido";
+          // Criar mapa de itens devolvidos
+          const itensDevolvidos = new Map();
 
-              return [
-                item.produto_nome || "N/A",
-                item.quantidade.toString(),
-                qtdDevolvidaNestaDevolucao > 0
-                  ? qtdDevolvidaNestaDevolucao.toString()
-                  : "-",
-                qtdRestante.toString(),
-                formatarMoeda(item.preco_unitario || 0),
-                status,
-              ];
-            }),
-          ];
-
-          autoTable(doc, {
-            startY: yPos,
-            head: [itensData[0]],
-            body: itensData.slice(1),
-            theme: "striped",
-            headStyles: { fillColor: [239, 68, 68], fontSize: 8 },
-            bodyStyles: { fontSize: 7 },
-            margin: { left: 20, right: 15 },
-            columnStyles: {
-              0: { cellWidth: 60 },
-              1: { cellWidth: 20, halign: "center" },
-              2: { cellWidth: 20, halign: "center" },
-              3: { cellWidth: 20, halign: "center" },
-              4: { cellWidth: 25, halign: "right" },
-              5: { cellWidth: 35, halign: "center" },
-            },
-            didParseCell: function (data: any) {
-              // Colorir células de status
-              if (data.column.index === 5 && data.section === "body") {
-                if (data.cell.raw.includes("Devolvido Total")) {
-                  data.cell.styles.textColor = [220, 38, 38]; // vermelho
-                } else if (data.cell.raw.includes("Parcial")) {
-                  data.cell.styles.textColor = [245, 158, 11]; // laranja
-                } else if (data.cell.raw.includes("Nao Devolvido")) {
-                  data.cell.styles.textColor = [34, 197, 94]; // verde
-                }
-              }
-            },
+          dev.itens?.forEach((item: any) => {
+            itensDevolvidos.set(item.item_venda_id, item.quantidade);
           });
 
-          yPos = (doc as any).lastAutoTable.finalY + 5;
+          // Tabela de todos os itens da venda
+          if (dev.venda?.itens && dev.venda.itens.length > 0) {
+            const itensData = [
+              [
+                "Produto",
+                "Qtd Original",
+                "Qtd Devolvida",
+                "Qtd Restante",
+                "Valor Unit.",
+                "Status",
+              ],
+              ...dev.venda.itens.map((item: any) => {
+                const qtdDevolvidaNestaDevolucao =
+                  itensDevolvidos.get(item.id) || 0;
+                const qtdRestante = item.quantidade - item.devolvido;
+                const status =
+                  item.devolvido === item.quantidade
+                    ? "Devolvido Total"
+                    : item.devolvido > 0
+                      ? "Parcial"
+                      : "Nao Devolvido";
+
+                return [
+                  item.produto_nome || "N/A",
+                  item.quantidade.toString(),
+                  qtdDevolvidaNestaDevolucao > 0
+                    ? qtdDevolvidaNestaDevolucao.toString()
+                    : "-",
+                  qtdRestante.toString(),
+                  formatarMoeda(item.preco_unitario || 0),
+                  status,
+                ];
+              }),
+            ];
+
+            autoTable(doc, {
+              startY: yPos,
+              head: [itensData[0]],
+              body: itensData.slice(1),
+              theme: "striped",
+              headStyles: { fillColor: [239, 68, 68], fontSize: 8 },
+              bodyStyles: { fontSize: 7 },
+              margin: { left: 20, right: 15 },
+              columnStyles: {
+                0: { cellWidth: 60 },
+                1: { cellWidth: 20, halign: "center" },
+                2: { cellWidth: 20, halign: "center" },
+                3: { cellWidth: 20, halign: "center" },
+                4: { cellWidth: 25, halign: "right" },
+                5: { cellWidth: 35, halign: "center" },
+              },
+              didParseCell: function (data: any) {
+                // Colorir células de status
+                if (data.column.index === 5 && data.section === "body") {
+                  if (data.cell.raw.includes("Devolvido Total")) {
+                    data.cell.styles.textColor = [220, 38, 38]; // vermelho
+                  } else if (data.cell.raw.includes("Parcial")) {
+                    data.cell.styles.textColor = [245, 158, 11]; // laranja
+                  } else if (data.cell.raw.includes("Nao Devolvido")) {
+                    data.cell.styles.textColor = [34, 197, 94]; // verde
+                  }
+                }
+              },
+            });
+
+            yPos = (doc as any).lastAutoTable.finalY + 5;
+          } else {
+            yPos += 3;
+          }
+        });
+      }
+
+      // Detalhamento de Sangrias (Manual) e Reembolsos
+      const sangriasTodas = movimentacoes.filter(
+        (mov) => mov.tipo === "sangria",
+      );
+      const sangriasManual = sangriasTodas.filter((mov) => !mov.eh_reembolso);
+      const reembolsos = sangriasTodas.filter((mov) => mov.eh_reembolso);
+
+      // ===== SANGRIAS MANUAIS =====
+      if (sangriasManual.length > 0) {
+        if (yPos > 245) {
+          doc.addPage();
+          yPos = 20;
         } else {
-          yPos += 3;
+          yPos += 15;
         }
-      });
-    }
 
-    // Detalhamento de Sangrias (Manual) e Reembolsos
-    const sangriasTodas = movimentacoes.filter((mov) => mov.tipo === "sangria");
-    const sangriasManual = sangriasTodas.filter((mov) => !mov.eh_reembolso);
-    const reembolsos = sangriasTodas.filter((mov) => mov.eh_reembolso);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(245, 158, 11);
+        doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text(
+          "SANGRIAS MANUAIS (Retirada de Dinheiro)",
+          pageWidth / 2,
+          yPos,
+          {
+            align: "center",
+          },
+        );
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
 
-    // ===== SANGRIAS MANUAIS =====
-    if (sangriasManual.length > 0) {
-      if (yPos > 245) {
-        doc.addPage();
-        yPos = 20;
-      } else {
-        yPos += 15;
+        const sangriasData = [
+          ["Data/Hora", "Motivo", "Valor", "Responsável"],
+          ...sangriasManual.map((sangria) => [
+            formatarData(sangria.data),
+            sangria.descricao.replace("Sangria Manual - ", ""),
+            formatarMoeda(Math.abs(sangria.valor)),
+            sangria.usuario_responsavel || "N/A",
+          ]),
+        ];
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [sangriasData[0]],
+          body: sangriasData.slice(1),
+          theme: "striped",
+          headStyles: { fillColor: [245, 158, 11] },
+          margin: { left: 15, right: 15 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 60 },
+            2: { cellWidth: 30, halign: "right" },
+            3: { cellWidth: 30 },
+          },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY;
       }
 
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(245, 158, 11);
-      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.text("SANGRIAS MANUAIS (Retirada de Dinheiro)", pageWidth / 2, yPos, {
-        align: "center",
-      });
-      doc.setTextColor(0, 0, 0);
-      yPos += 10;
+      // ===== REEMBOLSOS =====
+      if (reembolsos.length > 0) {
+        if (yPos > 245) {
+          doc.addPage();
+          yPos = 20;
+        } else {
+          yPos += 15;
+        }
 
-      const sangriasData = [
-        ["Data/Hora", "Motivo", "Valor", "Responsável"],
-        ...sangriasManual.map((sangria) => [
-          formatarData(sangria.data),
-          sangria.descricao.replace("Sangria Manual - ", ""),
-          formatarMoeda(Math.abs(sangria.valor)),
-          sangria.usuario_responsavel || "N/A",
-        ]),
-      ];
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(239, 68, 68);
+        doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text("REEMBOLSOS DE VENDAS", pageWidth / 2, yPos, {
+          align: "center",
+        });
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [sangriasData[0]],
-        body: sangriasData.slice(1),
-        theme: "striped",
-        headStyles: { fillColor: [245, 158, 11] },
-        margin: { left: 15, right: 15 },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 30, halign: "right" },
-          3: { cellWidth: 30 },
-        },
-      });
+        const reembolsosData = [
+          ["Data/Hora", "Venda", "Cliente", "Valor Reembolsado"],
+          ...reembolsos.map((reembolso) => {
+            // Extrair número da venda da descrição
+            const match = reembolso.descricao.match(/Venda #(\d+)/);
+            const numeroVenda = match ? match[1] : "N/A";
+            const clienteMatch = reembolso.descricao.match(/- (.+)$/);
+            const cliente = clienteMatch ? clienteMatch[1] : "Cliente";
 
-      yPos = (doc as any).lastAutoTable.finalY;
-    }
+            return [
+              formatarData(reembolso.data),
+              `#${numeroVenda}`,
+              cliente,
+              formatarMoeda(Math.abs(reembolso.valor)),
+            ];
+          }),
+        ];
 
-    // ===== REEMBOLSOS =====
-    if (reembolsos.length > 0) {
-      if (yPos > 245) {
-        doc.addPage();
-        yPos = 20;
-      } else {
-        yPos += 15;
+        autoTable(doc, {
+          startY: yPos,
+          head: [reembolsosData[0]],
+          body: reembolsosData.slice(1),
+          theme: "striped",
+          headStyles: { fillColor: [239, 68, 68] },
+          margin: { left: 15, right: 15 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 30, halign: "center" },
+            2: { cellWidth: 60 },
+            3: { cellWidth: 30, halign: "right" },
+          },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY;
       }
 
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(239, 68, 68);
-      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.text("REEMBOLSOS DE VENDAS", pageWidth / 2, yPos, {
-        align: "center",
-      });
-      doc.setTextColor(0, 0, 0);
-      yPos += 10;
+      // ===== REEMBOLSOS DE ORDEM DE SERVIÇO =====
+      const reembolsosOS = resumo.devolu_os_reembolso?.lista || [];
 
-      const reembolsosData = [
-        ["Data/Hora", "Venda", "Cliente", "Valor Reembolsado"],
-        ...reembolsos.map((reembolso) => {
-          // Extrair número da venda da descrição
-          const match = reembolso.descricao.match(/Venda #(\d+)/);
-          const numeroVenda = match ? match[1] : "N/A";
-          const clienteMatch = reembolso.descricao.match(/- (.+)$/);
-          const cliente = clienteMatch ? clienteMatch[1] : "Cliente";
+      if (reembolsosOS && reembolsosOS.length > 0) {
+        if (yPos > 245) {
+          doc.addPage();
+          yPos = 20;
+        } else {
+          yPos += 15;
+        }
 
-          return [
-            formatarData(reembolso.data),
-            `#${numeroVenda}`,
-            cliente,
-            formatarMoeda(Math.abs(reembolso.valor)),
-          ];
-        }),
-      ];
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(220, 38, 38);
+        doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+        doc.setTextColor(255, 255, 255);
+        doc.text("REEMBOLSOS DE ORDEM DE SERVIÇO", pageWidth / 2, yPos, {
+          align: "center",
+        });
+        doc.setTextColor(0, 0, 0);
+        yPos += 10;
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [reembolsosData[0]],
-        body: reembolsosData.slice(1),
-        theme: "striped",
-        headStyles: { fillColor: [239, 68, 68] },
-        margin: { left: 15, right: 15 },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 30, halign: "center" },
-          2: { cellWidth: 60 },
-          3: { cellWidth: 30, halign: "right" },
-        },
-      });
+        const reembolsosOSData = [
+          ["Data/Hora", "OS", "Cliente", "Valor Reembolsado"],
+          ...reembolsosOS.map((dev: any) => [
+            formatarData(dev.criado_em),
+            `#${dev.ordem_servico?.numero_os || "N/A"}`,
+            dev.ordem_servico?.cliente_nome || "Cliente",
+            formatarMoeda(dev.valor_total),
+          ]),
+        ];
 
-      yPos = (doc as any).lastAutoTable.finalY;
-    }
+        autoTable(doc, {
+          startY: yPos,
+          head: [reembolsosOSData[0]],
+          body: reembolsosOSData.slice(1),
+          theme: "striped",
+          headStyles: { fillColor: [220, 38, 38] },
+          margin: { left: 15, right: 15 },
+          columnStyles: {
+            0: { cellWidth: 40 },
+            1: { cellWidth: 30, halign: "center" },
+            2: { cellWidth: 60 },
+            3: { cellWidth: 30, halign: "right" },
+          },
+        });
 
-    // ===== REEMBOLSOS DE ORDEM DE SERVIÇO =====
-    const reembolsosOS = resumo.devolu_os_reembolso?.lista || [];
-
-    if (reembolsosOS && reembolsosOS.length > 0) {
-      if (yPos > 245) {
-        doc.addPage();
-        yPos = 20;
-      } else {
-        yPos += 15;
+        yPos = (doc as any).lastAutoTable.finalY;
       }
-
-      doc.setFontSize(14);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(220, 38, 38);
-      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.text("REEMBOLSOS DE ORDEM DE SERVIÇO", pageWidth / 2, yPos, {
-        align: "center",
-      });
-      doc.setTextColor(0, 0, 0);
-      yPos += 10;
-
-      const reembolsosOSData = [
-        ["Data/Hora", "OS", "Cliente", "Valor Reembolsado"],
-        ...reembolsosOS.map((dev: any) => [
-          formatarData(dev.criado_em),
-          `#${dev.ordem_servico?.numero_os || "N/A"}`,
-          dev.ordem_servico?.cliente_nome || "Cliente",
-          formatarMoeda(dev.valor_total),
-        ]),
-      ];
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [reembolsosOSData[0]],
-        body: reembolsosOSData.slice(1),
-        theme: "striped",
-        headStyles: { fillColor: [220, 38, 38] },
-        margin: { left: 15, right: 15 },
-        columnStyles: {
-          0: { cellWidth: 40 },
-          1: { cellWidth: 30, halign: "center" },
-          2: { cellWidth: 60 },
-          3: { cellWidth: 30, halign: "right" },
-        },
-      });
-
-      yPos = (doc as any).lastAutoTable.finalY;
-    }
     }
 
     // Rodapé
@@ -1817,7 +1858,8 @@ export default function CaixaPage() {
                       </p>
                       <p className="text-xl font-bold text-warning">
                         {formatarMoeda(
-                          resumoHistorico.totalSaldoFinal - resumoHistorico.totalSaldoInicial,
+                          resumoHistorico.totalSaldoFinal -
+                            resumoHistorico.totalSaldoInicial,
                         )}
                       </p>
                     </div>
@@ -2073,91 +2115,123 @@ export default function CaixaPage() {
               <div className="space-y-6">
                 {/* Resumo Geral */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <Card>
-                    <CardBody>
-                      <p className="text-xs text-default-500 mb-1">
-                        Saldo Inicial
-                      </p>
-                      <p className="text-xl font-bold">
-                        {formatarMoeda(resumo.saldo_inicial)}
-                      </p>
-                    </CardBody>
-                  </Card>
-                  <Card className="bg-success/10 border border-success/20">
-                    <CardBody>
-                      <p className="text-xs text-default-500 mb-1">
-                        Total Entradas
-                      </p>
-                      <p className="text-xl font-bold text-success">
-                        {formatarMoeda(resumo.total_entradas)}
-                      </p>
-                      <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] leading-tight">
-                        <span className="text-default-500">
-                          Vendas: <strong className="text-success/80">{formatarMoeda(resumo.vendas.total)}</strong>
-                          {resumo.vendas_aparelhos.quantidade > 0 && temPermissao("caixa.ver_aparelhos") && (
-                             <> · Aparelhos: <strong className="text-success/80">{formatarMoeda(resumo.vendas_aparelhos.total)}</strong></>
-                           )}
-                        </span>
-                        <span className="text-default-500">
-                          OS: <strong className="text-success/80">{formatarMoeda(resumo.ordens_servico.total)}</strong>
-                        </span>
-                      </div>
-                    </CardBody>
-                  </Card>
-                  <Card className="bg-danger/10 border border-danger/20">
-                    <CardBody>
-                      <p className="text-xs text-default-500 mb-1">
-                        Total Saídas
-                      </p>
-                      <p className="text-xl font-bold text-danger">
-                        {formatarMoeda(resumo.total_saidas)}
-                      </p>
-                    </CardBody>
-                  </Card>
-                  <Card className="bg-secondary/10 border border-secondary/20">
-                    <CardBody>
-                      <p className="text-xs text-default-500 mb-1">
-                        Saldo Movimentado
-                      </p>
-                      <p className="text-xl font-bold text-secondary">
-                        {formatarMoeda(
-                          resumo.total_entradas - resumo.total_saidas,
-                        )}
-                      </p>
-                    </CardBody>
-                  </Card>
-                  <Card className="bg-primary/10 border border-primary/20">
-                    <CardBody>
-                      <p className="text-xs text-default-500 mb-1">
-                        Saldo Esperado
-                      </p>
-                      <p className="text-xl font-bold text-primary">
-                        {formatarMoeda(resumo.saldo_esperado)}
-                      </p>
-                    </CardBody>
-                  </Card>
+                  {(() => {
+                    const temPermAparelhos = temPermissao(
+                      "caixa.ver_aparelhos",
+                    );
+                    const aparelhosTotal = resumo.vendas_aparelhos?.total || 0;
+                    const entradasExibir = temPermAparelhos
+                      ? resumo.total_entradas
+                      : resumo.total_entradas - aparelhosTotal;
+                    const saldoEsperadoExibir = temPermAparelhos
+                      ? resumo.saldo_esperado
+                      : resumo.saldo_esperado - aparelhosTotal;
 
-                  {/* Total Geral do Caixa */}
-                  <Card className="bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30 col-span-2">
-                    <CardBody>
-                      <div className="flex items-center gap-2 mb-1">
-                        <DollarSign className="w-5 h-5 text-success" />
-                        <p className="text-sm text-default-700 font-semibold">
-                          TOTAL GERAL DO CAIXA
-                        </p>
-                      </div>
-                      <p className="text-2xl font-bold text-success">
-                        {formatarMoeda(
-                          resumo.saldo_inicial +
-                            resumo.total_entradas -
-                            resumo.total_saidas,
-                        )}
-                      </p>
-                      <p className="text-xs text-default-500 mt-1">
-                        Saldo Inicial + Entradas - Saídas
-                      </p>
-                    </CardBody>
-                  </Card>
+                    return (
+                      <>
+                        <Card>
+                          <CardBody>
+                            <p className="text-xs text-default-500 mb-1">
+                              Saldo Inicial
+                            </p>
+                            <p className="text-xl font-bold">
+                              {formatarMoeda(resumo.saldo_inicial)}
+                            </p>
+                          </CardBody>
+                        </Card>
+                        <Card className="bg-success/10 border border-success/20">
+                          <CardBody>
+                            <p className="text-xs text-default-500 mb-1">
+                              Total Entradas
+                            </p>
+                            <p className="text-xl font-bold text-success">
+                              {formatarMoeda(entradasExibir)}
+                            </p>
+                            <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] leading-tight">
+                              <span className="text-default-500">
+                                Vendas:{" "}
+                                <strong className="text-success/80">
+                                  {formatarMoeda(resumo.vendas.total)}
+                                </strong>
+                                {resumo.vendas_aparelhos.quantidade > 0 &&
+                                  temPermAparelhos && (
+                                    <>
+                                      {" "}
+                                      · Aparelhos:{" "}
+                                      <strong className="text-success/80">
+                                        {formatarMoeda(
+                                          resumo.vendas_aparelhos.total,
+                                        )}
+                                      </strong>
+                                    </>
+                                  )}
+                              </span>
+                              <span className="text-default-500">
+                                OS:{" "}
+                                <strong className="text-success/80">
+                                  {formatarMoeda(resumo.ordens_servico.total)}
+                                </strong>
+                              </span>
+                            </div>
+                          </CardBody>
+                        </Card>
+                        <Card className="bg-danger/10 border border-danger/20">
+                          <CardBody>
+                            <p className="text-xs text-default-500 mb-1">
+                              Total Saídas
+                            </p>
+                            <p className="text-xl font-bold text-danger">
+                              {formatarMoeda(resumo.total_saidas)}
+                            </p>
+                          </CardBody>
+                        </Card>
+                        <Card className="bg-secondary/10 border border-secondary/20">
+                          <CardBody>
+                            <p className="text-xs text-default-500 mb-1">
+                              Saldo Movimentado
+                            </p>
+                            <p className="text-xl font-bold text-secondary">
+                              {formatarMoeda(
+                                entradasExibir - resumo.total_saidas,
+                              )}
+                            </p>
+                          </CardBody>
+                        </Card>
+                        <Card className="bg-primary/10 border border-primary/20">
+                          <CardBody>
+                            <p className="text-xs text-default-500 mb-1">
+                              Saldo Esperado
+                            </p>
+                            <p className="text-xl font-bold text-primary">
+                              {formatarMoeda(saldoEsperadoExibir)}
+                            </p>
+                          </CardBody>
+                        </Card>
+
+                        {/* Total Geral do Caixa */}
+                        <Card className="bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30 col-span-2">
+                          <CardBody>
+                            <div className="flex items-center gap-2 mb-1">
+                              <DollarSign className="w-5 h-5 text-success" />
+                              <p className="text-sm text-default-700 font-semibold">
+                                TOTAL GERAL DO CAIXA
+                              </p>
+                            </div>
+                            <p className="text-2xl font-bold text-success">
+                              {formatarMoeda(
+                                resumo.saldo_inicial +
+                                  entradasExibir -
+                                  resumo.total_saidas,
+                              )}
+                            </p>
+                            <p className="text-xs text-default-500 mt-1">
+                              Saldo Inicial + Entradas - Saídas
+                            </p>
+                          </CardBody>
+                        </Card>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Vendas */}
@@ -2195,40 +2269,42 @@ export default function CaixaPage() {
                 </Card>
 
                 {/* Vendas de Aparelhos */}
-                {resumo.vendas_aparelhos.quantidade > 0 && temPermissao("caixa.ver_aparelhos") && (
-                  <Card className="border-primary/30">
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-5 h-5 text-primary" />
-                        <span className="font-bold">
-                          Vendas de Aparelhos ({resumo.vendas_aparelhos.quantidade})
-                        </span>
-                        <span className="text-success font-bold ml-auto">
-                          {formatarMoeda(resumo.vendas_aparelhos.total)}
-                        </span>
-                      </div>
-                    </CardHeader>
-                    <CardBody>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {Object.entries(
-                          resumo.vendas_aparelhos.por_forma_pagamento,
-                        ).map(([forma, valor]) => (
-                          <div
-                            key={forma}
-                            className="bg-primary/5 p-3 rounded border border-primary/20"
-                          >
-                            <p className="text-xs text-default-600 capitalize">
-                              {forma.replace("_", " ")}
-                            </p>
-                            <p className="font-bold">
-                              {formatarMoeda(valor as number)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </CardBody>
-                  </Card>
-                )}
+                {resumo.vendas_aparelhos.quantidade > 0 &&
+                  temPermissao("caixa.ver_aparelhos") && (
+                    <Card className="border-primary/30">
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="w-5 h-5 text-primary" />
+                          <span className="font-bold">
+                            Vendas de Aparelhos (
+                            {resumo.vendas_aparelhos.quantidade})
+                          </span>
+                          <span className="text-success font-bold ml-auto">
+                            {formatarMoeda(resumo.vendas_aparelhos.total)}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      <CardBody>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {Object.entries(
+                            resumo.vendas_aparelhos.por_forma_pagamento,
+                          ).map(([forma, valor]) => (
+                            <div
+                              key={forma}
+                              className="bg-primary/5 p-3 rounded border border-primary/20"
+                            >
+                              <p className="text-xs text-default-600 capitalize">
+                                {forma.replace("_", " ")}
+                              </p>
+                              <p className="font-bold">
+                                {formatarMoeda(valor as number)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )}
 
                 {/* Ordens de Serviço */}
                 <Card>

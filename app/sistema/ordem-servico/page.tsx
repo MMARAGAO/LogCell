@@ -78,6 +78,7 @@ interface FiltrosOrdemServico {
   numeroOS?: number;
   dataInicio?: string;
   dataFim?: string;
+  busca?: string;
 }
 
 export default function OrdemServicoPage() {
@@ -181,11 +182,16 @@ export default function OrdemServicoPage() {
       console.log(`🏪 Filtrando Ordens de Serviço da loja ${lojaId}`);
     }
 
+    if (busca) {
+      filtros.busca = busca;
+    }
+
     const { data, error } = await buscarOrdensServico({
       status: filtros.status,
       id_loja: filtros.idLoja,
       data_inicio: filtros.dataInicio,
       data_fim: filtros.dataFim,
+      busca: filtros.busca,
     });
 
     if (data) {
@@ -220,6 +226,7 @@ export default function OrdemServicoPage() {
     podeVerTodasLojas,
     filtroDataInicio,
     filtroDataFim,
+    busca,
   ]);
 
   // Resetar página quando filtros mudarem
@@ -517,20 +524,6 @@ export default function OrdemServicoPage() {
 
   // Filtrar OS por busca (número, cliente, equipamento) e aplicar todos os filtros
   let ordensFiltradas = ordensServico.filter((os) => {
-    // Filtro de busca
-    if (busca) {
-      const buscaLower = busca.toLowerCase();
-      const matchBusca =
-        os.numero_os?.toString().includes(buscaLower) ||
-        os.cliente_nome?.toLowerCase().includes(buscaLower) ||
-        os.cliente_telefone?.includes(busca) ||
-        os.equipamento_tipo?.toLowerCase().includes(buscaLower) ||
-        os.equipamento_marca?.toLowerCase().includes(buscaLower) ||
-        os.equipamento_modelo?.toLowerCase().includes(buscaLower);
-
-      if (!matchBusca) return false;
-    }
-
     // Filtro de loja
     if (filtroLoja !== "todas") {
       if (os.id_loja?.toString() !== filtroLoja) return false;

@@ -154,6 +154,7 @@ export class CaixaService {
       if (filtros?.page && filtros?.pageSize) {
         const from = (filtros.page - 1) * filtros.pageSize;
         const to = from + filtros.pageSize - 1;
+
         query = query.range(from, to);
       }
 
@@ -228,7 +229,12 @@ export class CaixaService {
       const { data: aparelhosNoPeriodo } = await supabase
         .from("aparelhos")
         .select("venda_id")
-        .in("venda_id", vendaIdsNoPeriodo.length > 0 ? vendaIdsNoPeriodo : ['00000000-0000-0000-0000-000000000000']);
+        .in(
+          "venda_id",
+          vendaIdsNoPeriodo.length > 0
+            ? vendaIdsNoPeriodo
+            : ["00000000-0000-0000-0000-000000000000"],
+        );
       const vendasComAparelhos = new Set<string>(
         (aparelhosNoPeriodo || []).map((a: any) => a.venda_id),
       );
@@ -432,13 +438,15 @@ export class CaixaService {
           return sum + Number(pag.valor);
         }, 0);
 
-      const totalAparelhosSemCreditoIncluindoDevolvidas =
-        pagamentosLoja.reduce((sum: number, pag: any) => {
+      const totalAparelhosSemCreditoIncluindoDevolvidas = pagamentosLoja.reduce(
+        (sum: number, pag: any) => {
           if (pag.tipo_pagamento === "credito_cliente") return sum;
           if (!vendasComAparelhos.has(pag.venda?.id)) return sum;
 
           return sum + Number(pag.valor);
-        }, 0);
+        },
+        0,
+      );
 
       // Calcular resumo de ordens de serviço por forma de pagamento
       const osFormasPagamento: { [key: string]: number } = {};
@@ -577,7 +585,9 @@ export class CaixaService {
       return {
         vendas: {
           quantidade: quantidadePagamentosReais - quantidadeAparelhos, // Apenas vendas sem aparelho
-          total: totalPagamentosSemCreditoIncluindoDevolvidas - totalAparelhosSemCreditoIncluindoDevolvidas, // Total sem aparelho
+          total:
+            totalPagamentosSemCreditoIncluindoDevolvidas -
+            totalAparelhosSemCreditoIncluindoDevolvidas, // Total sem aparelho
           por_forma_pagamento: porFormaPagamento,
         },
         vendas_aparelhos: {
@@ -646,10 +656,12 @@ export class CaixaService {
   }
 
   // Buscar saldo esperado de múltiplos caixas de uma só vez (elimina N+1)
-  static async buscarSaldosEsperados(
-    caixas: CaixaCompleto[],
-  ): Promise<Map<string, number>> {
-    if (caixas.length === 0) return new Map();
+  static async buscarSaldosEsperados(caixas: CaixaCompleto[]): Promise<{
+    saldos: Map<string, number>;
+    aparelhosPorCaixa: Map<string, number>;
+  }> {
+    if (caixas.length === 0)
+      return { saldos: new Map(), aparelhosPorCaixa: new Map() };
 
     const dataMin = caixas.reduce(
       (min, c) => (c.data_abertura < min ? c.data_abertura : min),
@@ -658,7 +670,7 @@ export class CaixaService {
     const dataMax = caixas.reduce(
       (max, c) =>
         (c.data_fechamento || new Date().toISOString()) > max
-          ? (c.data_fechamento || new Date().toISOString())
+          ? c.data_fechamento || new Date().toISOString()
           : max,
       caixas[0].data_fechamento || new Date().toISOString(),
     );
@@ -739,6 +751,7 @@ export class CaixaService {
 
     // Calcular saldo esperado para cada caixa
     const result = new Map<string, number>();
+    const aparelhosResult = new Map<string, number>();
 
     for (const caixa of caixas) {
       const dataAbertura = caixa.data_abertura;
@@ -748,7 +761,7 @@ export class CaixaService {
       // Filtrar pagamentos dentro do período deste caixa (e da loja correta)
       const pagamentosLoja = (pagamentosVendas || []).filter(
         (pag: any) =>
-          pag.venda?.loja_id === lojaId &&
+          pag.venda?.loja_id === (caixa.loja_id) &&
           pag.criado_em >= dataAbertura &&
           pag.criado_em <= dataFechamento,
       );
@@ -756,7 +769,7 @@ export class CaixaService {
       // Filtrar devoluções dentro do período deste caixa (e da loja correta)
       const devolucoesLoja = (devolucoes || []).filter(
         (dev: any) =>
-          dev.venda?.loja_id === lojaId &&
+          dev.venda?.loja_id === (caixa.loja_id) &&
           dev.criado_em >= dataAbertura &&
           dev.criado_em <= dataFechamento,
       );
@@ -812,6 +825,26 @@ export class CaixaService {
         )
         .reduce((sum: number, dev: any) => sum + Number(dev.valor_total), 0);
 
+      // Calcular total de aparelhos vendidos neste caixa (query por venda_ids filtrados, igual ao modal)
+      const vendaIdsCaixa = Array.from(
+        new Set(
+          pagamentosLoja
+            .map((p: any) => p.venda?.id)
+            .filter(Boolean) as string[],
+        ),
+      );
+      let totalAparelhosNoCaixa = 0;
+      if (vendaIdsCaixa.length > 0) {
+        const { data: dataAp } = await supabase
+          .from("aparelhos")
+          .select("valor_venda")
+          .in("venda_id", vendaIdsCaixa);
+        totalAparelhosNoCaixa = (dataAp || []).reduce(
+          (s: number, a: any) => s + Number(a.valor_venda || 0),
+          0,
+        );
+      }
+
       const saldoEsperado =
         Number(caixa.saldo_inicial) +
         totalPagamentosSemCredito +
@@ -821,9 +854,10 @@ export class CaixaService {
         totalSangrias;
 
       result.set(caixa.id, saldoEsperado);
+      aparelhosResult.set(caixa.id, totalAparelhosNoCaixa);
     }
 
-    return result;
+    return { saldos: result, aparelhosPorCaixa: aparelhosResult };
   }
 
   // Buscar resumo agregado do histórico (totais de todos os caixas, sem paginação)
@@ -874,6 +908,7 @@ export class CaixaService {
       };
     } catch (error: any) {
       console.error("Erro ao buscar resumo do histórico:", error);
+
       return { totalCaixas: 0, totalSaldoInicial: 0, totalSaldoFinal: 0 };
     }
   }
@@ -1170,6 +1205,7 @@ export class CaixaService {
       return new Set(aparelhos.map((a: any) => a.venda_id));
     } catch (error: any) {
       console.error("Erro ao buscar vendas com aparelhos:", error);
+
       return new Set();
     }
   }

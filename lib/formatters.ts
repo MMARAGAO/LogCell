@@ -68,7 +68,9 @@ export function formatarData(data: string | Date | null | undefined): string {
 export function formatarDataUtc(data: string | null | undefined): string {
   if (!data) return "-";
   const parts = data.split("T")[0].split("-");
+
   if (parts.length !== 3) return data;
+
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 

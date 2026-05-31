@@ -102,6 +102,7 @@ export async function getAparelhos(
     if (filtros?.page && filtros?.pageSize) {
       const from = (filtros.page - 1) * filtros.pageSize;
       const to = from + filtros.pageSize - 1;
+
       query = query.range(from, to);
     }
 

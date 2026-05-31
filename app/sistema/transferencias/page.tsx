@@ -1032,8 +1032,8 @@ export default function TransferenciasPage() {
       <ConfirmModal
         confirmColor="primary"
         confirmText="Confirmar Transferência"
-        isOpen={confirmarModal.isOpen}
         isLoading={!!processando}
+        isOpen={confirmarModal.isOpen}
         message={
           confirmarModal.transferencia
             ? `Confirmar transferência de ${confirmarModal.transferencia.itens.length} produto(s) da ${confirmarModal.transferencia.loja_origem} para ${confirmarModal.transferencia.loja_destino}?\n\nEsta ação irá movimentar o estoque e não poderá ser desfeita.`
@@ -1049,6 +1049,8 @@ export default function TransferenciasPage() {
       {/* Modal de Ajuste de Quantidades */}
       <ModalAjustarTransferencia
         isOpen={ajustarModal.isOpen}
+        itens={ajustarModal.itens}
+        processando={!!processando}
         transferencia={
           ajustarModal.transferencia
             ? {
@@ -1057,8 +1059,6 @@ export default function TransferenciasPage() {
               }
             : null
         }
-        itens={ajustarModal.itens}
-        processando={!!processando}
         onClose={() =>
           setAjustarModal({ isOpen: false, transferencia: null, itens: [] })
         }

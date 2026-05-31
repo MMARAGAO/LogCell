@@ -64,8 +64,21 @@ import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
 
 const ITENS_POR_PAGINA = 12;
 const MARCAS = [
-  "Apple", "Samsung", "Motorola", "Xiaomi", "LG", "Multilaser", "Positivo",
-  "Asus", "Nokia", "Huawei", "Sony", "Google", "OnePlus", "Realme", "Outro",
+  "Apple",
+  "Samsung",
+  "Motorola",
+  "Xiaomi",
+  "LG",
+  "Multilaser",
+  "Positivo",
+  "Asus",
+  "Nokia",
+  "Huawei",
+  "Sony",
+  "Google",
+  "OnePlus",
+  "Realme",
+  "Outro",
 ];
 const FORMAS_PAGAMENTO = [
   { value: "dinheiro", label: "Dinheiro" },
@@ -223,11 +236,33 @@ export default function VendasAparelhosPage() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro, ordenacao]);
+  }, [
+    debouncedBusca,
+    periodo,
+    dataInicio,
+    dataFim,
+    selectedTab,
+    marcaFiltro,
+    formaPagamentoFiltro,
+    clienteFiltro,
+    statusFiltro,
+    ordenacao,
+  ]);
 
   useEffect(() => {
     carregarVendas(true);
-  }, [debouncedBusca, periodo, dataInicio, dataFim, selectedTab, marcaFiltro, formaPagamentoFiltro, clienteFiltro, statusFiltro, ordenacao]);
+  }, [
+    debouncedBusca,
+    periodo,
+    dataInicio,
+    dataFim,
+    selectedTab,
+    marcaFiltro,
+    formaPagamentoFiltro,
+    clienteFiltro,
+    statusFiltro,
+    ordenacao,
+  ]);
 
   useEffect(() => {
     carregarVendas(false);
@@ -275,16 +310,23 @@ export default function VendasAparelhosPage() {
 
       // Filtro por status da venda
       if (statusFiltro) {
-        const statusVenda = statusFiltro === "concluida" ? "concluida" : "em_andamento";
+        const statusVenda =
+          statusFiltro === "concluida" ? "concluida" : "em_andamento";
         const { data: vendasStatus } = await supabase
           .from("vendas")
           .select("id")
           .eq("status", statusVenda);
 
-        const vendasIdsStatus = Array.from(new Set(vendasStatus?.map((v: any) => v.id) || []));
+        const vendasIdsStatus = Array.from(
+          new Set(vendasStatus?.map((v: any) => v.id) || []),
+        );
 
         if (vendasIdsStatus.length > 0) {
-          filtros.push(["in", "venda_id", `(${vendasIdsStatus.map((id) => `"${id}"`).join(",")})`]);
+          filtros.push([
+            "in",
+            "venda_id",
+            `(${vendasIdsStatus.map((id) => `"${id}"`).join(",")})`,
+          ]);
         } else {
           filtros.push(["eq", "venda_id", '""']);
         }
@@ -292,14 +334,22 @@ export default function VendasAparelhosPage() {
 
       // Filtro por forma de pagamento
       let vendasIdsFormaPagamento: string[] | null = null;
+
       if (formaPagamentoFiltro) {
         const { data: pagtos } = await supabase
           .from("pagamentos_venda")
           .select("venda_id")
           .eq("tipo_pagamento", formaPagamentoFiltro);
-        vendasIdsFormaPagamento = Array.from(new Set(pagtos?.map((p: any) => p.venda_id) || []));
+
+        vendasIdsFormaPagamento = Array.from(
+          new Set(pagtos?.map((p: any) => p.venda_id) || []),
+        );
         if (vendasIdsFormaPagamento.length > 0) {
-          filtros.push(["in", "venda_id", `(${vendasIdsFormaPagamento.map((id) => `"${id}"`).join(",")})`]);
+          filtros.push([
+            "in",
+            "venda_id",
+            `(${vendasIdsFormaPagamento.map((id) => `"${id}"`).join(",")})`,
+          ]);
         } else {
           filtros.push(["eq", "venda_id", '""']); // força resultado vazio
         }
@@ -320,10 +370,16 @@ export default function VendasAparelhosPage() {
             .select("id")
             .in("cliente_id", clienteIds);
 
-          const vendasIdsCliente = Array.from(new Set(vendasCliente?.map((v: any) => v.id) || []));
+          const vendasIdsCliente = Array.from(
+            new Set(vendasCliente?.map((v: any) => v.id) || []),
+          );
 
           if (vendasIdsCliente.length > 0) {
-            filtros.push(["in", "venda_id", `(${vendasIdsCliente.map((id) => `"${id}"`).join(",")})`]);
+            filtros.push([
+              "in",
+              "venda_id",
+              `(${vendasIdsCliente.map((id) => `"${id}"`).join(",")})`,
+            ]);
           } else {
             filtros.push(["eq", "venda_id", '""']);
           }
@@ -340,6 +396,7 @@ export default function VendasAparelhosPage() {
         .not("venda_id", "is", null);
 
       let allQueryBuilder: any = allQuery;
+
       filtros.forEach((f) => {
         if (f[0] === "gte")
           allQueryBuilder = allQueryBuilder.gte(f[1], f[2].replace(/"/g, ""));
@@ -348,7 +405,11 @@ export default function VendasAparelhosPage() {
         else if (f[0] === "eq")
           allQueryBuilder = allQueryBuilder.eq(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "in") {
-          const ids = f[2].replace(/[\(\)"]/g, "").split(",").filter(Boolean);
+          const ids = f[2]
+            .replace(/[\(\)"]/g, "")
+            .split(",")
+            .filter(Boolean);
+
           if (ids.length > 0) allQueryBuilder = allQueryBuilder.in(f[1], ids);
         } else if (f[0] === "or")
           allQueryBuilder = allQueryBuilder.or(f[1].replace(/%25/g, "%"));
@@ -419,7 +480,8 @@ export default function VendasAparelhosPage() {
           const pagtoValor =
             allPagtos
               ?.filter((p: any) => p.venda_id === a.venda_id)
-              .reduce((s: number, p: any) => s + (p.liquido ?? p.valor), 0) || 0;
+              .reduce((s: number, p: any) => s + (p.liquido ?? p.valor), 0) ||
+            0;
 
           totalLucro += pagtoValor - (a.valor_compra || 0) - custoBrindes;
           if (allVendasStatus.get(a.venda_id) === "em_andamento") pendentes++;
@@ -451,15 +513,23 @@ export default function VendasAparelhosPage() {
         .not("venda_id", "is", null);
 
       let queryBuilder: any = query;
+
       filtros.forEach((f) => {
-        if (f[0] === "gte") queryBuilder = queryBuilder.gte(f[1], f[2].replace(/"/g, ""));
+        if (f[0] === "gte")
+          queryBuilder = queryBuilder.gte(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "lte")
           queryBuilder = queryBuilder.lte(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "eq") queryBuilder = queryBuilder.eq(f[1], f[2].replace(/"/g, ""));
+        else if (f[0] === "eq")
+          queryBuilder = queryBuilder.eq(f[1], f[2].replace(/"/g, ""));
         else if (f[0] === "in") {
-          const ids = f[2].replace(/[\(\)"]/g, "").split(",").filter(Boolean);
+          const ids = f[2]
+            .replace(/[\(\)"]/g, "")
+            .split(",")
+            .filter(Boolean);
+
           if (ids.length > 0) queryBuilder = queryBuilder.in(f[1], ids);
-        } else if (f[0] === "or") queryBuilder = queryBuilder.or(f[1].replace(/%25/g, "%"));
+        } else if (f[0] === "or")
+          queryBuilder = queryBuilder.or(f[1].replace(/%25/g, "%"));
       });
       query = queryBuilder;
       const { data: aparelhos } = await query
@@ -882,9 +952,7 @@ export default function VendasAparelhosPage() {
 
     if (!win) return;
     const garantiaDias = v.garantia_dias || 90;
-    const dataVenda = v.data_venda
-      ? formatarDataUtc(v.data_venda)
-      : "";
+    const dataVenda = v.data_venda ? formatarDataUtc(v.data_venda) : "";
     const dataFimGarantia = v.data_venda
       ? new Date(
           new Date(v.data_venda).getTime() + garantiaDias * 86400000,
@@ -1266,9 +1334,11 @@ export default function VendasAparelhosPage() {
               }
             >
               <SelectItem key="">Todas</SelectItem>
-              <>{MARCAS.map((m) => (
-                <SelectItem key={m}>{m}</SelectItem>
-              ))}</>
+              <>
+                {MARCAS.map((m) => (
+                  <SelectItem key={m}>{m}</SelectItem>
+                ))}
+              </>
             </Select>
             <Select
               classNames={{
@@ -1286,16 +1356,18 @@ export default function VendasAparelhosPage() {
               }
             >
               <SelectItem key="">Todas</SelectItem>
-              <>{FORMAS_PAGAMENTO.map((fp) => (
-                <SelectItem key={fp.value}>{fp.label}</SelectItem>
-              ))}</>
+              <>
+                {FORMAS_PAGAMENTO.map((fp) => (
+                  <SelectItem key={fp.value}>{fp.label}</SelectItem>
+                ))}
+              </>
             </Select>
             <Input
+              isClearable
               classNames={{
                 inputWrapper:
                   "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
               }}
-              isClearable
               label="Cliente"
               labelPlacement="outside"
               placeholder="Nome do cliente"
@@ -1985,9 +2057,7 @@ export default function VendasAparelhosPage() {
                           </span>
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-400">
-                          {v.data_venda
-                            ? formatarDataUtc(v.data_venda)
-                            : "—"}
+                          {v.data_venda ? formatarDataUtc(v.data_venda) : "—"}
                         </td>
                         <td className="py-3 px-4">
                           <Dropdown>
@@ -2170,8 +2240,7 @@ export default function VendasAparelhosPage() {
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {v.imei && <span className="font-mono">{v.imei}</span>}
-              {v.data_venda &&
-                ` • ${formatarDataUtc(v.data_venda)}`}
+              {v.data_venda && ` • ${formatarDataUtc(v.data_venda)}`}
             </p>
           </div>
           <div className="text-right shrink-0">
@@ -2256,9 +2325,17 @@ export default function VendasAparelhosPage() {
                   <span className="text-[9px] text-amber-500 dark:text-amber-400 ml-2 leading-tight">
                     {(() => {
                       try {
-                        const d = typeof p.observacao === "string" ? JSON.parse(p.observacao) : p.observacao;
-                        return [d.modelo, d.imei, d.cor, d.armazenamento].filter(Boolean).join(" · ");
-                      } catch { return p.observacao; }
+                        const d =
+                          typeof p.observacao === "string"
+                            ? JSON.parse(p.observacao)
+                            : p.observacao;
+
+                        return [d.modelo, d.imei, d.cor, d.armazenamento]
+                          .filter(Boolean)
+                          .join(" · ");
+                      } catch {
+                        return p.observacao;
+                      }
                     })()}
                   </span>
                 )}

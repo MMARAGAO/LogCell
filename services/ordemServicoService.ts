@@ -28,6 +28,7 @@ export async function buscarOrdensServico(filtros?: {
   numero_os?: number;
   data_inicio?: string;
   data_fim?: string;
+  busca?: string;
 }) {
   try {
     let query = supabase
@@ -73,7 +74,19 @@ export async function buscarOrdensServico(filtros?: {
       query = query.lte("data_entrada", dataFimCompleta);
     }
 
-    query = query.limit(200);
+    if (filtros?.busca) {
+      const termo = filtros.busca.trim();
+
+      if (/^\d+$/.test(termo)) {
+        query = query.eq("numero_os", parseInt(termo));
+      } else {
+        query = query.or(
+          `cliente_nome.ilike.%${termo}%,cliente_telefone.ilike.%${termo}%,equipamento_tipo.ilike.%${termo}%,equipamento_marca.ilike.%${termo}%,equipamento_modelo.ilike.%${termo}%`,
+        );
+      }
+    } else {
+      query = query.limit(200);
+    }
 
     const { data, error } = await query;
 
