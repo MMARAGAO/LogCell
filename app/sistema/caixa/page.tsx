@@ -2094,9 +2094,9 @@ export default function CaixaPage() {
                       <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] leading-tight">
                         <span className="text-default-500">
                           Vendas: <strong className="text-success/80">{formatarMoeda(resumo.vendas.total)}</strong>
-                          {resumo.vendas_aparelhos.quantidade > 0 && (
-                            <> · Aparelhos: <strong className="text-success/80">{formatarMoeda(resumo.vendas_aparelhos.total)}</strong></>
-                          )}
+                          {resumo.vendas_aparelhos.quantidade > 0 && temPermissao("caixa.ver_aparelhos") && (
+                             <> · Aparelhos: <strong className="text-success/80">{formatarMoeda(resumo.vendas_aparelhos.total)}</strong></>
+                           )}
                         </span>
                         <span className="text-default-500">
                           OS: <strong className="text-success/80">{formatarMoeda(resumo.ordens_servico.total)}</strong>
@@ -2195,7 +2195,7 @@ export default function CaixaPage() {
                 </Card>
 
                 {/* Vendas de Aparelhos */}
-                {resumo.vendas_aparelhos.quantidade > 0 && (
+                {resumo.vendas_aparelhos.quantidade > 0 && temPermissao("caixa.ver_aparelhos") && (
                   <Card className="border-primary/30">
                     <CardHeader>
                       <div className="flex items-center gap-2">
@@ -2836,13 +2836,15 @@ export default function CaixaPage() {
             )}
           </ModalBody>
           <ModalFooter>
-            <Button
-              color="success"
-              startContent={<Smartphone className="w-4 h-4" />}
-              onPress={() => gerarPDFCaixa("aparelhos")}
-            >
-              Relatório Aparelhos
-            </Button>
+            {temPermissao("caixa.ver_aparelhos") && (
+              <Button
+                color="success"
+                startContent={<Smartphone className="w-4 h-4" />}
+                onPress={() => gerarPDFCaixa("aparelhos")}
+              >
+                Relatório Aparelhos
+              </Button>
+            )}
             <Button
               color="primary"
               startContent={<ShoppingCart className="w-4 h-4" />}

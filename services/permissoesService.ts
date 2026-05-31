@@ -234,6 +234,7 @@ export class PermissoesService {
         abrir: false,
         fechar: false,
         visualizar_movimentacoes: false,
+        ver_aparelhos: false,
       },
       financeiro: {
         visualizar: false,
@@ -376,6 +377,7 @@ export class PermissoesService {
         abrir: true,
         fechar: true,
         visualizar_movimentacoes: true,
+        ver_aparelhos: true,
       },
       financeiro: {
         visualizar: true,

@@ -1454,6 +1454,14 @@ export function PermissoesModal({
                   >
                     Visualizar Movimentações
                   </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.caixa?.ver_aparelhos}
+                    onValueChange={() =>
+                      handleTogglePermissao("caixa", "ver_aparelhos")
+                    }
+                  >
+                    Ver Vendas de Aparelhos
+                  </Checkbox>
                 </div>
               </div>
 

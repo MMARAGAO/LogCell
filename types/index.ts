@@ -166,6 +166,7 @@ export interface PermissoesModulos {
     abrir: boolean;
     fechar: boolean;
     visualizar_movimentacoes: boolean;
+    ver_aparelhos: boolean;
   };
   financeiro?: {
     visualizar: boolean;

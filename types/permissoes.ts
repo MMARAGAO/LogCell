@@ -72,6 +72,7 @@ export type Permissao =
   | "caixa.sangria"
   | "caixa.suprimento"
   | "caixa.visualizar_movimentacoes"
+  | "caixa.ver_aparelhos"
   // Dashboard
   | "dashboard.visualizar"
   | "dashboard.financeiro"
@@ -212,6 +213,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "caixa.sangria",
     "caixa.suprimento",
     "caixa.visualizar_movimentacoes",
+    "caixa.ver_aparelhos",
     "dashboard.visualizar",
     "dashboard.financeiro",
     "dashboard.ver_relatorios",
@@ -326,6 +328,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "caixa.sangria",
     "caixa.suprimento",
     "caixa.visualizar_movimentacoes",
+    "caixa.ver_aparelhos",
     "dashboard.visualizar",
     "dashboard.financeiro",
     "dashboard.ver_relatorios",
