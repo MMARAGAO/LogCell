@@ -272,6 +272,7 @@ export interface Produto {
   preco_venda?: number;
   quantidade_minima: number;
   ativo: boolean;
+  is_acessorio?: boolean;
   criado_por?: string;
   criado_em: string;
   atualizado_por?: string;

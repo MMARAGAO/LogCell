@@ -45,6 +45,7 @@ export default function ProdutoFormModal({
     preco_venda: undefined,
     quantidade_minima: 0,
     ativo: true,
+    is_acessorio: false,
   });
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function ProdutoFormModal({
         preco_venda: produto.preco_venda,
         quantidade_minima: produto.quantidade_minima,
         ativo: produto.ativo,
+        is_acessorio: produto.is_acessorio,
       });
       setPorcentagemGanho("");
     } else {
@@ -74,6 +76,7 @@ export default function ProdutoFormModal({
         preco_venda: undefined,
         quantidade_minima: 0,
         ativo: true,
+        is_acessorio: false,
       });
       setPorcentagemGanho("");
     }
@@ -336,6 +339,18 @@ export default function ProdutoFormModal({
                 }
               >
                 Produto Ativo
+              </Switch>
+            </div>
+
+            {/* É Acessório */}
+            <div className="flex items-center">
+              <Switch
+                isSelected={formData.is_acessorio}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, is_acessorio: value })
+                }
+              >
+                É Acessório
               </Switch>
             </div>
           </div>

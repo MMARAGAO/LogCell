@@ -239,6 +239,43 @@ export class CaixaService {
         (aparelhosNoPeriodo || []).map((a: any) => a.venda_id),
       );
 
+      // Buscar itens de venda para separar acessórios no resumo
+      const vendasNormaisIds = vendaIdsNoPeriodo.filter(
+        (id: string) => !vendasComAparelhos.has(id),
+      );
+      const { data: itensVenda } = await supabase
+        .from("itens_venda")
+        .select(
+          `
+          subtotal,
+          venda_id,
+          produto:produtos!itens_venda_produto_id_fkey(is_acessorio)
+        `,
+        )
+        .in(
+          "venda_id",
+          vendasNormaisIds.length > 0
+            ? vendasNormaisIds
+            : ["00000000-0000-0000-0000-000000000000"],
+        );
+
+      let subtotalAcessorios = 0;
+      let subtotalProdutos = 0;
+      const vendasComAcessorios = new Set<string>();
+
+      (itensVenda || []).forEach((item: any) => {
+        if (item.produto?.is_acessorio) {
+          subtotalAcessorios += Number(item.subtotal || 0);
+          vendasComAcessorios.add(item.venda_id);
+        } else {
+          subtotalProdutos += Number(item.subtotal || 0);
+        }
+      });
+
+      const totalSubtotal = subtotalAcessorios + subtotalProdutos;
+      const ratioAcessorios =
+        totalSubtotal > 0 ? subtotalAcessorios / totalSubtotal : 0;
+
       // Buscar devoluções do período
       const { data: devolucoesRaw, error: erroDevolucoes } = await supabase
         .from("devolucoes_venda")
@@ -582,18 +619,25 @@ export class CaixaService {
         ? Number(caixa.saldo_final) - saldoEsperado
         : undefined;
 
+      const totalVendasOriginal =
+        totalPagamentosSemCreditoIncluindoDevolvidas -
+        totalAparelhosSemCreditoIncluindoDevolvidas; // Total sem aparelho (inclui acessórios)
+      const totalAcessorios = totalVendasOriginal * ratioAcessorios;
+
       return {
         vendas: {
           quantidade: quantidadePagamentosReais - quantidadeAparelhos, // Apenas vendas sem aparelho
-          total:
-            totalPagamentosSemCreditoIncluindoDevolvidas -
-            totalAparelhosSemCreditoIncluindoDevolvidas, // Total sem aparelho
+          total: totalVendasOriginal - totalAcessorios, // Total sem aparelho e sem acessórios
           por_forma_pagamento: porFormaPagamento,
         },
         vendas_aparelhos: {
           quantidade: quantidadeAparelhos,
           total: totalAparelhosSemCreditoIncluindoDevolvidas,
           por_forma_pagamento: porFormaPagamentoAparelhos,
+        },
+        vendas_acessorios: {
+          quantidade: vendasComAcessorios.size,
+          total: totalAcessorios,
         },
         devolucoes: {
           quantidade: devolucoesLoja.length,
@@ -751,13 +795,12 @@ export class CaixaService {
 
     for (const caixa of caixas) {
       const dataAbertura = caixa.data_abertura;
-      const dataFechamento =
-        caixa.data_fechamento || new Date().toISOString();
+      const dataFechamento = caixa.data_fechamento || new Date().toISOString();
 
       // Filtrar pagamentos dentro do período deste caixa (e da loja correta)
       const pagamentosLoja = (pagamentosVendas || []).filter(
         (pag: any) =>
-          pag.venda?.loja_id === (caixa.loja_id) &&
+          pag.venda?.loja_id === caixa.loja_id &&
           pag.criado_em >= dataAbertura &&
           pag.criado_em <= dataFechamento,
       );
@@ -765,13 +808,14 @@ export class CaixaService {
       // Filtrar devoluções dentro do período deste caixa (e da loja correta)
       const devolucoesLoja = (devolucoes || []).filter(
         (dev: any) =>
-          dev.venda?.loja_id === (caixa.loja_id) &&
+          dev.venda?.loja_id === caixa.loja_id &&
           dev.criado_em >= dataAbertura &&
           dev.criado_em <= dataFechamento,
       );
 
       // Identificar devoluções sem crédito no mesmo dia
       const vendasDevolvidasSemCredito = new Set<string>();
+
       devolucoesLoja.forEach((dev: any) => {
         if (dev.tipo !== "sem_credito") return;
         const vendaCriadaEm = new Date(dev.venda?.criado_em);
@@ -780,6 +824,7 @@ export class CaixaService {
         const mesmodia =
           vendaCriadaEm.toDateString() === caixaAberturaData.toDateString() &&
           devolucaoCriadaEm.toDateString() === caixaAberturaData.toDateString();
+
         if (mesmodia && dev.venda_id) {
           vendasDevolvidasSemCredito.add(dev.venda_id);
         }
@@ -787,6 +832,7 @@ export class CaixaService {
 
       // Calcular total de pagamentos sem crédito
       let totalPagamentosSemCredito = 0;
+
       pagamentosLoja.forEach((pag: any) => {
         if (vendasDevolvidasSemCredito.has(pag.venda?.id)) return;
         if (pag.tipo_pagamento === "credito_cliente") return;
@@ -833,11 +879,13 @@ export class CaixaService {
         ),
       );
       let totalAparelhosNoCaixa = 0;
+
       if (vendaIdsCaixa.length > 0) {
         const { data: dataAp } = await supabase
           .from("aparelhos")
           .select("valor_venda")
           .in("venda_id", vendaIdsCaixa);
+
         totalAparelhosNoCaixa = (dataAp || []).reduce(
           (s: number, a: any) => s + Number(a.valor_venda || 0),
           0,

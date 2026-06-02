@@ -85,6 +85,10 @@ export interface ResumoCaixa {
       [key: string]: number;
     };
   };
+  vendas_acessorios: {
+    quantidade: number;
+    total: number;
+  };
   devolucoes: {
     quantidade: number;
     total: number;

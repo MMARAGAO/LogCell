@@ -2153,6 +2153,17 @@ export default function CaixaPage() {
                                 <strong className="text-success/80">
                                   {formatarMoeda(resumo.vendas.total)}
                                 </strong>
+                                {resumo.vendas_acessorios?.total > 0 && (
+                                  <>
+                                    {" "}
+                                    · Acessórios:{" "}
+                                    <strong className="text-success/80">
+                                      {formatarMoeda(
+                                        resumo.vendas_acessorios.total,
+                                      )}
+                                    </strong>
+                                  </>
+                                )}
                                 {resumo.vendas_aparelhos.quantidade > 0 &&
                                   temPermAparelhos && (
                                     <>
@@ -2305,6 +2316,24 @@ export default function CaixaPage() {
                       </CardBody>
                     </Card>
                   )}
+
+                {/* Vendas de Acessórios */}
+                {resumo.vendas_acessorios?.total > 0 && (
+                  <Card className="border-warning/30">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-warning" />
+                        <span className="font-bold">
+                          Vendas de Acessórios (
+                          {resumo.vendas_acessorios.quantidade})
+                        </span>
+                        <span className="text-success font-bold ml-auto">
+                          {formatarMoeda(resumo.vendas_acessorios.total)}
+                        </span>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                )}
 
                 {/* Ordens de Serviço */}
                 <Card>
