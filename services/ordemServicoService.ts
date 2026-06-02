@@ -82,7 +82,7 @@ export async function buscarOrdensServico(filtros?: {
       } else {
         query = query.or(
           `cliente_nome.ilike.%${termo}%,cliente_telefone.ilike.%${termo}%,equipamento_tipo.ilike.%${termo}%,equipamento_marca.ilike.%${termo}%,equipamento_modelo.ilike.%${termo}%`,
-        );
+        ).limit(10000);
       }
     } else {
       query = query.limit(200);
@@ -1166,7 +1166,8 @@ export async function buscarOSPorCliente(
         loja:lojas!id_loja(id, nome)
       `,
       )
-      .order("data_entrada", { ascending: false });
+      .order("data_entrada", { ascending: false })
+      .limit(10000);
 
     if (clienteNome) {
       query = query.ilike("cliente_nome", `%${clienteNome}%`);
@@ -1215,7 +1216,8 @@ export async function buscarLancamentosCaixaOS(idLoja?: number) {
         )
       `,
       )
-      .order("criado_em", { ascending: false });
+      .order("criado_em", { ascending: false })
+      .limit(10000);
 
     if (idLoja) {
       query = query.eq("id_loja", idLoja);

@@ -22,7 +22,8 @@ export class TecnicosService {
           lojas:id_loja(nome)
         `,
         )
-        .order("nome");
+        .order("nome")
+        .limit(10000);
 
       if (filtros?.ativo !== undefined) {
         query = query.eq("ativo", filtros.ativo);
@@ -208,7 +209,8 @@ export class TecnicosService {
         .select("*")
         .contains("especialidades", [especialidade])
         .eq("ativo", true)
-        .order("nome");
+        .order("nome")
+        .limit(10000);
 
       if (error) {
         console.error("Erro ao buscar técnicos por especialidade:", error);

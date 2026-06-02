@@ -105,7 +105,8 @@ export async function getTaxasCartao(
       .select("*")
       .order("tipo_produto")
       .order("forma_pagamento")
-      .order("parcelas_min");
+      .order("parcelas_min")
+      .limit(10000);
 
     // Filtrar por loja
     if (filtros?.loja_id !== undefined) {

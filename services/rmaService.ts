@@ -125,7 +125,8 @@ class RMAService {
           fornecedores:fornecedores(id, nome, telefone)
         `,
         )
-        .order("criado_em", { ascending: false });
+        .order("criado_em", { ascending: false })
+        .limit(10000);
 
       // Aplicar filtros
       if (filtros?.tipo_origem) {

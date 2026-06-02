@@ -24,6 +24,7 @@ import {
   PowerOff,
   Wallet,
   Download,
+  BarChart3,
 } from "lucide-react";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -36,6 +37,7 @@ interface ClienteCardProps {
   onToggleAtivo: (cliente: Cliente) => void;
   onGerenciarCreditos?: (cliente: Cliente) => void;
   onRelatorioCompras?: (cliente: Cliente) => void;
+  onAnalytics?: (cliente: Cliente) => void;
   creditosDisponiveis?: number;
 }
 
@@ -47,6 +49,7 @@ export default function ClienteCard({
   onToggleAtivo,
   onGerenciarCreditos,
   onRelatorioCompras,
+  onAnalytics,
   creditosDisponiveis = 0,
 }: ClienteCardProps) {
   const { temPermissao } = usePermissoes();
@@ -93,6 +96,18 @@ export default function ClienteCard({
         onPress={() => onGerenciarCreditos(cliente)}
       >
         Gerenciar Créditos
+      </DropdownItem>,
+    );
+  }
+
+  if (onAnalytics && temPermissao("clientes.visualizar")) {
+    menuItems.push(
+      <DropdownItem
+        key="analytics"
+        startContent={<BarChart3 className="w-4 h-4" />}
+        onPress={() => onAnalytics(cliente)}
+      >
+        Analytics
       </DropdownItem>,
     );
   }

@@ -53,6 +53,7 @@ import {
   Phone,
   Mail,
   MapPin,
+  BarChart3,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
@@ -65,6 +66,7 @@ import {
   ClienteFormModal,
   ClienteCard,
   GerenciarCreditosModal,
+  ClienteAnalyticsModal,
 } from "@/components/clientes";
 import {
   buscarClientes,
@@ -102,6 +104,8 @@ export default function ClientesPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>();
+  const [modalAnalyticsOpen, setModalAnalyticsOpen] = useState(false);
+  const [clienteAnalytics, setClienteAnalytics] = useState<Cliente | null>(null);
 
   // Paginação
   const [page, setPage] = useState(1);
@@ -331,6 +335,11 @@ export default function ClientesPage() {
       saldo: creditosPorCliente[cliente.id] || 0,
     });
     setModalCreditosOpen(true);
+  };
+
+  const handleAbrirAnalytics = (cliente: Cliente) => {
+    setClienteAnalytics(cliente);
+    setModalAnalyticsOpen(true);
   };
 
   const handleAbrirRelatorioCompras = (cliente: Cliente) => {
@@ -866,6 +875,7 @@ export default function ClientesPage() {
                   onDeletar={handleDeletarCliente}
                   onEditar={handleEditarCliente}
                   onGerenciarCreditos={handleGerenciarCreditos}
+                  onAnalytics={handleAbrirAnalytics}
                   onRelatorioCompras={handleAbrirRelatorioCompras}
                   onToggleAtivo={handleToggleAtivo}
                   onVerHistorico={handleVerHistorico}
@@ -986,6 +996,17 @@ export default function ClientesPage() {
                                   Ver Histórico
                                 </DropdownItem>
                                 <DropdownItem
+                                  key="analytics"
+                                  startContent={
+                                    <BarChart3 className="w-4 h-4" />
+                                  }
+                                  onPress={() =>
+                                    handleAbrirAnalytics(cliente)
+                                  }
+                                >
+                                  Analytics
+                                </DropdownItem>
+                                <DropdownItem
                                   key="report_purchases"
                                   startContent={
                                     <Download className="w-4 h-4" />
@@ -1079,6 +1100,18 @@ export default function ClientesPage() {
           onSuccess={() => {
             carregarCreditos();
             carregarClientes();
+          }}
+        />
+      )}
+
+      {/* Modal de Analytics */}
+      {clienteAnalytics && (
+        <ClienteAnalyticsModal
+          isOpen={modalAnalyticsOpen}
+          cliente={clienteAnalytics}
+          onClose={() => {
+            setModalAnalyticsOpen(false);
+            setClienteAnalytics(null);
           }}
         />
       )}

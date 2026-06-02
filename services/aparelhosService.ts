@@ -443,7 +443,8 @@ export async function getAparelhosDisponiveis(
       `,
       )
       .eq("status", "disponivel")
-      .order("criado_em", { ascending: false });
+      .order("criado_em", { ascending: false })
+      .limit(10000);
 
     if (lojaId) {
       query = query.eq("loja_id", lojaId);

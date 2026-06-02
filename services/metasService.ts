@@ -71,7 +71,8 @@ export class MetasService {
       .from("metas_usuarios")
       .select("*")
       .eq("ativo", true)
-      .order("criado_em", { ascending: false });
+      .order("criado_em", { ascending: false })
+      .limit(10000);
 
     if (error) throw error;
 

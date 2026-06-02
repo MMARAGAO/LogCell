@@ -22,7 +22,8 @@ export async function buscarFornecedores(apenasAtivos = false) {
     let query = supabase
       .from("fornecedores")
       .select("*")
-      .order("nome", { ascending: true });
+      .order("nome", { ascending: true })
+      .limit(10000);
 
     if (apenasAtivos) {
       query = query.eq("ativo", true);

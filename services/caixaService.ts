@@ -921,7 +921,8 @@ export class CaixaService {
       let query = supabase
         .from("caixas")
         .select("saldo_inicial, saldo_final", { count: "exact", head: false })
-        .eq("status", "fechado");
+        .eq("status", "fechado")
+        .limit(10000);
 
       if (filtros?.loja_id) {
         query = query.eq("loja_id", filtros.loja_id);

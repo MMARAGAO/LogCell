@@ -58,6 +58,7 @@ interface ProdutoEstoque {
   descricao: string;
   marca?: string;
   categoria?: string;
+  modelos?: string;
   preco_compra: number;
   preco_venda: number;
   quantidade: number;
@@ -157,7 +158,7 @@ export default function AdicionarPecaModal({
 
       // Se houver busca, buscar mais produtos para filtrar no cliente
       // Caso contrário, usar paginação normal
-      const limiteBusca = termoBusca.trim() ? 1000 : itensPorPagina;
+      const limiteBusca = termoBusca.trim() ? 5000 : itensPorPagina;
       const inicioBusca = termoBusca.trim() ? 0 : (pagina - 1) * itensPorPagina;
       const fimBusca = termoBusca.trim()
         ? limiteBusca - 1
@@ -175,6 +176,7 @@ export default function AdicionarPecaModal({
             descricao,
             marca,
             categoria,
+            modelos,
             preco_compra,
             preco_venda
           ),
@@ -187,6 +189,7 @@ export default function AdicionarPecaModal({
         )
         .eq("id_loja", lojaId)
         .gt("quantidade", 0)
+        .order("id_produto", { ascending: true })
         .range(inicioBusca, fimBusca);
 
       if (error) throw error;
@@ -204,6 +207,7 @@ export default function AdicionarPecaModal({
             descricao: produto.descricao,
             marca: produto.marca,
             categoria: produto.categoria,
+            modelos: produto.modelos,
             preco_compra: produto.preco_compra || 0,
             preco_venda: produto.preco_venda || 0,
             quantidade: item.quantidade,
@@ -215,27 +219,38 @@ export default function AdicionarPecaModal({
 
       // Se houver busca, filtrar no cliente
       if (termoBusca.trim()) {
-        // Separar termos de busca e converter para lowercase
-        const termos = termoBusca
-          .toLowerCase()
+        // Normalizar acentos: "carcaça" → "carcaca", "s/ flex" → remove especiais
+        const normalizar = (texto: string) =>
+          texto
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase();
+
+        // Separar termos, remover vazios e ignorar termos só com caracteres especiais
+        const termos = normalizar(termoBusca)
           .split(/\s+/)
-          .filter((t) => t.length > 0);
+          .filter((t) => t.length > 0 && /^[a-z0-9\/-]+$/.test(t));
 
-        // Filtrar produtos onde TODOS os termos apareçam em algum lugar
-        const produtosFiltrados = produtosFormatados.filter((p) => {
-          const textoCompleto =
-            `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""}`.toLowerCase();
+        if (termos.length === 0) {
+          setTotalProdutos(produtosFormatados.length);
+          setProdutosEstoque(produtosFormatados);
+        } else {
+          // Filtrar produtos onde TODOS os termos apareçam em algum campo
+          const produtosFiltrados = produtosFormatados.filter((p) => {
+            const textoCompleto = normalizar(
+              `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""} ${p.modelos || ""}`,
+            );
 
-          // Verificar se todos os termos estão presentes no texto completo
-          return termos.every((termo) => textoCompleto.includes(termo));
-        });
+            return termos.every((termo) => textoCompleto.includes(termo));
+          });
 
-        // Aplicar paginação local
-        const inicio = (pagina - 1) * itensPorPagina;
-        const fim = inicio + itensPorPagina;
+          // Aplicar paginação local
+          const inicio = (pagina - 1) * itensPorPagina;
+          const fim = inicio + itensPorPagina;
 
-        setTotalProdutos(produtosFiltrados.length);
-        setProdutosEstoque(produtosFiltrados.slice(inicio, fim));
+          setTotalProdutos(produtosFiltrados.length);
+          setProdutosEstoque(produtosFiltrados.slice(inicio, fim));
+        }
       } else {
         setTotalProdutos(count || 0);
         setProdutosEstoque(produtosFormatados);

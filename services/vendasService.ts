@@ -1502,7 +1502,8 @@ export class VendasService {
         const { data: clientes } = await supabase
           .from("clientes")
           .select("id")
-          .ilike("nome", `%${filtros.cliente_nome}%`);
+          .ilike("nome", `%${filtros.cliente_nome}%`)
+          .limit(10000);
 
         if (clientes && clientes.length > 0) {
           query = query.in(
@@ -1525,7 +1526,8 @@ export class VendasService {
           .from("aparelhos")
           .select("venda_id")
           .not("venda_id", "is", null)
-          .eq("status", "vendido");
+          .eq("status", "vendido")
+          .limit(10000);
 
         const idsExcluir = new Set(
           (aparelhos || []).map((a: any) => a.venda_id).filter(Boolean),

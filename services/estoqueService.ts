@@ -51,7 +51,8 @@ export async function getEstoqueLoja(
       `,
       )
       .eq("id_loja", lojaId)
-      .order("quantidade", { ascending: false });
+      .order("quantidade", { ascending: false })
+      .limit(10000);
 
     if (error) throw error;
 

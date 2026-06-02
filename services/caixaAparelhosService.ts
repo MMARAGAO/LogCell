@@ -86,7 +86,8 @@ export class CaixaAparelhosService {
         .eq("status", "vendido")
         .gte("data_venda", dataInicio)
         .lte("data_venda", dataFim)
-        .order("data_venda", { ascending: false });
+        .order("data_venda", { ascending: false })
+        .limit(10000);
 
       if (erroAparelhos) throw erroAparelhos;
 
@@ -114,7 +115,8 @@ export class CaixaAparelhosService {
         .eq("status", "disponivel")
         .gte("data_entrada", dataInicio)
         .lte("data_entrada", dataFim)
-        .ilike("observacoes", "%troca%");
+        .ilike("observacoes", "%troca%")
+        .limit(10000);
 
       if (erroTrocas) throw erroTrocas;
 
