@@ -4,18 +4,15 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const {
-      aparelhoId,
-      clienteId,
-      lojaId,
-      valorVenda,
-      pagamentos,
-      brindes = [],
-      usuarioId,
-    } = body;
+    let { aparelhoId, aparelhoIds, clienteId, lojaId, valorVenda, pagamentos, brindes = [], usuarioId } = body;
+
+    // Suportar tanto aparelhoId único quanto array aparelhoIds
+    if (aparelhoId && !aparelhoIds) {
+      aparelhoIds = [aparelhoId];
+    }
 
     if (
-      !aparelhoId ||
+      !aparelhoIds?.length ||
       !clienteId ||
       !lojaId ||
       !usuarioId ||
@@ -72,22 +69,25 @@ export async function POST(request: Request) {
       );
     }
 
-    // Atualizar aparelho
-    const { error: aparelhoError } = await supabaseAdmin
-      .from("aparelhos")
-      .update({
-        venda_id: vendaData.id,
-        data_venda: new Date().toISOString(),
-        atualizado_por: usuarioId,
-        atualizado_em: new Date().toISOString(),
-      })
-      .eq("id", aparelhoId);
+    // Atualizar aparelhos
+    for (const id of aparelhoIds) {
+      const { error: aparelhoError } = await supabaseAdmin
+        .from("aparelhos")
+        .update({
+          venda_id: vendaData.id,
+          data_venda: new Date().toISOString(),
+          atualizado_por: usuarioId,
+          atualizado_em: new Date().toISOString(),
+          status: "vendido",
+        })
+        .eq("id", id);
 
-    if (aparelhoError) {
-      return NextResponse.json(
-        { error: `Erro ao atualizar aparelho: ${aparelhoError.message}` },
-        { status: 500 },
-      );
+      if (aparelhoError) {
+        return NextResponse.json(
+          { error: `Erro ao atualizar aparelho ${id}: ${aparelhoError.message}` },
+          { status: 500 },
+        );
+      }
     }
 
     // Registrar brindes
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     }
 
     // Histórico
-    const descricaoHistorico = `Venda de aparelho ${aparelhoId} com ${pagamentos.length} forma(s) de pagamento${brindes.length > 0 ? ` e ${brindes.length} brinde(s)` : ""}`;
+    const descricaoHistorico = `Venda de ${aparelhoIds.length} aparelho(s) com ${pagamentos.length} forma(s) de pagamento${brindes.length > 0 ? ` e ${brindes.length} brinde(s)` : ""}`;
 
     await supabaseAdmin.from("historico_vendas").insert({
       venda_id: vendaData.id,

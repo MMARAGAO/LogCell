@@ -249,6 +249,10 @@ export function DetalhesAparelhoModal({ isOpen, aparelho, onClose }: Props) {
                         : "—"
                     }
                   />
+                  <Field
+                    label="Fornecedor"
+                    value={aparelho.fornecedor?.nome || "—"}
+                  />
                 </div>
 
                 {aparelho.observacoes && (

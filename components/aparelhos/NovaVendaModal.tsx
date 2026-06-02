@@ -21,6 +21,8 @@ import {
   UserIcon,
   BuildingStorefrontIcon,
   CurrencyDollarIcon,
+  XCircleIcon,
+  CheckCircleIcon,
 } from "@heroicons/react/24/outline";
 
 import { formatarMoeda } from "@/lib/formatters";
@@ -76,10 +78,23 @@ export function NovaVendaModal({
     [],
   );
   const [buscaAparelho, setBuscaAparelho] = useState("");
-  const [aparelhoSelecionado, setAparelhoSelecionado] =
-    useState<Aparelho | null>(null);
+  const [aparelhosSelecionados, setAparelhosSelecionados] = useState<Aparelho[]>(
+    [],
+  );
 
-  const valorAparelho = aparelhoSelecionado?.valor_venda || 0;
+  const valorTotal = aparelhosSelecionados.reduce(
+    (sum, a) => sum + (a.valor_venda || 0),
+    0,
+  );
+  const isAparelhoSelecionado = (id: string) =>
+    aparelhosSelecionados.some((a) => a.id === id);
+  const toggleAparelho = (a: Aparelho) => {
+    setAparelhosSelecionados((prev) =>
+      isAparelhoSelecionado(a.id)
+        ? prev.filter((item) => item.id !== a.id)
+        : [...prev, a],
+    );
+  };
 
   const [descontoInfo, setDescontoInfo] = useState<{
     tipo: "valor" | "percentual";
@@ -91,7 +106,7 @@ export function NovaVendaModal({
   const valorDescontoCalculado = (): number => {
     if (!descontoInfo) return 0;
     if (descontoInfo.tipo === "percentual") {
-      return (valorAparelho * descontoInfo.valor) / 100;
+      return (valorTotal * descontoInfo.valor) / 100;
     }
 
     return descontoInfo.valor;
@@ -103,7 +118,7 @@ export function NovaVendaModal({
     setClienteSelecionado(null);
     setClienteBusca("");
     setClientes([]);
-    setAparelhoSelecionado(null);
+    setAparelhosSelecionados([]);
     setDescontoInfo(null);
     setDescontoModalOpen(false);
     carregarLojas();
@@ -120,8 +135,10 @@ export function NovaVendaModal({
         setClientes([venda.cliente]);
       }
 
-      // Aparelho
-      setAparelhoSelecionado(venda);
+      // Aparelho (edição de venda única)
+      if (venda.id) {
+        setAparelhosSelecionados([venda]);
+      }
 
       // Loja
       if (venda.loja_id) {
@@ -235,15 +252,15 @@ export function NovaVendaModal({
 
   async function handleFinalizar() {
     console.log("[NovaVenda] handleFinalizar chamado", {
-      aparelhoSelecionado,
+      aparelhosSelecionados,
       clienteSelecionado,
       lojaId,
       lojasComCaixaAberto: Array.from(lojasComCaixaAberto),
     });
 
-    if (!aparelhoSelecionado) {
+    if (aparelhosSelecionados.length === 0) {
       console.warn("[NovaVenda] Nenhum aparelho selecionado");
-      toast.error("Selecione um aparelho");
+      toast.error("Selecione ao menos um aparelho");
 
       return;
     }
@@ -272,7 +289,7 @@ export function NovaVendaModal({
         console.log("[NovaVenda] Editando venda:", vendaId);
 
         const valorDescCalculado = valorDescontoCalculado();
-        const valorComDesconto = valorAparelho - valorDescCalculado;
+        const valorComDesconto = valorTotal - valorDescCalculado;
 
         const { error: vendaUpdateError } = await supabase
           .from("vendas")
@@ -322,7 +339,7 @@ export function NovaVendaModal({
       } else {
         // === CRIAÇÃO ===
         const valorDescCalculado = valorDescontoCalculado();
-        const valorComDesconto = valorAparelho - valorDescCalculado;
+        const valorComDesconto = valorTotal - valorDescCalculado;
 
         const vendaData = {
           cliente_id: clienteSelecionado?.id || null,
@@ -380,38 +397,48 @@ export function NovaVendaModal({
           }
         }
 
-        console.log("[NovaVenda] Atualizando status do aparelho...");
-        const { error: errUpdate } = await supabase
-          .from("aparelhos")
-          .update({
-            status: "vendido",
-            venda_id: vendaCriada.id,
-            data_venda: new Date().toISOString(),
-            atualizado_por: usuario?.id,
-          })
-          .eq("id", aparelhoSelecionado.id);
+        // Atualizar cada aparelho selecionado
+        for (const aparelho of aparelhosSelecionados) {
+          console.log(
+            "[NovaVenda] Atualizando status do aparelho:",
+            aparelho.id,
+          );
+          const { error: errUpdate } = await supabase
+            .from("aparelhos")
+            .update({
+              status: "vendido",
+              venda_id: vendaCriada.id,
+              data_venda: new Date().toISOString(),
+              atualizado_por: usuario?.id,
+            })
+            .eq("id", aparelho.id);
 
-        if (errUpdate) {
-          console.error("[NovaVenda] Erro ao atualizar aparelho:", errUpdate);
-        } else {
-          console.log("[NovaVenda] Aparelho atualizado para vendido");
-        }
+          if (errUpdate) {
+            console.error(
+              "[NovaVenda] Erro ao atualizar aparelho:",
+              errUpdate,
+            );
+            throw errUpdate;
+          }
 
-        console.log("[NovaVenda] Inserindo histórico...");
-        const { error: errHist } = await supabase
-          .from("historico_aparelhos")
-          .insert({
-            aparelho_id: aparelhoSelecionado.id,
-            tipo_acao: "vendido",
-            descricao: `Venda #${vendaCriada.numero_venda} finalizada${clienteSelecionado ? ` — ${clienteSelecionado.nome}` : ""}`,
-            dados_depois: { venda_id: vendaCriada.id, valor: valorAparelho },
-            usuario_id: usuario?.id,
-          });
+          console.log("[NovaVenda] Inserindo histórico para:", aparelho.id);
+          const { error: errHist } = await supabase
+            .from("historico_aparelhos")
+            .insert({
+              aparelho_id: aparelho.id,
+              tipo_acao: "vendido",
+              descricao: `Venda #${vendaCriada.numero_venda} finalizada${clienteSelecionado ? ` — ${clienteSelecionado.nome}` : ""}`,
+              dados_depois: {
+                venda_id: vendaCriada.id,
+                valor: aparelho.valor_venda,
+              },
+              usuario_id: usuario?.id,
+            });
 
-        if (errHist) {
-          console.error("[NovaVenda] Erro ao inserir histórico:", errHist);
-        } else {
-          console.log("[NovaVenda] Histórico inserido com sucesso");
+          if (errHist) {
+            console.error("[NovaVenda] Erro ao inserir histórico:", errHist);
+            throw errHist;
+          }
         }
 
         console.log(
@@ -608,39 +635,87 @@ export function NovaVendaModal({
                     Nenhum aparelho disponível nesta loja
                   </p>
                 ) : (
-                  aparelhosFiltrados.map((a) => (
-                    <button
-                      key={a.id}
-                      className={`w-full text-left p-2.5 rounded-xl border text-xs transition-colors ${
-                        aparelhoSelecionado?.id === a.id
-                          ? "bg-primary/5 border-primary/30 text-primary"
-                          : "bg-gray-50 dark:bg-zinc-800/50 border-gray-100 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600"
-                      }`}
-                      type="button"
-                      onClick={() => setAparelhoSelecionado(a)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">
-                            {a.marca} {a.modelo}
-                          </p>
-                          <p className="text-gray-400">
-                            {a.imei
-                              ? `IMEI: ${a.imei}`
-                              : a.armazenamento
-                                ? a.armazenamento
-                                : ""}
+                  aparelhosFiltrados.map((a) => {
+                    const selected = isAparelhoSelecionado(a.id);
+                    return (
+                      <button
+                        key={a.id}
+                        className={`w-full text-left p-2.5 rounded-xl border text-xs transition-colors ${
+                          selected
+                            ? "bg-primary/5 border-primary/30 text-primary"
+                            : "bg-gray-50 dark:bg-zinc-800/50 border-gray-100 dark:border-zinc-700 hover:border-gray-300 dark:hover:border-zinc-600"
+                        }`}
+                        type="button"
+                        onClick={() => toggleAparelho(a)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {selected && (
+                              <CheckCircleIcon className="w-4 h-4 text-primary shrink-0" />
+                            )}
+                            <div>
+                              <p className="font-medium">
+                                {a.marca} {a.modelo}
+                              </p>
+                              <p className="text-gray-400">
+                                {a.imei
+                                  ? `IMEI: ${a.imei}`
+                                  : a.armazenamento
+                                    ? a.armazenamento
+                                    : ""}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="font-bold">
+                            {formatarMoeda(a.valor_venda || 0)}
                           </p>
                         </div>
-                        <p className="font-bold">
-                          {formatarMoeda(a.valor_venda || 0)}
-                        </p>
-                      </div>
-                    </button>
-                  ))
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </div>
+
+            {/* Aparelhos Selecionados */}
+            {aparelhosSelecionados.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                  <DevicePhoneMobileIcon className="w-3 h-3" />
+                  {aparelhosSelecionados.length} aparelho(s) selecionado(s)
+                </p>
+                {aparelhosSelecionados.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-primary/5 border border-primary/20 text-xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">
+                        {a.marca} {a.modelo}
+                      </span>
+                      {a.imei && (
+                        <span className="text-gray-400 font-mono truncate">
+                          {a.imei}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-bold">
+                        {formatarMoeda(a.valor_venda || 0)}
+                      </span>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        onPress={() => toggleAparelho(a)}
+                      >
+                        <XCircleIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* 7. Resumo */}
             <div className="bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-100 dark:border-zinc-700 p-4 space-y-2">
@@ -648,11 +723,13 @@ export function NovaVendaModal({
                 Resumo da Venda
               </p>
               <div className="space-y-1.5 text-xs">
-                {aparelhoSelecionado && (
+                {aparelhosSelecionados.length > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Aparelho</span>
+                    <span className="text-gray-500">Aparelho(s)</span>
                     <span className="font-medium text-gray-800 dark:text-white">
-                      {aparelhoSelecionado.marca} {aparelhoSelecionado.modelo}
+                      {aparelhosSelecionados
+                        .map((a) => `${a.marca} ${a.modelo}`)
+                        .join(", ")}
                     </span>
                   </div>
                 )}
@@ -675,10 +752,10 @@ export function NovaVendaModal({
                 <Divider className="my-1" />
                 <div className="flex justify-between font-semibold">
                   <span className="text-gray-700 dark:text-gray-300">
-                    Valor do Aparelho
+                    Valor Total
                   </span>
                   <span className="text-gray-900 dark:text-white">
-                    {formatarMoeda(valorAparelho)}
+                    {formatarMoeda(valorTotal)}
                   </span>
                 </div>
 
@@ -714,7 +791,7 @@ export function NovaVendaModal({
                           <span>Valor Final</span>
                           <span className="text-primary">
                             {formatarMoeda(
-                              valorAparelho - valorDescontoCalculado(),
+                              valorTotal - valorDescontoCalculado(),
                             )}
                           </span>
                         </div>
@@ -747,7 +824,8 @@ export function NovaVendaModal({
               className="rounded-xl text-sm font-medium"
               color="primary"
               isDisabled={
-                !aparelhoSelecionado || lojasComCaixaAberto.size === 0
+                aparelhosSelecionados.length === 0 ||
+                lojasComCaixaAberto.size === 0
               }
               isLoading={loading}
               onPress={handleFinalizar}
@@ -771,7 +849,7 @@ export function NovaVendaModal({
 
       <DescontoModal
         isOpen={descontoModalOpen}
-        valorTotal={valorAparelho}
+        valorTotal={valorTotal}
         onAplicar={(tipo, valor, motivo) => {
           setDescontoInfo({ tipo, valor, motivo });
           setDescontoModalOpen(false);

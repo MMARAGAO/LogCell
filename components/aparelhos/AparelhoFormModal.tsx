@@ -12,7 +12,7 @@ import { Divider } from "@heroui/divider";
 import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import { useState, useEffect } from "react";
-import { CameraIcon } from "@heroicons/react/24/outline";
+import { CameraIcon, PlusIcon } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
 
 import { FotosAparelhoUpload } from "./FotosAparelhoUpload";
@@ -20,13 +20,16 @@ import { FotosAparelhoUpload } from "./FotosAparelhoUpload";
 import { useToast } from "@/components/Toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Aparelho, AparelhoFormData, FotoAparelho } from "@/types/aparelhos";
+import { Fornecedor } from "@/types/fornecedor";
 import {
   criarAparelho,
   atualizarAparelho,
   getAparelhoPorPrefixoIMEI,
 } from "@/services/aparelhosService";
+import { buscarFornecedores } from "@/services/fornecedorService";
 import { getFotosAparelho } from "@/services/fotosAparelhosService";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import FornecedorModal from "@/components/fornecedores/FornecedorModal";
 
 interface Loja {
   id: number;
@@ -64,6 +67,8 @@ export function AparelhoFormModal({
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [fotos, setFotos] = useState<FotoAparelho[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [fornecedorModalOpen, setFornecedorModalOpen] = useState(false);
   const [scannerAberto, setScannerAberto] = useState(false);
   const [prefixoIMEIConsultado, setPrefixoIMEIConsultado] = useState("");
   const [aparelhoRecemCriado, setAparelhoRecemCriado] =
@@ -88,6 +93,7 @@ export function AparelhoFormModal({
       loja_id: lojaPadrao,
       status: "disponivel",
       saude_bateria: undefined,
+      fornecedor_id: undefined,
       exibir_catalogo: false,
       destaque: false,
       promocao: false,
@@ -115,6 +121,7 @@ export function AparelhoFormModal({
         loja_id: aparelho.loja_id,
         status: aparelho.status,
         saude_bateria: aparelho.saude_bateria || undefined,
+        fornecedor_id: aparelho.fornecedor_id || undefined,
         exibir_catalogo: aparelho.exibir_catalogo || false,
         destaque: aparelho.destaque || false,
         promocao: aparelho.promocao || false,
@@ -143,6 +150,7 @@ export function AparelhoFormModal({
         loja_id: lojaPadrao,
         status: "disponivel",
         saude_bateria: undefined,
+        fornecedor_id: undefined,
         exibir_catalogo: false,
         destaque: false,
         promocao: false,
@@ -152,6 +160,28 @@ export function AparelhoFormModal({
       setFotos([]);
     }
   }, [aparelho, lojaId, lojas]);
+
+  useEffect(() => {
+    carregarFornecedores();
+  }, []);
+
+  async function carregarFornecedores() {
+    const { data } = await buscarFornecedores(true);
+    if (data) setFornecedores(data);
+  }
+
+  async function handleFornecedorSalvo() {
+    const { data } = await buscarFornecedores(true);
+    if (data) {
+      const novos = data.filter(
+        (f) => !fornecedores.some((old) => old.id === f.id),
+      );
+      setFornecedores(data);
+      if (novos.length === 1) {
+        setFormData((prev) => ({ ...prev, fornecedor_id: novos[0].id }));
+      }
+    }
+  }
 
   useEffect(() => {
     if (aparelho) return;
@@ -304,6 +334,7 @@ export function AparelhoFormModal({
   };
 
   return (
+    <>
     <Modal
       isDismissable={!loading}
       isOpen={true}
@@ -319,7 +350,7 @@ export function AparelhoFormModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               className="md:col-span-2"
-              isDisabled={!!aparelho || loading || lojas.length === 0}
+              isDisabled={loading || lojas.length === 0}
               label="Loja"
               placeholder={
                 lojas.length === 0
@@ -340,6 +371,41 @@ export function AparelhoFormModal({
                 <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
               ))}
             </Select>
+            {/* Fornecedor */}
+            <div className="md:col-span-2 flex items-end gap-2">
+              <Select
+                className="flex-1"
+                isDisabled={loading}
+                label="Fornecedor"
+                placeholder="Selecione um fornecedor"
+                selectedKeys={
+                  formData.fornecedor_id ? [formData.fornecedor_id] : []
+                }
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string | undefined;
+                  setFormData({
+                    ...formData,
+                    fornecedor_id: value || undefined,
+                  });
+                }}
+              >
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.id}>{f.nome}</SelectItem>
+                ))}
+              </Select>
+              <Button
+                isIconOnly
+                isDisabled={loading}
+                size="lg"
+                title="Criar novo fornecedor"
+                variant="flat"
+                onPress={() => setFornecedorModalOpen(true)}
+              >
+                <PlusIcon className="w-5 h-5" />
+              </Button>
+            </div>
+
             {/* Marca */}
             <Input
               isRequired
@@ -697,5 +763,12 @@ export function AparelhoFormModal({
         }}
       />
     </Modal>
+
+    <FornecedorModal
+      isOpen={fornecedorModalOpen}
+      onClose={() => setFornecedorModalOpen(false)}
+      onSave={handleFornecedorSalvo}
+    />
+  </>
   );
 }

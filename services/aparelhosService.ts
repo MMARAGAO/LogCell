@@ -22,6 +22,10 @@ export async function getAparelhos(
         loja:lojas (
           id,
           nome
+        ),
+        fornecedor:fornecedores (
+          id,
+          nome
         )
       `,
         { count: "exact", head: false },
@@ -128,6 +132,10 @@ export async function getAparelhoById(id: string): Promise<Aparelho | null> {
         loja:lojas (
           id,
           nome
+        ),
+        fornecedor:fornecedores (
+          id,
+          nome
         )
       `,
       )
@@ -154,6 +162,10 @@ export async function getAparelhoPorIMEI(
         `
         *,
         loja:lojas (
+          id,
+          nome
+        ),
+        fornecedor:fornecedores (
           id,
           nome
         )
@@ -189,6 +201,10 @@ export async function getAparelhoPorPrefixoIMEI(
         `
         *,
         loja:lojas (
+          id,
+          nome
+        ),
+        fornecedor:fornecedores (
           id,
           nome
         )
@@ -233,6 +249,10 @@ export async function criarAparelho(
         `
         *,
         loja:lojas (
+          id,
+          nome
+        ),
+        fornecedor:fornecedores (
           id,
           nome
         )
@@ -281,6 +301,10 @@ export async function atualizarAparelho(
         `
         *,
         loja:lojas (
+          id,
+          nome
+        ),
+        fornecedor:fornecedores (
           id,
           nome
         )
@@ -339,6 +363,10 @@ export async function marcarAparelhoVendido(
         loja:lojas (
           id,
           nome
+        ),
+        fornecedor:fornecedores (
+          id,
+          nome
         )
       `,
       )
@@ -374,6 +402,10 @@ export async function atualizarStatusAparelho(
         loja:lojas (
           id,
           nome
+        ),
+        fornecedor:fornecedores (
+          id,
+          nome
         )
       `,
       )
@@ -401,6 +433,10 @@ export async function getAparelhosDisponiveis(
         `
         *,
         loja:lojas (
+          id,
+          nome
+        ),
+        fornecedor:fornecedores (
           id,
           nome
         )

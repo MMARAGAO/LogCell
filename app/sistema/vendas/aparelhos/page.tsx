@@ -621,6 +621,16 @@ export default function VendasAparelhosPage() {
         (vendedoresResult.data || []).map((v: any) => [v.id, v.nome]),
       );
 
+      // Contar quantos aparelhos por venda_id
+      const countPorVenda: Record<string, number> = {};
+
+      aparelhos.forEach((a) => {
+        if (a.venda_id) {
+          countPorVenda[a.venda_id] =
+            (countPorVenda[a.venda_id] || 0) + 1;
+        }
+      });
+
       setVendas(
         aparelhos.map((a) => {
           const venda = vendasMap.get(a.venda_id || "");
@@ -649,6 +659,9 @@ export default function VendasAparelhosPage() {
               ? vendedoresMap.get(venda.vendedor_id) || "—"
               : "—",
             valor_exibido: venda?.valor_total ?? a.valor_venda,
+            qtd_aparelhos_venda: a.venda_id
+              ? countPorVenda[a.venda_id] || 1
+              : 1,
           };
         }),
       );
@@ -672,9 +685,13 @@ export default function VendasAparelhosPage() {
   const vendasPaginadas = vendas;
 
   async function handleCancelarVenda(v: any) {
+    const qtd = v.qtd_aparelhos_venda || 1;
     const conf = await confirm({
       title: "Cancelar Venda",
-      message: `Tem certeza que deseja cancelar a venda #${v.venda?.numero_venda} de ${v.marca} ${v.modelo}?\n\nO aparelho voltará para o estoque e todos os pagamentos serão removidos.`,
+      message:
+        qtd > 1
+          ? `Tem certeza que deseja cancelar a venda #${v.venda?.numero_venda}?\n\nA venda contém ${qtd} aparelho(s). Todos voltarão para o estoque e os pagamentos serão removidos.`
+          : `Tem certeza que deseja cancelar a venda #${v.venda?.numero_venda} de ${v.marca} ${v.modelo}?\n\nO aparelho voltará para o estoque e todos os pagamentos serão removidos.`,
       confirmText: "Cancelar Venda",
       cancelText: "Voltar",
       variant: "danger",
@@ -692,7 +709,7 @@ export default function VendasAparelhosPage() {
       await supabase
         .from("aparelhos")
         .update({ status: "disponivel", venda_id: null, data_venda: null })
-        .eq("id", v.id);
+        .eq("venda_id", v.venda_id);
       await supabase
         .from("vendas")
         .update({ status: "cancelada", valor_pago: 0, saldo_devedor: 0 })
@@ -2031,6 +2048,11 @@ export default function VendasAparelhosPage() {
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
                           {v.marca} {v.modelo}
+                          {(v.qtd_aparelhos_venda || 1) > 1 && (
+                            <span className="ml-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                              +{v.qtd_aparelhos_venda - 1}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
                           {v.vendedor_nome && v.vendedor_nome !== "—"
@@ -2237,10 +2259,20 @@ export default function VendasAparelhosPage() {
             </div>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
               {v.marca} {v.modelo}
+              {(v.qtd_aparelhos_venda || 1) > 1 && (
+                <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                  +{v.qtd_aparelhos_venda - 1}
+                </span>
+              )}
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               {v.imei && <span className="font-mono">{v.imei}</span>}
               {v.data_venda && ` • ${formatarDataUtc(v.data_venda)}`}
+              {(v.qtd_aparelhos_venda || 1) > 1 && (
+                <span className="ml-1">
+                  • {v.qtd_aparelhos_venda} aparelhos
+                </span>
+              )}
             </p>
           </div>
           <div className="text-right shrink-0">

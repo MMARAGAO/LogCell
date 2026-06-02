@@ -2286,7 +2286,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.text(aparelho.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
-      y += doc.getTextDimensions(aparelho.defeito_reclamado, { maxWidth: pageWidth - 10 }).h + 4;
+      y +=
+        doc.getTextDimensions(aparelho.defeito_reclamado, {
+          maxWidth: pageWidth - 10,
+        }).h + 4;
 
       // ========== SERVIÇO ==========
       doc.setFont("helvetica", "bold");
@@ -2374,7 +2377,9 @@ export const gerarCupomTermicoPDFOrcamento = async (
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.text(os.defeito_reclamado, 5, y, { maxWidth: pageWidth - 10 });
-    y += doc.getTextDimensions(os.defeito_reclamado, { maxWidth: pageWidth - 10 }).h + 4;
+    y +=
+      doc.getTextDimensions(os.defeito_reclamado, { maxWidth: pageWidth - 10 })
+        .h + 4;
 
     // ========== SERVIÇO ==========
     doc.setFont("helvetica", "bold");

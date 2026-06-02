@@ -70,6 +70,8 @@ export interface Aparelho {
   novidade?: boolean;
   ordem_catalogo?: number;
 
+  fornecedor_id?: string | null;
+
   criado_por?: string | null;
   criado_em: string;
   atualizado_em: string;
@@ -78,6 +80,10 @@ export interface Aparelho {
   // Relacionamentos
   loja?: {
     id: number;
+    nome: string;
+  };
+  fornecedor?: {
+    id: string;
     nome: string;
   };
 }
@@ -99,6 +105,7 @@ export interface AparelhoFormData {
   loja_id: number;
   status?: StatusAparelho;
   saude_bateria?: number;
+  fornecedor_id?: string;
 
   // Campos de catálogo
   exibir_catalogo?: boolean;
