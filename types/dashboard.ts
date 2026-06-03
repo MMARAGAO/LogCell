@@ -36,8 +36,33 @@ export interface MetricasAdicionais {
   devolucoes_sem_credito_total: number;
 }
 
+export interface MetricasProdutos {
+  total_vendas: number;
+  pagamentos: number;
+  lucro: number;
+  ticket_medio: number;
+  contas_nao_pagas: number;
+}
+
+export interface MetricasAcessorios {
+  total_vendas: number;
+  pagamentos: number;
+  lucro: number;
+  ticket_medio: number;
+}
+
+export interface MetricasAparelhos {
+  quantidade: number;
+  pagamentos: number;
+  lucro: number;
+  ticket_medio: number;
+}
+
 export interface DadosDashboard {
   metricas_adicionais: MetricasAdicionais;
+  metricas_produtos?: MetricasProdutos;
+  metricas_acessorios?: MetricasAcessorios;
+  metricas_aparelhos?: MetricasAparelhos;
 }
 
 export interface FiltroDashboard {

@@ -1034,7 +1034,7 @@ export default function DashboardPessoal() {
           "id, numero_venda, valor_total, valor_pago, data_prevista_pagamento, criado_em, status, cliente:clientes(nome)",
         )
         .eq("vendedor_id", usuario.id)
-        .neq("status", "cancelada")
+        .not("status", "in", '("cancelada","devolvida")')
         .order("data_prevista_pagamento", { ascending: true })
         .order("criado_em", { ascending: false });
 

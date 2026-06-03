@@ -12,6 +12,8 @@ import {
   Pagination,
   Select,
   SelectItem,
+  Tabs,
+  Tab,
 } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -49,7 +51,7 @@ import {
   Filler,
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { Line } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 
 import { supabase } from "@/lib/supabaseClient";
 import { DashboardService } from "@/services/dashboardService";
@@ -194,6 +196,8 @@ export default function DashboardPage() {
     "Nenhum registro encontrado.",
   );
   const [buscaProdutoDetalhe, setBuscaProdutoDetalhe] = useState("");
+  const [abaAtiva, setAbaAtiva] = useState<string>("vendas");
+  const [abaAnalise, setAbaAnalise] = useState<string>("evolucao");
 
   const carregar = async () => {
     try {
@@ -360,11 +364,13 @@ export default function DashboardPage() {
         `Loja ${lojaId}`
       : "Todas as lojas";
 
+    const v: any = abaAtiva === "vendas" ? dados?.metricas_produtos : dados?.metricas_adicionais;
+
     return {
       pagamentos_recebidos: {
         titulo: "Pagamentos Recebidos",
         valor: formatarMoeda(
-          dados?.metricas_adicionais.pagamentos_sem_credito_cliente || 0,
+          v?.pagamentos ?? v?.pagamentos_sem_credito_cliente ?? 0,
         ),
         descricao:
           "Soma de todos os pagamentos de vendas recebidos no periodo, excluindo credito de cliente.",
@@ -376,43 +382,47 @@ export default function DashboardPage() {
       },
       total_vendas: {
         titulo: "Total de Vendas",
-        valor: (dados?.metricas_adicionais.total_vendas || 0).toLocaleString(
+        valor: (v?.total_vendas ?? 0).toLocaleString(
           "pt-BR",
         ),
         descricao:
-          "Quantidade total de vendas do periodo filtrado, desconsiderando vendas canceladas.",
+          "Lucro calculado sobre o valor total vendido, descontando o custo dos produtos.",
         itens: [
-          `Ticket medio atual: ${formatarMoeda(
-            dados?.metricas_adicionais.ticket_medio || 0,
+          `Recebido sem credito: ${formatarMoeda(
+            v?.pagamentos ?? v?.pagamentos_sem_credito_cliente ?? 0,
           )}`,
-          `Loja considerada: ${lojaSelecionadaNome}`,
+          "Considera o valor total das vendas, nao apenas o recebido no periodo.",
+        ],
+      },
+      ticket_medio: {
+        titulo: "Ticket Medio",
+        valor: formatarMoeda(v?.ticket_medio ?? 0),
+        descricao: "Media de valor recebido por venda no periodo filtrado.",
+        itens: [
+          `Total de vendas no periodo: ${(
+            v?.total_vendas ?? 0
+          ).toLocaleString("pt-BR")}`,
         ],
       },
       ganho_vendas: {
         titulo: "Ganho com Vendas",
         valor: formatarMoeda(
-          dados?.metricas_adicionais.ganho_total_vendas || 0,
+          v?.lucro ?? v?.ganho_total_vendas ?? 0,
         ),
         descricao:
-          "Lucro real calculado a partir dos pagamentos recebidos menos o custo dos produtos vendidos.",
+          "Lucro calculado sobre o valor total vendido, descontando o custo dos produtos.",
         itens: [
           `Recebido sem credito: ${formatarMoeda(
-            dados?.metricas_adicionais.pagamentos_sem_credito_cliente || 0,
+            v?.pagamentos ?? v?.pagamentos_sem_credito_cliente ?? 0,
           )}`,
-          "Usa apenas valores efetivamente recebidos no periodo.",
-        ],
-      },
-      ticket_medio: {
-        titulo: "Ticket Medio",
-        valor: formatarMoeda(dados?.metricas_adicionais.ticket_medio || 0),
-        descricao: "Media de valor recebido por venda no periodo filtrado.",
-        itens: [
-          `Total de vendas no periodo: ${(dados?.metricas_adicionais.total_vendas || 0).toLocaleString("pt-BR")}`,
+          "Considera o valor total das vendas, nao apenas o recebido no periodo.",
         ],
       },
       contas_nao_pagas: {
         titulo: "Contas Nao Pagas",
-        valor: formatarMoeda(dados?.metricas_adicionais.contas_nao_pagas || 0),
+        valor: formatarMoeda(
+          v?.contas_nao_pagas ?? 0,
+        ),
         descricao: "Soma dos valores ainda nao recebidos de vendas realizadas.",
         itens: [
           "Considera vendas nao canceladas com diferenca entre valor total e valor pago.",
@@ -598,6 +608,7 @@ export default function DashboardPage() {
     lojaId,
     lojas,
     resumoProdutosVendidos,
+    abaAtiva,
   ]);
 
   const detalheCardSelecionado = cardDetalhado
@@ -718,7 +729,7 @@ export default function DashboardPage() {
             )
             .gte("criado_em", inicioISO)
             .lte("criado_em", fimISO)
-            .neq("status", "cancelada")
+            .not("status", "in", '("cancelada","devolvida")')
             .range(
               paginaBusca * pageSizeBusca,
               (paginaBusca + 1) * pageSizeBusca - 1,
@@ -779,7 +790,7 @@ export default function DashboardPage() {
           )
           .gte("criado_em", inicioISO)
           .lte("criado_em", fimISO)
-          .neq("status", "cancelada")
+          .not("status", "in", '("cancelada","devolvida")')
           .range(from, to)
           .order("criado_em", { ascending: false });
 
@@ -1255,230 +1266,434 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-foreground">Vendas</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div
-                className={getCardClassName(
-                  "rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm",
-                  "pagamentos_recebidos",
-                )}
-                {...getCardInteractionProps("pagamentos_recebidos")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-success dark:text-green-400">
-                      Pagamentos Recebidos
-                    </p>
-                    <p className="text-xs text-default-500 dark:text-white">
-                      Exclui tipo pagamento = credito cliente
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {loading
-                        ? "..."
-                        : formatarMoeda(
-                            dados?.metricas_adicionais
-                              .pagamentos_sem_credito_cliente || 0,
-                          )}
-                    </p>
-                  </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
-                    <FaDollarSign />
-                  </div>
-                </div>
-                <p className="mt-4 text-sm text-default-600">
-                  Soma de todos os pagamentos de vendas recebidos no período
-                  padrão, ignorando créditos de cliente.
-                </p>
-              </div>
+          <Tabs
+            aria-label="Categorias do Dashboard"
+            selectedKey={abaAtiva}
+            onSelectionChange={(key) => setAbaAtiva(key as string)}
+            color="primary"
+            variant="underlined"
+            classNames={{
+              tabList:
+                "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+              cursor: "w-full bg-primary",
+              tab: "max-w-fit px-0 h-12",
+              tabContent: "group-data-[selected=true]:text-primary",
+            }}
+          >
+            <Tab key="vendas" title="Vendas" />
+            <Tab key="acessorios" title="Acessórios" />
+            <Tab key="aparelhos" title="Aparelhos" />
+            <Tab key="os" title="Ordens de Serviço" />
+            <Tab key="transferencias" title="Transferências" />
+            <Tab key="devolucoes" title="Quebras e Devoluções" />
+          </Tabs>
 
-              <div
-                className={getCardClassName(
-                  "rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm",
-                  "total_vendas",
-                )}
-                {...getCardInteractionProps("total_vendas")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-primary dark:text-blue-400">
-                      Total de Vendas
-                    </p>
-                    <p className="text-xs text-default-500 dark:text-white">
-                      Exclui vendas canceladas
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {loading
-                        ? "..."
-                        : (
-                            dados?.metricas_adicionais.total_vendas || 0
-                          ).toLocaleString("pt-BR")}
-                    </p>
+          {abaAtiva === "vendas" && (
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                Produtos
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div
+                  className={getCardClassName(
+                    "rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm",
+                    "pagamentos_recebidos",
+                  )}
+                  {...getCardInteractionProps("pagamentos_recebidos")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-success dark:text-green-400">
+                        Pagamentos Recebidos
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Exclui tipo pagamento = credito cliente
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_produtos?.pagamentos || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
+                      <FaDollarSign />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary text-lg">
-                    <FaShoppingCart />
-                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Soma de todos os pagamentos de produtos recebidos no
+                    período, ignorando créditos de cliente.
+                  </p>
                 </div>
-                <p className="mt-4 text-sm text-default-600">
-                  Quantidade total de vendas realizadas no período filtrado.
-                </p>
-              </div>
 
-              <div
-                className={getCardClassName(
-                  "rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm",
-                  "ganho_vendas",
-                )}
-                {...getCardInteractionProps("ganho_vendas")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-warning dark:text-amber-400">
-                      Ganho com Vendas
-                    </p>
-                    <p className="text-xs text-default-500 dark:text-white">
-                      Lucro (Recebido - Custo)
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {loading
-                        ? "..."
-                        : formatarMoeda(
-                            dados?.metricas_adicionais.ganho_total_vendas || 0,
-                          )}
-                    </p>
+                <div
+                  className={getCardClassName(
+                    "rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm",
+                    "total_vendas",
+                  )}
+                  {...getCardInteractionProps("total_vendas")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-primary dark:text-blue-400">
+                        Total de Vendas
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Exclui acessórios, aparelhos e OS
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : (
+                              dados?.metricas_produtos?.total_vendas || 0
+                            ).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary text-lg">
+                      <FaShoppingCart />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
-                    <FaMoneyBillWave />
-                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Vendas com apenas produtos (sem acessórios e sem
+                    aparelhos).
+                  </p>
                 </div>
-                <p className="mt-4 text-sm text-default-600">
-                  Lucro real: pagamentos recebidos menos o custo dos produtos
-                  das vendas pagas.
-                </p>
-              </div>
 
-              <div
-                className={getCardClassName(
-                  "rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm",
-                  "ticket_medio",
-                )}
-                {...getCardInteractionProps("ticket_medio")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-secondary dark:text-purple-400">
-                      Ticket Médio
-                    </p>
-                    <p className="text-xs text-default-500 dark:text-white">
-                      Valor médio por venda
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {loading
-                        ? "..."
-                        : formatarMoeda(
-                            dados?.metricas_adicionais.ticket_medio || 0,
-                          )}
-                    </p>
+                <div
+                  className={getCardClassName(
+                    "rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm",
+                    "ganho_vendas",
+                  )}
+                  {...getCardInteractionProps("ganho_vendas")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-warning dark:text-amber-400">
+                        Ganho com Vendas
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Lucro (Recebido - Custo)
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_produtos?.lucro || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
+                      <FaMoneyBillWave />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-secondary text-lg">
-                    <FaChartBar />
-                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Lucro sobre o valor vendido, descontando o custo dos
+                    produtos.
+                  </p>
                 </div>
-                <p className="mt-4 text-sm text-default-600">
-                  Média de valor recebido por venda realizada.
-                </p>
-              </div>
 
-              <div
-                className={getCardClassName(
-                  "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm",
-                  "contas_nao_pagas",
-                )}
-                {...getCardInteractionProps("contas_nao_pagas")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-danger dark:text-red-400">
-                      Contas Não Pagas
-                    </p>
-                    <p className="text-xs text-default-500 dark:text-white">
-                      Valor pendente de recebimento
-                    </p>
-                    <p className="text-3xl font-bold text-foreground mt-2">
-                      {loading
-                        ? "..."
-                        : formatarMoeda(
-                            dados?.metricas_adicionais.contas_nao_pagas || 0,
-                          )}
-                    </p>
+                <div
+                  className={getCardClassName(
+                    "rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm",
+                    "ticket_medio",
+                  )}
+                  {...getCardInteractionProps("ticket_medio")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-secondary dark:text-purple-400">
+                        Ticket Médio
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Valor médio por venda
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_produtos?.ticket_medio || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-secondary text-lg">
+                      <FaChartBar />
+                    </div>
                   </div>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/20 text-danger text-lg">
-                    <FaExclamationTriangle />
-                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Média de valor recebido por venda de produto.
+                  </p>
                 </div>
-                <p className="mt-4 text-sm text-default-600">
-                  Soma dos valores ainda não recebidos de vendas realizadas.
-                </p>
-              </div>
-            </div>
-          </section>
 
-          {/* Cards de Ordem de Serviço */}
-          <section className="space-y-3">
-            {/* Vendas por Tipo - Aparelhos vs Produtos */}
-            {deviceSalesData && (
-              <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                    Vendas de Aparelhos
-                  </span>
+                <div
+                  className={getCardClassName(
+                    "rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm",
+                    "contas_nao_pagas",
+                  )}
+                  {...getCardInteractionProps("contas_nao_pagas")}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-danger dark:text-red-400">
+                        Contas Não Pagas
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Valor pendente de recebimento
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_produtos?.contas_nao_pagas ||
+                                0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/20 text-danger text-lg">
+                      <FaExclamationTriangle />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Soma dos valores ainda não recebidos de vendas de
+                    produtos.
+                  </p>
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
-                      Valor Bruto
-                    </p>
-                    <p className="text-xl font-bold text-foreground mt-1">
-                      {formatarMoeda(deviceSalesData.totalBruto)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
-                      Lucro Líquido
-                    </p>
-                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                      {formatarMoeda(deviceSalesData.totalLucro)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider">
-                      Quantidade
-                    </p>
-                    <p className="text-xl font-bold text-foreground mt-1">
-                      {deviceSalesData.quantidade}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
-                  Margem média:{" "}
-                  <strong>
-                    {deviceSalesData.totalBruto > 0
-                      ? (
-                          (deviceSalesData.totalLucro /
-                            deviceSalesData.totalBruto) *
-                          100
-                        ).toFixed(1)
-                      : 0}
-                    %
-                  </strong>
-                </p>
               </div>
-            )}
+            </section>
+          )}
 
-            <h2 className="text-xl font-semibold text-foreground">
-              Ordens de Serviço
-            </h2>
+          {abaAtiva === "acessorios" && (
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                Acessórios
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-success dark:text-green-400">
+                        Pagamentos Recebidos
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Rateio proporcional de acessórios
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_acessorios?.pagamentos || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
+                      <FaDollarSign />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Pagamentos rateados proporcionalmente para itens de
+                    acessório.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-primary dark:text-blue-400">
+                        Total de Vendas
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Com ao menos 1 acessório
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : (
+                              dados?.metricas_acessorios?.total_vendas || 0
+                            ).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary text-lg">
+                      <FaShoppingCart />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Vendas que contêm pelo menos um acessório.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-warning dark:text-amber-400">
+                        Ganho com Acessórios
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Lucro (Recebido - Custo)
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_acessorios?.lucro || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
+                      <FaMoneyBillWave />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Lucro dos itens de acessório vendidos no período.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-secondary dark:text-purple-400">
+                        Ticket Médio
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Valor médio por venda
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_acessorios?.ticket_medio || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-secondary text-lg">
+                      <FaChartBar />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Média de valor rateado de acessórios por venda.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {abaAtiva === "aparelhos" && (
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                Aparelhos
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-success dark:text-green-400">
+                        Quantidade Vendida
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Aparelhos com status = vendido
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : (
+                              dados?.metricas_aparelhos?.quantidade || 0
+                            ).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
+                      <FaGem />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Total de aparelhos vendidos no período.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-primary dark:text-blue-400">
+                        Valor Vendido
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Soma dos valores de venda
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_aparelhos?.pagamentos || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary text-lg">
+                      <FaMoneyBill />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Valor total das vendas de aparelhos no período (inclui
+                    fiado e troca).
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-yellow-200 dark:border-orange-800 bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-orange-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-warning dark:text-amber-400">
+                        Lucro
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Venda - Custo - Taxas - Brindes
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_aparelhos?.lucro || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/20 text-warning text-lg">
+                      <FaMoneyBillWave />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Lucro líquido: valor venda - compra - brindes - taxas
+                    cartão.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-pink-200 dark:border-pink-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-secondary dark:text-purple-400">
+                        Ticket Médio
+                      </p>
+                      <p className="text-xs text-default-500 dark:text-white">
+                        Valor médio por aparelho
+                      </p>
+                      <p className="text-3xl font-bold text-foreground mt-2">
+                        {loading
+                          ? "..."
+                          : formatarMoeda(
+                              dados?.metricas_aparelhos?.ticket_medio || 0,
+                            )}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20 text-secondary text-lg">
+                      <FaChartBar />
+                    </div>
+                  </div>
+                  <p className="mt-4 text-sm text-default-600">
+                    Preço médio de venda dos aparelhos.
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {abaAtiva === "os" && (
+            <>
+            <section className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div
                 className={getCardClassName(
@@ -1678,7 +1893,6 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* Cards de OS por Tipo de Cliente */}
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">
               OS por Tipo de Cliente (Pagas)
@@ -1861,8 +2075,10 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+            </>
+          )}
 
-          {/* Cards de Transferências */}
+          {abaAtiva === "transferencias" && (
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">
               Transferências
@@ -1934,8 +2150,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+          )}
 
-          {/* Cards de Quebra de Peças, Crédito, Devoluções */}
+          {abaAtiva === "devolucoes" && (
           <section className="space-y-3">
             <h2 className="text-xl font-semibold text-foreground">
               Quebras, Créditos e Devoluções
@@ -2094,29 +2311,50 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+          )}
 
           {/* SEÇÃO DE GRÁFICOS */}
           {!loading && (
-            <section className="space-y-8">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-1 h-8 bg-gradient-to-b from-blue-500 to-purple-500 rounded" />
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <section className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-primary rounded" />
+                <h2 className="text-2xl font-bold text-foreground">
                   Análises Detalhadas
                 </h2>
               </div>
 
-              {/* Gráfico de Evolução de Vendas e Receita */}
-              <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              <Tabs
+                aria-label="Analises"
+                selectedKey={abaAnalise}
+                onSelectionChange={(key) => setAbaAnalise(key as string)}
+                color="primary"
+                variant="underlined"
+                classNames={{
+                  tabList:
+                    "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+                  cursor: "w-full bg-primary",
+                  tab: "max-w-fit px-0 h-12",
+                  tabContent: "group-data-[selected=true]:text-primary",
+                }}
+              >
+                <Tab key="evolucao" title="Evolução" />
+                <Tab key="produtos" title="Produtos" />
+                <Tab key="clientes" title="Clientes" />
+                <Tab key="vendedores" title="Vendedores" />
+              </Tabs>
+
+              {abaAnalise === "evolucao" && (
+              <div className="rounded-xl border border-default-200 bg-content1 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-blue-500/20 rounded-lg">
-                    <FaChartLine className="text-2xl text-blue-600 dark:text-blue-400" />
+                  <div className="p-2 bg-default-200 rounded-lg">
+                    <FaChartLine className="text-lg text-default-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">
+                    <h3 className="text-lg font-semibold text-foreground">
                       Evolução de Vendas e Receita
                     </h3>
-                    <p className="text-sm text-default-500">
-                      Visualize o crescimento diário das vendas e faturamento
+                    <p className="text-xs text-default-500">
+                      Vendas e faturamento por dia
                     </p>
                   </div>
                 </div>
@@ -2140,52 +2378,36 @@ export default function DashboardPage() {
                           {
                             label: "Vendas",
                             data: evolucaoVendas.map((item) => item.vendas),
-                            borderColor:
-                              theme === "dark" ? "#60A5FA" : "#3B82F6",
-                            backgroundColor:
-                              theme === "dark"
-                                ? "rgba(96, 165, 250, 0.1)"
-                                : "rgba(59, 130, 246, 0.08)",
-                            borderWidth: 2.5,
+                            borderColor: "rgb(255, 99, 132)",
+                            backgroundColor: "rgba(255, 99, 132, 0.1)",
+                            borderWidth: 2,
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor:
-                              theme === "dark" ? "#60A5FA" : "#3B82F6",
-                            pointBorderColor:
-                              theme === "dark" ? "#60A5FA" : "#3B82F6",
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: "rgb(255, 99, 132)",
+                            pointBorderColor: "rgb(255, 99, 132)",
                             pointBorderWidth: 0,
-                            pointHoverBackgroundColor:
-                              theme === "dark" ? "#93C5FD" : "#2563EB",
-                            pointHoverBorderColor:
-                              theme === "dark" ? "#93C5FD" : "#2563EB",
+                            pointHoverBackgroundColor: "rgb(255, 99, 132)",
+                            pointHoverBorderColor: "rgb(255, 99, 132)",
                             pointHoverBorderWidth: 0,
                             yAxisID: "y",
                           },
                           {
                             label: "Receita (R$)",
                             data: evolucaoVendas.map((item) => item.receita),
-                            borderColor:
-                              theme === "dark" ? "#34D399" : "#10B981",
-                            backgroundColor:
-                              theme === "dark"
-                                ? "rgba(52, 211, 153, 0.1)"
-                                : "rgba(16, 185, 129, 0.08)",
-                            borderWidth: 2.5,
+                            borderColor: "rgb(54, 162, 235)",
+                            backgroundColor: "rgba(54, 162, 235, 0.1)",
+                            borderWidth: 2,
                             tension: 0.4,
                             fill: true,
-                            pointRadius: 4,
-                            pointHoverRadius: 6,
-                            pointBackgroundColor:
-                              theme === "dark" ? "#34D399" : "#10B981",
-                            pointBorderColor:
-                              theme === "dark" ? "#34D399" : "#10B981",
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: "rgb(54, 162, 235)",
+                            pointBorderColor: "rgb(54, 162, 235)",
                             pointBorderWidth: 0,
-                            pointHoverBackgroundColor:
-                              theme === "dark" ? "#6EE7B7" : "#059669",
-                            pointHoverBorderColor:
-                              theme === "dark" ? "#6EE7B7" : "#059669",
+                            pointHoverBackgroundColor: "rgb(54, 162, 235)",
+                            pointHoverBorderColor: "rgb(54, 162, 235)",
                             pointHoverBorderWidth: 0,
                             yAxisID: "y1",
                           },
@@ -2205,8 +2427,8 @@ export default function DashboardPage() {
                             labels: {
                               usePointStyle: true,
                               padding: 20,
-                              font: { size: 15, weight: 600 },
-                              color: theme === "dark" ? "#f3f4f6" : "#1f2937",
+                              font: { size: 12, weight: 500 },
+                              color: "#666",
                             },
                           },
                           tooltip: {
@@ -2296,214 +2518,181 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Grid de Gráficos */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div
-                  className={getCardClassName(
-                    "rounded-2xl border border-sky-200 dark:border-sky-900 bg-gradient-to-br from-sky-50 to-cyan-50 dark:from-sky-950 dark:to-cyan-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 lg:col-span-2",
-                    "produtos_vendidos",
-                  )}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setBuscaProdutoDetalhe("");
-                    abrirDetalheCard("produtos_vendidos", 1, "");
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setBuscaProdutoDetalhe("");
-                      abrirDetalheCard("produtos_vendidos", 1, "");
-                    }
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-6">
-                    <div>
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2.5 bg-sky-500/20 rounded-lg">
-                          <FaBox className="text-2xl text-sky-600 dark:text-sky-400" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-foreground">
-                            Produtos Vendidos no Período
-                          </h3>
-                          <p className="text-sm text-default-500">
-                            Pesquise qualquer produto e veja a quantidade
-                            vendida
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-3xl font-bold text-foreground">
-                        {loadingGraficos
-                          ? "..."
-                          : `${resumoProdutosVendidos.quantidade_total.toLocaleString("pt-BR")} un`}
-                      </p>
-                      <p className="mt-2 text-sm text-default-600">
-                        {resumoProdutosVendidos.total.toLocaleString("pt-BR")}{" "}
-                        produtos encontrados no periodo filtrado.
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-white/70 dark:bg-black/20 px-4 py-3 text-right shadow-sm">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-default-500">
-                        Ação
-                      </p>
-                      <p className="text-sm font-semibold text-sky-700 dark:text-sky-300">
-                        Clique para pesquisar
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Top 10 Produtos */}
-                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-amber-500/20 rounded-lg">
-                      <FaTrophy className="text-2xl text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-foreground">
-                        Top 10 Produtos
-                      </h3>
-                      <p className="text-sm text-default-500">
-                        Produtos mais vendidos
-                      </p>
-                    </div>
-                  </div>
-                  {loadingGraficos ? (
-                    <div className="h-96 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-200 border-b-amber-500 mx-auto mb-3" />
-                        <p className="text-default-500">Carregando...</p>
-                      </div>
-                    </div>
-                  ) : top10Produtos.length > 0 ? (
-                    <div className="space-y-3">
-                      {top10Produtos.map((produto, index) => (
-                        <div
-                          key={produto.produto_id}
-                          className="flex items-center gap-3"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-bold text-amber-700">
-                              #{index + 1}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <p
-                                className="text-sm font-semibold text-foreground truncate"
-                                title={produto.descricao}
-                              >
-                                {produto.descricao}
-                              </p>
-                              <span className="text-sm font-bold text-amber-600 ml-2">
-                                {produto.quantidade.toLocaleString("pt-BR")} un
-                              </span>
-                            </div>
-                            <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                              <div
-                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-400 to-orange-500 rounded-lg transition-all duration-500"
-                                style={{
-                                  width: `${Math.min((produto.quantidade / top10Produtos[0].quantidade) * 100, 100)}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-96 flex flex-col items-center justify-center text-default-500">
-                      <span className="text-4xl mb-3">📭</span>
-                      <p>Nenhum dado disponível</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Top 5 Clientes */}
-                <div className="rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-green-500/20 rounded-lg">
-                      <FaUsers className="text-2xl text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-foreground">
-                        Top 10 Clientes
-                      </h3>
-                      <p className="text-sm text-default-500">
-                        Clientes com maior faturamento
-                      </p>
-                    </div>
-                  </div>
-                  {loadingGraficos ? (
-                    <div className="h-96 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-200 border-b-green-500 mx-auto mb-3" />
-                        <p className="text-default-500">Carregando...</p>
-                      </div>
-                    </div>
-                  ) : top10Clientes.length > 0 ? (
-                    <div className="space-y-3">
-                      {top10Clientes.map((cliente, index) => (
-                        <div
-                          key={cliente.cliente_id}
-                          className="flex items-center gap-3"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-xs font-bold text-green-700">
-                              #{index + 1}
-                            </span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <p
-                                className="text-sm font-semibold text-foreground truncate"
-                                title={cliente.cliente_nome}
-                              >
-                                {cliente.cliente_nome}
-                              </p>
-                              <div className="flex items-center gap-2 ml-2">
-                                <span className="text-xs font-medium text-green-500">
-                                  {cliente.total_vendas} vendas
-                                </span>
-                                <span className="text-sm font-bold text-green-600">
-                                  {formatarMoeda(cliente.receita_total)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                              <div
-                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-lg transition-all duration-500"
-                                style={{
-                                  width: `${Math.min((cliente.receita_total / top10Clientes[0].receita_total) * 100, 100)}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-96 flex flex-col items-center justify-center text-default-500">
-                      <span className="text-4xl mb-3">📭</span>
-                      <p>Nenhum dado disponível</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Performance por Vendedor */}
-              <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+              {abaAnalise === "produtos" && (
+              <div className="rounded-xl border border-default-200 bg-content1 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2.5 bg-purple-500/20 rounded-lg">
-                    <FaBriefcase className="text-2xl text-purple-600 dark:text-purple-400" />
+                  <div className="p-2 bg-default-200 rounded-lg">
+                    <FaShoppingCart className="text-lg text-default-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-foreground">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Top 10 Produtos
+                    </h3>
+                    <p className="text-xs text-default-500">
+                      Produtos mais vendidos por quantidade
+                    </p>
+                  </div>
+                </div>
+                {loadingGraficos ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-default-200 border-b-default-500 mx-auto mb-3" />
+                      <p className="text-default-500">Carregando...</p>
+                    </div>
+                  </div>
+                ) : top10Produtos.length > 0 ? (
+                  <div className="h-[420px]">
+                    <Bar
+                      data={{
+                        labels: top10Produtos.map((p) =>
+                          p.descricao.length > 25
+                            ? p.descricao.substring(0, 22) + "..."
+                            : p.descricao,
+                        ),
+                        datasets: [
+                          {
+                            label: "Quantidade",
+                            data: top10Produtos.map((p) => p.quantidade),
+                            backgroundColor: "rgba(255, 99, 132, 0.5)",
+                            borderColor: "rgb(255, 99, 132)",
+                            borderWidth: 1,
+                            borderRadius: 2,
+                          },
+                        ],
+                      }}
+                      options={{
+                        indexAxis: "y",
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false },
+                          datalabels: {
+                            anchor: "end",
+                            align: "end",
+                            color: "#6B7280",
+                            font: { weight: "bold", size: 11 },
+                            formatter: (value: number) =>
+                              `${value} un`,
+                          },
+                        },
+                        scales: {
+                          x: {
+                            grid: { display: false },
+                            ticks: { stepSize: 1, font: { size: 11 } },
+                          },
+                          y: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11 } },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                    <span className="text-4xl mb-3">📦</span>
+                    <p>Nenhum dado disponível</p>
+                  </div>
+                )}
+              </div>
+              )}
+
+              {abaAnalise === "clientes" && (
+              <div className="rounded-xl border border-default-200 bg-content1 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-default-200 rounded-lg">
+                    <FaUsers className="text-lg text-default-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Top 10 Clientes
+                    </h3>
+                    <p className="text-xs text-default-500">
+                      Clientes com maior faturamento
+                    </p>
+                  </div>
+                </div>
+                {loadingGraficos ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-default-200 border-b-default-500 mx-auto mb-3" />
+                      <p className="text-default-500">Carregando...</p>
+                    </div>
+                  </div>
+                ) : top10Clientes.length > 0 ? (
+                  <div className="h-[420px]">
+                    <Bar
+                      data={{
+                        labels: top10Clientes.map((c) =>
+                          c.cliente_nome.length > 22
+                            ? c.cliente_nome.substring(0, 20) + "..."
+                            : c.cliente_nome,
+                        ),
+                        datasets: [
+                          {
+                            label: "Faturamento",
+                            data: top10Clientes.map((c) => c.receita_total),
+                            backgroundColor: "rgba(54, 162, 235, 0.5)",
+                            borderColor: "rgb(54, 162, 235)",
+                            borderWidth: 1,
+                            borderRadius: 2,
+                          },
+                        ],
+                      }}
+                      options={{
+                        indexAxis: "y",
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: { display: false },
+                          datalabels: {
+                            anchor: "end",
+                            align: "end",
+                            color: "#6B7280",
+                            font: { weight: "bold", size: 11 },
+                            formatter: (value: number) =>
+                              formatarMoeda(value),
+                          },
+                        },
+                        scales: {
+                          x: {
+                            grid: { display: false },
+                            ticks: {
+                              font: { size: 11 },
+                              callback: (value: any) =>
+                                "R$ " + Number(value).toLocaleString("pt-BR"),
+                            },
+                          },
+                          y: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11 } },
+                          },
+                        },
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                    <span className="text-4xl mb-3">👥</span>
+                    <p>Nenhum dado disponível</p>
+                  </div>
+                )}
+              </div>
+              )}
+
+              {abaAnalise === "vendedores" && (
+              <div className="rounded-xl border border-default-200 bg-content1 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-default-200 rounded-lg">
+                    <FaBriefcase className="text-lg text-default-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
                       Vendas e OS por Vendedor
                     </h3>
-                    <p className="text-sm text-default-500">
+                    <p className="text-xs text-default-500">
                       Total recebido em vendas e ordens de servico
                     </p>
                   </div>
@@ -2511,81 +2700,78 @@ export default function DashboardPage() {
                 {loadingGraficos ? (
                   <div className="h-96 flex items-center justify-center">
                     <div className="text-center">
-                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-b-purple-500 mx-auto mb-3" />
+                      <div className="animate-spin rounded-full h-12 w-12 border-4 border-default-200 border-b-default-500 mx-auto mb-3" />
                       <p className="text-default-500">Carregando...</p>
                     </div>
                   </div>
                 ) : top10Vendedores.length > 0 ? (
-                  <div className="space-y-3">
-                    {top10Vendedores.map((vendedor, index) => (
-                      <div
-                        key={vendedor.vendedor_id}
-                        className="flex items-center gap-3"
-                      >
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-                            <span className="text-xs font-bold text-purple-700">
-                              #{index + 1}
-                            </span>
-                          </div>
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                            {vendedor.vendedor_nome
-                              .split(" ")
-                              .slice(0, 2)
-                              .map((n: string) => n[0])
-                              .join("")
-                              .toUpperCase()}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p
-                              className="text-sm font-semibold text-foreground truncate"
-                              title={vendedor.vendedor_nome}
-                            >
-                              {vendedor.vendedor_nome}
-                            </p>
-                            <div className="flex items-center gap-2 ml-2">
-                              <span className="text-xs font-medium text-purple-500">
-                                {vendedor.total_vendas} vendas •{" "}
-                                {vendedor.total_os} OS
-                              </span>
-                              <span className="text-sm font-bold text-purple-600">
-                                {formatarMoeda(vendedor.receita_total)}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-default-500 mb-2">
-                            <span>
-                              Vendas: {formatarMoeda(vendedor.receita_vendas)}
-                            </span>
-                            <span>
-                              OS: {formatarMoeda(vendedor.receita_os)}
-                            </span>
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                              Lucro: {formatarMoeda(vendedor.lucro_total)}
-                            </span>
-                          </div>
-                          <div className="relative h-8 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
-                            <div
-                              className="absolute inset-y-0 left-0 bg-gradient-to-r from-purple-400 to-pink-500 rounded-lg transition-all duration-500"
-                              style={{
-                                width: `${
-                                  top10Vendedores[0]?.receita_total
-                                    ? Math.min(
-                                        (vendedor.receita_total /
-                                          top10Vendedores[0].receita_total) *
-                                          100,
-                                        100,
-                                      )
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="h-[420px]">
+                    <Bar
+                      data={{
+                        labels: top10Vendedores.map((v) =>
+                          v.vendedor_nome.length > 20
+                            ? v.vendedor_nome.substring(0, 18) + "..."
+                            : v.vendedor_nome,
+                        ),
+                        datasets: [
+                          {
+                            label: "Vendas",
+                            data: top10Vendedores.map((v) => v.receita_vendas),
+                            backgroundColor: "rgba(255, 99, 132, 0.5)",
+                            borderColor: "rgb(255, 99, 132)",
+                            borderWidth: 1,
+                            borderRadius: 2,
+                          },
+                          {
+                            label: "OS",
+                            data: top10Vendedores.map((v) => v.receita_os),
+                            backgroundColor: "rgba(54, 162, 235, 0.5)",
+                            borderColor: "rgb(54, 162, 235)",
+                            borderWidth: 1,
+                            borderRadius: 2,
+                          },
+                        ],
+                      }}
+                      options={{
+                        indexAxis: "y",
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: "top",
+                            labels: {
+                              boxWidth: 10,
+                              padding: 12,
+                              font: { size: 11 },
+                            },
+                          },
+                          datalabels: {
+                            anchor: "end",
+                            align: "end",
+                            color: "#6B7280",
+                            font: { weight: "bold", size: 10 },
+                            formatter: (value: number) =>
+                              value > 0 ? formatarMoeda(value) : "",
+                          },
+                        },
+                        scales: {
+                          x: {
+                            stacked: false,
+                            grid: { display: false },
+                            ticks: {
+                              font: { size: 11 },
+                              callback: (value: any) =>
+                                "R$ " + Number(value).toLocaleString("pt-BR"),
+                            },
+                          },
+                          y: {
+                            stacked: false,
+                            grid: { display: false },
+                            ticks: { font: { size: 11 } },
+                          },
+                        },
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="h-96 flex flex-col items-center justify-center text-default-500">
@@ -2594,6 +2780,7 @@ export default function DashboardPage() {
                   </div>
                 )}
               </div>
+              )}
             </section>
           )}
 

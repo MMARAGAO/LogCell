@@ -1,4 +1,10 @@
-import type { DadosDashboard, FiltroDashboard } from "@/types/dashboard";
+import type {
+  DadosDashboard,
+  FiltroDashboard,
+  MetricasProdutos,
+  MetricasAcessorios,
+  MetricasAparelhos,
+} from "@/types/dashboard";
 
 import { supabase } from "@/lib/supabaseClient";
 
@@ -26,15 +32,15 @@ export class DashboardService {
       )
       .gte("data_pagamento", inicioISO)
       .lte("data_pagamento", fimISO)
-      .neq("tipo_pagamento", "credito_cliente")
-      .neq("venda.status", "cancelada")
-      .limit(2000);
+        .neq("tipo_pagamento", "credito_cliente")
+        .not("venda.status", "in", '("cancelada","devolvida")')
+        .limit(2000);
 
-    if (loja_id) {
-      query = query.eq("venda.loja_id", loja_id);
-    }
+      if (loja_id) {
+        query = query.eq("venda.loja_id", loja_id);
+      }
 
-    const { data, error } = await query;
+      const { data, error } = await query;
 
     if (error) {
       console.error("Erro ao buscar vendas com pagamentos no período:", error);
@@ -94,7 +100,7 @@ export class DashboardService {
       )
       .gte("criado_em", inicioISO)
       .lte("criado_em", fimISO)
-      .neq("venda.status", "cancelada")
+      .not("venda.status", "in", '("cancelada","devolvida")')
       .limit(2000);
 
     if (loja_id) {
@@ -256,57 +262,151 @@ export class DashboardService {
     data_fim?: string,
     loja_id?: number,
   ): Promise<number> {
-    let totalContasNaoPagas = 0;
-
-    let queryContasNaoPagas = supabase
-      .from("vendas")
-      .select("valor_total, valor_pago, saldo_devedor")
-      .neq("status", "cancelada")
-      .limit(2000);
-
-    if (data_inicio) {
-      queryContasNaoPagas = queryContasNaoPagas.gte(
-        "criado_em",
-        `${data_inicio}T00:00:00`,
-      );
-    }
-
-    if (data_fim) {
-      queryContasNaoPagas = queryContasNaoPagas.lte(
-        "criado_em",
-        `${data_fim}T23:59:59`,
-      );
-    }
-
-    if (loja_id) {
-      queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
-    }
-
-    const { data: contasData, error: erroContas } = await queryContasNaoPagas;
-
-    if (erroContas) {
-      console.error(
-        "❌ [DASHBOARD] Erro ao buscar contas não pagas acumuladas:",
-        erroContas,
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_total_contas_nao_pagas",
+        {
+          p_data_inicio: data_inicio
+            ? `${data_inicio}T00:00:00`
+            : "2000-01-01T00:00:00",
+          p_data_fim: data_fim
+            ? `${data_fim}T23:59:59`
+            : new Date().toISOString().split("T")[0] + "T23:59:59",
+          p_loja_id: loja_id || null,
+        },
       );
 
-      return totalContasNaoPagas;
-    }
+      if (error) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar contas não pagas acumuladas:",
+          error,
+        );
 
-    const batchContas = contasData || [];
-
-    batchContas.forEach((v: any) => {
-      const valorTotal = Number(v.valor_total || 0);
-      const valorPago = Number(v.valor_pago || 0);
-      const saldoDevedor = Number(v.saldo_devedor || 0);
-      const pendente = saldoDevedor > 0 ? saldoDevedor : valorTotal - valorPago;
-
-      if (pendente > 0) {
-        totalContasNaoPagas += pendente;
+        return 0;
       }
-    });
 
-    return totalContasNaoPagas;
+      return Number(data || 0);
+    } catch (error) {
+      console.error(
+        "❌ [DASHBOARD] Erro crítico ao buscar contas não pagas acumuladas:",
+        error,
+      );
+
+      return 0;
+    }
+  }
+
+  static async buscarMetricasProdutos(
+    filtro: FiltroDashboard,
+  ): Promise<MetricasProdutos> {
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_metricas_produtos",
+        {
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      return {
+        total_vendas: Number(row?.total_vendas || 0),
+        pagamentos: Number(row?.pagamentos || 0),
+        lucro: Number(row?.lucro || 0),
+        ticket_medio: Number(row?.ticket_medio || 0),
+        contas_nao_pagas: Number(row?.contas_nao_pagas || 0),
+      };
+    } catch (error) {
+      console.error("❌ [DASHBOARD] Erro ao buscar métricas de produtos:", error);
+
+      return {
+        total_vendas: 0,
+        pagamentos: 0,
+        lucro: 0,
+        ticket_medio: 0,
+        contas_nao_pagas: 0,
+      };
+    }
+  }
+
+  static async buscarMetricasAcessorios(
+    filtro: FiltroDashboard,
+  ): Promise<MetricasAcessorios> {
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_metricas_acessorios",
+        {
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      return {
+        total_vendas: Number(row?.total_vendas || 0),
+        pagamentos: Number(row?.pagamentos || 0),
+        lucro: Number(row?.lucro || 0),
+        ticket_medio: Number(row?.ticket_medio || 0),
+      };
+    } catch (error) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar métricas de acessórios:",
+        error,
+      );
+
+      return {
+        total_vendas: 0,
+        pagamentos: 0,
+        lucro: 0,
+        ticket_medio: 0,
+      };
+    }
+  }
+
+  static async buscarMetricasAparelhos(
+    filtro: FiltroDashboard,
+  ): Promise<MetricasAparelhos> {
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_metricas_aparelhos",
+        {
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      return {
+        quantidade: Number(row?.quantidade || 0),
+        pagamentos: Number(row?.pagamentos || 0),
+        lucro: Number(row?.lucro || 0),
+        ticket_medio: Number(row?.ticket_medio || 0),
+      };
+    } catch (error) {
+      console.error(
+        "❌ [DASHBOARD] Erro ao buscar métricas de aparelhos:",
+        error,
+      );
+
+      return {
+        quantidade: 0,
+        pagamentos: 0,
+        lucro: 0,
+        ticket_medio: 0,
+      };
+    }
   }
 
   private static async calcularMetricasOSProcessadasCorrigidas(
@@ -314,16 +414,59 @@ export class DashboardService {
     fimISO: string,
     loja_id?: number,
   ): Promise<{
+    total_os: number;
+    os_pendentes: number;
     os_entregues: number;
     os_pagas_nao_entregues: number;
     os_processadas: number;
     faturamento_os_processadas: number;
     ganho_os_processadas: number;
   }> {
+    let totalOS = 0;
+    let osPendentes = 0;
     const osProcessadasIds: string[] = [];
     let osEntregues = 0;
     let osPagasNaoEntregues = 0;
 
+    // Buscar total de OS no período
+    let queryTotalOS = supabase
+      .from("ordem_servico")
+      .select("id", { count: "exact", head: true })
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO)
+      .neq("status", "cancelado");
+
+    if (loja_id) {
+      queryTotalOS = queryTotalOS.eq("id_loja", loja_id);
+    }
+
+    const { count: totalOSCount, error: erroTotalOS } = await queryTotalOS;
+
+    if (!erroTotalOS) {
+      totalOS = totalOSCount || 0;
+    }
+
+    // Buscar OS pendentes (aguardando / em_andamento)
+    let queryOSPendentes = supabase
+      .from("ordem_servico")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["aguardando", "em_andamento"])
+      .neq("status", "cancelado")
+      .gte("criado_em", inicioISO)
+      .lte("criado_em", fimISO);
+
+    if (loja_id) {
+      queryOSPendentes = queryOSPendentes.eq("id_loja", loja_id);
+    }
+
+    const { count: osPendentesCount, error: erroOSPendentes } =
+      await queryOSPendentes;
+
+    if (!erroOSPendentes) {
+      osPendentes = osPendentesCount || 0;
+    }
+
+    // Buscar OS processadas (entregues ou com pagamento)
     let queryOSProcessadas = supabase
       .from("ordem_servico")
       .select("id, status, valor_pago")
@@ -412,6 +555,8 @@ export class DashboardService {
     }
 
     return {
+      total_os: totalOS,
+      os_pendentes: osPendentes,
       os_entregues: osEntregues,
       os_pagas_nao_entregues: osPagasNaoEntregues,
       os_processadas: osEntregues + osPagasNaoEntregues,
@@ -517,6 +662,13 @@ export class DashboardService {
           loja_id,
         );
 
+      const [metricasProdutos, metricasAcessorios, metricasAparelhos] =
+        await Promise.all([
+          this.buscarMetricasProdutos(filtro),
+          this.buscarMetricasAcessorios(filtro),
+          this.buscarMetricasAparelhos(filtro),
+        ]);
+
       console.log("✅ [DASHBOARD] Dados carregados:", {
         vendas,
         os,
@@ -534,9 +686,9 @@ export class DashboardService {
           ganho_total_vendas: Number(vendas.lucro_vendas || 0),
           ticket_medio: Number(vendas.ticket_medio || 0),
           contas_nao_pagas: Number(contasNaoPagasAcumuladas || 0),
-          total_os: Number(os.total_os || 0),
+          total_os: Number(metricasOSCorrigidas.total_os || 0),
           os_entregues: Number(metricasOSCorrigidas.os_entregues || 0),
-          os_pendentes: Number(os.os_pendentes || 0),
+          os_pendentes: Number(metricasOSCorrigidas.os_pendentes || 0),
           os_pagas_nao_entregues: Number(
             metricasOSCorrigidas.os_pagas_nao_entregues || 0,
           ),
@@ -607,6 +759,9 @@ export class DashboardService {
             adicionais.devolucoes_sem_credito_total || 0,
           ),
         },
+        metricas_produtos: metricasProdutos,
+        metricas_acessorios: metricasAcessorios,
+        metricas_aparelhos: metricasAparelhos,
       };
     } catch (error) {
       console.error("❌ [DASHBOARD] Erro crítico ao buscar dados:", error);
@@ -664,7 +819,7 @@ export class DashboardService {
       .select("id", { count: "exact", head: true })
       .gte("criado_em", inicioISO)
       .lte("criado_em", fimISO)
-      .neq("status", "cancelada");
+      .not("status", "in", '("cancelada","devolvida")');
 
     if (loja_id) {
       queryVendas = queryVendas.eq("loja_id", loja_id);
@@ -754,36 +909,29 @@ export class DashboardService {
     // Buscar contas não pagas (vendas onde valor_pago < valor_total)
     let totalContasNaoPagas = 0;
 
-    let queryContasNaoPagas = supabase
-      .from("vendas")
-      .select("valor_total, valor_pago")
-      .gte("criado_em", inicioISO)
-      .lte("criado_em", fimISO)
-      .neq("status", "cancelada")
-      .limit(2000);
-
-    if (loja_id) {
-      queryContasNaoPagas = queryContasNaoPagas.eq("loja_id", loja_id);
-    }
-
-    const { data: contasData, error: erroContas } = await queryContasNaoPagas;
-
-    if (erroContas) {
-      console.error(
-        "❌ [DASHBOARD] Erro ao buscar contas não pagas:",
-        erroContas,
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_total_contas_nao_pagas",
+        {
+          p_data_inicio: inicioISO,
+          p_data_fim: fimISO,
+          p_loja_id: loja_id || null,
+        },
       );
-    } else {
-      const batchContas = contasData || [];
 
-      batchContas.forEach((v: any) => {
-        const valorTotal = Number(v.valor_total || 0);
-        const valorPago = Number(v.valor_pago || 0);
-
-        if (valorPago < valorTotal) {
-          totalContasNaoPagas += valorTotal - valorPago;
-        }
-      });
+      if (error) {
+        console.error(
+          "❌ [DASHBOARD] Erro ao buscar contas não pagas:",
+          error,
+        );
+      } else {
+        totalContasNaoPagas = Number(data || 0);
+      }
+    } catch (error) {
+      console.error(
+        "❌ [DASHBOARD] Erro crítico ao buscar contas não pagas:",
+        error,
+      );
     }
 
     // Buscar métricas de Ordem de Serviço
@@ -1387,7 +1535,7 @@ export class DashboardService {
         .select("criado_em, valor_total")
         .gte("criado_em", inicioISO)
         .lte("criado_em", fimISO)
-        .neq("status", "cancelada")
+        .not("status", "in", '("cancelada","devolvida")')
         .order("criado_em");
 
       if (loja_id) {
@@ -1548,7 +1696,7 @@ export class DashboardService {
         .gte("data_pagamento", inicioISO)
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
-        .neq("venda.status", "cancelada")
+        .not("venda.status", "in", '("cancelada","devolvida")')
         .limit(2000);
 
       if (loja_id) {
@@ -1655,7 +1803,7 @@ export class DashboardService {
         .gte("data_pagamento", inicioISO)
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
-        .neq("venda.status", "cancelada")
+        .not("venda.status", "in", '("cancelada","devolvida")')
         .limit(2000);
 
       if (loja_id) {
