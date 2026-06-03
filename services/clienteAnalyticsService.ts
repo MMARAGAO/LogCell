@@ -9,8 +9,11 @@ export interface ClienteAnalytics {
     ticketMedio: number;
     ultimaCompra: string | null;
     diasDesdeUltimaCompra: number | null;
+    primeiraCompra: string | null;
+    diasRelacionamento: number | null;
     totalAparelhos: number;
     totalServicos: number;
+    totalServicosValor: number;
   };
   vendasPorMes: { mes: string; valor: number }[];
   pagamentosPorTipo: { tipo: string; valor: number }[];
@@ -24,6 +27,9 @@ export interface ClienteAnalytics {
     status: string;
   }[];
   creditos: number;
+  vendedorPreferidoNome: string | null;
+  lojaPreferidaNome: string | null;
+  produtoFavorito: string | null;
 }
 
 const TIPO_PAGAMENTO_LABEL: Record<string, string> = {
@@ -42,10 +48,23 @@ export async function buscarAnalyticsCliente(
 ): Promise<ClienteAnalytics> {
   const now = new Date();
 
-  // 1. Buscar vendas do cliente
+  // 1. Buscar vendas do cliente com pagamentos e aparelhos aninhados
   const { data: vendas, error: errVendas } = await supabase
     .from("vendas")
-    .select("id, numero_venda, valor_total, valor_pago, saldo_devedor, status, criado_em")
+    .select(`
+      id, numero_venda, valor_total, valor_pago, saldo_devedor, status, criado_em, loja_id, vendedor_id,
+      pagamentos_venda!pagamentos_venda_venda_id_fkey (
+        tipo_pagamento,
+        valor
+      ),
+      aparelhos!aparelhos_venda_id_fkey (
+        marca
+      ),
+      itens_venda!itens_venda_venda_id_fkey (
+        produto_nome,
+        quantidade
+      )
+    `)
     .eq("cliente_id", clienteId)
     .neq("status", "cancelada")
     .order("criado_em", { ascending: false });
@@ -63,6 +82,32 @@ export async function buscarAnalyticsCliente(
   const ultimaCompra = ultimaVenda ? ultimaVenda.criado_em : null;
   const diasDesdeUltimaCompra = ultimaCompra
     ? Math.floor((now.getTime() - new Date(ultimaCompra).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const primeiraVenda = vendasValidas.length > 0 ? vendasValidas[vendasValidas.length - 1] : null;
+  const primeiraCompra = primeiraVenda ? primeiraVenda.criado_em : null;
+  const diasRelacionamento = primeiraCompra
+    ? Math.floor((now.getTime() - new Date(primeiraCompra).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // Vendedor preferido (moda)
+  const vendedorCount: Record<string, number> = {};
+  for (const v of vendasValidas) {
+    if (v.vendedor_id) {
+      vendedorCount[v.vendedor_id] = (vendedorCount[v.vendedor_id] || 0) + 1;
+    }
+  }
+  const topVendedorId = Object.entries(vendedorCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+
+  // Loja preferida (moda)
+  const lojaCount: Record<number, number> = {};
+  for (const v of vendasValidas) {
+    if (v.loja_id) {
+      lojaCount[v.loja_id] = (lojaCount[v.loja_id] || 0) + 1;
+    }
+  }
+  const topLojaId = Object.entries(lojaCount).sort((a, b) => b[1] - a[1])[0]?.[0]
+    ? Number(Object.entries(lojaCount).sort((a, b) => b[1] - a[1])[0][0])
     : null;
 
   // 2. Vendas por mês (últimos 12 meses)
@@ -89,49 +134,29 @@ export async function buscarAnalyticsCliente(
     valor,
   }));
 
-  // 3. Formas de pagamento (via join com vendas)
-  const vendaIds = vendasValidas.map((v) => v.id);
+  // 3. Formas de pagamento + 4. Aparelhos comprados (extraídos do JOIN)
   let pagamentosPorTipo: { tipo: string; valor: number }[] = [];
 
-  try {
-    const { data: pagamentos, error: errPag } = await supabase
-      .from("pagamentos_venda")
-      .select("tipo_pagamento, valor, venda:vendas!pagamentos_venda_venda_id_fkey(cliente_id, status)")
-      .eq("venda.cliente_id", clienteId)
-      .neq("venda.status", "cancelada");
-
-    if (errPag) {
-      console.error("[Analytics] Erro ao buscar pagamentos:", errPag);
-    }
-
-    const agrupado: Record<string, number> = {};
-    for (const p of pagamentos || []) {
-      const label = TIPO_PAGAMENTO_LABEL[p.tipo_pagamento] || p.tipo_pagamento;
-      agrupado[label] = (agrupado[label] || 0) + (p.valor || 0);
-    }
-    pagamentosPorTipo = Object.entries(agrupado).map(([tipo, valor]) => ({
-      tipo,
-      valor,
-    }));
-  } catch (err) {
-    console.error("[Analytics] Exceção ao buscar pagamentos:", err);
-  }
-
-  // 4. Aparelhos comprados (marcas)
-  const { data: aparelhos } = await supabase
-    .from("aparelhos")
-    .select("marca, venda_id")
-    .not("marca", "is", null)
-    .eq("status", "vendido")
-    .in("venda_id", vendaIds.length > 0 ? vendaIds : [""])
-    .limit(10000);
-
+  const agrupadoPag: Record<string, number> = {};
   const marcas: Record<string, number> = {};
-  for (const a of aparelhos || []) {
-    if (a.marca) {
-      marcas[a.marca] = (marcas[a.marca] || 0) + 1;
+  for (const venda of vendasValidas) {
+    const pags = venda.pagamentos_venda;
+    if (Array.isArray(pags)) {
+      for (const p of pags) {
+        const label = TIPO_PAGAMENTO_LABEL[p.tipo_pagamento] || p.tipo_pagamento;
+        agrupadoPag[label] = (agrupadoPag[label] || 0) + (p.valor || 0);
+      }
+    }
+    const apars = venda.aparelhos;
+    if (Array.isArray(apars)) {
+      for (const a of apars) {
+        if (a.marca) {
+          marcas[a.marca] = (marcas[a.marca] || 0) + 1;
+        }
+      }
     }
   }
+  pagamentosPorTipo = Object.entries(agrupadoPag).map(([tipo, valor]) => ({ tipo, valor }));
   const aparelhosComprados = Object.entries(marcas)
     .map(([marca, quantidade]) => ({ marca, quantidade }))
     .sort((a, b) => b.quantidade - a.quantidade)
@@ -139,6 +164,7 @@ export async function buscarAnalyticsCliente(
 
   // 5. Serviços realizados (ordem_servico)
   let totalServicos = 0;
+  let totalServicosValor = 0;
   let servicosRealizados: { descricao: string; quantidade: number }[] = [];
 
   try {
@@ -161,6 +187,7 @@ export async function buscarAnalyticsCliente(
           .limit(10000);
 
         totalServicos = servicos?.length || 0;
+        totalServicosValor = (servicos || []).reduce((s, os) => s + (os.valor_total || 0), 0);
 
         const servicosAgg: Record<string, number> = {};
         for (const s of servicos || []) {
@@ -189,7 +216,44 @@ export async function buscarAnalyticsCliente(
 
   creditos = (creditosData || []).reduce((s, c) => s + (c.saldo || 0), 0);
 
-  // 7. Vendas para listagem
+  // 7. Nomes do vendedor e loja preferidos
+  let vendedorPreferidoNome: string | null = null;
+  let lojaPreferidaNome: string | null = null;
+
+  if (topVendedorId) {
+    const { data: user } = await supabase
+      .from("usuarios")
+      .select("nome")
+      .eq("id", topVendedorId)
+      .single();
+    vendedorPreferidoNome = user?.nome || null;
+  }
+
+  if (topLojaId) {
+    const { data: loja } = await supabase
+      .from("lojas")
+      .select("nome")
+      .eq("id", topLojaId)
+      .maybeSingle();
+    lojaPreferidaNome = loja?.nome || null;
+  }
+
+  // 8. Produto favorito (extraído do JOIN)
+  let produtoFavorito: string | null = null;
+  const itemCount: Record<string, number> = {};
+  for (const venda of vendasValidas) {
+    const itens = venda.itens_venda;
+    if (Array.isArray(itens)) {
+      for (const item of itens) {
+        const nome = item.produto_nome || "Sem nome";
+        itemCount[nome] = (itemCount[nome] || 0) + (item.quantidade || 1);
+      }
+    }
+  }
+  const top = Object.entries(itemCount).sort((a, b) => b[1] - a[1])[0];
+  produtoFavorito = top ? `${top[0]} (${top[1]}x)` : null;
+
+  // 9. Vendas para listagem
   const vendasList = vendasValidas.map((v) => ({
     id: v.id,
     numero_venda: v.numero_venda,
@@ -207,8 +271,11 @@ export async function buscarAnalyticsCliente(
       ticketMedio,
       ultimaCompra,
       diasDesdeUltimaCompra,
+      primeiraCompra,
+      diasRelacionamento,
       totalAparelhos: aparelhosComprados.reduce((s, a) => s + a.quantidade, 0),
       totalServicos,
+      totalServicosValor,
     },
     vendasPorMes: vendasPorMesArray,
     pagamentosPorTipo,
@@ -216,5 +283,8 @@ export async function buscarAnalyticsCliente(
     servicosRealizados,
     vendas: vendasList,
     creditos,
+    vendedorPreferidoNome,
+    lojaPreferidaNome,
+    produtoFavorito,
   };
 }
