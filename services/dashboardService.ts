@@ -32,16 +32,17 @@ export class DashboardService {
       )
       .gte("data_pagamento", inicioISO)
       .lte("data_pagamento", fimISO)
-        .neq("tipo_pagamento", "credito_cliente")
-        .neq("venda.status", "cancelada")
-        .neq("venda.status", "devolvida")
-        .limit(2000);
+      .neq("tipo_pagamento", "credito_cliente")
+      .neq("venda.status", "cancelada")
+      .neq("venda.status", "devolvida");
 
-      if (loja_id) {
-        query = query.eq("venda.loja_id", loja_id);
-      }
+    if (loja_id) {
+      query = query.eq("venda.loja_id", loja_id);
+    }
 
-      const { data, error } = await query;
+    query = query.limit(2000);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Erro ao buscar vendas com pagamentos no período:", error);
@@ -1699,12 +1700,13 @@ export class DashboardService {
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
         .neq("venda.status", "cancelada")
-        .neq("venda.status", "devolvida")
-        .limit(2000);
+        .neq("venda.status", "devolvida");
 
       if (loja_id) {
         query = query.eq("venda.loja_id", loja_id);
       }
+
+      query = query.limit(2000);
 
       const { data, error } = await query;
 
@@ -1807,12 +1809,13 @@ export class DashboardService {
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
         .neq("venda.status", "cancelada")
-        .neq("venda.status", "devolvida")
-        .limit(2000);
+        .neq("venda.status", "devolvida");
 
       if (loja_id) {
         query = query.eq("venda.loja_id", loja_id);
       }
+
+      query = query.limit(2000);
 
       const { data, error } = await query;
 
