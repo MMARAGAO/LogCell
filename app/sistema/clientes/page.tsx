@@ -54,6 +54,7 @@ import {
   Mail,
   MapPin,
   BarChart3,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
@@ -67,6 +68,7 @@ import {
   ClienteCard,
   GerenciarCreditosModal,
   ClienteAnalyticsModal,
+  ExportarAnalyticsModal,
 } from "@/components/clientes";
 import {
   buscarClientes,
@@ -106,6 +108,7 @@ export default function ClientesPage() {
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>();
   const [modalAnalyticsOpen, setModalAnalyticsOpen] = useState(false);
   const [clienteAnalytics, setClienteAnalytics] = useState<Cliente | null>(null);
+  const [modalExportOpen, setModalExportOpen] = useState(false);
 
   // Paginação
   const [page, setPage] = useState(1);
@@ -621,16 +624,29 @@ export default function ClientesPage() {
             Gerencie o cadastro de clientes
           </p>
         </div>
-        <Permissao permissao="clientes.criar">
-          <Button
-            color="primary"
-            size="lg"
-            startContent={<Plus className="w-4 h-4" />}
-            onPress={handleNovoCliente}
-          >
-            Novo Cliente
-          </Button>
-        </Permissao>
+        <div className="flex items-center gap-2">
+          <Permissao permissao="clientes.visualizar">
+            <Button
+              color="secondary"
+              size="lg"
+              startContent={<FileSpreadsheet className="w-4 h-4" />}
+              variant="flat"
+              onPress={() => setModalExportOpen(true)}
+            >
+              Exportar Analytics
+            </Button>
+          </Permissao>
+          <Permissao permissao="clientes.criar">
+            <Button
+              color="primary"
+              size="lg"
+              startContent={<Plus className="w-4 h-4" />}
+              onPress={handleNovoCliente}
+            >
+              Novo Cliente
+            </Button>
+          </Permissao>
+        </div>
       </div>
 
       {/* Cards de Estatísticas */}
@@ -1161,6 +1177,11 @@ export default function ClientesPage() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <ExportarAnalyticsModal
+        isOpen={modalExportOpen}
+        onClose={() => setModalExportOpen(false)}
+      />
 
       <ConfirmModal
         cancelText="Cancelar"

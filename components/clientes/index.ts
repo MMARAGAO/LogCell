@@ -3,3 +3,4 @@ export { default as ClienteCard } from "./ClienteCard";
 export { GerenciarCreditosModal } from "./GerenciarCreditosModal";
 export { HistoricoCreditosModal } from "./HistoricoCreditosModal";
 export { ClienteAnalyticsModal } from "./ClienteAnalyticsModal";
+export { ExportarAnalyticsModal } from "./ExportarAnalyticsModal";
