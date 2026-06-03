@@ -95,10 +95,14 @@ interface DesempenhoVendedor {
   vendedor_nome: string;
   total_vendas: number;
   total_os: number;
-  receita_vendas: number;
+  receita_produtos: number;
+  receita_aparelhos: number;
+  receita_acessorios: number;
   receita_os: number;
   receita_total: number;
-  lucro_vendas: number;
+  lucro_produtos: number;
+  lucro_aparelhos: number;
+  lucro_acessorios: number;
   lucro_os: number;
   lucro_total: number;
 }
@@ -2715,12 +2719,20 @@ export default function DashboardPage() {
                         ),
                         datasets: [
                           {
-                            label: "Vendas",
-                            data: top10Vendedores.map((v) => v.receita_vendas),
+                            label: "Produtos",
+                            data: top10Vendedores.map((v) => v.receita_produtos),
                             backgroundColor: "rgba(255, 99, 132, 0.5)",
                             borderColor: "rgb(255, 99, 132)",
                             borderWidth: 1,
-                            borderRadius: 2,
+                            borderRadius: 0,
+                          },
+                          {
+                            label: "Aparelhos",
+                            data: top10Vendedores.map((v) => v.receita_aparelhos),
+                            backgroundColor: "rgba(255, 159, 64, 0.5)",
+                            borderColor: "rgb(255, 159, 64)",
+                            borderWidth: 1,
+                            borderRadius: 0,
                           },
                           {
                             label: "OS",

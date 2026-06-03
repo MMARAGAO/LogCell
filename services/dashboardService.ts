@@ -1765,10 +1765,14 @@ export class DashboardService {
       vendedor_nome: string;
       total_vendas: number;
       total_os: number;
-      receita_vendas: number;
+      receita_produtos: number;
+      receita_aparelhos: number;
+      receita_acessorios: number;
       receita_os: number;
       receita_total: number;
-      lucro_vendas: number;
+      lucro_produtos: number;
+      lucro_aparelhos: number;
+      lucro_acessorios: number;
       lucro_os: number;
       lucro_total: number;
     }>
@@ -1795,10 +1799,14 @@ export class DashboardService {
           vendedor_nome: String(v.vendedor_nome || "Vendedor desconhecido"),
           total_vendas: Number(v.total_vendas || 0),
           total_os: Number(v.total_os || 0),
-          receita_vendas: Number(v.receita_vendas || 0),
+          receita_produtos: Number(v.receita_produtos || 0),
+          receita_aparelhos: Number(v.receita_aparelhos || 0),
+          receita_acessorios: Number(v.receita_acessorios || 0),
           receita_os: Number(v.receita_os || 0),
           receita_total: Number(v.receita_total || 0),
-          lucro_vendas: Number(v.lucro_vendas || 0),
+          lucro_produtos: Number(v.lucro_produtos || 0),
+          lucro_aparelhos: Number(v.lucro_aparelhos || 0),
+          lucro_acessorios: Number(v.lucro_acessorios || 0),
           lucro_os: Number(v.lucro_os || 0),
           lucro_total: Number(v.lucro_total || 0),
         }));
