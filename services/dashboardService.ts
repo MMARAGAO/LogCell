@@ -33,7 +33,8 @@ export class DashboardService {
       .gte("data_pagamento", inicioISO)
       .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
-        .not("venda.status", "in", '("cancelada","devolvida")')
+        .neq("venda.status", "cancelada")
+        .neq("venda.status", "devolvida")
         .limit(2000);
 
       if (loja_id) {
@@ -100,7 +101,8 @@ export class DashboardService {
       )
       .gte("criado_em", inicioISO)
       .lte("criado_em", fimISO)
-      .not("venda.status", "in", '("cancelada","devolvida")')
+      .neq("venda.status", "cancelada")
+      .neq("venda.status", "devolvida")
       .limit(2000);
 
     if (loja_id) {
@@ -1696,7 +1698,8 @@ export class DashboardService {
         .gte("data_pagamento", inicioISO)
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
-        .not("venda.status", "in", '("cancelada","devolvida")')
+        .neq("venda.status", "cancelada")
+        .neq("venda.status", "devolvida")
         .limit(2000);
 
       if (loja_id) {
@@ -1803,7 +1806,8 @@ export class DashboardService {
         .gte("data_pagamento", inicioISO)
         .lte("data_pagamento", fimISO)
         .neq("tipo_pagamento", "credito_cliente")
-        .not("venda.status", "in", '("cancelada","devolvida")')
+        .neq("venda.status", "cancelada")
+        .neq("venda.status", "devolvida")
         .limit(2000);
 
       if (loja_id) {
