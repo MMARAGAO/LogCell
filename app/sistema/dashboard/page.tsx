@@ -3,6 +3,7 @@
 import type { DadosDashboard } from "@/types/dashboard";
 
 import { useEffect, useMemo, useState } from "react";
+import type { SortDescriptor } from "@heroui/react";
 import {
   Modal,
   ModalBody,
@@ -14,6 +15,12 @@ import {
   SelectItem,
   Tabs,
   Tab,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
 } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -174,6 +181,10 @@ export default function DashboardPage() {
   const [top10Vendedores, setTop10Vendedores] = useState<DesempenhoVendedor[]>(
     [],
   );
+  const [sortVendedores, setSortVendedores] = useState<SortDescriptor>({
+    column: "receita_total",
+    direction: "descending",
+  });
   const [resumoProdutosVendidos, setResumoProdutosVendidos] = useState<{
     total: number;
     quantidade_total: number;
@@ -314,7 +325,7 @@ export default function DashboardPage() {
           DashboardService.buscarEvolucaoVendas(filtro),
           DashboardService.buscarTop10Produtos(filtro),
           DashboardService.buscarTop10Clientes(filtro),
-          DashboardService.buscarTop10Vendedores(filtro),
+          DashboardService.buscarVendedoresRanking(filtro),
           DashboardService.buscarProdutosVendidosPeriodo(filtro, "", 1, 10),
         ]);
 
@@ -614,6 +625,22 @@ export default function DashboardPage() {
     resumoProdutosVendidos,
     abaAtiva,
   ]);
+
+  const vendedoresOrdenados = useMemo(() => {
+    const col = sortVendedores.column as keyof DesempenhoVendedor;
+    const dir = sortVendedores.direction === "ascending" ? 1 : -1;
+
+    return [...top10Vendedores].sort((a, b) => {
+      const valA = a[col];
+      const valB = b[col];
+
+      if (typeof valA === "number" && typeof valB === "number") {
+        return (valA - valB) * dir;
+      }
+
+      return String(valA).localeCompare(String(valB)) * dir;
+    });
+  }, [top10Vendedores, sortVendedores]);
 
   const detalheCardSelecionado = cardDetalhado
     ? detalhesCards[cardDetalhado]
@@ -2702,91 +2729,217 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 {loadingGraficos ? (
-                  <div className="h-96 flex items-center justify-center">
+                  <div className="h-48 flex items-center justify-center">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-12 w-12 border-4 border-default-200 border-b-default-500 mx-auto mb-3" />
                       <p className="text-default-500">Carregando...</p>
                     </div>
                   </div>
                 ) : top10Vendedores.length > 0 ? (
-                  <div className="h-[420px]">
-                    <Bar
-                      data={{
-                        labels: top10Vendedores.map((v) =>
-                          v.vendedor_nome.length > 20
-                            ? v.vendedor_nome.substring(0, 18) + "..."
-                            : v.vendedor_nome,
-                        ),
-                        datasets: [
-                          {
-                            label: "Produtos",
-                            data: top10Vendedores.map((v) => v.receita_produtos),
-                            backgroundColor: "rgba(255, 99, 132, 0.5)",
-                            borderColor: "rgb(255, 99, 132)",
-                            borderWidth: 1,
-                            borderRadius: 0,
-                          },
-                          {
-                            label: "Aparelhos",
-                            data: top10Vendedores.map((v) => v.receita_aparelhos),
-                            backgroundColor: "rgba(255, 159, 64, 0.5)",
-                            borderColor: "rgb(255, 159, 64)",
-                            borderWidth: 1,
-                            borderRadius: 0,
-                          },
-                          {
-                            label: "OS",
-                            data: top10Vendedores.map((v) => v.receita_os),
-                            backgroundColor: "rgba(54, 162, 235, 0.5)",
-                            borderColor: "rgb(54, 162, 235)",
-                            borderWidth: 1,
-                            borderRadius: 2,
-                          },
-                        ],
+                  <Table
+                    aria-label="Ranking de vendedores"
+                    sortDescriptor={sortVendedores}
+                    onSortChange={setSortVendedores}
+                    selectionMode="none"
+                    classNames={{
+                      wrapper: "shadow-none border-none",
+                      th: "bg-default-50 text-default-600 text-xs uppercase tracking-wider",
+                      td: "text-sm py-3",
+                    }}
+                  >
+                    <TableHeader>
+                      <TableColumn key="vendedor_nome" allowsSorting>
+                        Vendedor
+                      </TableColumn>
+                      <TableColumn key="receita_produtos" allowsSorting>
+                        Produtos
+                      </TableColumn>
+                      <TableColumn key="lucro_produtos" allowsSorting>
+                        Lucro Prod.
+                      </TableColumn>
+                      <TableColumn key="receita_aparelhos" allowsSorting>
+                        Aparelhos
+                      </TableColumn>
+                      <TableColumn key="lucro_aparelhos" allowsSorting>
+                        Lucro Apar.
+                      </TableColumn>
+                      <TableColumn key="receita_os" allowsSorting>
+                        OS
+                      </TableColumn>
+                      <TableColumn key="lucro_os" allowsSorting>
+                        Lucro OS
+                      </TableColumn>
+                      <TableColumn key="receita_total" allowsSorting>
+                        Total
+                      </TableColumn>
+                      <TableColumn key="lucro_total" allowsSorting>
+                        Lucro Total
+                      </TableColumn>
+                    </TableHeader>
+                    <TableBody items={vendedoresOrdenados}>
+                      {(vendedor) => {
+                        const maxTotal = Math.max(
+                          ...top10Vendedores.map((v) => v.receita_total),
+                          1,
+                        );
+
+                        return (
+                          <TableRow key={vendedor.vendedor_id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3 min-w-[180px]">
+                                <div className="w-9 h-9 rounded-full bg-default-200 flex items-center justify-center text-xs font-bold text-default-600 shrink-0">
+                                  {vendedor.vendedor_nome
+                                    .split(" ")
+                                    .slice(0, 2)
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                    .toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
+                                    {vendedor.vendedor_nome}
+                                  </p>
+                                  <p className="text-xs text-default-400">
+                                    {vendedor.total_vendas} vendas •{" "}
+                                    {vendedor.total_os} OS
+                                  </p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <div className="relative h-6 w-20 bg-default-100 rounded overflow-hidden shrink-0">
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-danger/30 rounded transition-all"
+                                    style={{
+                                      width: `${
+                                        vendedor.receita_produtos > 0
+                                          ? (vendedor.receita_produtos /
+                                              maxTotal) *
+                                            100
+                                          : 0
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium text-default-600">
+                                  {formatarMoeda(vendedor.receita_produtos)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-xs font-semibold ${
+                                  vendedor.lucro_produtos >= 0
+                                    ? "text-success"
+                                    : "text-danger"
+                                }`}
+                              >
+                                {vendedor.lucro_produtos >= 0 ? "+" : ""}
+                                {formatarMoeda(vendedor.lucro_produtos)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <div className="relative h-6 w-20 bg-default-100 rounded overflow-hidden shrink-0">
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-warning/30 rounded transition-all"
+                                    style={{
+                                      width: `${
+                                        vendedor.receita_aparelhos > 0
+                                          ? (vendedor.receita_aparelhos /
+                                              maxTotal) *
+                                            100
+                                          : 0
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium text-default-600">
+                                  {formatarMoeda(vendedor.receita_aparelhos)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-xs font-semibold ${
+                                  vendedor.lucro_aparelhos >= 0
+                                    ? "text-success"
+                                    : "text-danger"
+                                }`}
+                              >
+                                {vendedor.lucro_aparelhos >= 0 ? "+" : ""}
+                                {formatarMoeda(vendedor.lucro_aparelhos)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <div className="relative h-6 w-20 bg-default-100 rounded overflow-hidden shrink-0">
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-primary/30 rounded transition-all"
+                                    style={{
+                                      width: `${
+                                        vendedor.receita_os > 0
+                                          ? (vendedor.receita_os / maxTotal) *
+                                            100
+                                          : 0
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-xs font-medium text-default-600">
+                                  {formatarMoeda(vendedor.receita_os)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-xs font-semibold ${
+                                  vendedor.lucro_os >= 0
+                                    ? "text-success"
+                                    : "text-danger"
+                                }`}
+                              >
+                                {vendedor.lucro_os >= 0 ? "+" : ""}
+                                {formatarMoeda(vendedor.lucro_os)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2 min-w-[120px]">
+                                <div className="relative h-7 w-24 bg-default-100 rounded overflow-hidden shrink-0">
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-default-400 rounded transition-all"
+                                    style={{
+                                      width: `${
+                                        (vendedor.receita_total / maxTotal) *
+                                        100
+                                      }%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-sm font-bold text-foreground">
+                                  {formatarMoeda(vendedor.receita_total)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`text-sm font-semibold ${
+                                  vendedor.lucro_total >= 0
+                                    ? "text-success"
+                                    : "text-danger"
+                                }`}
+                              >
+                                {formatarMoeda(vendedor.lucro_total)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
                       }}
-                      options={{
-                        indexAxis: "y",
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                          legend: {
-                            position: "top",
-                            labels: {
-                              boxWidth: 10,
-                              padding: 12,
-                              font: { size: 11 },
-                            },
-                          },
-                          datalabels: {
-                            anchor: "end",
-                            align: "end",
-                            color: "#6B7280",
-                            font: { weight: "bold", size: 10 },
-                            formatter: (value: number) =>
-                              value > 0 ? formatarMoeda(value) : "",
-                          },
-                        },
-                        scales: {
-                          x: {
-                            stacked: false,
-                            grid: { display: false },
-                            ticks: {
-                              font: { size: 11 },
-                              callback: (value: any) =>
-                                "R$ " + Number(value).toLocaleString("pt-BR"),
-                            },
-                          },
-                          y: {
-                            stacked: false,
-                            grid: { display: false },
-                            ticks: { font: { size: 11 } },
-                          },
-                        },
-                      }}
-                    />
-                  </div>
+                    </TableBody>
+                  </Table>
                 ) : (
-                  <div className="h-96 flex flex-col items-center justify-center text-default-500">
+                  <div className="h-48 flex flex-col items-center justify-center text-default-500">
                     <span className="text-4xl mb-3">📭</span>
                     <p>Nenhum dado disponível</p>
                   </div>

@@ -1759,7 +1759,7 @@ export class DashboardService {
   /**
    * Busca top 10 vendedores com mais vendas
    */
-  static async buscarTop10Vendedores(filtro: FiltroDashboard): Promise<
+  static async buscarVendedoresRanking(filtro: FiltroDashboard): Promise<
     Array<{
       vendedor_id: string;
       vendedor_nome: string;
@@ -1793,7 +1793,6 @@ export class DashboardService {
 
       return (data || [])
         .filter((v: any) => Number(v.receita_total) > 0)
-        .slice(0, 10)
         .map((v: any) => ({
           vendedor_id: String(v.vendedor_id || ""),
           vendedor_nome: String(v.vendedor_nome || "Vendedor desconhecido"),
