@@ -297,7 +297,7 @@ export default function OrdemServicoWizard({
           equipamento_modelo: ordem.equipamento_modelo || "",
           equipamento_cor: ordem.equipamento_cor || "",
           equipamento_numero_serie: ordem.equipamento_numero_serie || "",
-          equipamento_imei: ordem.equipamento_numero_serie || "",
+          equipamento_imei: (ordem as any).equipamento_imei || "",
           equipamento_senha: ordem.equipamento_senha || "",
           defeito_reclamado: ordem.defeito_reclamado || "",
           estado_equipamento: ordem.estado_equipamento || "",
@@ -798,6 +798,9 @@ export default function OrdemServicoWizard({
                           />
                           <Input
                             label="IMEI ou Nº de Série"
+                            autoComplete="off"
+                            data-form-type="other"
+                            data-lpignore="true"
                             value={
                               ap.equipamento_imei || ap.equipamento_numero_serie
                             }

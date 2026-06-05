@@ -245,7 +245,7 @@ export default function OrdemServicoFormModal({
             equipamento_marca: ordem.equipamento_marca || "",
             equipamento_modelo: ordem.equipamento_modelo || "",
             equipamento_numero_serie: ordem.equipamento_numero_serie || "",
-            equipamento_imei: ordem.equipamento_numero_serie || "",
+            equipamento_imei: (ordem as any).equipamento_imei || "",
             equipamento_senha: ordem.equipamento_senha || "",
             defeito_reclamado: ordem.defeito_reclamado || "",
             estado_equipamento: ordem.estado_equipamento || "",
@@ -1236,6 +1236,9 @@ export default function OrdemServicoFormModal({
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <Input
                             label="Número de Série / IMEI"
+                            autoComplete="off"
+                            data-form-type="other"
+                            data-lpignore="true"
                             value={ap.equipamento_numero_serie || ""}
                             variant="bordered"
                             onValueChange={(v) => {

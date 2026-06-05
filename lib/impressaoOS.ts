@@ -1599,9 +1599,10 @@ export const gerarCupomTermicoOS = async (
 
       servicosAtivos.forEach((s: any) => {
         const valor = Number(s.valor || 0);
+        const descricao = s.descricao || "Serviço";
 
         totalServicos += valor;
-        cupom += `${s.descricao}: R$ ${valor.toFixed(2)}\n`;
+        cupom += `${descricao}: R$ ${valor.toFixed(2)}\n`;
       });
       cupom += `\nTotal Servicos: R$ ${totalServicos.toFixed(2)}\n\n`;
     }
@@ -2230,7 +2231,12 @@ export const gerarCupomTermicoPDFOrcamento = async (
   doc.text(`Nº OS: ${os.numero_os || os.id}`, 5, y);
   y += 4;
   doc.text(`Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`, 5, y);
-  y += 6;
+  y += 4;
+  if (os.data_entrada) {
+    doc.text(`Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`, 5, y);
+    y += 4;
+  }
+  y += 2;
 
   // ========== DADOS DO CLIENTE ==========
   doc.setFont("helvetica", "bold");
@@ -2281,6 +2287,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
         doc.text(`Modelo: ${aparelho.equipamento_modelo}`, 5, y);
         y += 3.5;
       }
+      if (aparelho.equipamento_cor) {
+        doc.text(`Cor: ${aparelho.equipamento_cor}`, 5, y);
+        y += 3.5;
+      }
       if (aparelho.equipamento_numero_serie) {
         doc.text(`Nº Série: ${aparelho.equipamento_numero_serie}`, 5, y);
         y += 3.5;
@@ -2290,7 +2300,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
         y += 3.5;
       }
       doc.text(
-        `Estado: ${aparelho.estado_equipamento || "[Informar estado]"}`,
+        `Estado: ${aparelho.estado_equipamento || ""}`,
         5,
         y,
       );
@@ -2324,11 +2334,12 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      const servico =
-        aparelho.laudo_diagnostico || "A definir após diagnóstico";
+      const servico = aparelho.laudo_diagnostico;
 
-      doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-      y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+      if (servico) {
+        doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
+        y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+      }
 
       // ========== SERVIÇOS INDIVIDUAIS ==========
       if (aparelho.servicos && aparelho.servicos.length > 0) {
@@ -2347,13 +2358,14 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
           servicosAtivos.forEach((s: any) => {
             const valor = Number(s.valor || 0);
+        const descricao = s.descricao || "Serviço";
 
             totalServicos += valor;
-            doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+            doc.text(`• ${descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
               maxWidth: pageWidth - 16,
             });
             y +=
-              doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+              doc.getTextDimensions(`• ${descricao}: R$ ${valor.toFixed(2)}`, {
                 maxWidth: pageWidth - 16,
               }).h + 2.5;
           });
@@ -2452,10 +2464,12 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    const servico = os.laudo_diagnostico || "A definir após diagnóstico";
+    const servico = os.laudo_diagnostico;
 
-    doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-    y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+    if (servico) {
+      doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
+      y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+    }
 
     // ========== SERVIÇOS INDIVIDUAIS ==========
     const apServicos =
@@ -2474,13 +2488,14 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
       apServicos.forEach((s: any) => {
         const valor = Number(s.valor || 0);
+        const descricao = s.descricao || os.laudo_diagnostico || "Serviço";
 
         totalServicos += valor;
-        doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+        doc.text(`• ${descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
           maxWidth: pageWidth - 16,
         });
         y +=
-          doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+          doc.getTextDimensions(`• ${descricao}: R$ ${valor.toFixed(2)}`, {
             maxWidth: pageWidth - 16,
           }).h + 2.5;
       });
@@ -2736,7 +2751,12 @@ export const gerarCupomTermicoPDFGarantia = async (
   doc.text(`Nº OS: ${os.numero_os || os.id}`, 5, y);
   y += 4;
   doc.text(`Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`, 5, y);
-  y += 6;
+  y += 4;
+  if (os.data_entrada) {
+    doc.text(`Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`, 5, y);
+    y += 4;
+  }
+  y += 2;
 
   // ========== TIPO E PRAZO DE GARANTIA ==========
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
@@ -3166,11 +3186,15 @@ export const gerarCupomTermicoPDFOS = async (
     doc.text(`Marca: ${os.equipamento_marca}`, 5, y);
     y += 3.5;
   }
-  if (os.equipamento_modelo) {
-    doc.text(`Modelo: ${os.equipamento_modelo}`, 5, y);
-    y += 3.5;
-  }
-  if (os.equipamento_numero_serie) {
+    if (os.equipamento_modelo) {
+      doc.text(`Modelo: ${os.equipamento_modelo}`, 5, y);
+      y += 3.5;
+    }
+    if (os.equipamento_cor) {
+      doc.text(`Cor: ${os.equipamento_cor}`, 5, y);
+      y += 3.5;
+    }
+    if (os.equipamento_numero_serie) {
     doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 5, y);
     y += 3.5;
   }
@@ -3277,13 +3301,14 @@ export const gerarCupomTermicoPDFOS = async (
 
       servicosAtivos.forEach((s: any) => {
         const valor = Number(s.valor || 0);
+        const descricao = s.descricao || "Serviço";
 
         totalServicos += valor;
-        doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+        doc.text(`• ${descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
           maxWidth: pageWidth - 16,
         });
         y +=
-          doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+          doc.getTextDimensions(`• ${descricao}: R$ ${valor.toFixed(2)}`, {
             maxWidth: pageWidth - 16,
           }).h + 2.5;
       });
