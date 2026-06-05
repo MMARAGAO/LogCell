@@ -102,14 +102,12 @@ interface DesempenhoVendedor {
   vendedor_nome: string;
   total_vendas: number;
   total_os: number;
-  receita_produtos: number;
+  receita_vendas: number;
   receita_aparelhos: number;
-  receita_acessorios: number;
   receita_os: number;
   receita_total: number;
-  lucro_produtos: number;
+  lucro_vendas: number;
   lucro_aparelhos: number;
-  lucro_acessorios: number;
   lucro_os: number;
   lucro_total: number;
 }
@@ -2751,11 +2749,11 @@ export default function DashboardPage() {
                       <TableColumn key="vendedor_nome" allowsSorting>
                         Vendedor
                       </TableColumn>
-                      <TableColumn key="receita_produtos" allowsSorting>
-                        Produtos
+                      <TableColumn key="receita_vendas" allowsSorting>
+                        Vendas
                       </TableColumn>
-                      <TableColumn key="lucro_produtos" allowsSorting>
-                        Lucro Prod.
+                      <TableColumn key="lucro_vendas" allowsSorting>
+                        Lucro Vend.
                       </TableColumn>
                       <TableColumn key="receita_aparelhos" allowsSorting>
                         Aparelhos
@@ -2813,8 +2811,8 @@ export default function DashboardPage() {
                                     className="absolute inset-y-0 left-0 bg-danger/30 rounded transition-all"
                                     style={{
                                       width: `${
-                                        vendedor.receita_produtos > 0
-                                          ? (vendedor.receita_produtos /
+                                        vendedor.receita_vendas > 0
+                                          ? (vendedor.receita_vendas /
                                               maxTotal) *
                                             100
                                           : 0
@@ -2823,20 +2821,20 @@ export default function DashboardPage() {
                                   />
                                 </div>
                                 <span className="text-xs font-medium text-default-600">
-                                  {formatarMoeda(vendedor.receita_produtos)}
+                                  {formatarMoeda(vendedor.receita_vendas)}
                                 </span>
                               </div>
                             </TableCell>
                             <TableCell>
                               <span
                                 className={`text-xs font-semibold ${
-                                  vendedor.lucro_produtos >= 0
+                                  vendedor.lucro_vendas >= 0
                                     ? "text-success"
                                     : "text-danger"
                                 }`}
                               >
-                                {vendedor.lucro_produtos >= 0 ? "+" : ""}
-                                {formatarMoeda(vendedor.lucro_produtos)}
+                                {vendedor.lucro_vendas >= 0 ? "+" : ""}
+                                {formatarMoeda(vendedor.lucro_vendas)}
                               </span>
                             </TableCell>
                             <TableCell>
