@@ -4,6 +4,7 @@ import type {
   MetricasProdutos,
   MetricasAcessorios,
   MetricasAparelhos,
+  ResumoCaixa,
 } from "@/types/dashboard";
 
 import { supabase } from "@/lib/supabaseClient";
@@ -412,6 +413,47 @@ export class DashboardService {
     }
   }
 
+  static async buscarResumoCaixa(
+    filtro: FiltroDashboard,
+  ): Promise<ResumoCaixa> {
+    try {
+      const { data, error } = await supabase.rpc(
+        "calcular_resumo_caixa",
+        {
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
+
+      if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      return {
+        total_vendas: Number(row?.total_vendas || 0),
+        total_os: Number(row?.total_os || 0),
+        total_entradas: Number(row?.total_entradas || 0),
+        total_devolucoes: Number(row?.total_devolucoes || 0),
+        total_sangrias: Number(row?.total_sangrias || 0),
+        total_saidas: Number(row?.total_saidas || 0),
+        saldo_final: Number(row?.saldo_final || 0),
+      };
+    } catch (error) {
+      console.error("❌ [DASHBOARD] Erro ao buscar resumo caixa:", error);
+
+      return {
+        total_vendas: 0,
+        total_os: 0,
+        total_entradas: 0,
+        total_devolucoes: 0,
+        total_sangrias: 0,
+        total_saidas: 0,
+        saldo_final: 0,
+      };
+    }
+  }
+
   private static async calcularMetricasOSProcessadasCorrigidas(
     inicioISO: string,
     fimISO: string,
@@ -672,6 +714,8 @@ export class DashboardService {
           this.buscarMetricasAparelhos(filtro),
         ]);
 
+      const resumoCaixa = await this.buscarResumoCaixa(filtro);
+
       console.log("✅ [DASHBOARD] Dados carregados:", {
         vendas,
         os,
@@ -765,6 +809,7 @@ export class DashboardService {
         metricas_produtos: metricasProdutos,
         metricas_acessorios: metricasAcessorios,
         metricas_aparelhos: metricasAparelhos,
+        resumo_caixa: resumoCaixa,
       };
     } catch (error) {
       console.error("❌ [DASHBOARD] Erro crítico ao buscar dados:", error);
@@ -1528,47 +1573,22 @@ export class DashboardService {
       receita: number;
     }>
   > {
-    const { data_inicio, data_fim, loja_id } = filtro;
-    const inicioISO = `${data_inicio}T00:00:00`;
-    const fimISO = `${data_fim}T23:59:59`;
-
     try {
-      let query = supabase
-        .from("vendas")
-        .select("criado_em, valor_total")
-        .gte("criado_em", inicioISO)
-        .lte("criado_em", fimISO)
-        .not("status", "in", '("cancelada","devolvida")')
-        .order("criado_em");
-
-      if (loja_id) {
-        query = query.eq("loja_id", loja_id);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc(
+        "calcular_evolucao_vendas",
+        {
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
 
       if (error) throw error;
 
-      // Agrupar por data
-      const agrupado = (data || []).reduce(
-        (acc, venda) => {
-          const data_str = venda.criado_em.split("T")[0];
-
-          if (!acc[data_str]) {
-            acc[data_str] = { vendas: 0, receita: 0 };
-          }
-          acc[data_str].vendas += 1;
-          acc[data_str].receita += Number(venda.valor_total) || 0;
-
-          return acc;
-        },
-        {} as Record<string, { vendas: number; receita: number }>,
-      );
-
-      return Object.entries(agrupado).map(([data, valor]) => ({
-        data,
-        vendas: valor.vendas,
-        receita: Math.round(valor.receita * 100) / 100,
+      return (data || []).map((item: any) => ({
+        data: String(item.data_venda || ""),
+        vendas: Number(item.total_vendas || 0),
+        receita: Number(item.receita || 0),
       }));
     } catch (error) {
       console.error("Erro ao buscar evolução de vendas:", error);
@@ -1674,81 +1694,27 @@ export class DashboardService {
       receita_total: number;
     }>
   > {
-    const { data_inicio, data_fim, loja_id } = filtro;
-    const inicioISO = `${data_inicio}T00:00:00`;
-    const fimISO = `${data_fim}T23:59:59`;
-
     try {
-      // Agrupar por cliente com base nos pagamentos recebidos no período
-      const agrupado: Record<
-        string,
+      const { data, error } = await supabase.rpc(
+        "calcular_top_clientes",
         {
-          cliente_id: string;
-          cliente_nome: string;
-          total_vendas: number;
-          receita_total: number;
-          venda_ids: Set<string>;
-        }
-      > = {};
-
-      let query = supabase
-        .from("pagamentos_venda")
-        .select(
-          "venda_id, valor, venda:vendas!pagamentos_venda_venda_id_fkey(cliente_id, loja_id, status, cliente:clientes(nome))",
-        )
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
-        .neq("tipo_pagamento", "credito_cliente")
-        .neq("venda.status", "cancelada")
-        .neq("venda.status", "devolvida");
-
-      if (loja_id) {
-        query = query.eq("venda.loja_id", loja_id);
-      }
-
-      query = query.limit(2000);
-
-      const { data, error } = await query;
+          p_data_inicio: `${filtro.data_inicio}T00:00:00`,
+          p_data_fim: `${filtro.data_fim}T23:59:59`,
+          p_loja_id: filtro.loja_id || null,
+        },
+      );
 
       if (error) throw error;
 
-      const batch = (data || []).filter((pag: any) => {
-        if (!loja_id) return true;
-
-        return pag.venda?.loja_id === loja_id;
-      });
-
-      batch.forEach((pagamento) => {
-        const venda = pagamento.venda as any;
-        const clienteId = venda?.cliente_id;
-
-        if (!clienteId) {
-          return;
-        }
-
-        if (!agrupado[clienteId]) {
-          agrupado[clienteId] = {
-            cliente_id: clienteId,
-            cliente_nome: venda?.cliente?.nome || "Cliente desconhecido",
-            total_vendas: 0,
-            receita_total: 0,
-            venda_ids: new Set<string>(),
-          };
-        }
-
-        if (pagamento.venda_id) {
-          agrupado[clienteId].venda_ids.add(String(pagamento.venda_id));
-        }
-        agrupado[clienteId].receita_total += Number(pagamento.valor) || 0;
-      });
-
-      return Object.values(agrupado)
-        .map(({ venda_ids, ...cliente }) => ({
-          ...cliente,
-          total_vendas: venda_ids.size,
-        }))
-        .sort((a, b) => b.receita_total - a.receita_total)
-        .slice(0, 10);
+      return (data || [])
+        .filter((c: any) => Number(c.receita_total) > 0)
+        .slice(0, 10)
+        .map((c: any) => ({
+          cliente_id: String(c.cliente_id || ""),
+          cliente_nome: String(c.cliente_nome || "Cliente desconhecido"),
+          total_vendas: Number(c.total_vendas || 0),
+          receita_total: Number(c.receita_total || 0),
+        }));
     } catch (error) {
       console.error("Erro ao buscar top 10 clientes:", error);
 

@@ -2182,10 +2182,72 @@ export default function DashboardPage() {
           )}
 
           {abaAtiva === "devolucoes" && (
-          <section className="space-y-3">
-            <h2 className="text-xl font-semibold text-foreground">
-              Quebras, Créditos e Devoluções
-            </h2>
+            <>
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                Resumo do Caixa
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-success dark:text-green-400">Total de Entradas</p>
+                      <p className="text-xs text-default-500 dark:text-white">Vendas + OS</p>
+                      <p className="text-2xl font-bold text-foreground mt-2">
+                        {formatarMoeda(dados?.resumo_caixa?.total_entradas || 0)}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/20 text-success text-lg">
+                      <FaMoneyBillWave />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-between text-xs text-default-500">
+                    <span>Vendas: {formatarMoeda(dados?.resumo_caixa?.total_vendas || 0)}</span>
+                    <span>OS: {formatarMoeda(dados?.resumo_caixa?.total_os || 0)}</span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-rose-200 dark:border-rose-800 bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-950 dark:to-rose-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-danger dark:text-red-400">Total de Saídas</p>
+                      <p className="text-xs text-default-500 dark:text-white">Devoluções + Sangrias</p>
+                      <p className="text-2xl font-bold text-foreground mt-2">
+                        {formatarMoeda(dados?.resumo_caixa?.total_saidas || 0)}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/20 text-danger text-lg">
+                      <FaMoneyBillWave />
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-between text-xs text-default-500">
+                    <span>Devoluções: {formatarMoeda(dados?.resumo_caixa?.total_devolucoes || 0)}</span>
+                    <span>Sangrias: {formatarMoeda(dados?.resumo_caixa?.total_sangrias || 0)}</span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-900 p-6 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-primary dark:text-blue-400">Saldo Final</p>
+                      <p className="text-xs text-default-500 dark:text-white">Entradas - Saídas</p>
+                      <p className="text-2xl font-bold text-foreground mt-2">
+                        {formatarMoeda(dados?.resumo_caixa?.saldo_final || 0)}
+                      </p>
+                    </div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary text-lg">
+                      <FaChartBar />
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-default-500">
+                    Saldo do período sem considerar saldo inicial do caixa.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold text-foreground">
+                Quebras, Créditos e Devoluções
+              </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div
                 className={getCardClassName(
@@ -2340,6 +2402,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+            </>
           )}
 
           {/* SEÇÃO DE GRÁFICOS */}

@@ -58,11 +58,22 @@ export interface MetricasAparelhos {
   ticket_medio: number;
 }
 
+export interface ResumoCaixa {
+  total_vendas: number;
+  total_os: number;
+  total_entradas: number;
+  total_devolucoes: number;
+  total_sangrias: number;
+  total_saidas: number;
+  saldo_final: number;
+}
+
 export interface DadosDashboard {
   metricas_adicionais: MetricasAdicionais;
   metricas_produtos?: MetricasProdutos;
   metricas_acessorios?: MetricasAcessorios;
   metricas_aparelhos?: MetricasAparelhos;
+  resumo_caixa?: ResumoCaixa;
 }
 
 export interface FiltroDashboard {

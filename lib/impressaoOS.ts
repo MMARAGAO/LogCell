@@ -1585,6 +1585,28 @@ export const gerarCupomTermicoOS = async (
     cupom += "\n";
   }
 
+  // Serviços Realizados
+  if (os.aparelhos && os.aparelhos.length > 0) {
+    const servicosAtivos = os.aparelhos.flatMap((ap: any) =>
+      (ap.servicos || []).filter((s: any) => s.status !== "removido"),
+    );
+
+    if (servicosAtivos.length > 0) {
+      cupom += linhaTracejada + "\n";
+      cupom += "SERVICOS REALIZADOS\n";
+      cupom += linhaTracejada + "\n";
+      let totalServicos = 0;
+
+      servicosAtivos.forEach((s: any) => {
+        const valor = Number(s.valor || 0);
+
+        totalServicos += valor;
+        cupom += `${s.descricao}: R$ ${valor.toFixed(2)}\n`;
+      });
+      cupom += `\nTotal Servicos: R$ ${totalServicos.toFixed(2)}\n\n`;
+    }
+  }
+
   // Observações
   if (os.observacoes_tecnicas) {
     cupom += "OBSERVACOES:\n";
@@ -2306,7 +2328,45 @@ export const gerarCupomTermicoPDFOrcamento = async (
         aparelho.laudo_diagnostico || "A definir após diagnóstico";
 
       doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-      y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 4;
+      y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+
+      // ========== SERVIÇOS INDIVIDUAIS ==========
+      if (aparelho.servicos && aparelho.servicos.length > 0) {
+        const servicosAtivos = aparelho.servicos.filter(
+          (s: any) => s.status !== "removido",
+        );
+
+        if (servicosAtivos.length > 0) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(7.5);
+          doc.text("Serviços:", 5, y);
+          y += 3.5;
+          doc.setFont("helvetica", "normal");
+
+          let totalServicos = 0;
+
+          servicosAtivos.forEach((s: any) => {
+            const valor = Number(s.valor || 0);
+
+            totalServicos += valor;
+            doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+              maxWidth: pageWidth - 16,
+            });
+            y +=
+              doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+                maxWidth: pageWidth - 16,
+              }).h + 2.5;
+          });
+
+          doc.setFont("helvetica", "bold");
+          doc.text(
+            `Total Serviços: R$ ${totalServicos.toFixed(2)}`,
+            5,
+            y,
+          );
+          y += 4;
+        }
+      }
 
       // ========== VALORES ==========
       doc.setFont("helvetica", "bold");
@@ -2395,7 +2455,40 @@ export const gerarCupomTermicoPDFOrcamento = async (
     const servico = os.laudo_diagnostico || "A definir após diagnóstico";
 
     doc.text(servico, 5, y, { maxWidth: pageWidth - 10 });
-    y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 4;
+    y += doc.getTextDimensions(servico, { maxWidth: pageWidth - 10 }).h + 3;
+
+    // ========== SERVIÇOS INDIVIDUAIS ==========
+    const apServicos =
+      os.aparelhos?.[0]?.servicos?.filter(
+        (s: any) => s.status !== "removido",
+      ) || [];
+
+    if (apServicos.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7.5);
+      doc.text("Serviços:", 5, y);
+      y += 3.5;
+      doc.setFont("helvetica", "normal");
+
+      let totalServicos = 0;
+
+      apServicos.forEach((s: any) => {
+        const valor = Number(s.valor || 0);
+
+        totalServicos += valor;
+        doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+          maxWidth: pageWidth - 16,
+        });
+        y +=
+          doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+            maxWidth: pageWidth - 16,
+          }).h + 2.5;
+      });
+
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total Serviços: R$ ${totalServicos.toFixed(2)}`, 5, y);
+      y += 4;
+    }
 
     // ========== VALORES ==========
     doc.setFont("helvetica", "bold");
@@ -3156,6 +3249,49 @@ export const gerarCupomTermicoPDFOS = async (
       y += 3;
     });
     y += 3;
+  }
+
+  // ========== SERVIÇOS REALIZADOS ==========
+  if (os.aparelhos && os.aparelhos.length > 0) {
+    const servicosAtivos = os.aparelhos.flatMap((ap: any) =>
+      (ap.servicos || []).filter((s: any) => s.status !== "removido"),
+    );
+
+    if (servicosAtivos.length > 0) {
+      if (y > 260) {
+        doc.addPage();
+        y = 10;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text("SERVIÇOS REALIZADOS", 5, y);
+      y += 4;
+      doc.setLineWidth(0.3);
+      doc.line(5, y, pageWidth - 5, y);
+      y += 3;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      let totalServicos = 0;
+
+      servicosAtivos.forEach((s: any) => {
+        const valor = Number(s.valor || 0);
+
+        totalServicos += valor;
+        doc.text(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
+          maxWidth: pageWidth - 16,
+        });
+        y +=
+          doc.getTextDimensions(`• ${s.descricao}: R$ ${valor.toFixed(2)}`, {
+            maxWidth: pageWidth - 16,
+          }).h + 2.5;
+      });
+
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total Serviços: R$ ${totalServicos.toFixed(2)}`, 5, y);
+      y += 4;
+    }
   }
 
   // ========== OBSERVAÇÕES (se houver) ==========
