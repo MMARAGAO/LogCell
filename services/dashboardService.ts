@@ -511,14 +511,12 @@ export class DashboardService {
       osPendentes = osPendentesCount || 0;
     }
 
-    // Buscar OS processadas (entregues ou com pagamento)
+    // Buscar OS processadas (entregues ou com pagamento no período)
     let queryOSProcessadas = supabase
       .from("ordem_servico")
       .select("id, status, valor_pago")
       .or("status.eq.entregue,valor_pago.gt.0")
       .neq("status", "cancelado")
-      .gte("criado_em", inicioISO)
-      .lte("criado_em", fimISO)
       .limit(2000);
 
     if (loja_id) {
@@ -560,8 +558,8 @@ export class DashboardService {
         .from("ordem_servico_pagamentos")
         .select("valor")
         .in("id_ordem_servico", batchIds)
-        .gte("data_pagamento", inicioISO)
-        .lte("data_pagamento", fimISO)
+        .gte("criado_em", inicioISO)
+        .lte("criado_em", fimISO)
         .limit(2000);
 
       if (erroPagamentos) {
