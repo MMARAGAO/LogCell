@@ -247,7 +247,6 @@ export default function FornecedorModal({
                   label="Email"
                   name="email"
                   placeholder="contato@fornecedor.com"
-                  type="email"
                   value={formData.email}
                   onChange={handleChange}
                 />

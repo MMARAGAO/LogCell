@@ -2307,6 +2307,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
       y += 5;
 
       // ========== PROBLEMA ==========
+      if (y > 218) { doc.addPage(); y = 10; }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`PROBLEMA - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2324,6 +2325,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
         }).h + 4;
 
       // ========== SERVIÇO ==========
+      if (y > 218) { doc.addPage(); y = 10; }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`SERVIÇO - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2342,6 +2344,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
       }
 
       // ========== SERVIÇOS INDIVIDUAIS ==========
+      if (y > 218) { doc.addPage(); y = 10; }
       if (aparelho.servicos && aparelho.servicos.length > 0) {
         const servicosAtivos = aparelho.servicos.filter(
           (s: any) => s.status !== "removido",
@@ -2381,6 +2384,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
       }
 
       // ========== VALORES ==========
+      if (y > 218) { doc.addPage(); y = 10; }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`VALORES - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2438,6 +2442,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     y += 3;
 
     // ========== PROBLEMA ==========
+    if (y > 218) { doc.addPage(); y = 10; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("PROBLEMA", 5, y);
@@ -2454,6 +2459,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
         .h + 4;
 
     // ========== SERVIÇO ==========
+    if (y > 218) { doc.addPage(); y = 10; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("SERVIÇO", 5, y);
@@ -2506,6 +2512,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
     }
 
     // ========== VALORES ==========
+    if (y > 218) { doc.addPage(); y = 10; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("VALORES", 5, y);
