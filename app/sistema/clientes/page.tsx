@@ -107,7 +107,9 @@ export default function ClientesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [clienteEditando, setClienteEditando] = useState<Cliente | undefined>();
   const [modalAnalyticsOpen, setModalAnalyticsOpen] = useState(false);
-  const [clienteAnalytics, setClienteAnalytics] = useState<Cliente | null>(null);
+  const [clienteAnalytics, setClienteAnalytics] = useState<Cliente | null>(
+    null,
+  );
   const [modalExportOpen, setModalExportOpen] = useState(false);
 
   // Paginação
@@ -888,10 +890,10 @@ export default function ClientesPage() {
                   key={cliente.id}
                   cliente={cliente}
                   creditosDisponiveis={creditosPorCliente[cliente.id] || 0}
+                  onAnalytics={handleAbrirAnalytics}
                   onDeletar={handleDeletarCliente}
                   onEditar={handleEditarCliente}
                   onGerenciarCreditos={handleGerenciarCreditos}
-                  onAnalytics={handleAbrirAnalytics}
                   onRelatorioCompras={handleAbrirRelatorioCompras}
                   onToggleAtivo={handleToggleAtivo}
                   onVerHistorico={handleVerHistorico}
@@ -1016,9 +1018,7 @@ export default function ClientesPage() {
                                   startContent={
                                     <BarChart3 className="w-4 h-4" />
                                   }
-                                  onPress={() =>
-                                    handleAbrirAnalytics(cliente)
-                                  }
+                                  onPress={() => handleAbrirAnalytics(cliente)}
                                 >
                                   Analytics
                                 </DropdownItem>
@@ -1123,8 +1123,8 @@ export default function ClientesPage() {
       {/* Modal de Analytics */}
       {clienteAnalytics && (
         <ClienteAnalyticsModal
-          isOpen={modalAnalyticsOpen}
           cliente={clienteAnalytics}
+          isOpen={modalAnalyticsOpen}
           onClose={() => {
             setModalAnalyticsOpen(false);
             setClienteAnalytics(null);

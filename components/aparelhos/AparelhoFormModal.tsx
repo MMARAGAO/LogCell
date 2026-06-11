@@ -8,15 +8,18 @@ import {
 import { Button } from "@heroui/button";
 import { Input, Textarea } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
-import { Divider } from "@heroui/divider";
 import { Checkbox } from "@heroui/checkbox";
-import { Chip } from "@heroui/chip";
-import { useState, useEffect } from "react";
-import { CameraIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { useState, useEffect, useRef } from "react";
+import {
+  CameraIcon,
+  PlusIcon,
+  DevicePhoneMobileIcon,
+} from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
 
 import { FotosAparelhoUpload } from "./FotosAparelhoUpload";
 
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useToast } from "@/components/Toast";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { Aparelho, AparelhoFormData, FotoAparelho } from "@/types/aparelhos";
@@ -43,6 +46,29 @@ interface AparelhoFormModalProps {
   onClose: (sucesso?: boolean) => void;
 }
 
+function SecaoTitulo({
+  titulo,
+  descricao,
+  primeira,
+}: {
+  titulo: string;
+  descricao?: string;
+  primeira?: boolean;
+}) {
+  return (
+    <div
+      className={`md:col-span-2 ${
+        primeira ? "" : "mt-3 pt-4 border-t border-default-200"
+      }`}
+    >
+      <h3 className="text-sm font-semibold text-default-700">{titulo}</h3>
+      {descricao && (
+        <p className="text-xs text-default-400 mt-0.5">{descricao}</p>
+      )}
+    </div>
+  );
+}
+
 const ESTADOS = [
   { value: "novo", label: "Novo" },
   { value: "seminovo", label: "Seminovo" },
@@ -56,6 +82,21 @@ const CONDICOES = [
   { value: "regular", label: "Regular" },
   { value: "ruim", label: "Ruim" },
 ];
+
+// Máscara monetária pt-BR (acumulador de centavos), alinhada à VendaAparelhoModal
+const numeroParaMoeda = (valor?: number) =>
+  valor || valor === 0
+    ? valor.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })
+    : "";
+
+const moedaParaNumero = (valor: string): number | undefined => {
+  const numeros = valor.replace(/\D/g, "");
+
+  return numeros ? Number(numeros) / 100 : undefined;
+};
 
 export function AparelhoFormModal({
   aparelho,
@@ -73,6 +114,10 @@ export function AparelhoFormModal({
   const [prefixoIMEIConsultado, setPrefixoIMEIConsultado] = useState("");
   const [aparelhoRecemCriado, setAparelhoRecemCriado] =
     useState<Aparelho | null>(null);
+  const [erros, setErros] = useState<Record<string, string>>({});
+  const [confirmDescartarAberto, setConfirmDescartarAberto] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+  const dadosIniciaisRef = useRef<string>("");
   const [formData, setFormData] = useState<AparelhoFormData>(() => {
     const lojaPadrao = lojaId || (lojas.length > 0 ? lojas[0].id : 1);
 
@@ -103,8 +148,9 @@ export function AparelhoFormModal({
   });
 
   useEffect(() => {
+    setErros({});
     if (aparelho) {
-      setFormData({
+      const dados: AparelhoFormData = {
         marca: aparelho.marca || "",
         modelo: aparelho.modelo || "",
         armazenamento: aparelho.armazenamento || "",
@@ -127,13 +173,16 @@ export function AparelhoFormModal({
         promocao: aparelho.promocao || false,
         novidade: aparelho.novidade || false,
         ordem_catalogo: aparelho.ordem_catalogo || 0,
-      });
+      };
+
+      setFormData(dados);
+      dadosIniciaisRef.current = JSON.stringify(dados);
       // Carregar fotos do aparelho
       carregarFotos(aparelho.id);
     } else {
       const lojaPadrao = lojaId || (lojas.length > 0 ? lojas[0].id : 1);
 
-      setFormData({
+      const dados: AparelhoFormData = {
         marca: "",
         modelo: "",
         armazenamento: "",
@@ -156,7 +205,10 @@ export function AparelhoFormModal({
         promocao: false,
         novidade: false,
         ordem_catalogo: 0,
-      });
+      };
+
+      setFormData(dados);
+      dadosIniciaisRef.current = JSON.stringify(dados);
       setFotos([]);
     }
   }, [aparelho, lojaId, lojas]);
@@ -167,15 +219,18 @@ export function AparelhoFormModal({
 
   async function carregarFornecedores() {
     const { data } = await buscarFornecedores(true);
+
     if (data) setFornecedores(data);
   }
 
   async function handleFornecedorSalvo() {
     const { data } = await buscarFornecedores(true);
+
     if (data) {
       const novos = data.filter(
         (f) => !fornecedores.some((old) => old.id === f.id),
       );
+
       setFornecedores(data);
       if (novos.length === 1) {
         setFormData((prev) => ({ ...prev, fornecedor_id: novos[0].id }));
@@ -237,34 +292,79 @@ export function AparelhoFormModal({
     }
   };
 
+  const limparErro = (campo: string) =>
+    setErros((prev) => {
+      if (!prev[campo]) return prev;
+      const novo = { ...prev };
+
+      delete novo[campo];
+
+      return novo;
+    });
+
+  const validar = (): boolean => {
+    const novosErros: Record<string, string> = {};
+
+    if (!formData.marca.trim()) {
+      novosErros.marca = "Informe a marca do aparelho";
+    }
+    if (!formData.modelo.trim()) {
+      novosErros.modelo = "Informe o modelo do aparelho";
+    }
+    if (!formData.imei && !formData.numero_serie) {
+      novosErros.imei = "Informe o IMEI ou o número de série";
+      novosErros.numero_serie = "Informe o IMEI ou o número de série";
+    }
+    const bateriaInformada =
+      formData.saude_bateria !== undefined && formData.saude_bateria !== null;
+    const bateriaObrigatoria = formData.estado !== "novo";
+
+    if (bateriaObrigatoria && !bateriaInformada) {
+      novosErros.saude_bateria = "Informe a saúde da bateria (0 a 100%)";
+    } else if (
+      bateriaInformada &&
+      (formData.saude_bateria! < 0 || formData.saude_bateria! > 100)
+    ) {
+      novosErros.saude_bateria = "A saúde da bateria deve estar entre 0 e 100%";
+    }
+
+    setErros(novosErros);
+
+    if (Object.keys(novosErros).length > 0) {
+      // Rola até o primeiro campo destacado como inválido
+      setTimeout(() => {
+        const invalido = formRef.current?.querySelector<HTMLElement>(
+          '[data-invalid="true"]',
+        );
+
+        invalido?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+
+      return false;
+    }
+
+    return true;
+  };
+
+  const formAlterado = () =>
+    JSON.stringify(formData) !== dadosIniciaisRef.current;
+
+  const handleTentarFechar = () => {
+    if (loading) return;
+    // Se já criou o aparelho (etapa de fotos), os dados já foram salvos
+    if (!aparelhoRecemCriado && formAlterado()) {
+      setConfirmDescartarAberto(true);
+
+      return;
+    }
+    onClose(aparelhoRecemCriado ? true : false);
+  };
+
   const handleSubmit = async () => {
     if (!usuario) return;
 
-    // Validações
-    if (!formData.marca) {
-      showToast("Informe a marca do aparelho", "error");
-
-      return;
-    }
-
-    if (!formData.modelo) {
-      showToast("Informe o modelo do aparelho", "error");
-
-      return;
-    }
-
-    if (!formData.imei && !formData.numero_serie) {
-      showToast("Informe o IMEI ou Número de Série", "error");
-
-      return;
-    }
-
-    if (
-      !formData.saude_bateria ||
-      formData.saude_bateria < 0 ||
-      formData.saude_bateria > 100
-    ) {
-      showToast("Informe a saúde da bateria (0-100%)", "error");
+    if (!validar()) {
+      showToast("Verifique os campos destacados", "error");
 
       return;
     }
@@ -335,348 +435,394 @@ export function AparelhoFormModal({
 
   return (
     <>
-    <Modal
-      isDismissable={!loading}
-      isOpen={true}
-      scrollBehavior="inside"
-      size="3xl"
-      onClose={() => onClose(false)}
-    >
-      <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
-          {aparelho ? "Editar Aparelho" : "Novo Aparelho"}
-        </ModalHeader>
-        <ModalBody>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              className="md:col-span-2"
-              isDisabled={loading || lojas.length === 0}
-              label="Loja"
-              placeholder={
-                lojas.length === 0
-                  ? "Nenhuma loja disponível"
-                  : "Selecione uma loja"
-              }
-              selectedKeys={formData.loja_id ? [String(formData.loja_id)] : []}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0];
-
-                if (value) {
-                  setFormData({ ...formData, loja_id: Number(value) });
-                }
-              }}
+      <Modal
+        isDismissable={!loading}
+        isOpen={true}
+        scrollBehavior="inside"
+        size="3xl"
+        onClose={handleTentarFechar}
+      >
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+              <DevicePhoneMobileIcon className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-base font-semibold">
+                {aparelho ? "Editar Aparelho" : "Novo Aparelho"}
+              </span>
+              {aparelho && (aparelho.marca || aparelho.modelo) && (
+                <span className="text-xs font-normal text-default-400 truncate">
+                  {[aparelho.marca, aparelho.modelo].filter(Boolean).join(" ")}
+                  {aparelho.imei ? ` · IMEI ${aparelho.imei}` : ""}
+                </span>
+              )}
+            </div>
+          </ModalHeader>
+          <ModalBody>
+            <div
+              ref={formRef}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
-              {lojas.map((loja) => (
-                <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
-              ))}
-            </Select>
-            {/* Fornecedor */}
-            <div className="md:col-span-2 flex items-end gap-2">
-              <Select
-                className="flex-1"
+              {/* ── Identificação ── */}
+              <SecaoTitulo
+                primeira
+                descricao="Marca, modelo e identificadores do aparelho"
+                titulo="Identificação"
+              />
+
+              {/* Marca */}
+              <Input
+                isRequired
+                errorMessage={erros.marca}
                 isDisabled={loading}
-                label="Fornecedor"
-                placeholder="Selecione um fornecedor"
+                isInvalid={!!erros.marca}
+                label="Marca"
+                maxLength={100}
+                placeholder="Ex: Samsung, Apple, Xiaomi, Motorola"
+                value={formData.marca}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFormData({ ...formData, marca: value });
+                  limparErro("marca");
+                }}
+              />
+
+              {/* Modelo */}
+              <Input
+                isRequired
+                errorMessage={erros.modelo}
+                isDisabled={loading}
+                isInvalid={!!erros.modelo}
+                label="Modelo"
+                maxLength={200}
+                placeholder="Ex: Galaxy S23, iPhone 15 Pro, Redmi Note 12"
+                value={formData.modelo}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFormData({ ...formData, modelo: value });
+                  limparErro("modelo");
+                }}
+              />
+
+              {/* IMEI */}
+              <Input
+                endContent={
+                  <Button
+                    isIconOnly
+                    isDisabled={loading}
+                    size="sm"
+                    title="Escanear código de barras"
+                    variant="light"
+                    onPress={() => setScannerAberto(true)}
+                  >
+                    <CameraIcon className="w-5 h-5" />
+                  </Button>
+                }
+                errorMessage={erros.imei}
+                isDisabled={loading}
+                isInvalid={!!erros.imei}
+                label="IMEI"
+                maxLength={50}
+                placeholder="Ex: 123456789012345"
+                value={formData.imei}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFormData({ ...formData, imei: value });
+                  limparErro("imei");
+                  limparErro("numero_serie");
+                }}
+              />
+
+              {/* Número de Série */}
+              <Input
+                errorMessage={erros.numero_serie}
+                isDisabled={loading}
+                isInvalid={!!erros.numero_serie}
+                label="Número de Série"
+                maxLength={100}
+                placeholder="Ex: SN123456789"
+                value={formData.numero_serie}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFormData({ ...formData, numero_serie: value });
+                  limparErro("imei");
+                  limparErro("numero_serie");
+                }}
+              />
+
+              {/* Cor */}
+              <Input
+                className="md:col-span-2"
+                isDisabled={loading}
+                label="Cor"
+                maxLength={50}
+                placeholder="Ex: Preto, Branco, Azul"
+                value={formData.cor}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({ ...formData, cor: value })
+                }
+              />
+
+              {/* ── Especificações ── */}
+              <SecaoTitulo
+                descricao="Configuração, estado e saúde do aparelho"
+                titulo="Especificações"
+              />
+
+              {/* Armazenamento */}
+              <Input
+                isDisabled={loading}
+                label="Armazenamento"
+                maxLength={50}
+                placeholder="Ex: 128GB, 256GB, 512GB, 1TB"
+                value={formData.armazenamento}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({ ...formData, armazenamento: value })
+                }
+              />
+
+              {/* Memória RAM */}
+              <Input
+                isDisabled={loading}
+                label="Memória RAM"
+                maxLength={50}
+                placeholder="Ex: 4GB, 6GB, 8GB, 12GB"
+                value={formData.memoria_ram}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({ ...formData, memoria_ram: value })
+                }
+              />
+
+              {/* Estado */}
+              <Select
+                isRequired
+                isDisabled={loading}
+                label="Estado"
+                placeholder="Selecione o estado"
+                selectedKeys={[formData.estado]}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as any;
+
+                  setFormData({ ...formData, estado: value });
+                }}
+              >
+                {ESTADOS.map((estado) => (
+                  <SelectItem key={estado.value}>{estado.label}</SelectItem>
+                ))}
+              </Select>
+
+              {/* Condição */}
+              <Select
+                isDisabled={loading}
+                label="Condição"
+                placeholder="Selecione a condição"
+                selectedKeys={formData.condicao ? [formData.condicao] : []}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as any;
+
+                  setFormData({ ...formData, condicao: value || undefined });
+                }}
+              >
+                {CONDICOES.map((condicao) => (
+                  <SelectItem key={condicao.value}>{condicao.label}</SelectItem>
+                ))}
+              </Select>
+
+              {/* Saúde da Bateria */}
+              <Input
+                className="md:col-span-2"
+                description={
+                  formData.estado === "novo"
+                    ? "Opcional para aparelhos novos (0 a 100%)"
+                    : "Informe a saúde da bateria de 0 a 100%"
+                }
+                endContent={
+                  <div className="pointer-events-none flex items-center">
+                    <span className="text-default-400 text-small">%</span>
+                  </div>
+                }
+                errorMessage={erros.saude_bateria}
+                isDisabled={loading}
+                isInvalid={!!erros.saude_bateria}
+                isRequired={formData.estado !== "novo"}
+                label="Saúde da Bateria"
+                max="100"
+                min="0"
+                placeholder="Ex: 100, 95, 85"
+                type="number"
+                value={formData.saude_bateria?.toString() || ""}
+                variant="bordered"
+                onValueChange={(value) => {
+                  setFormData({
+                    ...formData,
+                    saude_bateria: value ? parseInt(value) : undefined,
+                  });
+                  limparErro("saude_bateria");
+                }}
+              />
+
+              {/* ── Comercial ── */}
+              <SecaoTitulo
+                descricao="Loja, fornecedor e valores"
+                titulo="Comercial"
+              />
+
+              {/* Loja */}
+              <Select
+                className="md:col-span-2"
+                isDisabled={loading || lojas.length === 0}
+                label="Loja"
+                placeholder={
+                  lojas.length === 0
+                    ? "Nenhuma loja disponível"
+                    : "Selecione uma loja"
+                }
                 selectedKeys={
-                  formData.fornecedor_id ? [formData.fornecedor_id] : []
+                  formData.loja_id ? [String(formData.loja_id)] : []
                 }
                 variant="bordered"
                 onSelectionChange={(keys) => {
-                  const value = Array.from(keys)[0] as string | undefined;
-                  setFormData({
-                    ...formData,
-                    fornecedor_id: value || undefined,
-                  });
+                  const value = Array.from(keys)[0];
+
+                  if (value) {
+                    setFormData({ ...formData, loja_id: Number(value) });
+                  }
                 }}
               >
-                {fornecedores.map((f) => (
-                  <SelectItem key={f.id}>{f.nome}</SelectItem>
+                {lojas.map((loja) => (
+                  <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
                 ))}
               </Select>
-              <Button
-                isIconOnly
-                isDisabled={loading}
-                size="lg"
-                title="Criar novo fornecedor"
-                variant="flat"
-                onPress={() => setFornecedorModalOpen(true)}
-              >
-                <PlusIcon className="w-5 h-5" />
-              </Button>
-            </div>
 
-            {/* Marca */}
-            <Input
-              isRequired
-              isDisabled={loading}
-              label="Marca"
-              maxLength={100}
-              placeholder="Ex: Samsung, Apple, Xiaomi, Motorola"
-              value={formData.marca}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, marca: value })
-              }
-            />
+              {/* Fornecedor */}
+              <div className="md:col-span-2 flex items-end gap-2">
+                <Select
+                  className="flex-1"
+                  isDisabled={loading}
+                  label="Fornecedor"
+                  placeholder="Selecione um fornecedor"
+                  selectedKeys={
+                    formData.fornecedor_id ? [formData.fornecedor_id] : []
+                  }
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as string | undefined;
 
-            {/* Modelo */}
-            <Input
-              isRequired
-              isDisabled={loading}
-              label="Modelo"
-              maxLength={200}
-              placeholder="Ex: Galaxy S23, iPhone 15 Pro, Redmi Note 12"
-              value={formData.modelo}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, modelo: value })
-              }
-            />
-
-            {/* Armazenamento */}
-            <Input
-              isDisabled={loading}
-              label="Armazenamento"
-              maxLength={50}
-              placeholder="Ex: 128GB, 256GB, 512GB, 1TB"
-              value={formData.armazenamento}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, armazenamento: value })
-              }
-            />
-
-            {/* Memória RAM */}
-            <Input
-              isDisabled={loading}
-              label="Memória RAM"
-              maxLength={50}
-              placeholder="Ex: 4GB, 6GB, 8GB, 12GB"
-              value={formData.memoria_ram}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, memoria_ram: value })
-              }
-            />
-
-            {/* IMEI */}
-            <Input
-              endContent={
+                    setFormData({
+                      ...formData,
+                      fornecedor_id: value || undefined,
+                    });
+                  }}
+                >
+                  {fornecedores.map((f) => (
+                    <SelectItem key={f.id}>{f.nome}</SelectItem>
+                  ))}
+                </Select>
                 <Button
                   isIconOnly
                   isDisabled={loading}
-                  size="sm"
-                  title="Escanear código de barras"
-                  variant="light"
-                  onPress={() => setScannerAberto(true)}
+                  size="lg"
+                  title="Criar novo fornecedor"
+                  variant="flat"
+                  onPress={() => setFornecedorModalOpen(true)}
                 >
-                  <CameraIcon className="w-5 h-5" />
+                  <PlusIcon className="w-5 h-5" />
                 </Button>
-              }
-              isDisabled={loading}
-              label="IMEI"
-              maxLength={50}
-              placeholder="Ex: 123456789012345"
-              value={formData.imei}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, imei: value })
-              }
-            />
-
-            {/* Número de Série */}
-            <Input
-              isDisabled={loading}
-              label="Número de Série"
-              maxLength={100}
-              placeholder="Ex: SN123456789"
-              value={formData.numero_serie}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, numero_serie: value })
-              }
-            />
-
-            {/* Cor */}
-            <Input
-              isDisabled={loading}
-              label="Cor"
-              maxLength={50}
-              placeholder="Ex: Preto, Branco, Azul"
-              value={formData.cor}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({ ...formData, cor: value })
-              }
-            />
-
-            {/* Estado */}
-            <Select
-              isRequired
-              isDisabled={loading}
-              label="Estado"
-              placeholder="Selecione o estado"
-              selectedKeys={[formData.estado]}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] as any;
-
-                setFormData({ ...formData, estado: value });
-              }}
-            >
-              {ESTADOS.map((estado) => (
-                <SelectItem key={estado.value}>{estado.label}</SelectItem>
-              ))}
-            </Select>
-
-            {/* Condição */}
-            <Select
-              isDisabled={loading}
-              label="Condição"
-              placeholder="Selecione a condição"
-              selectedKeys={formData.condicao ? [formData.condicao] : []}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] as any;
-
-                setFormData({ ...formData, condicao: value || undefined });
-              }}
-            >
-              {CONDICOES.map((condicao) => (
-                <SelectItem key={condicao.value}>{condicao.label}</SelectItem>
-              ))}
-            </Select>
-
-            {/* Valor de Compra */}
-            <Input
-              isDisabled={loading}
-              label="Valor de Compra"
-              placeholder="0.00"
-              startContent={
-                <div className="pointer-events-none flex items-center">
-                  <span className="text-default-400 text-small">R$</span>
-                </div>
-              }
-              step="0.01"
-              type="number"
-              value={formData.valor_compra?.toString() || ""}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  valor_compra: value ? parseFloat(value) : undefined,
-                })
-              }
-            />
-
-            {/* Valor de Venda */}
-            <Input
-              isDisabled={loading}
-              label="Valor de Venda"
-              placeholder="0.00"
-              startContent={
-                <div className="pointer-events-none flex items-center">
-                  <span className="text-default-400 text-small">R$</span>
-                </div>
-              }
-              step="0.01"
-              type="number"
-              value={formData.valor_venda?.toString() || ""}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  valor_venda: value ? parseFloat(value) : undefined,
-                })
-              }
-            />
-
-            {/* Saúde da Bateria */}
-            <Input
-              isRequired
-              description="Informe a saúde da bateria de 0 a 100%"
-              endContent={
-                <div className="pointer-events-none flex items-center">
-                  <span className="text-default-400 text-small">%</span>
-                </div>
-              }
-              isDisabled={loading}
-              label="Saúde da Bateria"
-              max="100"
-              min="0"
-              placeholder="Ex: 100, 95, 85"
-              type="number"
-              value={formData.saude_bateria?.toString() || ""}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  saude_bateria: value ? parseInt(value) : undefined,
-                })
-              }
-            />
-
-            {/* Ordem no Catálogo */}
-            <Input
-              description="Ordem de exibição no catálogo (menor número aparece primeiro)"
-              isDisabled={loading}
-              label="Ordem no Catálogo"
-              min="0"
-              placeholder="0"
-              type="number"
-              value={formData.ordem_catalogo?.toString() || "0"}
-              variant="bordered"
-              onValueChange={(value) =>
-                setFormData({
-                  ...formData,
-                  ordem_catalogo: value ? parseInt(value) : 0,
-                })
-              }
-            />
-
-            {/* Acessórios */}
-            <div className="md:col-span-2">
-              <Textarea
-                isDisabled={loading}
-                label="Acessórios"
-                maxRows={4}
-                minRows={2}
-                placeholder="Ex: Carregador original, fone de ouvido, capa"
-                value={formData.acessorios}
-                variant="bordered"
-                onValueChange={(value) =>
-                  setFormData({ ...formData, acessorios: value })
-                }
-              />
-            </div>
-
-            {/* Observações */}
-            <div className="md:col-span-2">
-              <Textarea
-                isDisabled={loading}
-                label="Observações"
-                maxRows={5}
-                minRows={3}
-                placeholder="Informações adicionais sobre o aparelho"
-                value={formData.observacoes}
-                variant="bordered"
-                onValueChange={(value) =>
-                  setFormData({ ...formData, observacoes: value })
-                }
-              />
-            </div>
-
-            {/* Configurações de Catálogo */}
-            <div className="md:col-span-2">
-              <Divider className="my-2" />
-              <div className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Chip color="primary" size="sm" variant="flat">
-                  Catálogo
-                </Chip>
-                Configurações de Exibição no Catálogo
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Valor de Compra */}
+              <Input
+                inputMode="numeric"
+                isDisabled={loading}
+                label="Valor de Compra"
+                placeholder="0,00"
+                startContent={
+                  <div className="pointer-events-none flex items-center">
+                    <span className="text-default-400 text-small">R$</span>
+                  </div>
+                }
+                value={numeroParaMoeda(formData.valor_compra)}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    valor_compra: moedaParaNumero(value),
+                  })
+                }
+              />
+
+              {/* Valor de Venda */}
+              <Input
+                inputMode="numeric"
+                isDisabled={loading}
+                label="Valor de Venda"
+                placeholder="0,00"
+                startContent={
+                  <div className="pointer-events-none flex items-center">
+                    <span className="text-default-400 text-small">R$</span>
+                  </div>
+                }
+                value={numeroParaMoeda(formData.valor_venda)}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    valor_venda: moedaParaNumero(value),
+                  })
+                }
+              />
+
+              {/* ── Detalhes adicionais ── */}
+              <SecaoTitulo
+                descricao="Acessórios que acompanham e anotações"
+                titulo="Detalhes adicionais"
+              />
+
+              {/* Acessórios */}
+              <div className="md:col-span-2">
+                <Textarea
+                  isDisabled={loading}
+                  label="Acessórios"
+                  maxRows={4}
+                  minRows={2}
+                  placeholder="Ex: Carregador original, fone de ouvido, capa"
+                  value={formData.acessorios}
+                  variant="bordered"
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, acessorios: value })
+                  }
+                />
+              </div>
+
+              {/* Observações */}
+              <div className="md:col-span-2">
+                <Textarea
+                  isDisabled={loading}
+                  label="Observações"
+                  maxRows={5}
+                  minRows={3}
+                  placeholder="Informações adicionais sobre o aparelho"
+                  value={formData.observacoes}
+                  variant="bordered"
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, observacoes: value })
+                  }
+                />
+              </div>
+
+              {/* ── Catálogo ── */}
+              <SecaoTitulo
+                descricao="Como o aparelho aparece no catálogo público"
+                titulo="Catálogo"
+              />
+
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Checkbox
                   isDisabled={loading}
                   isSelected={formData.exibir_catalogo}
@@ -717,58 +863,98 @@ export function AparelhoFormModal({
                   Novidade
                 </Checkbox>
               </div>
+
+              {/* Ordem no Catálogo */}
+              <Input
+                className="md:col-span-2"
+                description="Ordem de exibição no catálogo (menor número aparece primeiro)"
+                isDisabled={loading}
+                label="Ordem no Catálogo"
+                min="0"
+                placeholder="0"
+                type="number"
+                value={formData.ordem_catalogo?.toString() || "0"}
+                variant="bordered"
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    ordem_catalogo: value ? parseInt(value) : 0,
+                  })
+                }
+              />
+
+              {/* ── Fotos (ao editar ou após criar) ── */}
+              {(aparelho || aparelhoRecemCriado) && (
+                <>
+                  <SecaoTitulo
+                    descricao="Imagens exibidas no card e no catálogo"
+                    titulo="Fotos"
+                  />
+                  <div className="md:col-span-2">
+                    <FotosAparelhoUpload
+                      aparelhoId={(aparelho || aparelhoRecemCriado)!.id}
+                      fotos={fotos}
+                      usuarioId={usuario?.id || ""}
+                      onFotosChange={() =>
+                        carregarFotos((aparelho || aparelhoRecemCriado)!.id)
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </div>
-
-            {/* Fotos - mostrar se estiver editando ou acabou de criar */}
-            {(aparelho || aparelhoRecemCriado) && (
-              <div className="md:col-span-2">
-                <Divider className="my-4" />
-                <FotosAparelhoUpload
-                  aparelhoId={(aparelho || aparelhoRecemCriado)!.id}
-                  fotos={fotos}
-                  usuarioId={usuario?.id || ""}
-                  onFotosChange={() =>
-                    carregarFotos((aparelho || aparelhoRecemCriado)!.id)
-                  }
-                />
-              </div>
-            )}
-          </div>
-        </ModalBody>
-        <ModalFooter>
-          <Button
-            color="danger"
-            isDisabled={loading}
-            variant="light"
-            onPress={() => onClose(aparelhoRecemCriado ? true : false)}
-          >
-            {aparelhoRecemCriado ? "Concluir" : "Cancelar"}
-          </Button>
-          {!aparelhoRecemCriado && (
-            <Button color="primary" isLoading={loading} onPress={handleSubmit}>
-              {aparelho ? "Atualizar" : "Cadastrar"}
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="danger"
+              isDisabled={loading}
+              variant="light"
+              onPress={handleTentarFechar}
+            >
+              {aparelhoRecemCriado ? "Concluir" : "Cancelar"}
             </Button>
-          )}
-        </ModalFooter>
-      </ModalContent>
+            {!aparelhoRecemCriado && (
+              <Button
+                color="primary"
+                isLoading={loading}
+                onPress={handleSubmit}
+              >
+                {aparelho ? "Atualizar" : "Cadastrar"}
+              </Button>
+            )}
+          </ModalFooter>
+        </ModalContent>
 
-      {/* Scanner de Código de Barras */}
-      <BarcodeScanner
-        isOpen={scannerAberto}
-        title="Escanear IMEI"
-        onClose={() => setScannerAberto(false)}
-        onScan={(code) => {
-          setFormData({ ...formData, imei: code });
-          showToast("IMEI capturado com sucesso!", "success");
+        {/* Scanner de Código de Barras */}
+        <BarcodeScanner
+          isOpen={scannerAberto}
+          title="Escanear IMEI"
+          onClose={() => setScannerAberto(false)}
+          onScan={(code) => {
+            setFormData({ ...formData, imei: code });
+            showToast("IMEI capturado com sucesso!", "success");
+          }}
+        />
+      </Modal>
+
+      <FornecedorModal
+        isOpen={fornecedorModalOpen}
+        onClose={() => setFornecedorModalOpen(false)}
+        onSave={handleFornecedorSalvo}
+      />
+
+      <ConfirmModal
+        confirmColor="danger"
+        confirmText="Descartar"
+        isOpen={confirmDescartarAberto}
+        message="Você tem alterações não salvas. Deseja descartá-las?"
+        title="Descartar alterações?"
+        onClose={() => setConfirmDescartarAberto(false)}
+        onConfirm={() => {
+          setConfirmDescartarAberto(false);
+          onClose(false);
         }}
       />
-    </Modal>
-
-    <FornecedorModal
-      isOpen={fornecedorModalOpen}
-      onClose={() => setFornecedorModalOpen(false)}
-      onSave={handleFornecedorSalvo}
-    />
-  </>
+    </>
   );
 }

@@ -78,9 +78,9 @@ export function NovaVendaModal({
     [],
   );
   const [buscaAparelho, setBuscaAparelho] = useState("");
-  const [aparelhosSelecionados, setAparelhosSelecionados] = useState<Aparelho[]>(
-    [],
-  );
+  const [aparelhosSelecionados, setAparelhosSelecionados] = useState<
+    Aparelho[]
+  >([]);
 
   const valorTotal = aparelhosSelecionados.reduce(
     (sum, a) => sum + (a.valor_venda || 0),
@@ -414,10 +414,7 @@ export function NovaVendaModal({
             .eq("id", aparelho.id);
 
           if (errUpdate) {
-            console.error(
-              "[NovaVenda] Erro ao atualizar aparelho:",
-              errUpdate,
-            );
+            console.error("[NovaVenda] Erro ao atualizar aparelho:", errUpdate);
             throw errUpdate;
           }
 
@@ -637,6 +634,7 @@ export function NovaVendaModal({
                 ) : (
                   aparelhosFiltrados.map((a) => {
                     const selected = isAparelhoSelecionado(a.id);
+
                     return (
                       <button
                         key={a.id}

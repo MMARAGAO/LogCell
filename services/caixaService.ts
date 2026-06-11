@@ -112,6 +112,52 @@ export class CaixaService {
     }
   }
 
+  /**
+   * Saldo consolidado dos caixas ABERTOS no momento (não depende de período).
+   * Quando lojaId é informado, considera apenas o caixa daquela loja; caso
+   * contrário, soma o saldo esperado de todos os caixas abertos. Usado no card
+   * "Caixa atual" do dashboard executivo.
+   */
+  static async buscarSaldoCaixaAtual(
+    lojaId?: number,
+  ): Promise<{ saldo: number; caixasAbertos: number }> {
+    try {
+      let query = supabase
+        .from("caixas")
+        .select(
+          `
+          *,
+          loja:lojas(id, nome),
+          usuario_abertura_info:usuarios!caixas_usuario_abertura_fkey(id, nome)
+        `,
+        )
+        .eq("status", "aberto");
+
+      if (lojaId) {
+        query = query.eq("loja_id", lojaId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const caixas = (data || []) as CaixaCompleto[];
+
+      if (caixas.length === 0) {
+        return { saldo: 0, caixasAbertos: 0 };
+      }
+
+      const { saldos } = await this.buscarSaldosEsperados(caixas);
+      const saldo = caixas.reduce((acc, c) => acc + (saldos.get(c.id) || 0), 0);
+
+      return { saldo, caixasAbertos: caixas.length };
+    } catch (error: any) {
+      console.error("Erro ao buscar saldo do caixa atual:", error);
+
+      return { saldo: 0, caixasAbertos: 0 };
+    }
+  }
+
   // Listar caixas com filtros
   static async listarCaixas(filtros?: {
     loja_id?: number;

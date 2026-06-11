@@ -4,7 +4,16 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { aparelhoId, aparelhoIds, clienteId, lojaId, valorVenda, pagamentos, brindes = [], usuarioId } = body;
+    let {
+      aparelhoId,
+      aparelhoIds,
+      clienteId,
+      lojaId,
+      valorVenda,
+      pagamentos,
+      brindes = [],
+      usuarioId,
+    } = body;
 
     // Suportar tanto aparelhoId único quanto array aparelhoIds
     if (aparelhoId && !aparelhoIds) {
@@ -54,6 +63,7 @@ export async function POST(request: Request) {
       parcelas: pag.parcelas || 1,
       liquido: pag.liquido ?? null,
       taxa_percentual: pag.taxa ?? null,
+      taxa_inclusa: pag.taxa_inclusa ?? null,
       data_pagamento: new Date().toISOString().split("T")[0],
       criado_por: usuarioId,
     }));
@@ -84,7 +94,9 @@ export async function POST(request: Request) {
 
       if (aparelhoError) {
         return NextResponse.json(
-          { error: `Erro ao atualizar aparelho ${id}: ${aparelhoError.message}` },
+          {
+            error: `Erro ao atualizar aparelho ${id}: ${aparelhoError.message}`,
+          },
           { status: 500 },
         );
       }

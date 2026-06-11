@@ -144,6 +144,7 @@ export function RecebimentoAparelhoModal({
             parcelas: p.parcelas || 1,
             taxa: p.taxa_percentual,
             liquido: p.liquido,
+            taxaInclusa: p.taxa_inclusa,
             existente: true,
           })),
         );
@@ -413,6 +414,7 @@ export function RecebimentoAparelhoModal({
             parcelas: pag.parcelas || 1,
             liquido: pag.liquido || null,
             taxa_percentual: pag.taxa || null,
+            taxa_inclusa: pag.taxaInclusa ?? null,
             data_pagamento: new Date().toISOString().split("T")[0],
             criado_por: usuario?.id,
           });
@@ -461,6 +463,7 @@ export function RecebimentoAparelhoModal({
               parcelas: p.parcelas,
               liquido: p.liquido,
               taxa: p.taxa,
+              taxa_inclusa: p.taxaInclusa,
             })),
             brindes: brindes.map((b) => ({
               descricao: b.descricao,

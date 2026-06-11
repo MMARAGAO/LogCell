@@ -63,6 +63,7 @@ function formatarMoeda(valor: number) {
 
 function formatarData(data: string | null) {
   if (!data) return "—";
+
   return new Date(data).toLocaleDateString("pt-BR");
 }
 
@@ -98,6 +99,7 @@ export function ExportarAnalyticsModal({
       setBuscaDebounce(busca);
       setPagina(1);
     }, 400);
+
     return () => {
       if (buscaRef.current) clearTimeout(buscaRef.current);
     };
@@ -111,6 +113,7 @@ export function ExportarAnalyticsModal({
         page: pagina,
         pageSize: ITENS_POR_PAGINA,
       });
+
       setClientes(data || []);
       setTotalClientes(count || 0);
       setTotalPaginas(totalPages || 1);
@@ -142,8 +145,10 @@ export function ExportarAnalyticsModal({
   const toggleCliente = (id: string) => {
     setSelecionados((prev) => {
       const next = new Set(prev);
+
       if (next.has(id)) next.delete(id);
       else next.add(id);
+
       return next;
     });
   };
@@ -151,7 +156,9 @@ export function ExportarAnalyticsModal({
   const selecionarPagina = () => {
     setSelecionados((prev) => {
       const next = new Set(prev);
+
       for (const c of clientes) next.add(c.id);
+
       return next;
     });
   };
@@ -176,7 +183,9 @@ export function ExportarAnalyticsModal({
       const [{ data: clientesData }, { data: lojasData }] = await Promise.all([
         supabase
           .from("clientes")
-          .select("id, nome, telefone, doc, ativo, criado_em, atualizado_em, id_loja, logradouro, numero, complemento, bairro, cidade, estado, cep, email, telefone_secundario, data_nascimento, observacoes, criado_por, atualizado_por")
+          .select(
+            "id, nome, telefone, doc, ativo, criado_em, atualizado_em, id_loja, logradouro, numero, complemento, bairro, cidade, estado, cep, email, telefone_secundario, data_nascimento, observacoes, criado_por, atualizado_por",
+          )
           .in("id", ids),
         supabase.from("lojas").select("id, nome"),
       ]);
@@ -192,9 +201,15 @@ export function ExportarAnalyticsModal({
       const results = await Promise.all(
         ids.map(async (id) => {
           const cliente = clientesMap.get(id);
+
           try {
             const analytics = await buscarAnalyticsCliente(id);
-            return { ...analytics, cliente: cliente!, lojaNome: lojasMap.get(cliente?.id_loja || 0) || "—" };
+
+            return {
+              ...analytics,
+              cliente: cliente!,
+              lojaNome: lojasMap.get(cliente?.id_loja || 0) || "—",
+            };
           } catch {
             return null;
           }
@@ -202,7 +217,10 @@ export function ExportarAnalyticsModal({
       );
 
       setDadosPrevia(
-        results.filter(Boolean) as (ClienteAnalytics & { cliente: Cliente; lojaNome: string })[],
+        results.filter(Boolean) as (ClienteAnalytics & {
+          cliente: Cliente;
+          lojaNome: string;
+        })[],
       );
       setPaginaPrevia(1);
       setEtapa("previa");
@@ -222,6 +240,7 @@ export function ExportarAnalyticsModal({
       const blob = await exportarAnalyticsClientes(selecionadosLista);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+
       a.href = url;
       a.download = `analytics-clientes-${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
@@ -250,9 +269,9 @@ export function ExportarAnalyticsModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
       scrollBehavior="inside"
       size={etapa === "previa" ? "5xl" : "2xl"}
+      onClose={onClose}
     >
       <ModalContent>
         <ModalHeader className="flex items-center gap-3 border-b border-divider">
@@ -297,11 +316,11 @@ export function ExportarAnalyticsModal({
                     </Button>
                   ) : (
                     <Button
+                      isDisabled={limiteAtingido}
                       size="sm"
                       startContent={<CheckSquare className="w-4 h-4" />}
                       variant="flat"
                       onPress={selecionarPagina}
-                      isDisabled={limiteAtingido}
                     >
                       Selecionar página
                     </Button>
@@ -341,6 +360,7 @@ export function ExportarAnalyticsModal({
                   <div className="space-y-1 max-h-80 overflow-y-auto">
                     {clientes.map((cliente) => {
                       const selected = selecionados.has(cliente.id);
+
                       return (
                         <div
                           key={cliente.id}
@@ -352,8 +372,8 @@ export function ExportarAnalyticsModal({
                           onClick={() => toggleCliente(cliente.id)}
                         >
                           <Checkbox
-                            isSelected={selected}
                             isDisabled={!selected && limiteAtingido}
+                            isSelected={selected}
                             onValueChange={() => toggleCliente(cliente.id)}
                           />
                           <div className="flex-1 min-w-0">
@@ -444,7 +464,7 @@ export function ExportarAnalyticsModal({
                 </div>
               ) : (
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                  <Table aria-label="Prévia dos dados" removeWrapper>
+                  <Table removeWrapper aria-label="Prévia dos dados">
                     <TableHeader>
                       <TableColumn>Cliente</TableColumn>
                       <TableColumn>Telefone</TableColumn>
@@ -483,9 +503,11 @@ export function ExportarAnalyticsModal({
                     <TableBody>
                       {dadosPaginados.map((item: any) => {
                         const pagMap: Record<string, number> = {};
+
                         for (const p of item.pagamentosPorTipo || []) {
                           pagMap[p.tipo] = p.valor;
                         }
+
                         return (
                           <TableRow key={item.cliente.id}>
                             <TableCell className="whitespace-nowrap font-medium">
@@ -562,7 +584,7 @@ export function ExportarAnalyticsModal({
                                 : item.resumo.totalGasto >= 20000
                                   ? "🏆 VIP"
                                   : (item.resumo.totalVendas >= 5 ||
-                                      item.resumo.totalAparelhos >= 5) &&
+                                        item.resumo.totalAparelhos >= 5) &&
                                       (item.resumo.diasDesdeUltimaCompra ==
                                         null ||
                                         item.resumo.diasDesdeUltimaCompra < 60)
@@ -663,7 +685,8 @@ export function ExportarAnalyticsModal({
                     onChange={setPaginaPrevia}
                   />
                   <p className="text-[11px] text-default-400">
-                    Mostrando {(paginaPrevia - 1) * ITENS_PREVIA_POR_PAGINA + 1}-
+                    Mostrando {(paginaPrevia - 1) * ITENS_PREVIA_POR_PAGINA + 1}
+                    -
                     {Math.min(
                       paginaPrevia * ITENS_PREVIA_POR_PAGINA,
                       dadosPrevia.length,
@@ -676,8 +699,8 @@ export function ExportarAnalyticsModal({
             </ModalBody>
             <ModalFooter className="border-t border-divider">
               <Button
-                variant="flat"
                 startContent={<ArrowLeft className="w-4 h-4" />}
+                variant="flat"
                 onPress={() => setEtapa("selecao")}
               >
                 Voltar

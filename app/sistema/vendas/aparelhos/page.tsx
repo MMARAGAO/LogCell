@@ -5,7 +5,6 @@ import { Button, ButtonGroup } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Pagination } from "@heroui/pagination";
 import { Select, SelectItem } from "@heroui/select";
-import { Tabs, Tab } from "@heroui/tabs";
 import { Divider } from "@heroui/divider";
 import {
   Modal,
@@ -19,7 +18,17 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  DropdownSection,
 } from "@heroui/dropdown";
+import { Badge } from "@heroui/badge";
+import { Chip } from "@heroui/chip";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
 import {
   CurrencyDollarIcon,
   ClockIcon,
@@ -28,8 +37,6 @@ import {
   CheckCircleIcon,
   DevicePhoneMobileIcon,
   FunnelIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   PhoneIcon,
   UserIcon,
   PrinterIcon,
@@ -135,7 +142,6 @@ export default function VendasAparelhosPage() {
   const [clienteFiltro, setClienteFiltro] = useState("");
   const [ordenacao, setOrdenacao] = useState("atualizado_em");
   const [paginaAtual, setPaginaAtual] = useState(1);
-  const [selectedTab, setSelectedTab] = useState("todas");
   const [cancelando, setCancelando] = useState<string | null>(null);
   const [modoVisualizacao, setModoVisualizacao] = useState<"cards" | "tabela">(
     "cards",
@@ -241,7 +247,6 @@ export default function VendasAparelhosPage() {
     periodo,
     dataInicio,
     dataFim,
-    selectedTab,
     marcaFiltro,
     formaPagamentoFiltro,
     clienteFiltro,
@@ -256,7 +261,6 @@ export default function VendasAparelhosPage() {
     periodo,
     dataInicio,
     dataFim,
-    selectedTab,
     marcaFiltro,
     formaPagamentoFiltro,
     clienteFiltro,
@@ -279,7 +283,7 @@ export default function VendasAparelhosPage() {
           `marca.ilike.%25${busca}%25,modelo.ilike.%25${busca}%25,imei.ilike.%25${busca}%25,numero_serie.ilike.%25${busca}%25,cor.ilike.%25${busca}%25`,
         ]);
       }
-      if (periodo === "hoje" || selectedTab === "hoje") {
+      if (periodo === "hoje") {
         const h = new Date().toISOString().split("T")[0];
 
         filtros.push(["gte", "data_venda", `"${h}"`]);
@@ -626,8 +630,7 @@ export default function VendasAparelhosPage() {
 
       aparelhos.forEach((a) => {
         if (a.venda_id) {
-          countPorVenda[a.venda_id] =
-            (countPorVenda[a.venda_id] || 0) + 1;
+          countPorVenda[a.venda_id] = (countPorVenda[a.venda_id] || 0) + 1;
         }
       });
 
@@ -683,6 +686,64 @@ export default function VendasAparelhosPage() {
   });
   const [totalPaginasBackend, setTotalPaginasBackend] = useState(0);
   const vendasPaginadas = vendas;
+
+  // Limpa todos os filtros (reusado pelo botão e pelos chips)
+  const limparTudo = () => {
+    setBusca("");
+    setStatusFiltro("");
+    setPeriodo("todas");
+    setDataInicio("");
+    setDataFim("");
+    setMarcaFiltro("");
+    setFormaPagamentoFiltro("");
+    setClienteFiltro("");
+    setOrdenacao("atualizado_em");
+  };
+
+  // Filtros ativos exibidos como chips removíveis (busca tem campo próprio)
+  const PERIODO_LABEL: Record<string, string> = {
+    hoje: "Hoje",
+    semana: "Esta Semana",
+    mes: "Este Mês",
+    personalizado: "Personalizado",
+  };
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (statusFiltro)
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${statusFiltro === "concluida" ? "Concluída" : "Pendente"}`,
+      onRemove: () => setStatusFiltro(""),
+    });
+  if (periodo && periodo !== "todas")
+    chipsFiltros.push({
+      key: "periodo",
+      label: `Período: ${PERIODO_LABEL[periodo] || periodo}`,
+      onRemove: () => {
+        setPeriodo("todas");
+        setDataInicio("");
+        setDataFim("");
+      },
+    });
+  if (marcaFiltro)
+    chipsFiltros.push({
+      key: "marca",
+      label: `Marca: ${marcaFiltro}`,
+      onRemove: () => setMarcaFiltro(""),
+    });
+  if (formaPagamentoFiltro)
+    chipsFiltros.push({
+      key: "forma",
+      label: `Pagamento: ${FORMAS_PAGAMENTO.find((f) => f.value === formaPagamentoFiltro)?.label || formaPagamentoFiltro}`,
+      onRemove: () => setFormaPagamentoFiltro(""),
+    });
+  if (clienteFiltro)
+    chipsFiltros.push({
+      key: "cliente",
+      label: `Cliente: ${clienteFiltro}`,
+      onRemove: () => setClienteFiltro(""),
+    });
 
   async function handleCancelarVenda(v: any) {
     const qtd = v.qtd_aparelhos_venda || 1;
@@ -1096,21 +1157,10 @@ export default function VendasAparelhosPage() {
     win.document.close();
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Carregando vendas...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-5">
         <div className="flex items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-100 dark:border-zinc-800">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -1207,7 +1257,7 @@ export default function VendasAparelhosPage() {
       </div>
 
       {/* Busca + Filtros */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
             isClearable
@@ -1226,24 +1276,25 @@ export default function VendasAparelhosPage() {
             onChange={(e) => setBusca(e.target.value)}
             onClear={() => setBusca("")}
           />
-          <Button
-            className="rounded-xl"
-            endContent={
-              mostrarFiltros ? (
-                <ChevronUpIcon className="w-4 h-4" />
-              ) : (
-                <ChevronDownIcon className="w-4 h-4" />
-              )
-            }
-            startContent={<FunnelIcon className="w-4 h-4" />}
-            variant="flat"
-            onPress={() => setMostrarFiltros(!mostrarFiltros)}
+          <Badge
+            color="primary"
+            content={chipsFiltros.length}
+            isInvisible={chipsFiltros.length === 0}
+            size="sm"
           >
-            {mostrarFiltros ? "Ocultar" : "Filtros"}
-          </Button>
+            <Button
+              className="rounded-xl"
+              startContent={<FunnelIcon className="w-4 h-4" />}
+              variant="flat"
+              onPress={() => setMostrarFiltros(true)}
+            >
+              Filtros
+            </Button>
+          </Badge>
           <ButtonGroup>
             <Button
               isIconOnly
+              aria-label="Visualização em cards"
               className="rounded-l-xl"
               color={modoVisualizacao === "cards" ? "primary" : "default"}
               variant={modoVisualizacao === "cards" ? "solid" : "flat"}
@@ -1253,6 +1304,7 @@ export default function VendasAparelhosPage() {
             </Button>
             <Button
               isIconOnly
+              aria-label="Visualização em tabela"
               className="rounded-r-xl"
               color={modoVisualizacao === "tabela" ? "primary" : "default"}
               variant={modoVisualizacao === "tabela" ? "solid" : "flat"}
@@ -1263,37 +1315,43 @@ export default function VendasAparelhosPage() {
           </ButtonGroup>
         </div>
 
-        {mostrarFiltros && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
-            <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
-              label="Status"
-              labelPlacement="outside"
-              placeholder="Todos"
-              selectedKeys={statusFiltro ? [statusFiltro] : []}
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+            <Button
+              className="h-7 px-2 text-xs text-gray-500"
               size="sm"
-              variant="bordered"
-              onSelectionChange={(keys) =>
-                setStatusFiltro((Array.from(keys)[0] as string) || "")
-              }
+              variant="light"
+              onPress={limparTudo}
             >
-              <SelectItem key="">Todos</SelectItem>
-              <SelectItem key="concluida">Concluída</SelectItem>
-              <SelectItem key="pendente">Pendente</SelectItem>
-            </Select>
+              Limpar tudo
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Drawer de Filtros Avançados (mesmo padrão da tela de Aparelhos) */}
+      <Drawer
+        isOpen={mostrarFiltros}
+        size="sm"
+        onOpenChange={setMostrarFiltros}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Período"
-              labelPlacement="outside"
-              placeholder="Todos"
               selectedKeys={[periodo]}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setPeriodo(Array.from(keys)[0] as string)
@@ -1308,26 +1366,18 @@ export default function VendasAparelhosPage() {
             {periodo === "personalizado" && (
               <>
                 <Input
-                  classNames={{
-                    inputWrapper:
-                      "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                  }}
-                  label="Data Início"
+                  label="Data de início"
                   labelPlacement="outside"
-                  size="sm"
+                  placeholder=" "
                   type="date"
                   value={dataInicio}
                   variant="bordered"
                   onChange={(e) => setDataInicio(e.target.value)}
                 />
                 <Input
-                  classNames={{
-                    inputWrapper:
-                      "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                  }}
-                  label="Data Fim"
+                  label="Data de fim"
                   labelPlacement="outside"
-                  size="sm"
+                  placeholder=" "
                   type="date"
                   value={dataFim}
                   variant="bordered"
@@ -1336,15 +1386,9 @@ export default function VendasAparelhosPage() {
               </>
             )}
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Marca"
-              labelPlacement="outside"
               placeholder="Todas"
               selectedKeys={marcaFiltro ? [marcaFiltro] : []}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setMarcaFiltro((Array.from(keys)[0] as string) || "")
@@ -1358,15 +1402,9 @@ export default function VendasAparelhosPage() {
               </>
             </Select>
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
-              label="Forma Pagamento"
-              labelPlacement="outside"
+              label="Forma de pagamento"
               placeholder="Todas"
               selectedKeys={formaPagamentoFiltro ? [formaPagamentoFiltro] : []}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setFormaPagamentoFiltro((Array.from(keys)[0] as string) || "")
@@ -1381,14 +1419,8 @@ export default function VendasAparelhosPage() {
             </Select>
             <Input
               isClearable
-              classNames={{
-                inputWrapper:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Cliente"
-              labelPlacement="outside"
               placeholder="Nome do cliente"
-              size="sm"
               type="text"
               value={clienteFiltro}
               variant="bordered"
@@ -1396,15 +1428,8 @@ export default function VendasAparelhosPage() {
               onClear={() => setClienteFiltro("")}
             />
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Ordenar por"
-              labelPlacement="outside"
-              placeholder="Última Modificação"
               selectedKeys={[ordenacao]}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setOrdenacao(Array.from(keys)[0] as string)
@@ -1414,87 +1439,58 @@ export default function VendasAparelhosPage() {
               <SelectItem key="data_venda">Data da Venda</SelectItem>
               <SelectItem key="valor_venda">Valor</SelectItem>
             </Select>
-            <Button
-              className="self-end rounded-xl"
-              color="default"
-              size="sm"
-              variant="flat"
-              onPress={() => {
-                setBusca("");
-                setStatusFiltro("");
-                setPeriodo("todas");
-                setDataInicio("");
-                setDataFim("");
-                setMarcaFiltro("");
-                setFormaPagamentoFiltro("");
-                setClienteFiltro("");
-                setOrdenacao("atualizado_em");
-              }}
-            >
-              Limpar Filtros
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparTudo}>
+              Limpar tudo
             </Button>
-          </div>
-        )}
+            <Button color="primary" onPress={() => setMostrarFiltros(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Filtro rápido de status (substitui as antigas abas) */}
+      <div className="flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 rounded-xl p-1 w-fit">
+        {[
+          { key: "", label: "Todas", count: kpis.total },
+          { key: "pendente", label: "Pendentes", count: kpis.pendentes },
+          {
+            key: "concluida",
+            label: "Concluídas",
+            count: Math.max(0, kpis.total - kpis.pendentes),
+          },
+        ].map((opt) => {
+          const ativo = statusFiltro === opt.key;
+
+          return (
+            <button
+              key={opt.key || "todas"}
+              className={`flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium transition-colors ${
+                ativo
+                  ? "bg-white dark:bg-zinc-900 text-primary shadow-sm"
+                  : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              }`}
+              type="button"
+              onClick={() => setStatusFiltro(opt.key)}
+            >
+              {opt.label}
+              <span
+                className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  ativo
+                    ? "bg-primary/10 text-primary"
+                    : "bg-gray-200 dark:bg-zinc-700 text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {opt.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tabs */}
-      <Tabs
-        classNames={{
-          tabList:
-            "gap-6 w-full relative rounded-none p-0 border-b border-gray-100 dark:border-zinc-800",
-          cursor: "w-full bg-primary",
-          tab: "max-w-fit px-0 h-10",
-          tabContent:
-            "group-data-[selected=true]:text-primary text-sm text-gray-500",
-        }}
-        color="primary"
-        selectedKey={selectedTab}
-        variant="underlined"
-        onSelectionChange={(key) => setSelectedTab(key as string)}
-      >
-        <Tab
-          key="todas"
-          title={
-            <div className="flex items-center gap-2">
-              <DevicePhoneMobileIcon className="w-4 h-4" />
-              <span>Todas</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
-                {vendas.length}
-              </span>
-            </div>
-          }
-        >
-          {renderList()}
-        </Tab>
-        <Tab
-          key="hoje"
-          title={
-            <div className="flex items-center gap-2">
-              <ClockIcon className="w-4 h-4" />
-              <span>Hoje</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                {kpis.vendasHoje}
-              </span>
-            </div>
-          }
-        >
-          {renderList()}
-        </Tab>
-        <Tab
-          key="pendentes"
-          title={
-            <div className="flex items-center gap-2">
-              <CurrencyDollarIcon className="w-4 h-4" />
-              <span>Pendentes</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
-                {kpis.pendentes}
-              </span>
-            </div>
-          }
-        >
-          {renderList()}
-        </Tab>
-      </Tabs>
+      {renderList()}
 
       <ConfirmDialog />
       {modalDetalhes && (
@@ -1970,13 +1966,61 @@ export default function VendasAparelhosPage() {
   );
 
   function renderList() {
-    if (vendas.length === 0) {
+    if (loading) {
       return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12 text-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-5 animate-pulse"
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-24 bg-gray-200 dark:bg-zinc-700 rounded" />
+                  <div className="h-4 w-40 bg-gray-200 dark:bg-zinc-700 rounded" />
+                </div>
+                <div className="h-6 w-20 bg-gray-200 dark:bg-zinc-700 rounded-full" />
+              </div>
+              <div className="h-12 bg-gray-100 dark:bg-zinc-800 rounded-xl mb-3" />
+              <div className="h-3 w-32 bg-gray-200 dark:bg-zinc-700 rounded" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (vendas.length === 0) {
+      const temFiltros = chipsFiltros.length > 0 || busca.trim().length > 0;
+
+      return (
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-12 text-center">
           <ShoppingBag className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Nenhuma venda encontrada
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+            {temFiltros
+              ? "Nenhuma venda para os filtros"
+              : "Nenhuma venda registrada"}
           </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {temFiltros
+              ? "Tente ajustar a busca ou limpar os filtros."
+              : "As vendas de aparelhos aparecerão aqui."}
+          </p>
+          <div className="mt-4">
+            {temFiltros ? (
+              <Button size="sm" variant="flat" onPress={limparTudo}>
+                Limpar filtros
+              </Button>
+            ) : (
+              <Button
+                color="primary"
+                size="sm"
+                startContent={<ShoppingBag className="w-4 h-4" />}
+                onPress={() => setModalNovaVenda(true)}
+              >
+                Nova Venda
+              </Button>
+            )}
+          </div>
         </div>
       );
     }
@@ -1998,7 +2042,7 @@ export default function VendasAparelhosPage() {
             {vendasPaginadas.map(renderCard)}
           </div>
         ) : (
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -2012,19 +2056,19 @@ export default function VendasAparelhosPage() {
                     <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Aparelho
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Vendedor
                     </th>
                     <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Valor
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="hidden md:table-cell py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Pago
                     </th>
                     <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="hidden lg:table-cell py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                       Data
                     </th>
                     <th className="py-3 px-4 w-24" />
@@ -2054,7 +2098,7 @@ export default function VendasAparelhosPage() {
                             </span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
+                        <td className="hidden lg:table-cell py-3 px-4 text-xs text-gray-500 dark:text-gray-400">
                           {v.vendedor_nome && v.vendedor_nome !== "—"
                             ? v.vendedor_nome
                             : "—"}
@@ -2068,17 +2112,17 @@ export default function VendasAparelhosPage() {
                               </span>
                             )}
                         </td>
-                        <td className="py-3 px-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        <td className="hidden md:table-cell py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                           {formatarMoeda(v.pagamento_total)}
                         </td>
                         <td className="py-3 px-4">
                           <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${saldo <= 0 ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800"}`}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${saldo <= 0 ? "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700" : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"}`}
                           >
                             {saldo <= 0 ? "Concluída" : "Pendente"}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-xs text-gray-400">
+                        <td className="hidden lg:table-cell py-3 px-4 text-xs text-gray-400">
                           {v.data_venda ? formatarDataUtc(v.data_venda) : "—"}
                         </td>
                         <td className="py-3 px-4">
@@ -2123,84 +2167,101 @@ export default function VendasAparelhosPage() {
                                 }
                               }}
                             >
-                              <DropdownItem
-                                key="detalhes"
-                                startContent={
-                                  <DevicePhoneMobileIcon className="w-4 h-4" />
-                                }
+                              <DropdownSection showDivider title="Ver">
+                                <DropdownItem
+                                  key="detalhes"
+                                  startContent={
+                                    <DevicePhoneMobileIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Detalhes
+                                </DropdownItem>
+                              </DropdownSection>
+                              <DropdownSection showDivider title="Documentos">
+                                <DropdownItem
+                                  key="imprimir"
+                                  startContent={
+                                    <PrinterIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Imprimir Recibo
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="garantia"
+                                  startContent={
+                                    <ShieldCheckIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Imprimir Garantia
+                                </DropdownItem>
+                              </DropdownSection>
+                              <DropdownSection showDivider title="Edição">
+                                <DropdownItem
+                                  key="editar"
+                                  startContent={
+                                    <PencilIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Editar Venda
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="desconto"
+                                  startContent={<Percent className="w-4 h-4" />}
+                                >
+                                  {v.venda?.valor_desconto > 0
+                                    ? "Editar Desconto"
+                                    : "Aplicar Desconto"}
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="vendedor"
+                                  startContent={
+                                    <UserIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Trocar Vendedor
+                                </DropdownItem>
+                              </DropdownSection>
+                              <DropdownSection
+                                showDivider
+                                title="Itens e pagamentos"
                               >
-                                Detalhes
-                              </DropdownItem>
-                              <DropdownItem
-                                key="imprimir"
-                                startContent={
-                                  <PrinterIcon className="w-4 h-4" />
-                                }
-                              >
-                                Imprimir Recibo
-                              </DropdownItem>
-                              <DropdownItem
-                                key="garantia"
-                                startContent={
-                                  <ShieldCheckIcon className="w-4 h-4" />
-                                }
-                              >
-                                Imprimir Garantia
-                              </DropdownItem>
-                              <DropdownItem
-                                key="editar"
-                                startContent={
-                                  <PencilIcon className="w-4 h-4" />
-                                }
-                              >
-                                Editar Venda
-                              </DropdownItem>
-                              <DropdownItem
-                                key="brinde"
-                                startContent={<GiftIcon className="w-4 h-4" />}
-                              >
-                                Adicionar Brinde
-                              </DropdownItem>
-                              <DropdownItem
-                                key="troca"
-                                startContent={
-                                  <DevicePhoneMobileIcon className="w-4 h-4" />
-                                }
-                              >
-                                Gerenciar Troca
-                              </DropdownItem>
-                              <DropdownItem
-                                key="pagamentos"
-                                startContent={
-                                  <CurrencyDollarIcon className="w-4 h-4" />
-                                }
-                              >
-                                Gerenciar Pagamentos
-                              </DropdownItem>
-                              <DropdownItem
-                                key="desconto"
-                                startContent={<Percent className="w-4 h-4" />}
-                              >
-                                {v.venda?.valor_desconto > 0
-                                  ? "Editar Desconto"
-                                  : "Aplicar Desconto"}
-                              </DropdownItem>
-                              <DropdownItem
-                                key="vendedor"
-                                startContent={<UserIcon className="w-4 h-4" />}
-                              >
-                                Trocar Vendedor
-                              </DropdownItem>
-                              <DropdownItem
-                                key="cancelar"
-                                className="text-danger"
-                                color="danger"
-                                startContent={
-                                  <XCircleIcon className="w-4 h-4" />
-                                }
-                              >
-                                Cancelar Venda
-                              </DropdownItem>
+                                <DropdownItem
+                                  key="brinde"
+                                  startContent={
+                                    <GiftIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Adicionar Brinde
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="troca"
+                                  startContent={
+                                    <DevicePhoneMobileIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Gerenciar Troca
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="pagamentos"
+                                  startContent={
+                                    <CurrencyDollarIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Gerenciar Pagamentos
+                                </DropdownItem>
+                              </DropdownSection>
+                              <DropdownSection>
+                                <DropdownItem
+                                  key="cancelar"
+                                  className="text-danger"
+                                  color="danger"
+                                  startContent={
+                                    <XCircleIcon className="w-4 h-4" />
+                                  }
+                                >
+                                  Cancelar Venda
+                                </DropdownItem>
+                              </DropdownSection>
                             </DropdownMenu>
                           </Dropdown>
                         </td>
@@ -2236,7 +2297,7 @@ export default function VendasAparelhosPage() {
     return (
       <div
         key={v.id}
-        className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow"
+        className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow"
       >
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex-1 min-w-0">
@@ -2247,12 +2308,12 @@ export default function VendasAparelhosPage() {
                 </span>
               )}
               <span
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${isQuitado ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" : "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800"}`}
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${isQuitado ? "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700" : "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800"}`}
               >
                 {isQuitado ? "Concluída" : "Pendente"}
               </span>
               {(v.venda?.valor_desconto ?? 0) > 0 && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-zinc-700">
                   Desc. {formatarMoeda(Number(v.venda.valor_desconto))}
                 </span>
               )}
@@ -2285,11 +2346,11 @@ export default function VendasAparelhosPage() {
                   {formatarMoeda(v.valor_venda || 0)}
                 </p>
               )}
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
               Pago: {formatarMoeda(v.pagamento_total)}
             </p>
             {!isQuitado && (
-              <p className="text-xs text-orange-600 dark:text-orange-400">
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
                 Saldo: {formatarMoeda(saldo)}
               </p>
             )}
@@ -2336,25 +2397,15 @@ export default function VendasAparelhosPage() {
           <div className="flex flex-wrap gap-1.5 mb-3">
             {v.pagamentos.map((p: any, i: number) => (
               <div key={i} className="flex flex-col gap-0.5">
-                <span
-                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                    p.tipo_pagamento === "dinheiro"
-                      ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                      : p.tipo_pagamento === "pix"
-                        ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800"
-                        : p.tipo_pagamento === "cartao_credito"
-                          ? "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800"
-                          : p.tipo_pagamento === "troca_aparelho"
-                            ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800"
-                            : "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700"
-                  }`}
-                >
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-zinc-700">
                   {TIPO_LABEL[p.tipo_pagamento] || p.tipo_pagamento}:{" "}
                   {formatarMoeda(p.liquido ?? p.valor)}
-                  {p.editado && <span className="ml-0.5 opacity-60">✎</span>}
+                  {p.editado && (
+                    <PencilIcon className="inline w-2.5 h-2.5 ml-0.5 opacity-60" />
+                  )}
                 </span>
                 {p.tipo_pagamento === "troca_aparelho" && p.observacao && (
-                  <span className="text-[9px] text-amber-500 dark:text-amber-400 ml-2 leading-tight">
+                  <span className="text-[9px] text-gray-500 dark:text-gray-400 ml-2 leading-tight">
                     {(() => {
                       try {
                         const d =
@@ -2431,64 +2482,72 @@ export default function VendasAparelhosPage() {
                 }
               }}
             >
-              <DropdownItem
-                key="detalhes"
-                startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}
-              >
-                Detalhes
-              </DropdownItem>
-              <DropdownItem
-                key="imprimir"
-                startContent={<PrinterIcon className="w-4 h-4" />}
-              >
-                Imprimir Recibo
-              </DropdownItem>
-              <DropdownItem
-                key="editar"
-                startContent={<PencilIcon className="w-4 h-4" />}
-              >
-                Editar Venda
-              </DropdownItem>
-              <DropdownItem
-                key="brinde"
-                startContent={<GiftIcon className="w-4 h-4" />}
-              >
-                Adicionar Brinde
-              </DropdownItem>
-              <DropdownItem
-                key="troca"
-                startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}
-              >
-                Gerenciar Troca
-              </DropdownItem>
-              <DropdownItem
-                key="pagamentos"
-                startContent={<CurrencyDollarIcon className="w-4 h-4" />}
-              >
-                Gerenciar Pagamentos
-              </DropdownItem>
-              <DropdownItem
-                key="desconto"
-                startContent={<Percent className="w-4 h-4" />}
-              >
-                {v.venda?.valor_desconto > 0
-                  ? "Editar Desconto"
-                  : "Aplicar Desconto"}
-              </DropdownItem>
-              <DropdownItem
-                key="vendedor"
-                startContent={<UserIcon className="w-4 h-4" />}
-              >
-                Trocar Vendedor
-              </DropdownItem>
-              <DropdownItem
-                key="cancelar"
-                className="text-danger"
-                color="danger"
-                startContent={<XCircleIcon className="w-4 h-4" />}
-              >
-                Cancelar Venda
-              </DropdownItem>
+              <DropdownSection showDivider title="Ver">
+                <DropdownItem
+                  key="detalhes"
+                  startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}
+                >
+                  Detalhes
+                </DropdownItem>
+                <DropdownItem
+                  key="imprimir"
+                  startContent={<PrinterIcon className="w-4 h-4" />}
+                >
+                  Imprimir Recibo
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection showDivider title="Edição">
+                <DropdownItem
+                  key="editar"
+                  startContent={<PencilIcon className="w-4 h-4" />}
+                >
+                  Editar Venda
+                </DropdownItem>
+                <DropdownItem
+                  key="desconto"
+                  startContent={<Percent className="w-4 h-4" />}
+                >
+                  {v.venda?.valor_desconto > 0
+                    ? "Editar Desconto"
+                    : "Aplicar Desconto"}
+                </DropdownItem>
+                <DropdownItem
+                  key="vendedor"
+                  startContent={<UserIcon className="w-4 h-4" />}
+                >
+                  Trocar Vendedor
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection showDivider title="Itens e pagamentos">
+                <DropdownItem
+                  key="brinde"
+                  startContent={<GiftIcon className="w-4 h-4" />}
+                >
+                  Adicionar Brinde
+                </DropdownItem>
+                <DropdownItem
+                  key="troca"
+                  startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}
+                >
+                  Gerenciar Troca
+                </DropdownItem>
+                <DropdownItem
+                  key="pagamentos"
+                  startContent={<CurrencyDollarIcon className="w-4 h-4" />}
+                >
+                  Gerenciar Pagamentos
+                </DropdownItem>
+              </DropdownSection>
+              <DropdownSection>
+                <DropdownItem
+                  key="cancelar"
+                  className="text-danger"
+                  color="danger"
+                  startContent={<XCircleIcon className="w-4 h-4" />}
+                >
+                  Cancelar Venda
+                </DropdownItem>
+              </DropdownSection>
             </DropdownMenu>
           </Dropdown>
         </div>
@@ -2501,27 +2560,25 @@ function KpiCard({
   icon,
   value,
   label,
-  color,
-  bg,
-  iconBg,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
-  color: string;
-  bg: string;
-  iconBg: string;
+  // Props de cor mantidas por compatibilidade, porém ignoradas (visual sóbrio)
+  color?: string;
+  bg?: string;
+  iconBg?: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}
-      >
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/40 border border-gray-200 dark:border-zinc-800">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 shrink-0">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className={`text-sm font-bold truncate ${color}`}>{value}</p>
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+          {value}
+        </p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate">
           {label}
         </p>
       </div>

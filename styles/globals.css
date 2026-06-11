@@ -27,3 +27,31 @@ textarea {
    
    O atributo data-theme é configurado automaticamente pelo ConfiguracoesContext.
 */
+
+/* ========================================
+   IMPRESSÃO (dashboard e demais telas)
+   ======================================== */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  /* Não quebrar cards no meio da página */
+  .rounded-lg,
+  .rounded-xl,
+  .rounded-2xl {
+    break-inside: avoid;
+  }
+
+  /* Impressão mais limpa: sem sombras */
+  .shadow-sm,
+  .shadow,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: none !important;
+  }
+}

@@ -76,6 +76,17 @@ export interface DadosDashboard {
   resumo_caixa?: ResumoCaixa;
 }
 
+export interface DesempenhoTecnico {
+  usuario_id: string;
+  usuario_nome: string;
+  total_os: number;
+  os_concluidas: number;
+  os_andamento: number;
+  os_aguardando: number;
+  valor_orcado: number;
+  valor_pago: number;
+}
+
 export interface FiltroDashboard {
   data_inicio: string;
   data_fim: string;

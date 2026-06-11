@@ -2,7 +2,6 @@
 
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
-import { Chip } from "@heroui/chip";
 import { Divider } from "@heroui/divider";
 import { Skeleton } from "@heroui/skeleton";
 import {
@@ -78,10 +77,22 @@ export function ProdutoCard({
 }: ProdutoCardProps) {
   const { fotos, loading: loadingFotos } = useFotosProduto(produto.id);
 
+  const margem =
+    produto.preco_compra && produto.preco_venda
+      ? ((produto.preco_venda - produto.preco_compra) / produto.preco_compra) *
+        100
+      : 0;
+  const margemTone =
+    margem > 30
+      ? "text-emerald-600 dark:text-emerald-400"
+      : margem > 15
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-rose-600 dark:text-rose-400";
+
   return (
     <Card
-      className={`border-l-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 overflow-hidden ${
-        produto.ativo ? "border-l-success" : "border-l-danger"
+      className={`overflow-hidden transition-all duration-200 hover:shadow-md ${
+        produto.ativo ? "" : "border-l-4 border-l-danger"
       }`}
       shadow="sm"
     >
@@ -102,29 +113,27 @@ export function ProdutoCard({
           </div>
         )}
 
-        <div className="absolute top-2 left-2 z-20">
-          <Chip
-            color={produto.ativo ? "success" : "danger"}
-            size="sm"
-            variant="shadow"
-          >
+        <div className="absolute left-2 top-2 z-20">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-default-200/60 bg-background/80 px-2 py-0.5 text-[11px] font-medium text-default-600 backdrop-blur-md">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                produto.ativo ? "bg-emerald-500" : "bg-rose-500"
+              }`}
+            />
             {produto.ativo ? "Ativo" : "Inativo"}
-          </Chip>
+          </span>
         </div>
 
-        <div className="absolute top-2 right-2 z-20">
-          <Chip
-            className="font-bold"
-            color={
+        <div className="absolute right-2 top-2 z-20">
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums backdrop-blur-md ${
               (produto.total_estoque || 0) > (produto.quantidade_minima || 0)
-                ? "primary"
-                : "danger"
-            }
-            size="md"
-            variant="shadow"
+                ? "border-default-200/60 bg-background/80 text-default-700"
+                : "border-rose-200 bg-rose-50/90 text-rose-600 dark:border-rose-500/30 dark:bg-rose-500/20 dark:text-rose-300"
+            }`}
           >
             {produto.total_estoque || 0} un
-          </Chip>
+          </span>
         </div>
       </div>
 
@@ -141,99 +150,98 @@ export function ProdutoCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2 text-xs">
-          {produto.marca && (
-            <>
-              <span className="text-default-500 font-medium">Marca:</span>
-              <span className="text-foreground truncate">{produto.marca}</span>
-            </>
-          )}
-          {produto.categoria && (
-            <>
-              <span className="text-default-500 font-medium">Categoria:</span>
-              <span className="text-foreground truncate">
-                {produto.categoria}
+        {(produto.marca || produto.categoria || produto.codigo_fabricante) && (
+          <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+            {produto.marca && (
+              <span className="truncate">
+                <span className="text-default-400">Marca </span>
+                <span className="font-medium text-default-600">
+                  {produto.marca}
+                </span>
               </span>
-            </>
-          )}
-          {produto.codigo_fabricante && (
-            <>
-              <span className="text-default-500 font-medium">Código:</span>
-              <span className="text-foreground font-mono truncate">
-                {produto.codigo_fabricante}
+            )}
+            {produto.categoria && (
+              <span className="truncate">
+                <span className="text-default-400">Categoria </span>
+                <span className="font-medium text-default-600">
+                  {produto.categoria}
+                </span>
               </span>
-            </>
-          )}
-        </div>
+            )}
+            {produto.codigo_fabricante && (
+              <span className="truncate">
+                <span className="text-default-400">Código </span>
+                <span className="font-mono font-medium text-default-600">
+                  {produto.codigo_fabricante}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Preços */}
-        <div className="flex gap-2 mb-2">
-          {temVerPrecoCusto && produto.preco_compra && (
-            <div className="flex-1 bg-warning-500/15 rounded-md p-2">
-              <p className="text-[10px] text-warning font-medium">Compra</p>
-              <p className="text-sm font-bold text-warning">
-                {formatarMoeda(produto.preco_compra)}
-              </p>
-            </div>
-          )}
-          {produto.preco_venda && (
-            <div className="flex-1 bg-success-500/15 rounded-md p-2">
-              <p className="text-[10px] text-success font-medium">Venda</p>
-              <p className="text-sm font-bold text-success">
-                {formatarMoeda(produto.preco_venda)}
-              </p>
-            </div>
-          )}
-          {temVerPrecoCusto && produto.preco_compra && produto.preco_venda && (
-            <div className="flex items-center justify-center bg-primary-500/15 rounded-md px-2">
-              <Chip
-                color={
-                  ((produto.preco_venda - produto.preco_compra) /
-                    produto.preco_compra) *
-                    100 >
-                  30
-                    ? "success"
-                    : ((produto.preco_venda - produto.preco_compra) /
-                          produto.preco_compra) *
-                          100 >
-                        15
-                      ? "warning"
-                      : "danger"
-                }
-                size="sm"
-                variant="flat"
-              >
-                {formatarPorcentagem(
-                  ((produto.preco_venda - produto.preco_compra) /
-                    produto.preco_compra) *
-                    100,
-                  0,
-                )}
-              </Chip>
-            </div>
-          )}
-        </div>
+        {(produto.preco_venda ||
+          (temVerPrecoCusto && produto.preco_compra)) && (
+          <div className="mb-3 flex divide-x divide-default-200 overflow-hidden rounded-lg border border-default-200 dark:divide-default-100/20 dark:border-default-100/20">
+            {temVerPrecoCusto && produto.preco_compra && (
+              <div className="flex-1 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-default-400">
+                  Compra
+                </p>
+                <p className="text-sm font-bold tabular-nums text-foreground">
+                  {formatarMoeda(produto.preco_compra)}
+                </p>
+              </div>
+            )}
+            {produto.preco_venda && (
+              <div className="flex-1 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-wide text-default-400">
+                  Venda
+                </p>
+                <p className="text-sm font-bold tabular-nums text-foreground">
+                  {formatarMoeda(produto.preco_venda)}
+                </p>
+              </div>
+            )}
+            {temVerPrecoCusto &&
+              produto.preco_compra &&
+              produto.preco_venda && (
+                <div className="flex-1 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-wide text-default-400">
+                    Margem
+                  </p>
+                  <p className={`text-sm font-bold tabular-nums ${margemTone}`}>
+                    {formatarPorcentagem(margem, 0)}
+                  </p>
+                </div>
+              )}
+          </div>
+        )}
 
         {/* Estoque por Loja */}
         {produto.estoques_lojas && produto.estoques_lojas.length > 0 && (
-          <div className="border-t border-default-200 dark:border-default-700 pt-2">
-            <div className="flex flex-wrap gap-1">
+          <div className="border-t border-default-200 pt-2 dark:border-default-100/20">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-default-400">
+              Estoque por loja
+            </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               {produto.estoques_lojas.map((estoque: any) => (
                 <div
                   key={estoque.id_loja}
-                  className="flex items-center gap-1 bg-default-100 dark:bg-default-100/10 rounded px-2 py-0.5"
+                  className="flex items-center justify-between gap-2 text-xs"
                 >
-                  <span className="text-[10px] text-default-600 truncate max-w-[60px]">
+                  <span className="truncate text-default-500">
                     {estoque.loja_nome}
                   </span>
-                  <Chip
-                    className="h-4 min-w-[30px] text-[10px]"
-                    color={estoque.quantidade > 0 ? "primary" : "danger"}
-                    size="sm"
-                    variant="flat"
+                  <span
+                    className={`flex-shrink-0 font-semibold tabular-nums ${
+                      estoque.quantidade > 0
+                        ? "text-default-700"
+                        : "text-rose-500"
+                    }`}
                   >
                     {estoque.quantidade}
-                  </Chip>
+                  </span>
                 </div>
               ))}
             </div>

@@ -797,10 +797,10 @@ export default function OrdemServicoWizard({
                             }
                           />
                           <Input
-                            label="IMEI ou Nº de Série"
                             autoComplete="off"
                             data-form-type="other"
                             data-lpignore="true"
+                            label="IMEI ou Nº de Série"
                             value={
                               ap.equipamento_imei || ap.equipamento_numero_serie
                             }

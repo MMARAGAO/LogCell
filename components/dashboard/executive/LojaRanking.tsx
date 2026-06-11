@@ -1,0 +1,224 @@
+"use client";
+
+import { BuildingStorefrontIcon } from "@heroicons/react/24/outline";
+
+import { formatarMoeda } from "@/lib/formatters";
+
+interface LojaRank {
+  loja_id: number;
+  nome: string;
+  total_vendas: number;
+  total_os: number;
+  receita_vendas: number;
+  receita_acessorios: number;
+  receita_aparelhos: number;
+  receita_os: number;
+  receita_total: number;
+  lucro_vendas: number;
+  lucro_acessorios: number;
+  lucro_aparelhos: number;
+  lucro_os: number;
+  lucro_total: number;
+}
+
+interface LojaRankingProps {
+  lojas: LojaRank[];
+  loading?: boolean;
+}
+
+// Medalhas para as 3 primeiras posições (igual ao ranking de vendedores).
+const MEDAL_TONE = [
+  "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
+  "bg-default-200 text-default-600",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400",
+];
+
+// Receita = hue da categoria (base translúcida) · Lucro = emerald (consistente
+// com o restante da Visão Executiva).
+const CATEGORIA_STYLE: Record<
+  string,
+  { label: string; cor: string; corClara: string; corLucro: string }
+> = {
+  vendas: {
+    label: "Vendas",
+    cor: "bg-blue-500",
+    corClara: "bg-blue-500/40",
+    corLucro: "bg-emerald-500",
+  },
+  acessorios: {
+    label: "Acessórios",
+    cor: "bg-teal-500",
+    corClara: "bg-teal-500/40",
+    corLucro: "bg-emerald-500",
+  },
+  aparelhos: {
+    label: "Aparelhos",
+    cor: "bg-violet-500",
+    corClara: "bg-violet-500/40",
+    corLucro: "bg-emerald-500",
+  },
+  os: {
+    label: "OS",
+    cor: "bg-amber-500",
+    corClara: "bg-amber-500/40",
+    corLucro: "bg-emerald-500",
+  },
+};
+
+export function LojaRanking({ lojas, loading = false }: LojaRankingProps) {
+  const top = [...lojas].sort((a, b) => b.receita_total - a.receita_total);
+
+  const maxReceita = top[0]?.receita_total || 1;
+
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-default-200/70 bg-content1 p-5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-default-100 text-default-500">
+          <BuildingStorefrontIcon className="h-5 w-5" />
+        </span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-default-500">
+            Ranking de Lojas
+          </p>
+          <p className="text-sm text-default-400">Vendas e OS por unidade</p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-1 flex-col gap-4">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 w-full animate-pulse rounded-lg bg-default-100"
+            />
+          ))
+        ) : top.length === 0 ? (
+          <p className="text-sm text-default-400">
+            Sem dados no período selecionado.
+          </p>
+        ) : (
+          top.map((l, i) => {
+            const categorias = [
+              {
+                key: "vendas",
+                receita: l.receita_vendas,
+                lucro: l.lucro_vendas,
+              },
+              {
+                key: "acessorios",
+                receita: l.receita_acessorios,
+                lucro: l.lucro_acessorios,
+              },
+              {
+                key: "aparelhos",
+                receita: l.receita_aparelhos,
+                lucro: l.lucro_aparelhos,
+              },
+              { key: "os", receita: l.receita_os, lucro: l.lucro_os },
+            ];
+
+            const atLeastOne = categorias.some((c) => c.receita > 0);
+
+            return (
+              <div key={l.loja_id}>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                      MEDAL_TONE[i] || "bg-default-100 text-default-500"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {l.nome}
+                      </span>
+                      <span className="flex-shrink-0 text-xs text-default-500 tabular-nums">
+                        {l.total_vendas > 0 && `${l.total_vendas}V`}
+                        {l.total_vendas > 0 && l.total_os > 0 && " · "}
+                        {l.total_os > 0 && `${l.total_os}OS`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-default-400">Total</span>
+                      <div className="flex gap-3 text-xs tabular-nums">
+                        <span className="text-foreground font-medium">
+                          {formatarMoeda(l.receita_total)}
+                        </span>
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          {formatarMoeda(l.lucro_total)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="relative mt-1 h-1.5 w-full overflow-hidden rounded-full bg-default-100">
+                      <div
+                        className="absolute left-0 top-0 h-full rounded-full bg-primary/30"
+                        style={{
+                          width: `${Math.max(3, (l.receita_total / maxReceita) * 100)}%`,
+                        }}
+                      />
+                      <div
+                        className="absolute left-0 top-0 h-full rounded-full bg-emerald-500"
+                        style={{
+                          width: `${Math.max(1, (l.receita_total / maxReceita) * 100 * (l.lucro_total / (l.receita_total || 1)))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {atLeastOne && (
+                  <div className="ml-9 mt-2 space-y-1.5">
+                    {categorias
+                      .filter((c) => c.receita > 0)
+                      .map((c) => {
+                        const style = CATEGORIA_STYLE[c.key];
+                        const pct =
+                          l.receita_total > 0
+                            ? (c.receita / l.receita_total) * 100
+                            : 0;
+                        const pctLucro =
+                          c.receita > 0 ? (c.lucro / c.receita) * 100 : 0;
+
+                        return (
+                          <div key={c.key} className="flex items-center gap-2">
+                            <span
+                              className={`hidden h-2 w-2 flex-shrink-0 rounded-full sm:block ${style.cor}`}
+                            />
+                            <span className="w-16 flex-shrink-0 text-xs text-default-500">
+                              {style.label}
+                            </span>
+                            <div className="flex-1">
+                              <div className="relative h-2 w-full overflow-hidden rounded-full bg-default-100">
+                                <div
+                                  className={`absolute left-0 top-0 h-full rounded-full transition-all ${style.corClara}`}
+                                  style={{ width: `${Math.max(2, pct)}%` }}
+                                />
+                                <div
+                                  className={`absolute left-0 top-0 h-full rounded-full transition-all ${style.corLucro}`}
+                                  style={{
+                                    width: `${Math.max(1, pct * (pctLucro / 100))}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <span className="w-20 text-right text-xs tabular-nums text-default-600">
+                              {formatarMoeda(c.receita)}
+                            </span>
+                            <span className="w-20 text-right text-xs tabular-nums text-emerald-600 dark:text-emerald-400">
+                              {formatarMoeda(c.lucro)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}

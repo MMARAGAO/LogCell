@@ -6,7 +6,6 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
-import { Chip } from "@heroui/chip";
 import {
   Table,
   TableHeader,
@@ -28,6 +27,8 @@ import {
   CubeIcon,
   PlusIcon,
   MagnifyingGlassIcon,
+  Squares2X2Icon,
+  Bars3Icon,
   EllipsisVerticalIcon,
   PencilIcon,
   TrashIcon,
@@ -40,8 +41,10 @@ import {
   ChartBarIcon,
   ExclamationTriangleIcon,
   DocumentDuplicateIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 
+import { supabase } from "@/lib/supabaseClient";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
@@ -80,8 +83,9 @@ import {
 import { LojasService } from "@/services/lojasService";
 import { formatarMoeda } from "@/lib/formatters";
 import { gerarRelatorioProdutoPDF } from "@/lib/exportarPDF";
+import { exportarEstoqueParaExcel } from "@/lib/exportarExcel";
 
-import { MetricCard } from "@/components/transferencias/MetricCard";
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import { ProdutoCard } from "@/components/estoque/ProdutoCard";
 
 export default function EstoquePage() {
@@ -293,6 +297,73 @@ export default function EstoquePage() {
       setLojas(dados);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
+    }
+  };
+
+  const handleExportarExcel = async () => {
+    try {
+      const ativo =
+        statusFiltro === "ativos"
+          ? true
+          : statusFiltro === "inativos"
+            ? false
+            : undefined;
+
+      const { data, error } = await supabase.rpc("exportar_produtos_excel", {
+        p_busca: busca || null,
+        p_ativo: ativo ?? null,
+        p_marca: marcaFiltro !== "todos" ? marcaFiltro : null,
+        p_categoria: categoriaFiltro !== "todos" ? categoriaFiltro : null,
+      });
+
+      if (error) throw error;
+
+      let dados: any[] = data || [];
+
+      const podeVerOutrasLojas =
+        podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas");
+
+      if (lojaId !== null && !podeVerOutrasLojas) {
+        dados = dados.map((produto: any) => {
+          const estoquesFiltrados =
+            produto.estoques_lojas?.filter((e: any) => e.id_loja === lojaId) ||
+            [];
+
+          return {
+            ...produto,
+            estoques_lojas: estoquesFiltrados,
+            total_estoque: estoquesFiltrados.reduce(
+              (sum: number, e: any) => sum + (e.quantidade || 0),
+              0,
+            ),
+          };
+        });
+      }
+
+      if (estoqueFiltro === "baixo") {
+        dados = dados.filter(
+          (p: any) =>
+            p.total_estoque > 0 && p.total_estoque < (p.quantidade_minima || 5),
+        );
+      } else if (estoqueFiltro === "sem") {
+        dados = dados.filter((p: any) => p.total_estoque === 0);
+      } else if (estoqueFiltro === "adequado") {
+        dados = dados.filter(
+          (p: any) => p.total_estoque >= (p.quantidade_minima || 5),
+        );
+      }
+
+      if (dados.length === 0) {
+        toast.warning("Nenhum produto encontrado com os filtros atuais.");
+
+        return;
+      }
+
+      exportarEstoqueParaExcel(dados, "estoque");
+      toast.success(`Planilha gerada com ${dados.length} produto(s)!`);
+    } catch (error) {
+      console.error("Erro ao exportar planilha:", error);
+      toast.error("Erro ao gerar planilha. Tente novamente.");
     }
   };
 
@@ -561,67 +632,57 @@ export default function EstoquePage() {
   }
 
   return (
-    <div className="p-6 max-w-8xl mx-auto">
+    <div className="mx-auto max-w-[1600px] p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-3 bg-primary/10 rounded-xl">
-            <CubeIcon className="w-8 h-8 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Estoque</h1>
-            <p className="text-default-500 mt-1">
-              Gerencie seus produtos e controle de estoque
-            </p>
-          </div>
-        </div>
-      </div>
+      <header className="mb-6 flex flex-col gap-1">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Estoque
+        </h1>
+        <p className="text-sm text-default-500">
+          Gerencie seus produtos e controle de estoque
+        </p>
+      </header>
 
       {/* Estatísticas */}
       {temPermissao("estoque.ver_estatisticas") && (
         <div className="mb-6 space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
             <MetricCard
-              color="primary"
               icon={<CubeIcon className="h-5 w-5" />}
               label="Total de Itens"
               value={statsFinanceiras.quantidadeTotal.toLocaleString("pt-BR")}
             />
             <MetricCard
-              color="success"
               icon={<CurrencyDollarIcon className="h-5 w-5" />}
               label="Valor em Estoque"
               value={formatarMoeda(statsFinanceiras.valorEstoqueVenda)}
             />
             <MetricCard
-              color="warning"
               icon={<ShoppingCartIcon className="h-5 w-5" />}
               label="Custo do Estoque"
               value={formatarMoeda(statsFinanceiras.valorEstoqueCompra)}
             />
             <MetricCard
-              color="primary"
               icon={<ChartBarIcon className="h-5 w-5" />}
               label="Produtos Ativos"
               value={stats.ativos}
             />
             <MetricCard
-              color="danger"
+              emphasis={statsFinanceiras.produtosSemEstoque > 0}
               icon={<ExclamationTriangleIcon className="h-5 w-5" />}
               label="Alertas (sem estoque)"
+              tone="danger"
               value={statsFinanceiras.produtosSemEstoque}
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <MetricCard
-              color="success"
               icon={<CurrencyDollarIcon className="h-5 w-5" />}
               label="Valor Total de Venda"
               value={formatarMoeda(statsFinanceiras.valorTotalVenda)}
             />
             <MetricCard
-              color="warning"
               icon={<ShoppingCartIcon className="h-5 w-5" />}
               label="Valor Total de Compra"
               value={formatarMoeda(statsFinanceiras.valorTotalCompra)}
@@ -631,22 +692,24 @@ export default function EstoquePage() {
       )}
 
       {/* Filtros e Ações */}
-      <Card className="shadow-sm mb-6">
-        <CardBody className="p-4 sm:p-5 space-y-4">
-          {/* Busca + Toggle */}
-          <div className="flex items-center gap-2">
-            <Input
-              className="flex-1"
-              placeholder="Buscar produtos..."
-              size="sm"
-              startContent={
-                <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
-              }
-              value={busca}
-              variant="bordered"
-              onValueChange={setBusca}
-            />
-            <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-default-100 flex-shrink-0">
+      {/* Barra de busca e filtros */}
+      <div className="mb-6 rounded-xl border border-default-200/70 bg-content1 p-3">
+        {/* Linha 1: busca + visualização + novo produto */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            className="flex-1"
+            placeholder="Buscar produtos..."
+            radius="md"
+            size="md"
+            startContent={
+              <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
+            }
+            value={busca}
+            variant="bordered"
+            onValueChange={setBusca}
+          />
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
               <Button
                 isIconOnly
                 className="h-7 w-7 min-w-0"
@@ -655,19 +718,7 @@ export default function EstoquePage() {
                 variant={visualizacao === "cards" ? "solid" : "light"}
                 onPress={() => setVisualizacao("cards")}
               >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
+                <Squares2X2Icon className="h-4 w-4" />
               </Button>
               <Button
                 isIconOnly
@@ -677,136 +728,27 @@ export default function EstoquePage() {
                 variant={visualizacao === "tabela" ? "solid" : "light"}
                 onPress={() => setVisualizacao("tabela")}
               >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                  />
-                </svg>
+                <Bars3Icon className="h-4 w-4" />
               </Button>
             </div>
-          </div>
-
-          {/* Filtros */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Marca */}
-            <Autocomplete
-              allowsCustomValue={false}
-              aria-label="Filtro de marca"
-              items={marcasItems}
-              placeholder="Marca"
-              selectedKey={marcaFiltro}
-              size="sm"
-              variant="bordered"
-              onSelectionChange={(key) => {
-                setMarcaFiltro((key as string) || "todos");
-              }}
-            >
-              {(item) => (
-                <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
-              )}
-            </Autocomplete>
-
-            {/* Categoria */}
-            <Autocomplete
-              allowsCustomValue={false}
-              aria-label="Filtro de categoria"
-              items={categoriasItems}
-              placeholder="Categoria"
-              selectedKey={categoriaFiltro}
-              size="sm"
-              variant="bordered"
-              onSelectionChange={(key) => {
-                setCategoriaFiltro((key as string) || "todos");
-              }}
-            >
-              {(item) => (
-                <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
-              )}
-            </Autocomplete>
-
-            {/* Estoque */}
-            <Select
-              aria-label="Filtro de nível de estoque"
-              placeholder="Nível de Estoque"
-              selectedKeys={[estoqueFiltro]}
-              size="sm"
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] as string;
-
-                setEstoqueFiltro(value);
-              }}
-            >
-              <SelectItem key="todos">Todos os Estoques</SelectItem>
-              <SelectItem key="baixo">Estoque Baixo</SelectItem>
-              <SelectItem key="sem">Sem Estoque</SelectItem>
-              <SelectItem key="adequado">Estoque Adequado</SelectItem>
-            </Select>
-
-            {/* Status */}
-            <Select
-              aria-label="Filtro de status do produto"
-              placeholder="Status do Produto"
-              selectedKeys={[statusFiltro]}
-              size="sm"
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] as
-                  | "todos"
-                  | "ativos"
-                  | "inativos";
-
-                setStatusFiltro(value);
-              }}
-            >
-              <SelectItem key="ativos">Ativos</SelectItem>
-              <SelectItem key="inativos">Inativos</SelectItem>
-              <SelectItem key="todos">Todos</SelectItem>
-            </Select>
-          </div>
-
-          {/* Linha de ações */}
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-medium text-default-600">
-                {totalRegistros} produto(s) encontrado(s)
-              </span>
-
-              {(busca ||
-                marcaFiltro !== "todos" ||
-                categoriaFiltro !== "todos" ||
-                estoqueFiltro !== "todos" ||
-                statusFiltro !== "ativos") && (
+            <div className="flex items-center gap-2">
+              {temPermissao("estoque.visualizar") && (
                 <Button
-                  color="warning"
-                  size="sm"
+                  color="default"
+                  radius="md"
+                  size="md"
+                  startContent={<ArrowDownTrayIcon className="h-4 w-4" />}
                   variant="flat"
-                  onPress={() => {
-                    setBusca("");
-                    setMarcaFiltro("todos");
-                    setCategoriaFiltro("todos");
-                    setEstoqueFiltro("todos");
-                    setStatusFiltro("ativos");
-                  }}
+                  onPress={handleExportarExcel}
                 >
-                  Limpar Filtros
+                  Exportar Excel
                 </Button>
               )}
-            </div>
-
-            <div className="flex items-center gap-2">
               {temPermissao("estoque.criar") && (
                 <Button
                   color="primary"
-                  size="sm"
+                  radius="md"
+                  size="md"
                   startContent={<PlusIcon className="h-4 w-4" />}
                   onPress={() => {
                     setProdutoSelecionado(null);
@@ -818,8 +760,119 @@ export default function EstoquePage() {
               )}
             </div>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+
+        {/* Linha 2: filtros (grid que preenche a largura) */}
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <Autocomplete
+            allowsCustomValue={false}
+            aria-label="Filtro de marca"
+            className="w-full"
+            items={marcasItems}
+            placeholder="Marca"
+            radius="md"
+            selectedKey={marcaFiltro}
+            size="md"
+            variant="bordered"
+            onSelectionChange={(key) => {
+              setMarcaFiltro((key as string) || "todos");
+            }}
+          >
+            {(item) => (
+              <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
+            )}
+          </Autocomplete>
+
+          <Autocomplete
+            allowsCustomValue={false}
+            aria-label="Filtro de categoria"
+            className="w-full"
+            items={categoriasItems}
+            placeholder="Categoria"
+            radius="md"
+            selectedKey={categoriaFiltro}
+            size="md"
+            variant="bordered"
+            onSelectionChange={(key) => {
+              setCategoriaFiltro((key as string) || "todos");
+            }}
+          >
+            {(item) => (
+              <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
+            )}
+          </Autocomplete>
+
+          <Select
+            aria-label="Filtro de nível de estoque"
+            className="w-full"
+            placeholder="Nível de Estoque"
+            radius="md"
+            selectedKeys={[estoqueFiltro]}
+            size="md"
+            variant="bordered"
+            onSelectionChange={(keys) => {
+              const value = Array.from(keys)[0] as string;
+
+              setEstoqueFiltro(value);
+            }}
+          >
+            <SelectItem key="todos">Todos os Estoques</SelectItem>
+            <SelectItem key="baixo">Estoque Baixo</SelectItem>
+            <SelectItem key="sem">Sem Estoque</SelectItem>
+            <SelectItem key="adequado">Estoque Adequado</SelectItem>
+          </Select>
+
+          <Select
+            aria-label="Filtro de status do produto"
+            className="w-full"
+            placeholder="Status do Produto"
+            radius="md"
+            selectedKeys={[statusFiltro]}
+            size="md"
+            variant="bordered"
+            onSelectionChange={(keys) => {
+              const value = Array.from(keys)[0] as
+                | "todos"
+                | "ativos"
+                | "inativos";
+
+              setStatusFiltro(value);
+            }}
+          >
+            <SelectItem key="ativos">Ativos</SelectItem>
+            <SelectItem key="inativos">Inativos</SelectItem>
+            <SelectItem key="todos">Todos</SelectItem>
+          </Select>
+        </div>
+
+        {/* Linha 3: limpar + contagem */}
+        <div className="mt-2 flex items-center gap-3">
+          {(busca ||
+            marcaFiltro !== "todos" ||
+            categoriaFiltro !== "todos" ||
+            estoqueFiltro !== "todos" ||
+            statusFiltro !== "ativos") && (
+            <Button
+              className="text-default-500"
+              size="sm"
+              variant="light"
+              onPress={() => {
+                setBusca("");
+                setMarcaFiltro("todos");
+                setCategoriaFiltro("todos");
+                setEstoqueFiltro("todos");
+                setStatusFiltro("ativos");
+              }}
+            >
+              Limpar
+            </Button>
+          )}
+
+          <span className="ml-auto text-xs text-default-500 tabular-nums">
+            {totalRegistros.toLocaleString("pt-BR")} produto(s)
+          </span>
+        </div>
+      </div>
 
       {/* Visualização em Cards */}
       {visualizacao === "cards" && (
@@ -876,8 +929,9 @@ export default function EstoquePage() {
                 removeWrapper
                 aria-label="Tabela de produtos"
                 classNames={{
-                  th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider",
-                  td: "text-sm",
+                  th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
+                  td: "text-sm border-b border-default-100 py-3",
+                  tr: "transition-colors hover:bg-default-50",
                 }}
               >
                 <TableHeader>
@@ -894,7 +948,6 @@ export default function EstoquePage() {
                   emptyContent="Nenhum produto encontrado"
                   isLoading={loading}
                   items={produtos}
-                  loadingContent="Carregando..."
                 >
                   {(produto) => (
                     <TableRow
@@ -936,80 +989,74 @@ export default function EstoquePage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {produto.categoria ? (
-                          <Chip
-                            classNames={{ content: "text-xs" }}
-                            color="primary"
-                            size="sm"
-                            variant="flat"
-                          >
-                            {produto.categoria}
-                          </Chip>
-                        ) : produto.grupo ? (
-                          <Chip
-                            classNames={{ content: "text-xs" }}
-                            color="secondary"
-                            size="sm"
-                            variant="flat"
-                          >
-                            {produto.grupo}
-                          </Chip>
+                        {produto.categoria || produto.grupo ? (
+                          <span className="text-sm text-default-600">
+                            {produto.categoria || produto.grupo}
+                          </span>
                         ) : (
-                          <span className="text-default-400">-</span>
+                          <span className="text-default-300">—</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {produto.preco_venda ? (
-                          <span className="font-medium text-foreground">
+                          <span className="font-medium tabular-nums text-foreground">
                             {formatarMoeda(produto.preco_venda)}
                           </span>
                         ) : (
-                          <span className="text-default-400">-</span>
+                          <span className="text-default-300">—</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          classNames={{ content: "text-xs font-semibold" }}
-                          color={
-                            produto.total_estoque > 0 ? "primary" : "danger"
-                          }
-                          size="sm"
-                          variant="flat"
+                        <span
+                          className={`text-sm font-semibold tabular-nums ${
+                            produto.total_estoque > 0
+                              ? "text-foreground"
+                              : "text-rose-500"
+                          }`}
                         >
-                          {produto.total_estoque} un
-                        </Chip>
+                          {produto.total_estoque}
+                          <span className="ml-0.5 text-xs font-normal text-default-400">
+                            un
+                          </span>
+                        </span>
                       </TableCell>
                       <TableCell>
                         {produto.estoques_lojas &&
                         produto.estoques_lojas.length > 0 ? (
-                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          <div className="flex max-w-[240px] flex-wrap gap-1">
                             {produto.estoques_lojas.map((estoque: any) => (
-                              <Chip
+                              <span
                                 key={estoque.id_loja}
-                                classNames={{ content: "text-xs" }}
-                                color={
-                                  estoque.quantidade > 0 ? "success" : "danger"
-                                }
-                                size="sm"
-                                variant="dot"
+                                className="inline-flex items-center gap-1 rounded-md bg-default-100 px-1.5 py-0.5 text-xs dark:bg-default-100/10"
                               >
-                                {estoque.loja_nome}: {estoque.quantidade}
-                              </Chip>
+                                <span className="max-w-[90px] truncate text-default-500">
+                                  {estoque.loja_nome}
+                                </span>
+                                <span
+                                  className={`font-semibold tabular-nums ${
+                                    estoque.quantidade > 0
+                                      ? "text-default-700"
+                                      : "text-rose-500"
+                                  }`}
+                                >
+                                  {estoque.quantidade}
+                                </span>
+                              </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="text-default-400 text-sm">-</span>
+                          <span className="text-sm text-default-300">—</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          classNames={{ content: "text-xs font-semibold" }}
-                          color={produto.ativo ? "success" : "danger"}
-                          size="sm"
-                          variant="flat"
-                        >
+                        <span className="inline-flex items-center gap-1.5 text-sm text-default-600">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              produto.ativo ? "bg-emerald-500" : "bg-rose-500"
+                            }`}
+                          />
                           {produto.ativo ? "Ativo" : "Inativo"}
-                        </Chip>
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Dropdown>

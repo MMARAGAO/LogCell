@@ -2233,7 +2233,11 @@ export const gerarCupomTermicoPDFOrcamento = async (
   doc.text(`Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`, 5, y);
   y += 4;
   if (os.data_entrada) {
-    doc.text(`Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`, 5, y);
+    doc.text(
+      `Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`,
+      5,
+      y,
+    );
     y += 4;
   }
   y += 2;
@@ -2299,15 +2303,14 @@ export const gerarCupomTermicoPDFOrcamento = async (
         doc.text(`IMEI: ${aparelho.equipamento_imei}`, 5, y);
         y += 3.5;
       }
-      doc.text(
-        `Estado: ${aparelho.estado_equipamento || ""}`,
-        5,
-        y,
-      );
+      doc.text(`Estado: ${aparelho.estado_equipamento || ""}`, 5, y);
       y += 5;
 
       // ========== PROBLEMA ==========
-      if (y > 218) { doc.addPage(); y = 10; }
+      if (y > 218) {
+        doc.addPage();
+        y = 10;
+      }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`PROBLEMA - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2325,7 +2328,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
         }).h + 4;
 
       // ========== SERVIÇO ==========
-      if (y > 218) { doc.addPage(); y = 10; }
+      if (y > 218) {
+        doc.addPage();
+        y = 10;
+      }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`SERVIÇO - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2344,7 +2350,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
       }
 
       // ========== SERVIÇOS INDIVIDUAIS ==========
-      if (y > 218) { doc.addPage(); y = 10; }
+      if (y > 218) {
+        doc.addPage();
+        y = 10;
+      }
       if (aparelho.servicos && aparelho.servicos.length > 0) {
         const servicosAtivos = aparelho.servicos.filter(
           (s: any) => s.status !== "removido",
@@ -2361,7 +2370,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
           servicosAtivos.forEach((s: any) => {
             const valor = Number(s.valor || 0);
-        const descricao = s.descricao || "Serviço";
+            const descricao = s.descricao || "Serviço";
 
             totalServicos += valor;
             doc.text(`• ${descricao}: R$ ${valor.toFixed(2)}`, 8, y, {
@@ -2374,17 +2383,16 @@ export const gerarCupomTermicoPDFOrcamento = async (
           });
 
           doc.setFont("helvetica", "bold");
-          doc.text(
-            `Total Serviços: R$ ${totalServicos.toFixed(2)}`,
-            5,
-            y,
-          );
+          doc.text(`Total Serviços: R$ ${totalServicos.toFixed(2)}`, 5, y);
           y += 4;
         }
       }
 
       // ========== VALORES ==========
-      if (y > 218) { doc.addPage(); y = 10; }
+      if (y > 218) {
+        doc.addPage();
+        y = 10;
+      }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.text(`VALORES - APARELHO ${aparelho.sequencia}`, 5, y);
@@ -2442,7 +2450,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
     y += 3;
 
     // ========== PROBLEMA ==========
-    if (y > 218) { doc.addPage(); y = 10; }
+    if (y > 218) {
+      doc.addPage();
+      y = 10;
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("PROBLEMA", 5, y);
@@ -2459,7 +2470,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
         .h + 4;
 
     // ========== SERVIÇO ==========
-    if (y > 218) { doc.addPage(); y = 10; }
+    if (y > 218) {
+      doc.addPage();
+      y = 10;
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("SERVIÇO", 5, y);
@@ -2512,7 +2526,10 @@ export const gerarCupomTermicoPDFOrcamento = async (
     }
 
     // ========== VALORES ==========
-    if (y > 218) { doc.addPage(); y = 10; }
+    if (y > 218) {
+      doc.addPage();
+      y = 10;
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.text("VALORES", 5, y);
@@ -2760,7 +2777,11 @@ export const gerarCupomTermicoPDFGarantia = async (
   doc.text(`Data: ${new Date(os.criado_em).toLocaleDateString("pt-BR")}`, 5, y);
   y += 4;
   if (os.data_entrada) {
-    doc.text(`Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`, 5, y);
+    doc.text(
+      `Entrada: ${new Date(os.data_entrada).toLocaleString("pt-BR")}`,
+      5,
+      y,
+    );
     y += 4;
   }
   y += 2;
@@ -3193,15 +3214,15 @@ export const gerarCupomTermicoPDFOS = async (
     doc.text(`Marca: ${os.equipamento_marca}`, 5, y);
     y += 3.5;
   }
-    if (os.equipamento_modelo) {
-      doc.text(`Modelo: ${os.equipamento_modelo}`, 5, y);
-      y += 3.5;
-    }
-    if (os.equipamento_cor) {
-      doc.text(`Cor: ${os.equipamento_cor}`, 5, y);
-      y += 3.5;
-    }
-    if (os.equipamento_numero_serie) {
+  if (os.equipamento_modelo) {
+    doc.text(`Modelo: ${os.equipamento_modelo}`, 5, y);
+    y += 3.5;
+  }
+  if (os.equipamento_cor) {
+    doc.text(`Cor: ${os.equipamento_cor}`, 5, y);
+    y += 3.5;
+  }
+  if (os.equipamento_numero_serie) {
     doc.text(`Nº Série: ${os.equipamento_numero_serie}`, 5, y);
     y += 3.5;
   }

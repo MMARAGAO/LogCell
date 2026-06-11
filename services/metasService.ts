@@ -185,6 +185,30 @@ export class MetasService {
   }
 
   /**
+   * Buscar a meta consolidada da loja (soma das metas ativas dos usuários).
+   * Usada no dashboard executivo. Quando lojaId é informado, soma apenas
+   * as metas atreladas àquela loja (metas sem loja são ignoradas).
+   */
+  static async buscarMetaConsolidada(
+    lojaId?: number,
+  ): Promise<{ meta_vendas: number; meta_os: number; total_metas: number }> {
+    const todas = await this.buscarTodasMetas();
+
+    const relevantes = lojaId
+      ? todas.filter((m) => Number(m.loja_id) === Number(lojaId))
+      : todas;
+
+    return relevantes.reduce(
+      (acc, m) => ({
+        meta_vendas: acc.meta_vendas + Number(m.meta_mensal_vendas || 0),
+        meta_os: acc.meta_os + Number(m.meta_mensal_os || 0),
+        total_metas: acc.total_metas + 1,
+      }),
+      { meta_vendas: 0, meta_os: 0, total_metas: 0 },
+    );
+  }
+
+  /**
    * Calcular meta diária baseada na meta mensal
    */
   static calcularMetaDiaria(

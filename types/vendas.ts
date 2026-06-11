@@ -62,6 +62,7 @@ export interface PagamentoVenda {
   editado?: boolean;
   editado_em?: string;
   editado_por?: string;
+  taxa_inclusa?: boolean;
 }
 
 export interface DescontoVenda {

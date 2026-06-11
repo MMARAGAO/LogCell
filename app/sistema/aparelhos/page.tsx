@@ -21,6 +21,15 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
+import { Badge } from "@heroui/badge";
+import { Skeleton } from "@heroui/skeleton";
+import {
   DevicePhoneMobileIcon,
   PlusIcon,
   MagnifyingGlassIcon,
@@ -37,6 +46,8 @@ import {
   SparklesIcon,
   FireIcon,
   TagIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import {
   DollarSign,
@@ -152,7 +163,9 @@ export default function AparelhosPage() {
     {},
   );
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(false);
   const [busca, setBusca] = useState("");
+  const [buscaDebounced, setBuscaDebounced] = useState("");
   const [filtros, setFiltros] = useState<FiltrosAparelhos>({});
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [totalRegistros, setTotalRegistros] = useState(0);
@@ -198,6 +211,7 @@ export default function AparelhosPage() {
     Aparelho | undefined
   >(undefined);
   const [scannerAberto, setScannerAberto] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [vendasInfo, setVendasInfo] = useState<
     Record<string, { valor_pago: number }>
@@ -242,12 +256,23 @@ export default function AparelhosPage() {
     carregarLojas();
   }, [todasLojas]);
 
+  // Debounce da busca: ao digitar (ou ao escanear IMEI), aguarda 400ms,
+  // volta para a primeira página e dispara o recarregamento.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBuscaDebounced(busca);
+      setPaginaAtual(1);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [busca]);
+
   // Carregar aparelhos e produtos
   useEffect(() => {
     if (podeVisualizar) {
       carregarDados();
     }
-  }, [lojaIdFinal, podeVisualizar, filtros, paginaAtual]);
+  }, [lojaIdFinal, podeVisualizar, filtros, paginaAtual, buscaDebounced]);
 
   useEffect(() => {
     if (podeVisualizar && podeVerDashboard) {
@@ -271,10 +296,11 @@ export default function AparelhosPage() {
   async function carregarDados() {
     try {
       setLoading(true);
+      setErro(false);
 
       const filtrosComLoja: FiltrosAparelhos = {
         ...filtros,
-        busca: busca || undefined,
+        busca: buscaDebounced || undefined,
         loja_id: lojaIdFinal || undefined,
         status: filtros.status === "com_pagamento" ? undefined : filtros.status,
         page: paginaAtual,
@@ -338,6 +364,7 @@ export default function AparelhosPage() {
       setFotoAtualIndex(indexMap);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
+      setErro(true);
       showToast("Erro ao carregar aparelhos", "error");
     } finally {
       setLoading(false);
@@ -507,6 +534,69 @@ export default function AparelhosPage() {
     return estadoObj?.label || estado;
   };
 
+  const removerFiltro = (campo: keyof FiltrosAparelhos) => {
+    setFiltros((prev) => ({ ...prev, [campo]: undefined }));
+    setPaginaAtual(1);
+  };
+
+  const limparTudo = () => {
+    setFiltros({});
+    setBusca("");
+    setPaginaAtual(1);
+  };
+
+  // Filtros ativos exibidos como chips removíveis (busca e ordenação não contam)
+  const chipsFiltros: { key: keyof FiltrosAparelhos; label: string }[] = [];
+
+  if (filtros.estado)
+    chipsFiltros.push({
+      key: "estado",
+      label: `Estado: ${getEstadoLabel(filtros.estado)}`,
+    });
+  if (filtros.status)
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${STATUS.find((s) => s.value === filtros.status)?.label || filtros.status}`,
+    });
+  if (filtros.marca)
+    chipsFiltros.push({ key: "marca", label: `Marca: ${filtros.marca}` });
+  if (filtros.armazenamento)
+    chipsFiltros.push({
+      key: "armazenamento",
+      label: filtros.armazenamento,
+    });
+  if (filtros.condicao)
+    chipsFiltros.push({
+      key: "condicao",
+      label: `Condição: ${CONDICOES.find((c) => c.value === filtros.condicao)?.label || filtros.condicao}`,
+    });
+  if (filtros.data_entrada_inicio)
+    chipsFiltros.push({
+      key: "data_entrada_inicio",
+      label: `De: ${filtros.data_entrada_inicio}`,
+    });
+  if (filtros.data_entrada_fim)
+    chipsFiltros.push({
+      key: "data_entrada_fim",
+      label: `Até: ${filtros.data_entrada_fim}`,
+    });
+
+  const temFiltrosAtivos = chipsFiltros.length > 0 || busca.trim().length > 0;
+
+  // Visibilidade responsiva por coluna (alinha skeleton com cabeçalho/células)
+  const colClassesTabela = [
+    "",
+    "hidden md:table-cell",
+    "hidden lg:table-cell",
+    "hidden xl:table-cell",
+    "hidden lg:table-cell",
+    "hidden md:table-cell",
+    "",
+    "",
+    "hidden md:table-cell",
+    "",
+  ];
+
   return (
     <PermissionGuard
       fallbackMessage="Você não tem permissão para visualizar aparelhos."
@@ -515,7 +605,7 @@ export default function AparelhosPage() {
     >
       <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-5">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -626,9 +716,9 @@ export default function AparelhosPage() {
         </div>
 
         {/* Filtros e Busca */}
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
-          <div className="flex flex-col gap-4">
-            {/* Busca */}
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-4">
+          <div className="flex flex-col gap-3">
+            {/* Busca + ações */}
             <div className="flex gap-2">
               <Input
                 className="flex-1"
@@ -647,6 +737,7 @@ export default function AparelhosPage() {
               />
               <Button
                 isIconOnly
+                aria-label="Escanear IMEI"
                 className="rounded-xl"
                 color="primary"
                 title="Escanear IMEI"
@@ -655,22 +746,93 @@ export default function AparelhosPage() {
               >
                 <CameraIcon className="w-5 h-5" />
               </Button>
+              <Badge
+                color="primary"
+                content={chipsFiltros.length}
+                isInvisible={chipsFiltros.length === 0}
+                size="sm"
+              >
+                <Button
+                  className="rounded-xl"
+                  startContent={<FunnelIcon className="w-4 h-4" />}
+                  variant="flat"
+                  onPress={() => setFiltrosAbertos(true)}
+                >
+                  Filtros
+                </Button>
+              </Badge>
             </div>
 
-            {/* Filtros */}
-            <div className="flex flex-col md:flex-row gap-3">
+            {/* Chips de filtros ativos */}
+            {chipsFiltros.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {chipsFiltros.map((chip) => (
+                  <Chip
+                    key={chip.key}
+                    size="sm"
+                    variant="flat"
+                    onClose={() => removerFiltro(chip.key)}
+                  >
+                    {chip.label}
+                  </Chip>
+                ))}
+                <Button
+                  className="h-7 px-2 text-xs text-gray-500"
+                  size="sm"
+                  variant="light"
+                  onPress={limparTudo}
+                >
+                  Limpar tudo
+                </Button>
+              </div>
+            )}
+
+            {/* Contagem + Toggle de Visualização */}
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {totalRegistros} aparelho(s) encontrado(s)
+              </p>
+              <div className="flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-xl p-1">
+                <Button
+                  isIconOnly
+                  aria-label="Visualização em cards"
+                  className="rounded-lg"
+                  color={visualizacao === "cards" ? "primary" : "default"}
+                  size="sm"
+                  variant={visualizacao === "cards" ? "solid" : "light"}
+                  onPress={() => setVisualizacao("cards")}
+                >
+                  <Squares2X2Icon className="w-4 h-4" />
+                </Button>
+                <Button
+                  isIconOnly
+                  aria-label="Visualização em tabela"
+                  className="rounded-lg"
+                  color={visualizacao === "tabela" ? "primary" : "default"}
+                  size="sm"
+                  variant={visualizacao === "tabela" ? "solid" : "light"}
+                  onPress={() => setVisualizacao("tabela")}
+                >
+                  <TableCellsIcon className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Drawer de Filtros Avançados */}
+        <Drawer
+          isOpen={filtrosAbertos}
+          size="sm"
+          onOpenChange={setFiltrosAbertos}
+        >
+          <DrawerContent>
+            <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+            <DrawerBody className="gap-4">
               <Select
-                className="w-full md:w-60"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Filtrar por estado"
+                label="Estado"
+                placeholder="Todos"
                 selectedKeys={filtros.estado ? [filtros.estado] : []}
-                size="sm"
-                startContent={
-                  <FunnelIcon className="w-3.5 h-3.5 text-gray-400" />
-                }
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -687,17 +849,9 @@ export default function AparelhosPage() {
                 ))}
               </Select>
               <Select
-                className="w-full md:w-60"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Filtrar por status"
+                label="Status"
+                placeholder="Todos"
                 selectedKeys={filtros.status ? [filtros.status] : []}
-                size="sm"
-                startContent={
-                  <FunnelIcon className="w-3.5 h-3.5 text-gray-400" />
-                }
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -714,14 +868,9 @@ export default function AparelhosPage() {
                 ))}
               </Select>
               <Select
-                className="w-full md:w-60"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Filtrar por marca"
+                label="Marca"
+                placeholder="Todas"
                 selectedKeys={filtros.marca ? [filtros.marca] : []}
-                size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -738,16 +887,11 @@ export default function AparelhosPage() {
                 ))}
               </Select>
               <Select
-                className="w-full md:w-48"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Armazenamento"
+                label="Armazenamento"
+                placeholder="Todos"
                 selectedKeys={
                   filtros.armazenamento ? [filtros.armazenamento] : []
                 }
-                size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -764,14 +908,9 @@ export default function AparelhosPage() {
                 ))}
               </Select>
               <Select
-                className="w-full md:w-48"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Condição"
+                label="Condição"
+                placeholder="Todas"
                 selectedKeys={filtros.condicao ? [filtros.condicao] : []}
-                size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -787,18 +926,10 @@ export default function AparelhosPage() {
                   <SelectItem key={c.value}>{c.label}</SelectItem>
                 ))}
               </Select>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-3">
               <Input
-                className="w-full md:w-52"
-                classNames={{
-                  input: "text-sm",
-                  inputWrapper:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Data entrada início"
-                size="sm"
+                label="Data de entrada (início)"
+                labelPlacement="outside"
+                placeholder=" "
                 type="date"
                 value={filtros.data_entrada_inicio || ""}
                 variant="bordered"
@@ -811,14 +942,9 @@ export default function AparelhosPage() {
                 }}
               />
               <Input
-                className="w-full md:w-52"
-                classNames={{
-                  input: "text-sm",
-                  inputWrapper:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Data entrada fim"
-                size="sm"
+                label="Data de entrada (fim)"
+                labelPlacement="outside"
+                placeholder=" "
                 type="date"
                 value={filtros.data_entrada_fim || ""}
                 variant="bordered"
@@ -830,18 +956,11 @@ export default function AparelhosPage() {
                   setPaginaAtual(1);
                 }}
               />
-
               <Select
-                className="w-full md:w-48"
-                classNames={{
-                  trigger:
-                    "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                }}
-                placeholder="Ordenar por"
+                label="Ordenar por"
                 selectedKeys={
                   filtros.order_by ? [filtros.order_by] : ["criado_em"]
                 }
-                size="sm"
                 variant="bordered"
                 onSelectionChange={(keys) => {
                   const value = Array.from(keys)[0] as string;
@@ -859,71 +978,48 @@ export default function AparelhosPage() {
                 <SelectItem key="data_venda">Data da Venda</SelectItem>
                 <SelectItem key="valor_venda">Valor</SelectItem>
               </Select>
-
-              {filtros.estado ||
-              filtros.status ||
-              filtros.marca ||
-              filtros.armazenamento ||
-              filtros.condicao ||
-              filtros.data_entrada_inicio ||
-              filtros.data_entrada_fim ||
-              filtros.order_by ? (
-                <Button
-                  className="rounded-xl"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => {
-                    setFiltros({});
-                    setBusca("");
-                    setPaginaAtual(1);
-                  }}
-                >
-                  Limpar Filtros
-                </Button>
-              ) : null}
-            </div>
-
-            {/* Toggle de Visualização */}
-            <div className="flex justify-between items-center">
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {totalRegistros} aparelho(s) encontrado(s)
-              </p>
-              <div className="flex gap-1 bg-gray-100 dark:bg-zinc-800 rounded-xl p-1">
-                <Button
-                  isIconOnly
-                  className="rounded-lg"
-                  color={visualizacao === "cards" ? "primary" : "default"}
-                  size="sm"
-                  variant={visualizacao === "cards" ? "solid" : "light"}
-                  onPress={() => setVisualizacao("cards")}
-                >
-                  <Squares2X2Icon className="w-4 h-4" />
-                </Button>
-                <Button
-                  isIconOnly
-                  className="rounded-lg"
-                  color={visualizacao === "tabela" ? "primary" : "default"}
-                  size="sm"
-                  variant={visualizacao === "tabela" ? "solid" : "light"}
-                  onPress={() => setVisualizacao("tabela")}
-                >
-                  <TableCellsIcon className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+            </DrawerBody>
+            <DrawerFooter>
+              <Button variant="flat" onPress={limparTudo}>
+                Limpar tudo
+              </Button>
+              <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+                Ver resultados
+              </Button>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
 
         {/* Visualização em Cards ou Tabela */}
-        {visualizacao === "cards" ? (
+        {erro ? (
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-12 text-center">
+            <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mb-3">
+              <ExclamationTriangleIcon className="w-6 h-6 text-rose-500" />
+            </div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              Não foi possível carregar os aparelhos
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Verifique sua conexão e tente novamente.
+            </p>
+            <Button
+              className="mt-4"
+              size="sm"
+              startContent={<ArrowPathIcon className="w-4 h-4" />}
+              variant="flat"
+              onPress={() => carregarDados()}
+            >
+              Tentar novamente
+            </Button>
+          </div>
+        ) : visualizacao === "cards" ? (
           /* Cards Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {loading ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
-                  className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 h-80 animate-pulse p-5"
+                  className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 h-80 animate-pulse p-5"
                 >
                   <div className="h-40 bg-gray-200 dark:bg-zinc-700 rounded-xl mb-4" />
                   <div className="h-4 bg-gray-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
@@ -932,11 +1028,36 @@ export default function AparelhosPage() {
               ))
             ) : aparelhos.length === 0 ? (
               <div className="col-span-full">
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12 text-center">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-12 text-center">
                   <DevicePhoneMobileIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Nenhum aparelho encontrado
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    {temFiltrosAtivos
+                      ? "Nenhum resultado para os filtros"
+                      : "Nenhum aparelho cadastrado"}
                   </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {temFiltrosAtivos
+                      ? "Tente ajustar a busca ou limpar os filtros."
+                      : podeCriar
+                        ? "Comece cadastrando o primeiro aparelho."
+                        : "Ainda não há aparelhos para exibir."}
+                  </p>
+                  <div className="mt-4">
+                    {temFiltrosAtivos ? (
+                      <Button size="sm" variant="flat" onPress={limparTudo}>
+                        Limpar filtros
+                      </Button>
+                    ) : podeCriar ? (
+                      <Button
+                        color="primary"
+                        size="sm"
+                        startContent={<PlusIcon className="w-4 h-4" />}
+                        onPress={handleAbrirFormNovo}
+                      >
+                        Novo Aparelho
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -948,10 +1069,10 @@ export default function AparelhosPage() {
                 return (
                   <div
                     key={aparelho.id}
-                    className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow relative overflow-hidden"
+                    className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 hover:border-gray-300 dark:hover:border-zinc-700 transition-colors relative overflow-hidden flex flex-col"
                   >
-                    {/* Carrossel de Fotos */}
-                    <div className="relative h-48 bg-gradient-to-br from-primary-100 to-primary-50 dark:from-primary-900/40 dark:to-primary-800/20 overflow-hidden group">
+                    {/* Foto / carrossel */}
+                    <div className="relative h-44 bg-gray-100 dark:bg-zinc-800 overflow-hidden group">
                       {fotos.length > 0 ? (
                         <>
                           <img
@@ -960,42 +1081,25 @@ export default function AparelhosPage() {
                             src={fotoAtual?.url}
                           />
 
-                          {/* Badges de Catálogo */}
+                          {/* Badges de Catálogo (pílulas neutras com ícone colorido) */}
                           <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                             {aparelho.promocao && (
-                              <Chip
-                                className="font-semibold"
-                                color="danger"
-                                size="sm"
-                                startContent={<TagIcon className="w-3 h-3" />}
-                                variant="solid"
-                              >
-                                PROMOÇÃO
-                              </Chip>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                                <TagIcon className="w-3 h-3 text-rose-400" />
+                                Promoção
+                              </span>
                             )}
                             {aparelho.novidade && (
-                              <Chip
-                                className="font-semibold"
-                                color="success"
-                                size="sm"
-                                startContent={
-                                  <SparklesIcon className="w-3 h-3" />
-                                }
-                                variant="solid"
-                              >
-                                NOVO
-                              </Chip>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                                <SparklesIcon className="w-3 h-3 text-emerald-400" />
+                                Novo
+                              </span>
                             )}
                             {aparelho.destaque && (
-                              <Chip
-                                className="font-semibold"
-                                color="warning"
-                                size="sm"
-                                startContent={<FireIcon className="w-3 h-3" />}
-                                variant="solid"
-                              >
-                                DESTAQUE
-                              </Chip>
+                              <span className="inline-flex items-center gap-1 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+                                <FireIcon className="w-3 h-3 text-amber-400" />
+                                Destaque
+                              </span>
                             )}
                           </div>
 
@@ -1003,6 +1107,7 @@ export default function AparelhosPage() {
                           {fotos.length > 1 && (
                             <>
                               <button
+                                aria-label="Foto anterior"
                                 className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1012,6 +1117,7 @@ export default function AparelhosPage() {
                                 <ChevronLeftIcon className="w-5 h-5" />
                               </button>
                               <button
+                                aria-label="Próxima foto"
                                 className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1046,435 +1152,29 @@ export default function AparelhosPage() {
                         </>
                       ) : (
                         <div className="flex items-center justify-center h-full">
-                          <DevicePhoneMobileIcon className="w-20 h-20 text-primary-300 dark:text-primary-600" />
+                          <DevicePhoneMobileIcon className="w-14 h-14 text-gray-300 dark:text-zinc-600" />
                         </div>
                       )}
                     </div>
 
                     {/* Conteúdo */}
-
-                    {/* Marca e Modelo */}
-                    <div className="flex flex-col space-y-2 px-4 py-4">
-                      <div>
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-lg truncate">
+                    <div className="flex flex-col gap-3 p-4 flex-1">
+                      {/* Título + menu de ações */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-base text-gray-900 dark:text-white truncate">
                             {aparelho.modelo}
                           </h3>
-                          {/* Ações do Card */}
-                          <div className="">
-                            <Dropdown>
-                              <DropdownTrigger>
-                                <Button isIconOnly size="sm" variant="light">
-                                  <EllipsisVerticalIcon className="w-5 h-5" />
-                                </Button>
-                              </DropdownTrigger>
-                              <DropdownMenu
-                                aria-label="Ações do aparelho"
-                                onAction={(key) =>
-                                  handleAcaoCard(key as string, aparelho)
-                                }
-                              >
-                                <DropdownItem
-                                  key="editar"
-                                  startContent={
-                                    <PencilIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Editar
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="gerenciar_pagamentos"
-                                  startContent={
-                                    <DollarSign className="w-4 h-4" />
-                                  }
-                                >
-                                  Gerenciar Pagamentos
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="detalhes"
-                                  startContent={<Info className="w-4 h-4" />}
-                                >
-                                  Detalhes
-                                </DropdownItem>
-                                <DropdownItem
-                                  key="deletar"
-                                  className="text-danger"
-                                  color="danger"
-                                  isDisabled={aparelho.status === "vendido"}
-                                  startContent={
-                                    <TrashIcon className="w-4 h-4" />
-                                  }
-                                >
-                                  Deletar
-                                </DropdownItem>
-                              </DropdownMenu>
-                            </Dropdown>
-                          </div>
-                        </div>
-                        <div className="">
-                          <p className="text-sm text-default-500 truncate">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                             {aparelho.marca}
                           </p>
                         </div>
-                      </div>
-
-                      {/* Armazenamento e RAM */}
-                      {(aparelho.armazenamento || aparelho.memoria_ram) && (
-                        <div className="flex gap-2 text-xs">
-                          {aparelho.armazenamento && (
-                            <Chip color="primary" size="sm" variant="flat">
-                              {aparelho.armazenamento}
-                            </Chip>
-                          )}
-                          {aparelho.memoria_ram && (
-                            <Chip color="secondary" size="sm" variant="flat">
-                              {aparelho.memoria_ram}
-                            </Chip>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Cor */}
-                      {aparelho.cor && (
-                        <p className="text-sm text-default-500">
-                          <span className="font-medium">Cor:</span>{" "}
-                          {aparelho.cor}
-                        </p>
-                      )}
-
-                      {/* Estado e Status */}
-                      <div className="flex gap-2">
-                        <Chip size="sm" variant="flat">
-                          {getEstadoLabel(aparelho.estado)}
-                        </Chip>
-                        <Chip
-                          color={getStatusChipColor(aparelho.status) as any}
-                          size="sm"
-                          variant="flat"
-                        >
-                          {
-                            STATUS.find((s) => s.value === aparelho.status)
-                              ?.label
-                          }
-                        </Chip>
-                      </div>
-
-                      {/* IMEI */}
-                      {aparelho.imei && (
-                        <p className="text-xs text-default-400 font-mono truncate">
-                          IMEI: {aparelho.imei}
-                        </p>
-                      )}
-
-                      {/* Saúde da Bateria */}
-                      {aparelho.saude_bateria !== null &&
-                        aparelho.saude_bateria !== undefined && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-default-500">
-                              Bateria:
-                            </span>
-                            <Chip
-                              color={
-                                aparelho.saude_bateria >= 90
-                                  ? "success"
-                                  : aparelho.saude_bateria >= 70
-                                    ? "warning"
-                                    : "danger"
-                              }
-                              size="sm"
-                              variant="flat"
-                            >
-                              {aparelho.saude_bateria}%
-                            </Chip>
-                          </div>
-                        )}
-
-                      {/* Valores */}
-                      <div className="pt-2 border-t border-default-200">
-                        {aparelho.valor_venda && (
-                          <p className="text-lg font-bold text-success">
-                            {formatarMoeda(aparelho.valor_venda)}
-                          </p>
-                        )}
-                        {aparelho.valor_compra && (
-                          <p className="text-xs text-default-400">
-                            Compra: {formatarMoeda(aparelho.valor_compra)}
-                          </p>
-                        )}
-                        {aparelho.status === "vendido" &&
-                          aparelho.venda_id &&
-                          vendasInfo[aparelho.venda_id] && (
-                            <div className="flex gap-3 text-[11px] text-default-500 mt-1">
-                              <span>
-                                Pago:{" "}
-                                <strong className="text-success">
-                                  {formatarMoeda(
-                                    vendasInfo[aparelho.venda_id].valor_pago,
-                                  )}
-                                </strong>
-                              </span>
-                              {(() => {
-                                const saldo =
-                                  (aparelho.valor_venda || 0) -
-                                  vendasInfo[aparelho.venda_id].valor_pago;
-
-                                return saldo > 0 ? (
-                                  <span>
-                                    {" "}
-                                    | Saldo:{" "}
-                                    <strong className="text-warning">
-                                      {formatarMoeda(saldo)}
-                                    </strong>
-                                  </span>
-                                ) : null;
-                              })()}
-                            </div>
-                          )}
-                      </div>
-
-                      {/* Ações */}
-                      <div className="flex gap-2 pt-2">
-                        {podeVender && aparelho.status === "disponivel" && (
-                          <Button
-                            className="flex-1"
-                            color="success"
-                            size="sm"
-                            startContent={
-                              <ShoppingBagIcon className="w-4 h-4" />
-                            }
-                            variant="flat"
-                            onPress={() => handleAcaoCard("vender", aparelho)}
-                          >
-                            Vender
-                          </Button>
-                        )}
-                        {podeEditar && (
-                          <Button
-                            className={
-                              podeVender && aparelho.status === "disponivel"
-                                ? "flex-1"
-                                : "flex-1"
-                            }
-                            color="primary"
-                            size="sm"
-                            startContent={<PencilIcon className="w-4 h-4" />}
-                            variant="flat"
-                            onPress={() => handleAbrirFormEditar(aparelho)}
-                          >
-                            Editar
-                          </Button>
-                        )}
-                        {podeDeletar && aparelho.status !== "vendido" && (
-                          <Button
-                            isIconOnly
-                            color="danger"
-                            size="sm"
-                            variant="flat"
-                            onPress={() => handleAbrirConfirmDelete(aparelho)}
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        ) : (
-          /* Tabela de Aparelhos */
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table
-                aria-label="Tabela de aparelhos"
-                bottomContent={
-                  totalPaginas > 1 ? (
-                    <div className="flex w-full justify-center py-4">
-                      <Pagination
-                        showControls
-                        color="primary"
-                        page={paginaAtual}
-                        total={totalPaginas}
-                        onChange={setPaginaAtual}
-                      />
-                    </div>
-                  ) : null
-                }
-                classNames={{
-                  wrapper: "border-none shadow-none bg-transparent",
-                  th: "bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider",
-                  td: "text-sm text-gray-600 dark:text-gray-300",
-                  tr: "border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30",
-                }}
-              >
-                <TableHeader>
-                  <TableColumn>MARCA/MODELO</TableColumn>
-                  <TableColumn>ARMAZENAMENTO</TableColumn>
-                  <TableColumn>IMEI</TableColumn>
-                  <TableColumn>COR</TableColumn>
-                  <TableColumn>BATERIA</TableColumn>
-                  <TableColumn>ESTADO</TableColumn>
-                  <TableColumn>STATUS</TableColumn>
-                  <TableColumn>VALOR VENDA</TableColumn>
-                  <TableColumn>DATA ENTRADA</TableColumn>
-                  <TableColumn>AÇÕES</TableColumn>
-                </TableHeader>
-                <TableBody
-                  emptyContent="Nenhum aparelho encontrado"
-                  isLoading={loading}
-                >
-                  {aparelhos.map((aparelho) => (
-                    <TableRow key={aparelho.id}>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{aparelho.modelo}</p>
-                            {aparelho.promocao && (
-                              <Chip color="danger" size="sm" variant="flat">
-                                Promoção
-                              </Chip>
-                            )}
-                            {aparelho.novidade && (
-                              <Chip color="success" size="sm" variant="flat">
-                                Novo
-                              </Chip>
-                            )}
-                            {aparelho.destaque && (
-                              <Chip color="warning" size="sm" variant="flat">
-                                Destaque
-                              </Chip>
-                            )}
-                          </div>
-                          <p className="text-xs text-default-500">
-                            {aparelho.marca}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          {aparelho.armazenamento && (
-                            <span className="text-sm">
-                              {aparelho.armazenamento}
-                            </span>
-                          )}
-                          {aparelho.memoria_ram && (
-                            <span className="text-xs text-default-500">
-                              RAM: {aparelho.memoria_ram}
-                            </span>
-                          )}
-                          {!aparelho.armazenamento &&
-                            !aparelho.memoria_ram &&
-                            "-"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <code className="text-xs bg-default-100 px-2 py-1 rounded">
-                          {aparelho.imei || "-"}
-                        </code>
-                      </TableCell>
-                      <TableCell>{aparelho.cor || "-"}</TableCell>
-                      <TableCell>
-                        {aparelho.saude_bateria !== null &&
-                        aparelho.saude_bateria !== undefined ? (
-                          <Chip
-                            color={
-                              aparelho.saude_bateria >= 90
-                                ? "success"
-                                : aparelho.saude_bateria >= 70
-                                  ? "warning"
-                                  : "danger"
-                            }
-                            size="sm"
-                            variant="flat"
-                          >
-                            {aparelho.saude_bateria}%
-                          </Chip>
-                        ) : (
-                          "-"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Chip size="sm" variant="flat">
-                          {getEstadoLabel(aparelho.estado)}
-                        </Chip>
-                      </TableCell>
-                      <TableCell>
-                        <Dropdown>
-                          <DropdownTrigger>
-                            <Chip
-                              className="cursor-pointer"
-                              color={getStatusChipColor(aparelho.status) as any}
-                              size="sm"
-                              variant="flat"
-                            >
-                              {STATUS.find((s) => s.value === aparelho.status)
-                                ?.label || aparelho.status}
-                            </Chip>
-                          </DropdownTrigger>
-                          <DropdownMenu
-                            aria-label="Alterar status"
-                            onAction={(key) =>
-                              handleAtualizarStatus(aparelho.id, key as string)
-                            }
-                          >
-                            {STATUS.filter(
-                              (status) => status.value !== "vendido",
-                            ).map((status) => (
-                              <DropdownItem key={status.value}>
-                                {status.label}
-                              </DropdownItem>
-                            ))}
-                          </DropdownMenu>
-                        </Dropdown>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <span>
-                            {aparelho.valor_venda
-                              ? formatarMoeda(aparelho.valor_venda)
-                              : "-"}
-                          </span>
-                          {aparelho.status === "vendido" &&
-                            aparelho.venda_id &&
-                            vendasInfo[aparelho.venda_id] && (
-                              <div className="text-[11px] text-default-500 mt-0.5 leading-tight">
-                                <span>
-                                  Pago:{" "}
-                                  <strong className="text-success">
-                                    {formatarMoeda(
-                                      vendasInfo[aparelho.venda_id].valor_pago,
-                                    )}
-                                  </strong>
-                                </span>
-                                {(() => {
-                                  const saldo =
-                                    (aparelho.valor_venda || 0) -
-                                    vendasInfo[aparelho.venda_id].valor_pago;
-
-                                  return saldo > 0 ? (
-                                    <span>
-                                      {" "}
-                                      | Saldo:{" "}
-                                      <strong className="text-warning">
-                                        {formatarMoeda(saldo)}
-                                      </strong>
-                                    </span>
-                                  ) : null;
-                                })()}
-                              </div>
-                            )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {formatarData(aparelho.data_entrada)}
-                      </TableCell>
-                      <TableCell>
                         <Dropdown>
                           <DropdownTrigger>
                             <Button
                               isIconOnly
-                              aria-label="Ações"
+                              aria-label="Ações do aparelho"
+                              className="-mr-1 -mt-1 text-gray-400"
                               size="sm"
                               variant="light"
                             >
@@ -1521,9 +1221,450 @@ export default function AparelhosPage() {
                             ) : null}
                           </DropdownMenu>
                         </Dropdown>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      </div>
+
+                      {/* Preço + status */}
+                      <div className="flex items-end justify-between gap-2">
+                        <div className="min-w-0">
+                          {aparelho.valor_venda ? (
+                            <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                              {formatarMoeda(aparelho.valor_venda)}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-400">Sem preço</p>
+                          )}
+                          {aparelho.valor_compra && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                              Custo {formatarMoeda(aparelho.valor_compra)}
+                            </p>
+                          )}
+                        </div>
+                        <Chip
+                          color={getStatusChipColor(aparelho.status) as any}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {STATUS.find((s) => s.value === aparelho.status)
+                            ?.label || aparelho.status}
+                        </Chip>
+                      </div>
+
+                      {/* Linha única de metadados */}
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span>{getEstadoLabel(aparelho.estado)}</span>
+                        {aparelho.armazenamento && (
+                          <>
+                            <span className="text-gray-300 dark:text-zinc-600">
+                              ·
+                            </span>
+                            <span>{aparelho.armazenamento}</span>
+                          </>
+                        )}
+                        {aparelho.memoria_ram && (
+                          <>
+                            <span className="text-gray-300 dark:text-zinc-600">
+                              ·
+                            </span>
+                            <span>{aparelho.memoria_ram} RAM</span>
+                          </>
+                        )}
+                        {aparelho.cor && (
+                          <>
+                            <span className="text-gray-300 dark:text-zinc-600">
+                              ·
+                            </span>
+                            <span>{aparelho.cor}</span>
+                          </>
+                        )}
+                        {aparelho.saude_bateria !== null &&
+                          aparelho.saude_bateria !== undefined && (
+                            <>
+                              <span className="text-gray-300 dark:text-zinc-600">
+                                ·
+                              </span>
+                              <span
+                                className={
+                                  aparelho.saude_bateria >= 80
+                                    ? ""
+                                    : aparelho.saude_bateria >= 60
+                                      ? "text-amber-600 dark:text-amber-400"
+                                      : "text-rose-600 dark:text-rose-400"
+                                }
+                              >
+                                {aparelho.saude_bateria}% bateria
+                              </span>
+                            </>
+                          )}
+                      </div>
+
+                      {/* IMEI */}
+                      {aparelho.imei && (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 font-mono truncate">
+                          IMEI {aparelho.imei}
+                        </p>
+                      )}
+
+                      {/* Pago / Saldo quando vendido */}
+                      {aparelho.status === "vendido" &&
+                        aparelho.venda_id &&
+                        vendasInfo[aparelho.venda_id] && (
+                          <div className="flex gap-3 text-[11px] text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-zinc-800 pt-2">
+                            <span>
+                              Pago{" "}
+                              <strong className="text-gray-700 dark:text-gray-200">
+                                {formatarMoeda(
+                                  vendasInfo[aparelho.venda_id].valor_pago,
+                                )}
+                              </strong>
+                            </span>
+                            {(() => {
+                              const saldo =
+                                (aparelho.valor_venda || 0) -
+                                vendasInfo[aparelho.venda_id].valor_pago;
+
+                              return saldo > 0 ? (
+                                <span>
+                                  Saldo{" "}
+                                  <strong className="text-amber-600 dark:text-amber-400">
+                                    {formatarMoeda(saldo)}
+                                  </strong>
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
+
+                      {/* Ação primária */}
+                      <div className="mt-auto pt-1">
+                        {podeVender && aparelho.status === "disponivel" ? (
+                          <Button
+                            className="w-full font-medium"
+                            color="primary"
+                            size="sm"
+                            startContent={
+                              <ShoppingBagIcon className="w-4 h-4" />
+                            }
+                            onPress={() => handleAcaoCard("vender", aparelho)}
+                          >
+                            Vender
+                          </Button>
+                        ) : (
+                          <Button
+                            className="w-full"
+                            size="sm"
+                            startContent={<Info className="w-4 h-4" />}
+                            variant="flat"
+                            onPress={() => handleAcaoCard("detalhes", aparelho)}
+                          >
+                            Detalhes
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        ) : (
+          /* Tabela de Aparelhos */
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table
+                aria-label="Tabela de aparelhos"
+                bottomContent={
+                  totalPaginas > 1 ? (
+                    <div className="flex w-full justify-center py-4">
+                      <Pagination
+                        showControls
+                        color="primary"
+                        page={paginaAtual}
+                        total={totalPaginas}
+                        onChange={setPaginaAtual}
+                      />
+                    </div>
+                  ) : null
+                }
+                classNames={{
+                  wrapper: "border-none shadow-none bg-transparent",
+                  th: "bg-gray-50 dark:bg-zinc-800/50 text-gray-400 dark:text-gray-500 text-[10px] font-semibold uppercase tracking-wider",
+                  td: "text-sm text-gray-600 dark:text-gray-300",
+                  tr: "border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/30",
+                }}
+              >
+                <TableHeader>
+                  <TableColumn>MARCA/MODELO</TableColumn>
+                  <TableColumn className="hidden md:table-cell">
+                    ARMAZENAMENTO
+                  </TableColumn>
+                  <TableColumn className="hidden lg:table-cell">
+                    IMEI
+                  </TableColumn>
+                  <TableColumn className="hidden xl:table-cell">
+                    COR
+                  </TableColumn>
+                  <TableColumn className="hidden lg:table-cell">
+                    BATERIA
+                  </TableColumn>
+                  <TableColumn className="hidden md:table-cell">
+                    ESTADO
+                  </TableColumn>
+                  <TableColumn>STATUS</TableColumn>
+                  <TableColumn>VALOR VENDA</TableColumn>
+                  <TableColumn className="hidden md:table-cell">
+                    DATA ENTRADA
+                  </TableColumn>
+                  <TableColumn>AÇÕES</TableColumn>
+                </TableHeader>
+                <TableBody
+                  emptyContent={
+                    <div className="py-6 text-center">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                        {temFiltrosAtivos
+                          ? "Nenhum resultado para os filtros"
+                          : "Nenhum aparelho cadastrado"}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {temFiltrosAtivos
+                          ? "Tente ajustar a busca ou limpar os filtros."
+                          : "Cadastre o primeiro aparelho para começar."}
+                      </p>
+                    </div>
+                  }
+                >
+                  {loading
+                    ? Array.from({ length: 8 }).map((_, i) => (
+                        <TableRow key={`sk-${i}`}>
+                          {colClassesTabela.map((cls, c) => (
+                            <TableCell key={c} className={cls}>
+                              <Skeleton className="h-4 w-full rounded-md" />
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    : aparelhos.map((aparelho) => (
+                        <TableRow key={aparelho.id}>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">{aparelho.modelo}</p>
+                                {aparelho.promocao && (
+                                  <Chip color="danger" size="sm" variant="flat">
+                                    Promoção
+                                  </Chip>
+                                )}
+                                {aparelho.novidade && (
+                                  <Chip
+                                    color="success"
+                                    size="sm"
+                                    variant="flat"
+                                  >
+                                    Novo
+                                  </Chip>
+                                )}
+                                {aparelho.destaque && (
+                                  <Chip
+                                    color="warning"
+                                    size="sm"
+                                    variant="flat"
+                                  >
+                                    Destaque
+                                  </Chip>
+                                )}
+                              </div>
+                              <p className="text-xs text-default-500">
+                                {aparelho.marca}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <div className="flex flex-col gap-1">
+                              {aparelho.armazenamento && (
+                                <span className="text-sm">
+                                  {aparelho.armazenamento}
+                                </span>
+                              )}
+                              {aparelho.memoria_ram && (
+                                <span className="text-xs text-default-500">
+                                  RAM: {aparelho.memoria_ram}
+                                </span>
+                              )}
+                              {!aparelho.armazenamento &&
+                                !aparelho.memoria_ram &&
+                                "-"}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            <code className="text-xs bg-default-100 px-2 py-1 rounded">
+                              {aparelho.imei || "-"}
+                            </code>
+                          </TableCell>
+                          <TableCell className="hidden xl:table-cell">
+                            {aparelho.cor || "-"}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell">
+                            {aparelho.saude_bateria !== null &&
+                            aparelho.saude_bateria !== undefined ? (
+                              <Chip
+                                color={
+                                  aparelho.saude_bateria >= 90
+                                    ? "success"
+                                    : aparelho.saude_bateria >= 70
+                                      ? "warning"
+                                      : "danger"
+                                }
+                                size="sm"
+                                variant="flat"
+                              >
+                                {aparelho.saude_bateria}%
+                              </Chip>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            <Chip size="sm" variant="flat">
+                              {getEstadoLabel(aparelho.estado)}
+                            </Chip>
+                          </TableCell>
+                          <TableCell>
+                            <Dropdown>
+                              <DropdownTrigger>
+                                <Chip
+                                  className="cursor-pointer"
+                                  color={
+                                    getStatusChipColor(aparelho.status) as any
+                                  }
+                                  size="sm"
+                                  variant="flat"
+                                >
+                                  {STATUS.find(
+                                    (s) => s.value === aparelho.status,
+                                  )?.label || aparelho.status}
+                                </Chip>
+                              </DropdownTrigger>
+                              <DropdownMenu
+                                aria-label="Alterar status"
+                                onAction={(key) =>
+                                  handleAtualizarStatus(
+                                    aparelho.id,
+                                    key as string,
+                                  )
+                                }
+                              >
+                                {STATUS.filter(
+                                  (status) => status.value !== "vendido",
+                                ).map((status) => (
+                                  <DropdownItem key={status.value}>
+                                    {status.label}
+                                  </DropdownItem>
+                                ))}
+                              </DropdownMenu>
+                            </Dropdown>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <span>
+                                {aparelho.valor_venda
+                                  ? formatarMoeda(aparelho.valor_venda)
+                                  : "-"}
+                              </span>
+                              {aparelho.status === "vendido" &&
+                                aparelho.venda_id &&
+                                vendasInfo[aparelho.venda_id] && (
+                                  <div className="text-[11px] text-default-500 mt-0.5 leading-tight">
+                                    <span>
+                                      Pago:{" "}
+                                      <strong className="text-success">
+                                        {formatarMoeda(
+                                          vendasInfo[aparelho.venda_id]
+                                            .valor_pago,
+                                        )}
+                                      </strong>
+                                    </span>
+                                    {(() => {
+                                      const saldo =
+                                        (aparelho.valor_venda || 0) -
+                                        vendasInfo[aparelho.venda_id]
+                                          .valor_pago;
+
+                                      return saldo > 0 ? (
+                                        <span>
+                                          {" "}
+                                          | Saldo:{" "}
+                                          <strong className="text-warning">
+                                            {formatarMoeda(saldo)}
+                                          </strong>
+                                        </span>
+                                      ) : null;
+                                    })()}
+                                  </div>
+                                )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">
+                            {formatarData(aparelho.data_entrada)}
+                          </TableCell>
+                          <TableCell>
+                            <Dropdown>
+                              <DropdownTrigger>
+                                <Button
+                                  isIconOnly
+                                  aria-label="Ações"
+                                  size="sm"
+                                  variant="light"
+                                >
+                                  <EllipsisVerticalIcon className="w-5 h-5" />
+                                </Button>
+                              </DropdownTrigger>
+                              <DropdownMenu
+                                aria-label="Ações do aparelho"
+                                onAction={(key) =>
+                                  handleAcaoCard(key as string, aparelho)
+                                }
+                              >
+                                {podeEditar ? (
+                                  <DropdownItem
+                                    key="editar"
+                                    startContent={
+                                      <PencilIcon className="w-4 h-4" />
+                                    }
+                                  >
+                                    Editar
+                                  </DropdownItem>
+                                ) : null}
+                                <DropdownItem
+                                  key="gerenciar_pagamentos"
+                                  startContent={
+                                    <DollarSign className="w-4 h-4" />
+                                  }
+                                >
+                                  Gerenciar Pagamentos
+                                </DropdownItem>
+                                <DropdownItem
+                                  key="detalhes"
+                                  startContent={<Info className="w-4 h-4" />}
+                                >
+                                  Detalhes
+                                </DropdownItem>
+                                {podeDeletar &&
+                                aparelho.status !== "vendido" ? (
+                                  <DropdownItem
+                                    key="deletar"
+                                    className="text-danger"
+                                    color="danger"
+                                    startContent={
+                                      <TrashIcon className="w-4 h-4" />
+                                    }
+                                  >
+                                    Deletar
+                                  </DropdownItem>
+                                ) : null}
+                              </DropdownMenu>
+                            </Dropdown>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                 </TableBody>
               </Table>
             </div>
@@ -1657,27 +1798,25 @@ function KpiCard({
   icon,
   value,
   label,
-  color,
-  bg,
-  iconBg,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
-  color: string;
-  bg: string;
-  iconBg: string;
+  // Props de cor mantidas por compatibilidade, porém ignoradas (visual sóbrio)
+  color?: string;
+  bg?: string;
+  iconBg?: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}
-      >
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/40 border border-gray-200 dark:border-zinc-800">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 shrink-0">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className={`text-sm font-bold truncate ${color}`}>{value}</p>
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+          {value}
+        </p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate">
           {label}
         </p>
       </div>

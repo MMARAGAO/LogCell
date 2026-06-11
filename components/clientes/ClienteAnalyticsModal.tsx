@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-} from "@heroui/modal";
+import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/modal";
 import { Button } from "@heroui/button";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Chip } from "@heroui/chip";
@@ -27,7 +22,6 @@ import {
   Smartphone,
   ShoppingBag,
   Wallet,
-  Calendar,
   DollarSign,
   AlertTriangle,
   Clock,
@@ -46,7 +40,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 
@@ -57,8 +50,16 @@ import {
 import type { Cliente } from "@/types/clientesTecnicos";
 
 const CORES = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
-  "#EC4899", "#14B8A6", "#F97316", "#6366F1", "#84CC16",
+  "#3B82F6",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#8B5CF6",
+  "#EC4899",
+  "#14B8A6",
+  "#F97316",
+  "#6366F1",
+  "#84CC16",
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -111,6 +112,7 @@ export function ClienteAnalyticsModal({
     setError(null);
     try {
       const data = await buscarAnalyticsCliente(cliente.id);
+
       setAnalytics(data);
     } catch (err: any) {
       setError(err.message || "Erro ao carregar analytics");
@@ -134,12 +136,7 @@ export function ClienteAnalyticsModal({
     : "Nunca comprou";
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      scrollBehavior="inside"
-      size="5xl"
-    >
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="5xl" onClose={onClose}>
       <ModalContent>
         <ModalHeader className="flex items-center gap-3 border-b border-divider">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -156,7 +153,7 @@ export function ClienteAnalyticsModal({
         <ModalBody className="py-5">
           {loading ? (
             <div className="flex justify-center items-center py-20">
-              <Spinner size="lg" label="Carregando analytics..." />
+              <Spinner label="Carregando analytics..." size="lg" />
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-20 text-danger gap-3">
@@ -190,40 +187,40 @@ export function ClienteAnalyticsModal({
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <KpiCard
+                      bg="bg-primary/5"
+                      color="text-primary"
                       icon={<ShoppingBag className="w-5 h-5" />}
                       label="Vendas"
                       value={String(r?.totalVendas || 0)}
-                      color="text-primary"
-                      bg="bg-primary/5"
                     />
                     <KpiCard
+                      bg="bg-success/5"
+                      color="text-success"
                       icon={<DollarSign className="w-5 h-5" />}
                       label="Total Gasto"
                       value={formatarMoeda(r?.totalGasto || 0)}
-                      color="text-success"
-                      bg="bg-success/5"
                     />
                     <KpiCard
+                      bg="bg-secondary/5"
+                      color="text-secondary"
                       icon={<BarChart3 className="w-5 h-5" />}
                       label="Ticket Médio"
                       value={formatarMoeda(r?.ticketMedio || 0)}
-                      color="text-secondary"
-                      bg="bg-secondary/5"
                     />
                     <KpiCard
+                      bg={`bg-${diasAviso}/5`}
+                      color={`text-${diasAviso}`}
                       icon={<Clock className="w-5 h-5" />}
                       label="Última Compra"
                       value={ultimaCompraLabel}
-                      color={`text-${diasAviso}`}
-                      bg={`bg-${diasAviso}/5`}
                     />
                   </div>
 
                   {r && r.diasDesdeUltimaCompra != null && (
                     <Chip
                       color={diasAviso as any}
-                      variant="flat"
                       startContent={<Clock className="w-3 h-3" />}
+                      variant="flat"
                     >
                       {r.diasDesdeUltimaCompra === 0
                         ? "Comprou hoje"
@@ -239,9 +236,9 @@ export function ClienteAnalyticsModal({
                       value={formatarMoeda(r?.totalPago || 0)}
                     />
                     <MiniCard
+                      color={r?.saldoDevedor ? "text-danger" : "text-success"}
                       label="Saldo Devedor"
                       value={formatarMoeda(r?.saldoDevedor || 0)}
-                      color={r?.saldoDevedor ? "text-danger" : "text-success"}
                     />
                     <MiniCard
                       label="Aparelhos"
@@ -285,9 +282,9 @@ export function ClienteAnalyticsModal({
                     Gastos mensais do cliente (últimos 12 meses)
                   </p>
                   <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer height="100%" width="100%">
                       <LineChart data={analytics.vendasPorMes}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" />
                         <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
                         <YAxis
                           tick={{ fontSize: 11 }}
@@ -302,11 +299,11 @@ export function ClienteAnalyticsModal({
                           ]}
                         />
                         <Line
-                          type="monotone"
                           dataKey="valor"
+                          dot={{ fill: "#3B82F6", r: 4 }}
                           stroke="#3B82F6"
                           strokeWidth={2}
-                          dot={{ fill: "#3B82F6", r: 4 }}
+                          type="monotone"
                         />
                       </LineChart>
                     </ResponsiveContainer>
@@ -342,24 +339,21 @@ export function ClienteAnalyticsModal({
                   {analytics.pagamentosPorTipo.length > 0 ? (
                     <>
                       <div className="h-72">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer height="100%" width="100%">
                           <PieChart>
                             <Pie
-                              data={analytics.pagamentosPorTipo}
-                              dataKey="valor"
-                              nameKey="tipo"
                               cx="50%"
                               cy="50%"
-                              outerRadius={100}
+                              data={analytics.pagamentosPorTipo}
+                              dataKey="valor"
                               label={({ name, percent }: any) =>
                                 `${name} ${((percent || 0) * 100).toFixed(0)}%`
                               }
+                              nameKey="tipo"
+                              outerRadius={100}
                             >
                               {analytics.pagamentosPorTipo.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={CORES[i % CORES.length]}
-                                />
+                                <Cell key={i} fill={CORES[i % CORES.length]} />
                               ))}
                             </Pie>
                             <Tooltip
@@ -420,29 +414,30 @@ export function ClienteAnalyticsModal({
                         Marcas de aparelhos mais compradas
                       </p>
                       <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer height="100%" width="100%">
                           <BarChart
                             data={analytics.aparelhosComprados}
                             layout="vertical"
                           >
                             <CartesianGrid
-                              strokeDasharray="3 3"
                               stroke="#e5e7eb"
+                              strokeDasharray="3 3"
                             />
-                            <XAxis type="number" tick={{ fontSize: 11 }} />
+                            <XAxis tick={{ fontSize: 11 }} type="number" />
                             <YAxis
                               dataKey="marca"
-                              type="category"
                               tick={{ fontSize: 11 }}
+                              type="category"
                               width={100}
                             />
                             <Tooltip />
-                            <Bar dataKey="quantidade" fill="#3B82F6" radius={[0, 4, 4, 0]}>
+                            <Bar
+                              dataKey="quantidade"
+                              fill="#3B82F6"
+                              radius={[0, 4, 4, 0]}
+                            >
                               {analytics.aparelhosComprados.map((_, i) => (
-                                <Cell
-                                  key={i}
-                                  fill={CORES[i % CORES.length]}
-                                />
+                                <Cell key={i} fill={CORES[i % CORES.length]} />
                               ))}
                             </Bar>
                           </BarChart>
@@ -468,9 +463,7 @@ export function ClienteAnalyticsModal({
                             key={i}
                             className="flex items-center justify-between p-2 rounded-lg bg-default-50 dark:bg-default-100/10 text-sm"
                           >
-                            <span className="truncate mr-4">
-                              {s.descricao}
-                            </span>
+                            <span className="truncate mr-4">{s.descricao}</span>
                             <Chip size="sm" variant="flat">
                               {s.quantidade}x
                             </Chip>

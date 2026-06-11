@@ -489,3 +489,68 @@ export async function getProdutosComEstoque(): Promise<any[]> {
     throw error;
   }
 }
+
+export interface ProdutoBaixoEstoque {
+  id_produto: string;
+  id_loja: number;
+  loja_nome: string;
+  produto_descricao: string;
+  produto_marca: string;
+  quantidade: number;
+  quantidade_minima: number;
+}
+
+/**
+ * Buscar itens com estoque igual ou abaixo do mínimo configurado.
+ * Usado no dashboard executivo para alertas de baixo estoque.
+ */
+export async function getProdutosBaixoEstoque(
+  lojaId?: number,
+  limit: number = 2000,
+): Promise<{ itens: ProdutoBaixoEstoque[]; total: number }> {
+  try {
+    let query = supabase
+      .from("estoque_lojas")
+      .select(
+        `
+        id_produto,
+        id_loja,
+        quantidade,
+        produto:produtos(descricao, marca, quantidade_minima),
+        loja:lojas(nome)
+      `,
+      )
+      .order("quantidade", { ascending: true })
+      .limit(limit);
+
+    if (lojaId) {
+      query = query.eq("id_loja", lojaId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    const itens: ProdutoBaixoEstoque[] = (data || [])
+      .filter(
+        (e: any) =>
+          Number(e.produto?.quantidade_minima || 0) > 0 &&
+          Number(e.quantidade) <= Number(e.produto?.quantidade_minima),
+      )
+      .map((e: any) => ({
+        id_produto: e.id_produto,
+        id_loja: e.id_loja,
+        loja_nome: e.loja?.nome || "",
+        produto_descricao: e.produto?.descricao || "Produto",
+        produto_marca: e.produto?.marca || "",
+        quantidade: Number(e.quantidade || 0),
+        quantidade_minima: Number(e.produto?.quantidade_minima || 0),
+      }));
+
+    return { itens, total: itens.length };
+  } catch (error) {
+    console.error("Erro ao buscar produtos com baixo estoque:", error);
+
+    return { itens: [], total: 0 };
+  }
+}

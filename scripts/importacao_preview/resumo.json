@@ -1,0 +1,103 @@
+{
+  "total_registros": 397,
+  "total_venda": 1665956.98,
+  "total_custo": 1534950.99,
+  "total_brinde": 9615.0,
+  "total_lucro": 109721.98999999999,
+  "lojas": {
+    "BALCAO": {
+      "id": 1,
+      "qtd": 2,
+      "total_venda": 4430.0
+    },
+    "BLOCO B": {
+      "id": 20,
+      "qtd": 83,
+      "total_venda": 340911.0
+    },
+    "CASES": {
+      "id": 19,
+      "qtd": 101,
+      "total_venda": 416774.0
+    },
+    "CELL": {
+      "id": 1,
+      "qtd": 111,
+      "total_venda": 541742.0
+    },
+    "ONLINE": {
+      "id": 4,
+      "qtd": 100,
+      "total_venda": 362099.98
+    }
+  },
+  "vendedores": {
+    "Angel": {
+      "id": null,
+      "qtd": 4
+    },
+    "Bianca": {
+      "id": "b4269e60-eea2-4eba-a34d-db9591e0ec83",
+      "qtd": 8
+    },
+    "Camila": {
+      "id": "1d12d555-68e9-45f8-bfc0-a35a1d8d7920",
+      "qtd": 5
+    },
+    "Guilherme": {
+      "id": "25e2da5b-9e76-4388-9890-7e22efd6940d",
+      "qtd": 33
+    },
+    "Higor Guedes": {
+      "id": "85e3aa42-b9af-49b8-a72a-64e9c337aa53",
+      "qtd": 71
+    },
+    "Luiz Henrique": {
+      "id": "0dd2c938-c6dd-4f5d-aac5-ed045ee5d2fb",
+      "qtd": 7
+    },
+    "Marcela": {
+      "id": "a3626643-4749-4e56-83bc-b4a8ffd53659",
+      "qtd": 96
+    },
+    "Raissa": {
+      "id": "0dd2c938-c6dd-4f5d-aac5-ed045ee5d2fb",
+      "qtd": 6
+    },
+    "Renan": {
+      "id": "a50f1e24-aabb-41c1-b817-b4a4950bb1e4",
+      "qtd": 37
+    },
+    "Renann": {
+      "id": "a50f1e24-aabb-41c1-b817-b4a4950bb1e4",
+      "qtd": 1
+    },
+    "Renata": {
+      "id": "9451cd9f-6770-4e32-aae8-c75fa675e818",
+      "qtd": 20
+    },
+    "Rennan": {
+      "id": "a50f1e24-aabb-41c1-b817-b4a4950bb1e4",
+      "qtd": 4
+    },
+    "Ronald": {
+      "id": "97f12885-87ad-426a-8bbb-656889d82e10",
+      "qtd": 85
+    },
+    "Ruyter": {
+      "id": "85743f3e-1b32-49c0-9d9e-c16afd690f7d",
+      "qtd": 4
+    },
+    "Yasmin": {
+      "id": "e07d4d35-1381-4d4d-914d-8382a7456fdd",
+      "qtd": 16
+    }
+  },
+  "trocas_detectadas": 95,
+  "trocas_nao_detectadas": 1,
+  "taxa_extracao_trocas": 99.0,
+  "problemas": 8,
+  "vendedores_sem_id": [
+    "Angel"
+  ]
+}

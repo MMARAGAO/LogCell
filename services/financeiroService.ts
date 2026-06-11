@@ -321,11 +321,16 @@ export async function getFolhasSalariais(
   dataFim?: string,
 ): Promise<FolhaSalarial[]> {
   try {
-    let query = supabase.from("folhas_salariais").select(`
+    let query = supabase
+      .from("folhas_salariais")
+      .select(
+        `
         *,
         funcionario:usuarios(nome),
         loja:lojas(nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (dataInicio && dataFim) {
       const ranges = buildMesAnoRange(dataInicio, dataFim);
@@ -563,10 +568,15 @@ export async function getContasLoja(
   dataFim?: string,
 ): Promise<ContaLoja[]> {
   try {
-    let query = supabase.from("contas_lojas").select(`
+    let query = supabase
+      .from("contas_lojas")
+      .select(
+        `
         *,
         loja:lojas(nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (lojaId) {
       query = query.eq("loja_id", lojaId);
@@ -672,10 +682,15 @@ export async function getValesFuncionario(
   dataFim?: string,
 ): Promise<ValeFuncionario[]> {
   try {
-    let query = supabase.from("vales_funcionarios").select(`
+    let query = supabase
+      .from("vales_funcionarios")
+      .select(
+        `
         *,
         funcionario:usuarios!funcionario_id(nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (funcionarioId) {
       query = query.eq("funcionario_id", funcionarioId);
@@ -883,10 +898,15 @@ export async function getContasFornecedor(
   dataFim?: string,
 ): Promise<ContaFornecedor[]> {
   try {
-    let query = supabase.from("contas_fornecedores").select(`
+    let query = supabase
+      .from("contas_fornecedores")
+      .select(
+        `
         *,
         fornecedor:fornecedores!fornecedor_id(nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (fornecedorId) {
       query = query.eq("fornecedor_id", fornecedorId);
@@ -995,10 +1015,15 @@ export async function getImpostosConta(
   dataFim?: string,
 ): Promise<ImpostoConta[]> {
   try {
-    let query = supabase.from("impostos_contas").select(`
+    let query = supabase
+      .from("impostos_contas")
+      .select(
+        `
         *,
         loja:lojas(nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (tipo) {
       query = query.eq("tipo", tipo);
@@ -1484,12 +1509,15 @@ export async function getCentroCustosTodos(
   dataFim?: string,
 ): Promise<CentroCusto[]> {
   try {
-    let query = supabase.from("centro_custos").select(
-      `
+    let query = supabase
+      .from("centro_custos")
+      .select(
+        `
         *,
         loja:lojas(nome)
       `,
-    ).limit(10000);
+      )
+      .limit(10000);
 
     if (dataInicio && dataFim) {
       const ranges = buildMesAnoRange(dataInicio, dataFim);
@@ -1681,10 +1709,15 @@ export async function getAnaliseCustoPorLoja(
   dataFim?: string,
 ): Promise<AnaliseCustoPorLoja[]> {
   try {
-    let query = supabase.from("centro_custos").select(`
+    let query = supabase
+      .from("centro_custos")
+      .select(
+        `
         *,
         loja:lojas(id, nome)
-      `).limit(10000);
+      `,
+      )
+      .limit(10000);
 
     if (dataInicio && dataFim) {
       const ranges = buildMesAnoRange(dataInicio, dataFim);

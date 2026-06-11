@@ -8,9 +8,6 @@ import {
 import { Button } from "@heroui/button";
 import { Input, Textarea } from "@heroui/input";
 import { useState, useEffect } from "react";
-import { Chip } from "@heroui/chip";
-import { Divider } from "@heroui/divider";
-import { Card, CardBody } from "@heroui/card";
 import { PlusIcon, MinusIcon } from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
@@ -135,6 +132,10 @@ export default function EstoqueLojaModal({
   };
 
   const temAlteracao = lojasEstoque.some((loja) => loja.ajuste !== 0);
+  const totalAtual = lojasEstoque.reduce((a, l) => a + l.quantidadeAtual, 0);
+  const totalNovo = lojasEstoque.reduce((a, l) => a + l.novaQuantidade, 0);
+  const algumNegativo = lojasEstoque.some((l) => l.novaQuantidade < 0);
+  const lojasAlteradas = lojasEstoque.filter((l) => l.ajuste !== 0).length;
 
   return (
     <Modal
@@ -153,148 +154,132 @@ export default function EstoqueLojaModal({
         </ModalHeader>
         <ModalBody>
           <div className="space-y-4">
-            {/* Resumo de Estoque Total */}
-            <Card className="bg-primary-50 dark:bg-primary-900/20">
-              <CardBody className="py-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-primary">
-                    Estoque Total Atual:
-                  </span>
-                  <Chip color="primary" size="lg" variant="flat">
-                    {lojasEstoque.reduce(
-                      (acc, loja) => acc + loja.quantidadeAtual,
-                      0,
-                    )}{" "}
-                    unidades
-                  </Chip>
-                </div>
+            {/* Estoque total */}
+            <div className="flex items-center justify-between rounded-lg border border-default-200 bg-default-50 px-4 py-3 dark:border-default-100/20 dark:bg-default-100/5">
+              <span className="text-sm font-medium text-default-600">
+                Estoque total
+              </span>
+              <div className="flex items-baseline gap-2 tabular-nums">
+                <span className="text-xl font-bold text-foreground">
+                  {totalAtual}
+                </span>
                 {temAlteracao && (
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-primary-200 dark:border-primary-800">
-                    <span className="text-sm font-semibold text-success">
-                      Novo Total:
+                  <>
+                    <span className="text-default-400">→</span>
+                    <span
+                      className={`text-xl font-bold ${
+                        totalNovo >= totalAtual
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-amber-600 dark:text-amber-400"
+                      }`}
+                    >
+                      {totalNovo}
                     </span>
-                    <Chip color="success" size="lg" variant="flat">
-                      {lojasEstoque.reduce(
-                        (acc, loja) => acc + loja.novaQuantidade,
-                        0,
-                      )}{" "}
-                      unidades
-                    </Chip>
-                  </div>
+                  </>
                 )}
-              </CardBody>
-            </Card>
-
-            <Divider />
-
-            {/* Lista de Lojas com Inputs */}
-            <div className="space-y-3">
-              <p className="text-sm font-semibold">
-                Ajuste o estoque por loja:
-              </p>
-              {lojasEstoque.map((loja) => (
-                <Card key={loja.lojaId} className="shadow-sm">
-                  <CardBody className="py-3">
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
-                      {/* Nome da Loja */}
-                      <div className="md:col-span-1">
-                        <p className="font-semibold text-sm">{loja.lojaNome}</p>
-                      </div>
-
-                      {/* Estoque Atual */}
-                      <div className="flex flex-col">
-                        <span className="text-xs text-default-500 mb-1">
-                          Atual
-                        </span>
-                        <Chip
-                          color={
-                            loja.quantidadeAtual > 0 ? "success" : "danger"
-                          }
-                          size="sm"
-                          variant="flat"
-                        >
-                          {loja.quantidadeAtual} un
-                        </Chip>
-                      </div>
-
-                      {/* Input de Ajuste */}
-                      <div className="md:col-span-2">
-                        <Input
-                          classNames={{
-                            input:
-                              loja.ajuste > 0
-                                ? "text-success"
-                                : loja.ajuste < 0
-                                  ? "text-danger"
-                                  : "",
-                          }}
-                          description={
-                            loja.ajuste !== 0
-                              ? `${loja.ajuste > 0 ? "+" : ""}${loja.ajuste} unidade(s)`
-                              : undefined
-                          }
-                          label="Ajuste (+/-)"
-                          placeholder="0"
-                          size="sm"
-                          startContent={
-                            loja.ajuste > 0 ? (
-                              <PlusIcon className="w-4 h-4 text-success" />
-                            ) : loja.ajuste < 0 ? (
-                              <MinusIcon className="w-4 h-4 text-danger" />
-                            ) : null
-                          }
-                          type="number"
-                          value={
-                            loja.ajuste === 0 ? "" : loja.ajuste.toString()
-                          }
-                          variant="bordered"
-                          onValueChange={(value) => {
-                            const numero = parseInt(value) || 0;
-
-                            handleAjusteChange(loja.lojaId, numero);
-                          }}
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                      </div>
-
-                      {/* Nova Quantidade */}
-                      <div className="flex flex-col">
-                        <span className="text-xs text-default-500 mb-1">
-                          Nova Qtd.
-                        </span>
-                        <Chip
-                          className={
-                            loja.novaQuantidade < 0
-                              ? "bg-danger-100 text-danger"
-                              : ""
-                          }
-                          color={
-                            loja.novaQuantidade !== loja.quantidadeAtual
-                              ? loja.novaQuantidade > loja.quantidadeAtual
-                                ? "success"
-                                : "warning"
-                              : "default"
-                          }
-                          size="sm"
-                          variant="flat"
-                        >
-                          {loja.novaQuantidade} un
-                        </Chip>
-                      </div>
-                    </div>
-
-                    {/* Aviso de estoque negativo */}
-                    {loja.novaQuantidade < 0 && (
-                      <div className="mt-2 text-xs text-danger">
-                        ⚠️ Atenção: Estoque ficará negativo!
-                      </div>
-                    )}
-                  </CardBody>
-                </Card>
-              ))}
+                <span className="text-sm font-normal text-default-400">un</span>
+              </div>
             </div>
 
-            <Divider />
+            {/* Ajuste por loja */}
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-default-500">
+                Ajuste por loja
+              </p>
+              <div className="overflow-hidden rounded-lg border border-default-200 dark:border-default-100/20">
+                {lojasEstoque.map((loja, i) => (
+                  <div
+                    key={loja.lojaId}
+                    className={`flex flex-wrap items-center gap-3 px-3 py-2.5 sm:flex-nowrap ${
+                      i > 0
+                        ? "border-t border-default-200 dark:border-default-100/20"
+                        : ""
+                    }`}
+                  >
+                    {/* Nome + atual */}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {loja.lojaNome}
+                      </p>
+                      <p className="text-xs text-default-400">
+                        Atual:{" "}
+                        <span className="tabular-nums text-default-600">
+                          {loja.quantidadeAtual}
+                        </span>{" "}
+                        un
+                      </p>
+                    </div>
+
+                    {/* Stepper de ajuste */}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        isIconOnly
+                        className="h-8 w-8 min-w-0"
+                        size="sm"
+                        variant="flat"
+                        onPress={() =>
+                          handleAjusteChange(loja.lojaId, loja.ajuste - 1)
+                        }
+                      >
+                        <MinusIcon className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        aria-label={`Ajuste para ${loja.lojaNome}`}
+                        className="w-16"
+                        classNames={{ input: "text-center tabular-nums" }}
+                        placeholder="0"
+                        radius="md"
+                        size="sm"
+                        type="number"
+                        value={loja.ajuste === 0 ? "" : loja.ajuste.toString()}
+                        variant="bordered"
+                        onValueChange={(value) =>
+                          handleAjusteChange(loja.lojaId, parseInt(value) || 0)
+                        }
+                        onWheel={(e) => e.currentTarget.blur()}
+                      />
+                      <Button
+                        isIconOnly
+                        className="h-8 w-8 min-w-0"
+                        size="sm"
+                        variant="flat"
+                        onPress={() =>
+                          handleAjusteChange(loja.lojaId, loja.ajuste + 1)
+                        }
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Nova quantidade */}
+                    <div className="w-16 flex-shrink-0 text-right">
+                      <p className="text-[10px] uppercase tracking-wide text-default-400">
+                        Nova
+                      </p>
+                      <p
+                        className={`text-sm font-bold tabular-nums ${
+                          loja.novaQuantidade < 0
+                            ? "text-rose-600 dark:text-rose-400"
+                            : loja.ajuste === 0
+                              ? "text-default-600"
+                              : loja.ajuste > 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {loja.novaQuantidade}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {algumNegativo && (
+                <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                  Atenção: uma ou mais lojas ficarão com estoque negativo.
+                </p>
+              )}
+            </div>
 
             {/* Observação */}
             <Textarea
@@ -306,43 +291,6 @@ export default function EstoqueLojaModal({
               variant="bordered"
               onValueChange={setObservacao}
             />
-
-            {/* Resumo de Alterações */}
-            {temAlteracao && (
-              <Card className="bg-warning-50 dark:bg-warning-900/20">
-                <CardBody className="py-3">
-                  <p className="text-sm font-semibold text-warning mb-2">
-                    Resumo das alterações:
-                  </p>
-                  <div className="space-y-1">
-                    {lojasEstoque
-                      .filter((loja) => loja.ajuste !== 0)
-                      .map((loja) => (
-                        <div
-                          key={loja.lojaId}
-                          className="text-xs flex justify-between"
-                        >
-                          <span className="font-medium">{loja.lojaNome}:</span>
-                          <span>
-                            {loja.quantidadeAtual} →{" "}
-                            <span
-                              className={
-                                loja.ajuste > 0
-                                  ? "text-success font-semibold"
-                                  : "text-danger font-semibold"
-                              }
-                            >
-                              {loja.novaQuantidade}
-                            </span>{" "}
-                            ({loja.ajuste > 0 ? "+" : ""}
-                            {loja.ajuste})
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </CardBody>
-              </Card>
-            )}
           </div>
         </ModalBody>
         <ModalFooter>
@@ -357,9 +305,11 @@ export default function EstoqueLojaModal({
           >
             {loading
               ? "Atualizando..."
-              : `Atualizar Estoque (${
-                  lojasEstoque.filter((l) => l.ajuste !== 0).length
-                } loja${lojasEstoque.filter((l) => l.ajuste !== 0).length !== 1 ? "s" : ""})`}
+              : `Atualizar Estoque${
+                  lojasAlteradas > 0
+                    ? ` (${lojasAlteradas} loja${lojasAlteradas !== 1 ? "s" : ""})`
+                    : ""
+                }`}
           </Button>
         </ModalFooter>
       </ModalContent>

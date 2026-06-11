@@ -80,9 +80,11 @@ export async function buscarOrdensServico(filtros?: {
       if (/^\d+$/.test(termo)) {
         query = query.eq("numero_os", parseInt(termo));
       } else {
-        query = query.or(
-          `cliente_nome.ilike.%${termo}%,cliente_telefone.ilike.%${termo}%,equipamento_tipo.ilike.%${termo}%,equipamento_marca.ilike.%${termo}%,equipamento_modelo.ilike.%${termo}%`,
-        ).limit(10000);
+        query = query
+          .or(
+            `cliente_nome.ilike.%${termo}%,cliente_telefone.ilike.%${termo}%,equipamento_tipo.ilike.%${termo}%,equipamento_marca.ilike.%${termo}%,equipamento_modelo.ilike.%${termo}%`,
+          )
+          .limit(10000);
       }
     } else {
       query = query.limit(200);

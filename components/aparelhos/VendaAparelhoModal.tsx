@@ -35,6 +35,9 @@ import {
   Gift,
   AlertCircle,
   Percent,
+  ChevronLeft,
+  ChevronRight,
+  Check,
 } from "lucide-react";
 
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -209,9 +212,13 @@ export function VendaAparelhoModal({
   } | null>(null);
   const [descontoModalOpen, setDescontoModalOpen] = useState(false);
 
+  // Etapa do fluxo (stepper): 1 Cliente, 2 Venda, 3 Pagamento, 4 Revisão
+  const [step, setStep] = useState(1);
+
   useEffect(() => {
     if (!isOpen) return;
 
+    setStep(1);
     setClienteSelecionadoId("");
     setClienteNome("");
     setClienteTelefone("");
@@ -838,34 +845,27 @@ export function VendaAparelhoModal({
             </div>
           </ModalHeader>
           <ModalBody className="py-5">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Coluna Esquerda - Dados da Venda */}
-              <div className="space-y-4">
-                {errosValidacao.length > 0 ? (
-                  <Card className="border border-warning/40 bg-warning/5">
-                    <CardBody className="gap-2">
-                      <div className="flex items-center gap-2 text-warning-700">
-                        <AlertCircle className="h-4 w-4" />
-                        <p className="font-semibold">
-                          Revise antes de finalizar
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {errosValidacao.map((erro) => (
-                          <Chip
-                            key={erro}
-                            color="warning"
-                            size="sm"
-                            variant="flat"
-                          >
-                            {erro}
-                          </Chip>
-                        ))}
-                      </div>
-                    </CardBody>
-                  </Card>
-                ) : null}
+            <StepperVenda passoAtual={step} />
+            {errosValidacao.length > 0 ? (
+              <Card className="border border-warning/40 bg-warning/5">
+                <CardBody className="gap-2">
+                  <div className="flex items-center gap-2 text-warning-700">
+                    <AlertCircle className="h-4 w-4" />
+                    <p className="font-semibold">Revise antes de finalizar</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {errosValidacao.map((erro) => (
+                      <Chip key={erro} color="warning" size="sm" variant="flat">
+                        {erro}
+                      </Chip>
+                    ))}
+                  </div>
+                </CardBody>
+              </Card>
+            ) : null}
 
+            {step === 1 && (
+              <div className="space-y-4">
                 {/* Informações do Aparelho */}
                 <Card className="border border-default-200 shadow-sm">
                   <CardBody className="gap-3">
@@ -1009,7 +1009,11 @@ export function VendaAparelhoModal({
                     </div>
                   </CardBody>
                 </Card>
+              </div>
+            )}
 
+            {step === 2 && (
+              <div className="space-y-4">
                 {/* Valor da Venda */}
                 <Card className="border border-default-200 shadow-sm">
                   <CardBody className="gap-3">
@@ -1628,209 +1632,276 @@ export function VendaAparelhoModal({
                     </CardBody>
                   </Card>
                 )}
+              </div>
+            )}
 
-                {/* Adicionar Forma de Pagamento */}
+            {step === 3 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {/* Adicionar Forma de Pagamento */}
+                  <Card className="border border-default-200 shadow-sm">
+                    <CardBody className="gap-3">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-success" />
+                        Adicionar Pagamento
+                      </h3>
+
+                      <Select
+                        label="Forma de Pagamento"
+                        selectedKeys={[tipoPagamento]}
+                        size="sm"
+                        variant="bordered"
+                        onChange={(e) => setTipoPagamento(e.target.value)}
+                      >
+                        {FORMAS_PAGAMENTO.map((forma) => (
+                          <SelectItem key={forma.value}>
+                            {forma.label}
+                          </SelectItem>
+                        ))}
+                      </Select>
+
+                      <Input
+                        label="Valor"
+                        placeholder="0,00"
+                        size="sm"
+                        startContent={
+                          <span className="text-default-400">R$</span>
+                        }
+                        value={valorPagamento}
+                        variant="bordered"
+                        onValueChange={(value) =>
+                          setValorPagamento(formatarMoedaInput(value))
+                        }
+                      />
+
+                      {tipoPagamento === "cartao_credito" && (
+                        <Select
+                          label="Parcelas"
+                          selectedKeys={[parcelasPagamento.toString()]}
+                          size="sm"
+                          variant="bordered"
+                          onChange={(e) =>
+                            setParcelasPagamento(parseInt(e.target.value))
+                          }
+                        >
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                            (n) => (
+                              <SelectItem key={n.toString()}>
+                                {n}x de{" "}
+                                {formatarMoeda(
+                                  (parseMoedaInput(valorPagamento) || 0) / n,
+                                )}
+                              </SelectItem>
+                            ),
+                          )}
+                        </Select>
+                      )}
+
+                      <Input
+                        label="Data do Pagamento"
+                        size="sm"
+                        startContent={
+                          <Calendar className="w-4 h-4 text-default-400" />
+                        }
+                        type="date"
+                        value={dataPagamento}
+                        variant="bordered"
+                        onValueChange={setDataPagamento}
+                      />
+
+                      <Button
+                        color="success"
+                        size="sm"
+                        startContent={<Plus className="w-4 h-4" />}
+                        onPress={handleAdicionarPagamento}
+                      >
+                        Adicionar Pagamento
+                      </Button>
+                    </CardBody>
+                  </Card>
+
+                  {/* Pagamentos Adicionados */}
+                  {(formasPagamento.length > 0 || aparelhoTroca) && (
+                    <Card>
+                      <CardBody className="gap-2">
+                        <h3 className="font-semibold text-sm">
+                          Resumo de Pagamentos
+                        </h3>
+                        {formasPagamento.map((pag, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between items-center p-2 bg-default-100 rounded-lg"
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">
+                                {getTipoPagamentoLabel(pag.tipo)}
+                              </span>
+                              <span className="text-xs text-default-500">
+                                {pag.parcelas && pag.parcelas > 1
+                                  ? `${pag.parcelas}x de ${formatarMoeda(
+                                      pag.valor / pag.parcelas,
+                                    )}`
+                                  : formatarMoeda(pag.valor)}
+                              </span>
+                            </div>
+                            <Button
+                              isIconOnly
+                              color="danger"
+                              size="sm"
+                              variant="light"
+                              onPress={() => handleRemoverPagamento(index)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+
+                        <Divider className="my-2" />
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>Total:</span>
+                            <span className="font-bold">
+                              {formatarMoeda(valorVendaNumerico)}
+                            </span>
+                          </div>
+                          {aparelhoTroca && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-secondary">Troca:</span>
+                              <span className="font-bold text-secondary">
+                                - {formatarMoeda(valorTroca)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span>Pago (dinheiro/cartão):</span>
+                            <span className="font-bold text-success">
+                              {formatarMoeda(
+                                formasPagamento.reduce(
+                                  (sum, f) => sum + f.valor,
+                                  0,
+                                ),
+                              )}
+                            </span>
+                          </div>
+                          <Divider className="my-1" />
+                          <div className="flex justify-between text-sm">
+                            <span className="font-semibold">Total Pago:</span>
+                            <span className="font-bold text-success">
+                              {formatarMoeda(valorPago)}
+                            </span>
+                          </div>
+                          {saldoDevedor > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span>Falta:</span>
+                              <span className="font-bold text-danger">
+                                {formatarMoeda(saldoDevedor)}
+                              </span>
+                            </div>
+                          )}
+                          {saldoDevedor < 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span>Troco:</span>
+                              <span className="font-bold text-primary">
+                                {formatarMoeda(Math.abs(saldoDevedor))}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </CardBody>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Coluna Direita - Simulador de Taxa */}
+                <div className="space-y-4">
+                  <SimuladorTaxaCartao
+                    lojaId={lojaId}
+                    mostrarDetalhes={true}
+                    tipoProdutoPadrao="aparelho"
+                    valorCusto={valorCusto}
+                    valorVenda={valorVendaNumerico}
+                    onSimulacaoChange={setSimulacaoAtual}
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div className="space-y-4">
                 <Card className="border border-default-200 shadow-sm">
                   <CardBody className="gap-3">
                     <h3 className="font-semibold flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-success" />
-                      Adicionar Pagamento
+                      <Check className="w-4 h-4 text-success" />
+                      Revisão
                     </h3>
-
-                    <Select
-                      label="Forma de Pagamento"
-                      selectedKeys={[tipoPagamento]}
-                      size="sm"
-                      variant="bordered"
-                      onChange={(e) => setTipoPagamento(e.target.value)}
-                    >
-                      {FORMAS_PAGAMENTO.map((forma) => (
-                        <SelectItem key={forma.value}>{forma.label}</SelectItem>
-                      ))}
-                    </Select>
-
-                    <Input
-                      label="Valor"
-                      placeholder="0,00"
-                      size="sm"
-                      startContent={
-                        <span className="text-default-400">R$</span>
-                      }
-                      value={valorPagamento}
-                      variant="bordered"
-                      onValueChange={(value) =>
-                        setValorPagamento(formatarMoedaInput(value))
-                      }
-                    />
-
-                    {tipoPagamento === "cartao_credito" && (
-                      <Select
-                        label="Parcelas"
-                        selectedKeys={[parcelasPagamento.toString()]}
-                        size="sm"
-                        variant="bordered"
-                        onChange={(e) =>
-                          setParcelasPagamento(parseInt(e.target.value))
-                        }
-                      >
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map(
-                          (n) => (
-                            <SelectItem key={n.toString()}>
-                              {n}x de{" "}
-                              {formatarMoeda(
-                                (parseMoedaInput(valorPagamento) || 0) / n,
-                              )}
-                            </SelectItem>
-                          ),
-                        )}
-                      </Select>
-                    )}
-
-                    <Input
-                      label="Data do Pagamento"
-                      size="sm"
-                      startContent={
-                        <Calendar className="w-4 h-4 text-default-400" />
-                      }
-                      type="date"
-                      value={dataPagamento}
-                      variant="bordered"
-                      onValueChange={setDataPagamento}
-                    />
-
-                    <Button
-                      color="success"
-                      size="sm"
-                      startContent={<Plus className="w-4 h-4" />}
-                      onPress={handleAdicionarPagamento}
-                    >
-                      Adicionar Pagamento
-                    </Button>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Valor da venda</span>
+                        <span className="font-medium">
+                          {formatarMoeda(valorVendaNumerico)}
+                        </span>
+                      </div>
+                      {valorDescontoCalculado > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-default-600">Desconto</span>
+                          <span className="font-medium text-danger">
+                            - {formatarMoeda(valorDescontoCalculado)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Total</span>
+                        <span className="font-semibold">
+                          {formatarMoeda(valorComDesconto)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Pago</span>
+                        <span className="font-medium text-success">
+                          {formatarMoeda(valorPago)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-default-200 pt-2">
+                        <span className="text-default-600">
+                          {saldoDevedor > 0
+                            ? "Saldo devedor"
+                            : saldoDevedor < 0
+                              ? "Troco"
+                              : "Status"}
+                        </span>
+                        <span
+                          className={`font-semibold ${
+                            saldoDevedor > 0 ? "text-warning" : "text-success"
+                          }`}
+                        >
+                          {saldoDevedor === 0
+                            ? "Quitado"
+                            : formatarMoeda(Math.abs(saldoDevedor))}
+                        </span>
+                      </div>
+                    </div>
                   </CardBody>
                 </Card>
 
-                {/* Pagamentos Adicionados */}
-                {(formasPagamento.length > 0 || aparelhoTroca) && (
-                  <Card>
-                    <CardBody className="gap-2">
-                      <h3 className="font-semibold text-sm">
-                        Resumo de Pagamentos
-                      </h3>
-                      {formasPagamento.map((pag, index) => (
-                        <div
-                          key={index}
-                          className="flex justify-between items-center p-2 bg-default-100 rounded-lg"
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">
-                              {getTipoPagamentoLabel(pag.tipo)}
-                            </span>
-                            <span className="text-xs text-default-500">
-                              {pag.parcelas && pag.parcelas > 1
-                                ? `${pag.parcelas}x de ${formatarMoeda(
-                                    pag.valor / pag.parcelas,
-                                  )}`
-                                : formatarMoeda(pag.valor)}
-                            </span>
-                          </div>
-                          <Button
-                            isIconOnly
-                            color="danger"
-                            size="sm"
-                            variant="light"
-                            onPress={() => handleRemoverPagamento(index)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-
-                      <Divider className="my-2" />
-
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>Total:</span>
-                          <span className="font-bold">
-                            {formatarMoeda(valorVendaNumerico)}
-                          </span>
-                        </div>
-                        {aparelhoTroca && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-secondary">Troca:</span>
-                            <span className="font-bold text-secondary">
-                              - {formatarMoeda(valorTroca)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm">
-                          <span>Pago (dinheiro/cartão):</span>
-                          <span className="font-bold text-success">
-                            {formatarMoeda(
-                              formasPagamento.reduce(
-                                (sum, f) => sum + f.valor,
-                                0,
-                              ),
-                            )}
-                          </span>
-                        </div>
-                        <Divider className="my-1" />
-                        <div className="flex justify-between text-sm">
-                          <span className="font-semibold">Total Pago:</span>
-                          <span className="font-bold text-success">
-                            {formatarMoeda(valorPago)}
-                          </span>
-                        </div>
-                        {saldoDevedor > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span>Falta:</span>
-                            <span className="font-bold text-danger">
-                              {formatarMoeda(saldoDevedor)}
-                            </span>
-                          </div>
-                        )}
-                        {saldoDevedor < 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span>Troco:</span>
-                            <span className="font-bold text-primary">
-                              {formatarMoeda(Math.abs(saldoDevedor))}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </CardBody>
-                  </Card>
-                )}
+                {/* Observações */}
+                <Card className="border border-default-200 shadow-sm">
+                  <CardBody>
+                    <Textarea
+                      isDisabled={loading}
+                      label="Observacoes (Opcional)"
+                      minRows={4}
+                      placeholder="Digite observacoes sobre a venda..."
+                      value={observacoes}
+                      variant="bordered"
+                      onValueChange={setObservacoes}
+                    />
+                  </CardBody>
+                </Card>
               </div>
-
-              {/* Coluna Direita - Simulador de Taxa */}
-              <div className="space-y-4">
-                <SimuladorTaxaCartao
-                  lojaId={lojaId}
-                  mostrarDetalhes={true}
-                  tipoProdutoPadrao="aparelho"
-                  valorCusto={valorCusto}
-                  valorVenda={valorVendaNumerico}
-                  onSimulacaoChange={setSimulacaoAtual}
-                />
-              </div>
-            </div>
-
-            {/* Observações */}
-            <Card className="mt-4 border border-default-200 shadow-sm">
-              <CardBody>
-                <Textarea
-                  isDisabled={loading}
-                  label="Observacoes (Opcional)"
-                  minRows={4}
-                  placeholder="Digite observacoes sobre a venda..."
-                  value={observacoes}
-                  variant="bordered"
-                  onValueChange={setObservacoes}
-                />
-              </CardBody>
-            </Card>
+            )}
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter className="justify-between">
             <Button
               isDisabled={loading}
               variant="light"
@@ -1838,15 +1909,37 @@ export function VendaAparelhoModal({
             >
               Cancelar
             </Button>
-            <Button
-              color="primary"
-              isDisabled={loading || brindesSemEstoque.length > 0}
-              isLoading={loading}
-              startContent={!loading && <ShoppingBag className="w-4 h-4" />}
-              onPress={handleFinalizarVenda}
-            >
-              Finalizar Venda
-            </Button>
+            <div className="flex gap-2">
+              {step > 1 && (
+                <Button
+                  isDisabled={loading}
+                  startContent={<ChevronLeft className="w-4 h-4" />}
+                  variant="flat"
+                  onPress={() => setStep((s) => s - 1)}
+                >
+                  Voltar
+                </Button>
+              )}
+              {step < 4 ? (
+                <Button
+                  color="primary"
+                  endContent={<ChevronRight className="w-4 h-4" />}
+                  onPress={() => setStep((s) => s + 1)}
+                >
+                  Próximo
+                </Button>
+              ) : (
+                <Button
+                  color="primary"
+                  isDisabled={loading || brindesSemEstoque.length > 0}
+                  isLoading={loading}
+                  startContent={!loading && <ShoppingBag className="w-4 h-4" />}
+                  onPress={handleFinalizarVenda}
+                >
+                  Finalizar Venda
+                </Button>
+              )}
+            </div>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -1861,5 +1954,55 @@ export function VendaAparelhoModal({
         onClose={() => setDescontoModalOpen(false)}
       />
     </>
+  );
+}
+
+function StepperVenda({ passoAtual }: { passoAtual: number }) {
+  const passos = [
+    { n: 1, label: "Cliente" },
+    { n: 2, label: "Venda" },
+    { n: 3, label: "Pagamento" },
+    { n: 4, label: "Revisão" },
+  ];
+
+  return (
+    <div className="flex items-center justify-between gap-1 pb-1">
+      {passos.map((p, i) => {
+        const ativo = p.n === passoAtual;
+        const concluido = p.n < passoAtual;
+
+        return (
+          <div key={p.n} className="flex items-center flex-1 last:flex-none">
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold border ${
+                  ativo
+                    ? "bg-primary text-white border-primary"
+                    : concluido
+                      ? "bg-primary/10 text-primary border-primary/30"
+                      : "bg-default-100 text-default-500 border-default-200"
+                }`}
+              >
+                {concluido ? <Check className="w-4 h-4" /> : p.n}
+              </div>
+              <span
+                className={`text-sm font-medium hidden sm:inline ${
+                  ativo ? "text-default-900" : "text-default-500"
+                }`}
+              >
+                {p.label}
+              </span>
+            </div>
+            {i < passos.length - 1 && (
+              <div
+                className={`mx-2 h-px flex-1 ${
+                  concluido ? "bg-primary/40" : "bg-default-200"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
