@@ -1,8 +1,6 @@
 "use client";
 
 import { Select, SelectItem, Button } from "@heroui/react";
-import { DateRangePicker } from "@heroui/date-picker";
-import { today, getLocalTimeZone, parseDate } from "@internationalized/date";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 
 export type PeriodPreset = "hoje" | "7d" | "30d" | "mes" | "custom";
@@ -71,14 +69,6 @@ const PRESET_LABELS: Record<Exclude<PeriodPreset, "custom">, string> = {
   mes: "Mês",
 };
 
-function toCalendarDate(iso: string) {
-  try {
-    return parseDate(iso);
-  } catch {
-    return today(getLocalTimeZone());
-  }
-}
-
 export function PeriodSelector({
   dataInicio,
   dataFim,
@@ -129,17 +119,23 @@ export function PeriodSelector({
 
       {/* Datas + loja + refresh */}
       <div className="flex flex-wrap items-center gap-2">
-        <DateRangePicker
-          aria-label="Período"
-          className="w-64"
-          size="sm"
-          value={{
-            start: toCalendarDate(dataInicio) as any,
-            end: toCalendarDate(dataFim) as any,
+        <input
+          aria-label="Data início"
+          className="rounded-lg border border-default-200 bg-transparent px-3 py-1.5 text-sm"
+          type="date"
+          value={dataInicio}
+          onChange={(e) => {
+            if (e.target.value <= dataFim) onPeriodChange(e.target.value, dataFim);
           }}
-          onChange={(range) => {
-            if (range)
-              onPeriodChange(range.start.toString(), range.end.toString());
+        />
+        <span className="text-sm text-default-500">até</span>
+        <input
+          aria-label="Data fim"
+          className="rounded-lg border border-default-200 bg-transparent px-3 py-1.5 text-sm"
+          type="date"
+          value={dataFim}
+          onChange={(e) => {
+            if (e.target.value >= dataInicio) onPeriodChange(dataInicio, e.target.value);
           }}
         />
         <Select
