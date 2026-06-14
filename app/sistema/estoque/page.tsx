@@ -6,6 +6,15 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
+import { Badge } from "@heroui/badge";
+import { Chip } from "@heroui/chip";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
 import {
   Table,
   TableHeader,
@@ -42,6 +51,7 @@ import {
   ExclamationTriangleIcon,
   DocumentDuplicateIcon,
   ArrowDownTrayIcon,
+  FunnelIcon,
 } from "@heroicons/react/24/outline";
 
 import { supabase } from "@/lib/supabaseClient";
@@ -119,6 +129,7 @@ export default function EstoquePage() {
   const [marcaFiltro, setMarcaFiltro] = useState<string>("todos");
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todos");
   const [estoqueFiltro, setEstoqueFiltro] = useState<string>("todos");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [marcasDisponiveis, setMarcasDisponiveis] = useState<string[]>([]);
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>(
     [],
@@ -602,6 +613,53 @@ export default function EstoquePage() {
     })),
   ];
 
+  // Limpa busca + filtros (reusado pelo botão e pelos chips)
+  const limparTudo = () => {
+    setBusca("");
+    setMarcaFiltro("todos");
+    setCategoriaFiltro("todos");
+    setEstoqueFiltro("todos");
+    setStatusFiltro("ativos");
+  };
+
+  // Filtros ativos como chips removíveis (busca tem campo próprio)
+  const ESTOQUE_LABEL: Record<string, string> = {
+    baixo: "Estoque baixo",
+    sem: "Sem estoque",
+    adequado: "Estoque adequado",
+  };
+  const STATUS_LABEL: Record<string, string> = {
+    inativos: "Inativos",
+    todos: "Todos",
+  };
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (marcaFiltro !== "todos")
+    chipsFiltros.push({
+      key: "marca",
+      label: `Marca: ${marcaFiltro}`,
+      onRemove: () => setMarcaFiltro("todos"),
+    });
+  if (categoriaFiltro !== "todos")
+    chipsFiltros.push({
+      key: "categoria",
+      label: `Categoria: ${categoriaFiltro}`,
+      onRemove: () => setCategoriaFiltro("todos"),
+    });
+  if (estoqueFiltro !== "todos")
+    chipsFiltros.push({
+      key: "estoque",
+      label: `Estoque: ${ESTOQUE_LABEL[estoqueFiltro] ?? estoqueFiltro}`,
+      onRemove: () => setEstoqueFiltro("todos"),
+    });
+  if (statusFiltro !== "ativos")
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${STATUS_LABEL[statusFiltro] ?? statusFiltro}`,
+      onRemove: () => setStatusFiltro("ativos"),
+    });
+
   // Paginação (usando total do servidor)
   const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
 
@@ -731,6 +789,22 @@ export default function EstoquePage() {
                 <Bars3Icon className="h-4 w-4" />
               </Button>
             </div>
+            <Badge
+              color="primary"
+              content={chipsFiltros.length}
+              isInvisible={chipsFiltros.length === 0}
+              size="sm"
+            >
+              <Button
+                radius="md"
+                size="md"
+                startContent={<FunnelIcon className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => setFiltrosAbertos(true)}
+              >
+                Filtros
+              </Button>
+            </Badge>
             <div className="flex items-center gap-2">
               {temPermissao("estoque.visualizar") && (
                 <Button
@@ -762,128 +836,162 @@ export default function EstoquePage() {
           </div>
         </div>
 
-        {/* Linha 2: filtros (grid que preenche a largura) */}
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Autocomplete
-            allowsCustomValue={false}
-            aria-label="Filtro de marca"
-            className="w-full"
-            items={marcasItems}
-            placeholder="Marca"
-            radius="md"
-            selectedKey={marcaFiltro}
-            size="md"
-            variant="bordered"
-            onSelectionChange={(key) => {
-              setMarcaFiltro((key as string) || "todos");
-            }}
-          >
-            {(item) => (
-              <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
-            )}
-          </Autocomplete>
-
-          <Autocomplete
-            allowsCustomValue={false}
-            aria-label="Filtro de categoria"
-            className="w-full"
-            items={categoriasItems}
-            placeholder="Categoria"
-            radius="md"
-            selectedKey={categoriaFiltro}
-            size="md"
-            variant="bordered"
-            onSelectionChange={(key) => {
-              setCategoriaFiltro((key as string) || "todos");
-            }}
-          >
-            {(item) => (
-              <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
-            )}
-          </Autocomplete>
-
-          <Select
-            aria-label="Filtro de nível de estoque"
-            className="w-full"
-            placeholder="Nível de Estoque"
-            radius="md"
-            selectedKeys={[estoqueFiltro]}
-            size="md"
-            variant="bordered"
-            onSelectionChange={(keys) => {
-              const value = Array.from(keys)[0] as string;
-
-              setEstoqueFiltro(value);
-            }}
-          >
-            <SelectItem key="todos">Todos os Estoques</SelectItem>
-            <SelectItem key="baixo">Estoque Baixo</SelectItem>
-            <SelectItem key="sem">Sem Estoque</SelectItem>
-            <SelectItem key="adequado">Estoque Adequado</SelectItem>
-          </Select>
-
-          <Select
-            aria-label="Filtro de status do produto"
-            className="w-full"
-            placeholder="Status do Produto"
-            radius="md"
-            selectedKeys={[statusFiltro]}
-            size="md"
-            variant="bordered"
-            onSelectionChange={(keys) => {
-              const value = Array.from(keys)[0] as
-                | "todos"
-                | "ativos"
-                | "inativos";
-
-              setStatusFiltro(value);
-            }}
-          >
-            <SelectItem key="ativos">Ativos</SelectItem>
-            <SelectItem key="inativos">Inativos</SelectItem>
-            <SelectItem key="todos">Todos</SelectItem>
-          </Select>
-        </div>
-
-        {/* Linha 3: limpar + contagem */}
-        <div className="mt-2 flex items-center gap-3">
-          {(busca ||
-            marcaFiltro !== "todos" ||
-            categoriaFiltro !== "todos" ||
-            estoqueFiltro !== "todos" ||
-            statusFiltro !== "ativos") && (
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
             <Button
-              className="text-default-500"
+              className="h-7 px-2 text-xs text-default-500"
               size="sm"
               variant="light"
-              onPress={() => {
-                setBusca("");
-                setMarcaFiltro("todos");
-                setCategoriaFiltro("todos");
-                setEstoqueFiltro("todos");
-                setStatusFiltro("ativos");
-              }}
+              onPress={limparTudo}
             >
-              Limpar
+              Limpar tudo
             </Button>
-          )}
+          </div>
+        )}
 
+        {/* Contagem */}
+        <div className="mt-2 flex items-center">
           <span className="ml-auto text-xs text-default-500 tabular-nums">
             {totalRegistros.toLocaleString("pt-BR")} produto(s)
           </span>
         </div>
       </div>
 
+      {/* Drawer de Filtros (mesmo padrão de Aparelhos/Vendas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
+            <Autocomplete
+              allowsCustomValue={false}
+              aria-label="Filtro de marca"
+              items={marcasItems}
+              label="Marca"
+              selectedKey={marcaFiltro}
+              variant="bordered"
+              onSelectionChange={(key) => {
+                setMarcaFiltro((key as string) || "todos");
+              }}
+            >
+              {(item) => (
+                <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
+              )}
+            </Autocomplete>
+            <Autocomplete
+              allowsCustomValue={false}
+              aria-label="Filtro de categoria"
+              items={categoriasItems}
+              label="Categoria"
+              selectedKey={categoriaFiltro}
+              variant="bordered"
+              onSelectionChange={(key) => {
+                setCategoriaFiltro((key as string) || "todos");
+              }}
+            >
+              {(item) => (
+                <AutocompleteItem key={item.key}>{item.label}</AutocompleteItem>
+              )}
+            </Autocomplete>
+            <Select
+              aria-label="Filtro de nível de estoque"
+              label="Nível de estoque"
+              selectedKeys={[estoqueFiltro]}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] as string;
+
+                setEstoqueFiltro(value);
+              }}
+            >
+              <SelectItem key="todos">Todos os Estoques</SelectItem>
+              <SelectItem key="baixo">Estoque Baixo</SelectItem>
+              <SelectItem key="sem">Sem Estoque</SelectItem>
+              <SelectItem key="adequado">Estoque Adequado</SelectItem>
+            </Select>
+            <Select
+              aria-label="Filtro de status do produto"
+              label="Status do produto"
+              selectedKeys={[statusFiltro]}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] as
+                  | "todos"
+                  | "ativos"
+                  | "inativos";
+
+                setStatusFiltro(value);
+              }}
+            >
+              <SelectItem key="ativos">Ativos</SelectItem>
+              <SelectItem key="inativos">Inativos</SelectItem>
+              <SelectItem key="todos">Todos</SelectItem>
+            </Select>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparTudo}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
       {/* Visualização em Cards */}
       {visualizacao === "cards" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           {loading ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-default-400">Carregando...</p>
+            <div className="col-span-full flex items-center justify-center py-12">
+              <Spinner color="default" label="Carregando produtos..." />
             </div>
           ) : produtos.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-default-400">Nenhum produto encontrado</p>
+            <div className="col-span-full rounded-xl border border-default-200/70 bg-content1 py-12 text-center">
+              <CubeIcon className="mx-auto mb-3 h-12 w-12 text-default-300" />
+              <p className="text-sm font-medium text-foreground">
+                {chipsFiltros.length > 0 || busca
+                  ? "Nenhum produto para os filtros"
+                  : "Nenhum produto cadastrado"}
+              </p>
+              <p className="mt-1 text-xs text-default-500">
+                {chipsFiltros.length > 0 || busca
+                  ? "Tente ajustar a busca ou limpar os filtros."
+                  : "Cadastre o primeiro produto para começar."}
+              </p>
+              <div className="mt-4">
+                {chipsFiltros.length > 0 || busca ? (
+                  <Button size="sm" variant="flat" onPress={limparTudo}>
+                    Limpar filtros
+                  </Button>
+                ) : temPermissao("estoque.criar") ? (
+                  <Button
+                    color="primary"
+                    size="sm"
+                    startContent={<PlusIcon className="h-4 w-4" />}
+                    onPress={() => {
+                      setProdutoSelecionado(null);
+                      setModalProduto(true);
+                    }}
+                  >
+                    Novo Produto
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ) : (
             produtos.map((produto) => (

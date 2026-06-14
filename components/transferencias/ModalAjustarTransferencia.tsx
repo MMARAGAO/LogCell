@@ -97,9 +97,11 @@ export function ModalAjustarTransferencia({
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
-          <div className="flex items-center gap-2 text-warning">
-            <ExclamationTriangleIcon className="w-6 h-6" />
-            <span className="text-lg font-bold">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-warning-500/15 text-warning shrink-0">
+              <ExclamationTriangleIcon className="w-5 h-5" />
+            </div>
+            <span className="text-lg font-bold text-foreground">
               Ajustar Quantidades da Transferência
             </span>
           </div>

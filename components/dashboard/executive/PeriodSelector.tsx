@@ -125,7 +125,8 @@ export function PeriodSelector({
           type="date"
           value={dataInicio}
           onChange={(e) => {
-            if (e.target.value <= dataFim) onPeriodChange(e.target.value, dataFim);
+            if (e.target.value <= dataFim)
+              onPeriodChange(e.target.value, dataFim);
           }}
         />
         <span className="text-sm text-default-500">até</span>
@@ -135,7 +136,8 @@ export function PeriodSelector({
           type="date"
           value={dataFim}
           onChange={(e) => {
-            if (e.target.value >= dataInicio) onPeriodChange(dataInicio, e.target.value);
+            if (e.target.value >= dataInicio)
+              onPeriodChange(dataInicio, e.target.value);
           }}
         />
         <Select

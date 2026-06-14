@@ -291,11 +291,11 @@ export default function DevolucoesPage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-5">
         <div className="flex items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-100 dark:border-zinc-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center">
-              <PackageX className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <PackageX className="w-5 h-5 text-primary" />
             </div>
             <div>
               <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -342,7 +342,7 @@ export default function DevolucoesPage() {
       </div>
 
       {/* Busca */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-4">
         <p className="text-sm font-semibold text-gray-800 dark:text-white mb-1">
           Buscar venda para devolução
         </p>
@@ -368,7 +368,7 @@ export default function DevolucoesPage() {
       </div>
 
       {/* Tabela */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
         <div className="flex flex-col gap-4 border-b border-gray-100 dark:border-zinc-800 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-0.5">
             <p className="text-sm font-semibold text-gray-800 dark:text-white">
@@ -417,10 +417,10 @@ export default function DevolucoesPage() {
           >
             <TableHeader>
               <TableColumn>VENDA</TableColumn>
-              <TableColumn>DATA</TableColumn>
+              <TableColumn className="hidden md:table-cell">DATA</TableColumn>
               <TableColumn>CLIENTE</TableColumn>
-              <TableColumn>LOJA</TableColumn>
-              <TableColumn>ITENS</TableColumn>
+              <TableColumn className="hidden lg:table-cell">LOJA</TableColumn>
+              <TableColumn className="hidden xl:table-cell">ITENS</TableColumn>
               <TableColumn>VALOR</TableColumn>
               <TableColumn>STATUS</TableColumn>
               <TableColumn>AÇÕES</TableColumn>
@@ -457,7 +457,7 @@ export default function DevolucoesPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                         <Calendar className="w-3.5 h-3.5" />
                         {formatarData(venda.criado_em)}
@@ -480,13 +480,13 @@ export default function DevolucoesPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden lg:table-cell">
                       <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                         <Store className="w-3.5 h-3.5" />
                         {venda.loja?.nome || "Sem loja"}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden xl:table-cell">
                       <div className="space-y-0.5">
                         <p className="text-xs font-medium text-gray-800 dark:text-white">
                           {qtdTotal} {qtdTotal === 1 ? "item" : "itens"}
@@ -522,7 +522,7 @@ export default function DevolucoesPage() {
                             : "Devolução Parcial"}
                         </span>
                       ) : (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-zinc-700">
                           Sem Devoluções
                         </span>
                       )}
@@ -594,29 +594,27 @@ function KpiCard({
   icon,
   value,
   label,
-  color,
-  bg,
-  iconBg,
   sub,
 }: {
   icon: React.ReactNode;
   value: string;
   label: string;
-  color: string;
-  bg: string;
-  iconBg: string;
+  // Props de cor mantidas por compatibilidade, porém ignoradas (visual sóbrio)
+  color?: string;
+  bg?: string;
+  iconBg?: string;
   sub?: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}
-      >
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/40 border border-gray-200 dark:border-zinc-800">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 shrink-0">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className={`text-sm font-bold truncate ${color}`}>{value}</p>
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+          {value}
+        </p>
+        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider truncate">
           {label}
         </p>
         {sub && (

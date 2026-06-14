@@ -652,7 +652,7 @@ export default function NovaTransferenciaPage() {
                   <div
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
                       isActive
-                        ? "bg-primary text-white shadow-md shadow-primary/30 scale-110"
+                        ? "bg-primary text-white ring-4 ring-primary/15"
                         : isCompleted
                           ? "bg-success text-white"
                           : "bg-default-100 text-default-400"

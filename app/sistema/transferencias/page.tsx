@@ -7,6 +7,14 @@ import { useRouter } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
+import { Badge } from "@heroui/badge";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
 import { Select, SelectItem } from "@heroui/select";
 import { Input } from "@heroui/input";
 import { Divider } from "@heroui/divider";
@@ -49,7 +57,7 @@ import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { InputModal } from "@/components/InputModal";
-import { MetricCard } from "@/components/transferencias/MetricCard";
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import { TransferenciaCard } from "@/components/transferencias/TransferenciaCard";
 import { DetalhesTransferenciaModal } from "@/components/transferencias/DetalhesTransferenciaModal";
 import { ModalAjustarTransferencia } from "@/components/transferencias/ModalAjustarTransferencia";
@@ -403,11 +411,42 @@ export default function TransferenciasPage() {
   }, [transferencias]);
 
   const statusChips = [
-    { key: "todas", label: "Todas", color: "default" as const },
-    { key: "pendente", label: "Pendentes", color: "warning" as const },
-    { key: "confirmada", label: "Confirmadas", color: "success" as const },
-    { key: "cancelada", label: "Canceladas", color: "danger" as const },
+    { key: "todas", label: "Todas", count: estatisticas.total },
+    { key: "pendente", label: "Pendentes", count: estatisticas.pendentes },
+    {
+      key: "confirmada",
+      label: "Confirmadas",
+      count: estatisticas.confirmadas,
+    },
+    { key: "cancelada", label: "Canceladas", count: estatisticas.canceladas },
   ];
+
+  // Limpa busca + filtros (reusado pelo botão e chips)
+  const limparTudo = () => {
+    setTermoBusca("");
+    setFiltroStatus("todas");
+    setFiltroLoja("todas");
+    setPagina(1);
+  };
+
+  // Filtros do Drawer ativos (Loja) como chips removíveis
+  // (status fica no segmentado; busca tem campo próprio)
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (filtroLoja !== "todas") {
+    const lojaNome =
+      lojas.find((l) => String(l.id) === filtroLoja)?.nome || filtroLoja;
+
+    chipsFiltros.push({
+      key: "loja",
+      label: `Loja: ${lojaNome}`,
+      onRemove: () => {
+        setFiltroLoja("todas");
+        setPagina(1);
+      },
+    });
+  }
 
   if (loading) {
     return (
@@ -463,31 +502,27 @@ export default function TransferenciasPage() {
       {/* Estatísticas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
-          color="primary"
-          delay={0}
           icon={<ArrowPathRoundedSquareIcon className="h-5 w-5" />}
           label="Total"
           value={estatisticas.total}
         />
         <MetricCard
-          color="warning"
-          delay={100}
+          emphasis={estatisticas.pendentes > 0}
           icon={<ClockIcon className="h-5 w-5" />}
           label="Pendentes"
+          tone="warning"
           value={estatisticas.pendentes}
         />
         <MetricCard
-          color="success"
-          delay={200}
           icon={<CheckCircleIcon className="h-5 w-5" />}
           label="Confirmadas"
           value={estatisticas.confirmadas}
         />
         <MetricCard
-          color="danger"
-          delay={300}
+          emphasis={estatisticas.canceladas > 0}
           icon={<XCircleIcon className="h-5 w-5" />}
           label="Canceladas"
+          tone="danger"
           value={estatisticas.canceladas}
         />
       </div>
@@ -516,6 +551,21 @@ export default function TransferenciasPage() {
                 setPagina(1);
               }}
             />
+            <Badge
+              color="primary"
+              content={chipsFiltros.length}
+              isInvisible={chipsFiltros.length === 0}
+              size="sm"
+            >
+              <Button
+                size="sm"
+                startContent={<FunnelIcon className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => setFiltrosAbertos(true)}
+              >
+                Filtros
+              </Button>
+            </Badge>
             <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-default-100 flex-shrink-0">
               <Button
                 isIconOnly
@@ -540,107 +590,149 @@ export default function TransferenciasPage() {
             </div>
           </div>
 
-          {/* Cabeçalho dos filtros collapsível */}
-          <div className="flex items-center gap-2">
-            <button
-              className="flex items-center gap-1.5 cursor-pointer group"
-              onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-            >
-              <FunnelIcon className="h-4 w-4 text-default-400 group-hover:text-default-600 transition-colors" />
-              <span className="text-xs font-semibold text-default-500 uppercase tracking-wider group-hover:text-default-700 transition-colors">
-                Filtros Avançados
-              </span>
-              <svg
-                className={`h-3.5 w-3.5 text-default-400 transition-transform duration-200 ${filtrosAbertos ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M19 9l-7 7-7-7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-            </button>
-          </div>
+          {/* Segmentado de status */}
+          <div className="flex flex-wrap items-center gap-1 rounded-xl bg-default-100 p-1 w-fit">
+            {statusChips.map((opt) => {
+              const ativo = filtroStatus === opt.key;
 
-          {filtrosAbertos && (
-            <div className="space-y-3 pt-1">
-              {/* Status */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-xs font-semibold text-default-500 uppercase tracking-wider w-16 flex-shrink-0">
-                  Status
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {statusChips.map((chip) => (
-                    <Chip
-                      key={chip.key}
-                      classNames={{
-                        base: "cursor-pointer transition-all",
-                        content: "text-xs font-medium",
-                      }}
-                      color={filtroStatus === chip.key ? chip.color : "default"}
-                      variant={filtroStatus === chip.key ? "solid" : "flat"}
-                      onClick={() => {
-                        setFiltroStatus(chip.key);
-                        setPagina(1);
-                      }}
-                    >
-                      {chip.label}
-                    </Chip>
-                  ))}
-                </div>
-              </div>
-
-              {/* Loja */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <span className="text-xs font-semibold text-default-500 uppercase tracking-wider w-16 flex-shrink-0">
-                  Loja
-                </span>
-                <Select
-                  aria-label="Filtrar por loja"
-                  className="sm:max-w-xs"
-                  items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
-                  placeholder="Todas as Lojas"
-                  selectedKeys={[filtroLoja]}
-                  size="sm"
-                  variant="bordered"
-                  onSelectionChange={(keys) => {
-                    setFiltroLoja(Array.from(keys)[0] as string);
+              return (
+                <button
+                  key={opt.key}
+                  className={`flex items-center gap-1.5 px-3 h-8 rounded-lg text-sm font-medium transition-colors ${
+                    ativo
+                      ? "bg-content1 text-primary shadow-sm"
+                      : "text-default-500 hover:text-default-700"
+                  }`}
+                  type="button"
+                  onClick={() => {
+                    setFiltroStatus(opt.key);
                     setPagina(1);
                   }}
                 >
-                  {(loja) => (
-                    <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
-                  )}
-                </Select>
-              </div>
+                  {opt.label}
+                  <span
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                      ativo
+                        ? "bg-primary/10 text-primary"
+                        : "bg-default-200 text-default-500"
+                    }`}
+                  >
+                    {opt.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Chips de filtros ativos */}
+          {chipsFiltros.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {chipsFiltros.map((chip) => (
+                <Chip
+                  key={chip.key}
+                  size="sm"
+                  variant="flat"
+                  onClose={chip.onRemove}
+                >
+                  {chip.label}
+                </Chip>
+              ))}
+              <Button
+                className="h-7 px-2 text-xs text-default-500"
+                size="sm"
+                variant="light"
+                onPress={limparTudo}
+              >
+                Limpar tudo
+              </Button>
             </div>
           )}
         </CardBody>
       </Card>
 
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
+            <Select
+              aria-label="Filtrar por loja"
+              items={[{ id: "todas", nome: "Todas as Lojas" }, ...lojas]}
+              label="Loja"
+              placeholder="Todas as Lojas"
+              selectedKeys={[filtroLoja]}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                setFiltroLoja(Array.from(keys)[0] as string);
+                setPagina(1);
+              }}
+            >
+              {(loja) => (
+                <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+              )}
+            </Select>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparTudo}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+
       {/* Lista de Transferências */}
       {transferencias.length === 0 ? (
-        <Card shadow="sm">
-          <CardBody className="text-center py-16">
-            <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
-              <ArrowPathRoundedSquareIcon className="h-8 w-8 text-default-300" />
-            </div>
-            <p className="text-lg font-medium text-default-500">
-              Nenhuma transferência encontrada
-            </p>
-            <p className="text-sm text-default-400 mt-1">
-              {filtroStatus !== "todas" || filtroLoja !== "todas"
-                ? "Tente alterar os filtros para ver mais resultados"
-                : temPermissao("transferencias.criar")
-                  ? 'Clique em "Nova Transferência" para começar'
-                  : ""}
-            </p>
-          </CardBody>
-        </Card>
+        (() => {
+          const temFiltros =
+            filtroStatus !== "todas" ||
+            filtroLoja !== "todas" ||
+            termoBusca.trim().length > 0;
+
+          return (
+            <Card shadow="sm">
+              <CardBody className="text-center py-16">
+                <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
+                  <ArrowPathRoundedSquareIcon className="h-8 w-8 text-default-300" />
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {temFiltros
+                    ? "Nenhuma transferência para os filtros"
+                    : "Nenhuma transferência registrada"}
+                </p>
+                <p className="text-xs text-default-500 mt-1">
+                  {temFiltros
+                    ? "Tente ajustar a busca ou limpar os filtros."
+                    : "As transferências entre lojas aparecerão aqui."}
+                </p>
+                <div className="mt-4">
+                  {temFiltros ? (
+                    <Button size="sm" variant="flat" onPress={limparTudo}>
+                      Limpar filtros
+                    </Button>
+                  ) : temPermissao("transferencias.criar") ? (
+                    <Button
+                      color="primary"
+                      size="sm"
+                      startContent={<PlusIcon className="h-4 w-4" />}
+                      onPress={() =>
+                        router.push("/sistema/transferencias/nova")
+                      }
+                    >
+                      Nova Transferência
+                    </Button>
+                  ) : null}
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })()
       ) : (
         <div className="space-y-4">
           {/* Agrupamentos */}

@@ -102,7 +102,7 @@ export function DetalhesTransferenciaModal({
             <ModalHeader className="flex flex-col gap-1 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary-500/15 text-primary">
+                  <div className="p-2 rounded-lg bg-default-100 text-default-600">
                     <ArrowRightIcon className="h-5 w-5" />
                   </div>
                   <div>
@@ -191,7 +191,7 @@ export function DetalhesTransferenciaModal({
                         <p className="text-xs text-default-400 uppercase tracking-wider font-medium">
                           Total de Itens
                         </p>
-                        <p className="text-2xl font-bold text-primary">
+                        <p className="text-2xl font-bold text-foreground">
                           {transferencia.itens.length}
                         </p>
                       </div>

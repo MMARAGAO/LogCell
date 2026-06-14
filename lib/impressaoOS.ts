@@ -2303,8 +2303,11 @@ export const gerarCupomTermicoPDFOrcamento = async (
         doc.text(`IMEI: ${aparelho.equipamento_imei}`, 5, y);
         y += 3.5;
       }
-      doc.text(`Estado: ${aparelho.estado_equipamento || ""}`, 5, y);
-      y += 5;
+      const estadoTexto = `Estado: ${aparelho.estado_equipamento || ""}`;
+
+      doc.text(estadoTexto, 5, y, { maxWidth: pageWidth - 10 });
+      y +=
+        doc.getTextDimensions(estadoTexto, { maxWidth: pageWidth - 10 }).h + 2;
 
       // ========== PROBLEMA ==========
       if (y > 218) {

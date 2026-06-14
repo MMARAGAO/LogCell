@@ -14,12 +14,18 @@ import {
   CardBody,
   CardHeader,
   Chip,
+  Badge,
   Input,
   Spinner,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
   Table,
   TableHeader,
   TableColumn,
@@ -47,12 +53,13 @@ import {
   Wallet,
   Printer,
   Filter,
-  ChevronDown,
-  ChevronUp,
   History,
   CheckCircle,
+  TrendingUp,
+  Package,
 } from "lucide-react";
 
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import { NovaVendaModal } from "@/components/vendas/NovaVendaModal";
 import { AdicionarPagamentoModal } from "@/components/vendas/AdicionarPagamentoModal";
 import { EditarPagamentoVendaModal } from "@/components/vendas/EditarPagamentoVendaModal";
@@ -1402,17 +1409,84 @@ export default function VendasPage() {
     );
   }
 
+  const limparTudo = () => {
+    setBusca("");
+    setFiltroStatus("todas");
+    setFiltroLoja("todas");
+    setFiltroFormaPagamento("todas");
+    setFiltroCliente("todos");
+    setFiltroDataInicio(hoje);
+    setFiltroDataFim(hoje);
+    setFiltroVencidas(false);
+    setOrdenacao("mais_recentes");
+  };
+
+  // Filtros ativos como chips removíveis (status = segmentado; busca = campo próprio)
+  const FP_LABEL: Record<string, string> = {
+    fiada: "Fiada",
+    dinheiro: "Dinheiro",
+    pix: "PIX",
+    cartao_credito: "Cartão de Crédito",
+    cartao_debito: "Cartão de Débito",
+    transferencia: "Transferência",
+    boleto: "Boleto",
+    credito_cliente: "Crédito do Cliente",
+  };
+  const periodoCustomizado =
+    filtroDataInicio !== hoje || filtroDataFim !== hoje;
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (filtroLoja !== "todas")
+    chipsFiltros.push({
+      key: "loja",
+      label: `Loja: ${lojas.find((l) => l.id.toString() === filtroLoja)?.nome || filtroLoja}`,
+      onRemove: () => setFiltroLoja("todas"),
+    });
+  if (filtroFormaPagamento !== "todas")
+    chipsFiltros.push({
+      key: "forma",
+      label: `Pagamento: ${FP_LABEL[filtroFormaPagamento] || filtroFormaPagamento}`,
+      onRemove: () => setFiltroFormaPagamento("todas"),
+    });
+  if (filtroCliente !== "todos")
+    chipsFiltros.push({
+      key: "cliente",
+      label: `Cliente: ${clientes.find((c) => c.id === filtroCliente)?.nome || filtroCliente}`,
+      onRemove: () => setFiltroCliente("todos"),
+    });
+  if (periodoCustomizado)
+    chipsFiltros.push({
+      key: "periodo",
+      label: `Período: ${filtroDataInicio || "—"} a ${filtroDataFim || "—"}`,
+      onRemove: () => {
+        setFiltroDataInicio(hoje);
+        setFiltroDataFim(hoje);
+      },
+    });
+  if (filtroVencidas)
+    chipsFiltros.push({
+      key: "vencidas",
+      label: "Apenas vencidas",
+      onRemove: () => setFiltroVencidas(false),
+    });
+
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-[1800px] mx-auto">
       {/* Header */}
-      <div className="mb-4 sm:mb-6 flex flex-col gap-3 sm:gap-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
-            Vendas
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-600">
-            Gerencie suas vendas e acompanhe o desempenho
-          </p>
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0">
+            <ShoppingCart className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+              Vendas
+            </h1>
+            <p className="text-xs sm:text-sm text-default-500 mt-0.5">
+              Gerencie suas vendas e acompanhe o desempenho
+            </p>
+          </div>
         </div>
         <div className="flex flex-row gap-2 w-full sm:w-auto justify-start sm:justify-end">
           {temPermissao("vendas.criar") && (
@@ -1458,68 +1532,46 @@ export default function VendasPage() {
 
       {/* Estatísticas */}
       {temPermissao("vendas.ver_estatisticas_faturamento") && (
-        <Card className="mb-6">
-          <CardBody>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/30">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">
-                  Total Vendido
-                </span>
-                <span className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                  {formatarMoeda(estatisticas.valorTotalVendido)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/30">
-                <span className="text-xs font-medium text-green-600 dark:text-green-400 uppercase tracking-wide">
-                  Vendido Hoje
-                </span>
-                <span className="text-lg font-bold text-green-700 dark:text-green-300">
-                  {formatarMoeda(estatisticas.valorTotalHoje)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/30">
-                <span className="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide">
-                  Total de Vendas
-                </span>
-                <span className="text-lg font-bold text-purple-700 dark:text-purple-300">
-                  {estatisticas.totalVendas}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/30">
-                <span className="text-xs font-medium text-orange-600 dark:text-orange-400 uppercase tracking-wide">
-                  Vendas Hoje
-                </span>
-                <span className="text-lg font-bold text-orange-700 dark:text-orange-300">
-                  {estatisticas.vendasHoje}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-900/30">
-                <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 uppercase tracking-wide">
-                  Ticket Médio
-                </span>
-                <span className="text-lg font-bold text-cyan-700 dark:text-cyan-300">
-                  {formatarMoeda(estatisticas.ticketMedio)}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 p-3 rounded-xl bg-gradient-to-br from-rose-50 to-rose-100 dark:from-rose-900/20 dark:to-rose-900/30">
-                <span className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wide">
-                  Produtos Vendidos
-                </span>
-                <span className="text-lg font-bold text-rose-700 dark:text-rose-300">
-                  {estatisticas.produtosVendidos}
-                </span>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
+        <div className="mb-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+          <MetricCard
+            icon={<DollarSign className="h-5 w-5" />}
+            label="Total Vendido"
+            value={formatarMoeda(estatisticas.valorTotalVendido)}
+          />
+          <MetricCard
+            icon={<TrendingUp className="h-5 w-5" />}
+            label="Vendido Hoje"
+            value={formatarMoeda(estatisticas.valorTotalHoje)}
+          />
+          <MetricCard
+            icon={<ShoppingCart className="h-5 w-5" />}
+            label="Total de Vendas"
+            value={estatisticas.totalVendas}
+          />
+          <MetricCard
+            icon={<CheckCircle className="h-5 w-5" />}
+            label="Vendas Hoje"
+            value={estatisticas.vendasHoje}
+          />
+          <MetricCard
+            icon={<Wallet className="h-5 w-5" />}
+            label="Ticket Médio"
+            value={formatarMoeda(estatisticas.ticketMedio)}
+          />
+          <MetricCard
+            icon={<Package className="h-5 w-5" />}
+            label="Produtos Vendidos"
+            value={estatisticas.produtosVendidos}
+          />
+        </div>
       )}
 
       {/* Filtros */}
       <Card className="mb-6">
         <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Linha de busca e botão de filtros */}
-            <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col gap-3">
+            {/* Busca + Filtros + visualização */}
+            <div className="flex flex-col md:flex-row gap-3">
               <Input
                 className="flex-1"
                 placeholder="Buscar por número ou cliente..."
@@ -1527,225 +1579,251 @@ export default function VendasPage() {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
               />
-              <Button
-                className="w-full md:w-auto"
-                color="primary"
-                endContent={
-                  mostrarFiltros ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )
-                }
-                startContent={<Filter className="w-4 h-4" />}
-                variant="flat"
-                onClick={() => setMostrarFiltros(!mostrarFiltros)}
-              >
-                {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge
+                  color="primary"
+                  content={chipsFiltros.length}
+                  isInvisible={chipsFiltros.length === 0}
+                  size="sm"
+                >
+                  <Button
+                    startContent={<Filter className="w-4 h-4" />}
+                    variant="flat"
+                    onClick={() => setMostrarFiltros(true)}
+                  >
+                    Filtros
+                  </Button>
+                </Badge>
+                <div className="flex items-center gap-1 p-1 rounded-xl bg-default-100">
+                  <Button
+                    isIconOnly
+                    aria-label="Visualização em cards"
+                    className="h-8 w-8 min-w-0"
+                    color={visualizacao === "cards" ? "primary" : "default"}
+                    size="sm"
+                    variant={visualizacao === "cards" ? "solid" : "light"}
+                    onClick={() => setVisualizacao("cards")}
+                  >
+                    <Grid className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    isIconOnly
+                    aria-label="Visualização em tabela"
+                    className="h-8 w-8 min-w-0"
+                    color={visualizacao === "tabela" ? "primary" : "default"}
+                    size="sm"
+                    variant={visualizacao === "tabela" ? "solid" : "light"}
+                    onClick={() => setVisualizacao("tabela")}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
 
-            {/* Filtros avançados (colapsáveis) */}
-            {mostrarFiltros && (
-              <>
-                {/* Primeira linha de filtros */}
-                <div className="flex flex-col md:flex-row gap-4">
-                  <Select
-                    className="w-full md:w-48"
-                    label="Status"
-                    selectedKeys={[filtroStatus]}
-                    onChange={(e) => setFiltroStatus(e.target.value)}
+            {/* Segmentado de status */}
+            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-default-100 p-1 w-fit">
+              {[
+                { key: "todas", label: "Todas" },
+                { key: "em_andamento", label: "Em Andamento" },
+                { key: "concluida", label: "Concluídas" },
+                { key: "cancelada", label: "Canceladas" },
+              ].map((opt) => {
+                const ativo = filtroStatus === opt.key;
+
+                return (
+                  <button
+                    key={opt.key}
+                    className={`px-3 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      ativo
+                        ? "bg-content1 text-primary shadow-sm"
+                        : "text-default-500 hover:text-default-700"
+                    }`}
+                    type="button"
+                    onClick={() => setFiltroStatus(opt.key)}
                   >
-                    <SelectItem key="todas">Todas</SelectItem>
-                    <SelectItem key="em_andamento">Em Andamento</SelectItem>
-                    <SelectItem key="concluida">Concluídas</SelectItem>
-                    <SelectItem key="cancelada">Canceladas</SelectItem>
-                  </Select>
-                  <Select
-                    className="w-full md:w-48"
-                    label="Loja"
-                    selectedKeys={[filtroLoja]}
-                    onChange={(e) => setFiltroLoja(e.target.value)}
-                  >
-                    {podeVerTodasLojas
-                      ? // Usuário pode ver todas as lojas
-                        ([
-                          <SelectItem key="todas">Todas as Lojas</SelectItem>,
-                          ...lojas.map((loja) => (
-                            <SelectItem key={loja.id.toString()}>
-                              {loja.nome}
-                            </SelectItem>
-                          )),
-                        ] as any)
-                      : // Usuário tem acesso a uma loja específica - mostrar apenas essa
-                        ([
-                          lojas
-                            .filter((l) => l.id === lojaId)
-                            .map((loja) => (
-                              <SelectItem key={loja.id.toString()}>
-                                {loja.nome}
-                              </SelectItem>
-                            )),
-                        ] as any)}
-                  </Select>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
 
-                  {/* Botões de visualização */}
-                  <div className="flex gap-2">
-                    <Button
-                      isIconOnly
-                      color={visualizacao === "cards" ? "primary" : "default"}
-                      variant={visualizacao === "cards" ? "solid" : "flat"}
-                      onClick={() => setVisualizacao("cards")}
-                    >
-                      <Grid className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      color={visualizacao === "tabela" ? "primary" : "default"}
-                      variant={visualizacao === "tabela" ? "solid" : "flat"}
-                      onClick={() => setVisualizacao("tabela")}
-                    >
-                      <List className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Segunda linha de filtros */}
-                <div className="flex flex-col md:flex-row gap-4">
-                  <Select
-                    className="w-full md:w-56"
-                    label="Forma de Pagamento"
-                    selectedKeys={[filtroFormaPagamento]}
-                    onChange={(e) => setFiltroFormaPagamento(e.target.value)}
-                  >
-                    <SelectItem key="todas">Todas</SelectItem>
-                    <SelectItem key="fiada">Fiada</SelectItem>
-                    <SelectItem key="dinheiro">Dinheiro</SelectItem>
-                    <SelectItem key="pix">PIX</SelectItem>
-                    <SelectItem key="cartao_credito">
-                      Cartão de Crédito
-                    </SelectItem>
-                    <SelectItem key="cartao_debito">
-                      Cartão de Débito
-                    </SelectItem>
-                    <SelectItem key="transferencia">Transferência</SelectItem>
-                    <SelectItem key="boleto">Boleto</SelectItem>
-                    <SelectItem key="credito_cliente">
-                      Crédito do Cliente
-                    </SelectItem>
-                  </Select>
-
-                  <Select
-                    className="w-full md:w-64"
-                    label="Cliente"
-                    selectedKeys={[filtroCliente]}
-                    onChange={(e) => setFiltroCliente(e.target.value)}
-                  >
-                    {
-                      [
-                        <SelectItem key="todos">Todos os Clientes</SelectItem>,
-                        ...clientes.map((cliente) => (
-                          <SelectItem key={cliente.id}>
-                            {cliente.nome}
-                          </SelectItem>
-                        )),
-                      ] as any
-                    }
-                  </Select>
-
-                  <Input
-                    className="w-full md:w-48"
-                    label="Data Início"
-                    type="date"
-                    value={filtroDataInicio}
-                    onChange={(e) => setFiltroDataInicio(e.target.value)}
-                  />
-
-                  <Input
-                    className="w-full md:w-48"
-                    label="Data Fim"
-                    type="date"
-                    value={filtroDataFim}
-                    onChange={(e) => setFiltroDataFim(e.target.value)}
-                  />
-
-                  <Button
-                    className="whitespace-nowrap"
-                    color="default"
-                    size="md"
+            {/* Chips de filtros ativos */}
+            {chipsFiltros.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {chipsFiltros.map((chip) => (
+                  <Chip
+                    key={chip.key}
+                    size="sm"
                     variant="flat"
-                    onClick={() => {
-                      setFiltroDataInicio("");
-                      setFiltroDataFim("");
-                    }}
+                    onClose={chip.onRemove}
                   >
-                    Limpar Datas
-                  </Button>
-
-                  <Checkbox
-                    color="primary"
-                    isSelected={filtroVencidas}
-                    size="md"
-                    onValueChange={setFiltroVencidas}
-                  >
-                    Apenas Vencidas
-                  </Checkbox>
-                </div>
-
-                {/* Terceira linha - Ordenação */}
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                  <Select
-                    className="w-full md:w-64"
-                    label="Ordenar por"
-                    selectedKeys={[ordenacao]}
-                    onChange={(e) => setOrdenacao(e.target.value)}
-                  >
-                    <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
-                    <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
-                    <SelectItem key="cliente_az">Cliente (A-Z)</SelectItem>
-                    <SelectItem key="cliente_za">Cliente (Z-A)</SelectItem>
-                    <SelectItem key="valor_maior">Maior Valor</SelectItem>
-                    <SelectItem key="valor_menor">Menor Valor</SelectItem>
-                    <SelectItem key="numero_crescente">
-                      Número Crescente
-                    </SelectItem>
-                    <SelectItem key="numero_decrescente">
-                      Número Decrescente
-                    </SelectItem>
-                    <SelectItem key="saldo_devedor">
-                      Maior Saldo Devedor
-                    </SelectItem>
-                  </Select>
-
-                  <Select
-                    className="w-full md:w-40"
-                    label="Itens por página"
-                    selectedKeys={[itensPorPagina.toString()]}
-                    onChange={(e) => {
-                      setItensPorPagina(Number(e.target.value));
-                      setPaginaAtual(1);
-                    }}
-                  >
-                    <SelectItem key="12">12</SelectItem>
-                    <SelectItem key="24">24</SelectItem>
-                    <SelectItem key="48">48</SelectItem>
-                    <SelectItem key="96">96</SelectItem>
-                  </Select>
-
-                  <div className="text-sm text-gray-600 px-2 py-2">
-                    <span className="font-semibold">
-                      {estatisticas.totalCount || vendasOrdenadas.length}
-                    </span>{" "}
-                    {(estatisticas.totalCount || vendasOrdenadas.length) === 1
-                      ? "venda encontrada"
-                      : "vendas encontradas"}
-                  </div>
-                </div>
-              </>
+                    {chip.label}
+                  </Chip>
+                ))}
+                <Button
+                  className="h-7 px-2 text-xs text-default-500"
+                  size="sm"
+                  variant="light"
+                  onClick={limparTudo}
+                >
+                  Limpar tudo
+                </Button>
+              </div>
             )}
+
+            {/* Contagem */}
+            <div className="text-xs text-default-500">
+              <span className="font-semibold text-default-700">
+                {estatisticas.totalCount || vendasOrdenadas.length}
+              </span>{" "}
+              {(estatisticas.totalCount || vendasOrdenadas.length) === 1
+                ? "venda encontrada"
+                : "vendas encontradas"}
+            </div>
           </div>
         </CardBody>
       </Card>
+
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={mostrarFiltros}
+        size="sm"
+        onOpenChange={setMostrarFiltros}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
+            <Select
+              label="Loja"
+              selectedKeys={[filtroLoja]}
+              variant="bordered"
+              onChange={(e) => setFiltroLoja(e.target.value)}
+            >
+              {podeVerTodasLojas
+                ? ([
+                    <SelectItem key="todas">Todas as Lojas</SelectItem>,
+                    ...lojas.map((loja) => (
+                      <SelectItem key={loja.id.toString()}>
+                        {loja.nome}
+                      </SelectItem>
+                    )),
+                  ] as any)
+                : ([
+                    lojas
+                      .filter((l) => l.id === lojaId)
+                      .map((loja) => (
+                        <SelectItem key={loja.id.toString()}>
+                          {loja.nome}
+                        </SelectItem>
+                      )),
+                  ] as any)}
+            </Select>
+
+            <Select
+              label="Forma de pagamento"
+              selectedKeys={[filtroFormaPagamento]}
+              variant="bordered"
+              onChange={(e) => setFiltroFormaPagamento(e.target.value)}
+            >
+              <SelectItem key="todas">Todas</SelectItem>
+              <SelectItem key="fiada">Fiada</SelectItem>
+              <SelectItem key="dinheiro">Dinheiro</SelectItem>
+              <SelectItem key="pix">PIX</SelectItem>
+              <SelectItem key="cartao_credito">Cartão de Crédito</SelectItem>
+              <SelectItem key="cartao_debito">Cartão de Débito</SelectItem>
+              <SelectItem key="transferencia">Transferência</SelectItem>
+              <SelectItem key="boleto">Boleto</SelectItem>
+              <SelectItem key="credito_cliente">Crédito do Cliente</SelectItem>
+            </Select>
+
+            <Select
+              label="Cliente"
+              selectedKeys={[filtroCliente]}
+              variant="bordered"
+              onChange={(e) => setFiltroCliente(e.target.value)}
+            >
+              {
+                [
+                  <SelectItem key="todos">Todos os Clientes</SelectItem>,
+                  ...clientes.map((cliente) => (
+                    <SelectItem key={cliente.id}>{cliente.nome}</SelectItem>
+                  )),
+                ] as any
+              }
+            </Select>
+
+            <Input
+              label="Data de início"
+              labelPlacement="outside"
+              placeholder=" "
+              type="date"
+              value={filtroDataInicio}
+              variant="bordered"
+              onChange={(e) => setFiltroDataInicio(e.target.value)}
+            />
+            <Input
+              label="Data de fim"
+              labelPlacement="outside"
+              placeholder=" "
+              type="date"
+              value={filtroDataFim}
+              variant="bordered"
+              onChange={(e) => setFiltroDataFim(e.target.value)}
+            />
+
+            <Checkbox
+              color="primary"
+              isSelected={filtroVencidas}
+              onValueChange={setFiltroVencidas}
+            >
+              Apenas vencidas
+            </Checkbox>
+
+            <Select
+              label="Ordenar por"
+              selectedKeys={[ordenacao]}
+              variant="bordered"
+              onChange={(e) => setOrdenacao(e.target.value)}
+            >
+              <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
+              <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
+              <SelectItem key="cliente_az">Cliente (A-Z)</SelectItem>
+              <SelectItem key="cliente_za">Cliente (Z-A)</SelectItem>
+              <SelectItem key="valor_maior">Maior Valor</SelectItem>
+              <SelectItem key="valor_menor">Menor Valor</SelectItem>
+              <SelectItem key="numero_crescente">Número Crescente</SelectItem>
+              <SelectItem key="numero_decrescente">
+                Número Decrescente
+              </SelectItem>
+              <SelectItem key="saldo_devedor">Maior Saldo Devedor</SelectItem>
+            </Select>
+
+            <Select
+              label="Itens por página"
+              selectedKeys={[itensPorPagina.toString()]}
+              variant="bordered"
+              onChange={(e) => {
+                setItensPorPagina(Number(e.target.value));
+                setPaginaAtual(1);
+              }}
+            >
+              <SelectItem key="12">12</SelectItem>
+              <SelectItem key="24">24</SelectItem>
+              <SelectItem key="48">48</SelectItem>
+              <SelectItem key="96">96</SelectItem>
+            </Select>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onClick={limparTudo}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onClick={() => setMostrarFiltros(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Lista de Vendas - Cards */}
       {visualizacao === "cards" && (
@@ -1788,68 +1866,51 @@ export default function VendasPage() {
                 </Chip>
               </CardHeader>
               <CardBody className="pt-0">
-                <div className="space-y-3 mb-4 bg-default-100 dark:bg-default-200/30 rounded-lg p-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-default-700 dark:text-gray-100 font-bold">
-                      Loja:
-                    </span>
-                    <span className="font-bold text-default-900 dark:text-white">
+                <div className="space-y-2 mb-4 bg-default-100 dark:bg-default-200/30 rounded-lg p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-default-500">Loja</span>
+                    <span className="font-medium text-foreground">
                       {venda.loja?.nome}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-default-700 dark:text-gray-100 font-bold">
-                      Vendedor:
-                    </span>
-                    <span className="font-bold text-default-900 dark:text-white">
+                  <div className="flex justify-between">
+                    <span className="text-default-500">Vendedor</span>
+                    <span className="font-medium text-foreground">
                       {venda.vendedor?.nome}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-default-700 dark:text-gray-100 font-bold">
-                      Data:
-                    </span>
-                    <span className="font-bold text-default-900 dark:text-white">
+                  <div className="flex justify-between">
+                    <span className="text-default-500">Data</span>
+                    <span className="font-medium text-foreground">
                       {venda.criado_em && formatarData(venda.criado_em)}
                     </span>
                   </div>
                   {venda.tipo === "fiada" && (
-                    <div className="pt-2">
-                      <Chip
-                        className="font-semibold"
-                        color="warning"
-                        size="sm"
-                        variant="flat"
-                      >
+                    <div className="pt-1">
+                      <Chip color="warning" size="sm" variant="flat">
                         Venda Fiada
                       </Chip>
                     </div>
                   )}
                 </div>
 
-                <div className="border-t border-default-300 dark:border-default-500 pt-3 space-y-2">
+                <div className="border-t border-default-200 pt-3 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-default-800 dark:text-gray-100">
-                      Total:
-                    </span>
-                    <span className="font-bold text-xl text-primary">
+                    <span className="text-sm text-default-500">Total</span>
+                    <span className="font-semibold text-xl text-foreground">
                       {formatarMoeda(venda.valor_total)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="font-bold text-default-800 dark:text-gray-100">
-                      Pago:
-                    </span>
-                    <span className="text-success-700 dark:text-green-400 font-bold text-lg">
+                    <span className="text-default-500">Pago</span>
+                    <span className="font-medium text-default-700 dark:text-default-300">
                       {formatarMoeda(venda.valor_pago)}
                     </span>
                   </div>
                   {venda.saldo_devedor > 0 && (
                     <div className="flex justify-between items-center text-sm">
-                      <span className="font-bold text-default-800 dark:text-gray-100">
-                        Saldo:
-                      </span>
-                      <span className="text-danger-700 dark:text-red-400 font-bold text-lg">
+                      <span className="text-default-500">Saldo</span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">
                         {formatarMoeda(venda.saldo_devedor)}
                       </span>
                     </div>
@@ -1939,14 +2000,16 @@ export default function VendasPage() {
               <TableHeader>
                 <TableColumn>NÚMERO</TableColumn>
                 <TableColumn>CLIENTE</TableColumn>
-                <TableColumn>LOJA</TableColumn>
-                <TableColumn>DATA</TableColumn>
-                <TableColumn>TIPO</TableColumn>
+                <TableColumn className="hidden lg:table-cell">LOJA</TableColumn>
+                <TableColumn className="hidden md:table-cell">DATA</TableColumn>
+                <TableColumn className="hidden xl:table-cell">TIPO</TableColumn>
                 <TableColumn>STATUS</TableColumn>
                 <TableColumn>VALOR</TableColumn>
-                <TableColumn>PAGO</TableColumn>
+                <TableColumn className="hidden md:table-cell">PAGO</TableColumn>
                 <TableColumn>RESTANTE</TableColumn>
-                <TableColumn>DEVOLUÇÕES</TableColumn>
+                <TableColumn className="hidden xl:table-cell">
+                  DEVOLUÇÕES
+                </TableColumn>
                 <TableColumn align="center">AÇÕES</TableColumn>
               </TableHeader>
               <TableBody>
@@ -1959,13 +2022,15 @@ export default function VendasPage() {
                         </span>
                       </TableCell>
                       <TableCell>{venda.cliente?.nome || "Cliente"}</TableCell>
-                      <TableCell>{venda.loja?.nome}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {venda.loja?.nome}
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <span className="text-sm">
                           {venda.criado_em && formatarData(venda.criado_em)}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden xl:table-cell">
                         {venda.tipo === "fiada" ? (
                           <Chip color="warning" size="sm" variant="flat">
                             Fiada
@@ -2000,23 +2065,23 @@ export default function VendasPage() {
                         </Chip>
                       </TableCell>
                       <TableCell>
-                        <span className="font-bold text-primary">
+                        <span className="font-semibold text-foreground">
                           {formatarMoeda(venda.valor_total)}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <span className="font-semibold text-success">
+                      <TableCell className="hidden md:table-cell">
+                        <span className="font-medium text-default-600">
                           {formatarMoeda(venda.valor_pago)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`font-semibold ${venda.saldo_devedor > 0 ? "text-warning" : "text-gray-400"}`}
+                          className={`font-semibold ${venda.saldo_devedor > 0 ? "text-amber-600 dark:text-amber-400" : "text-default-400"}`}
                         >
                           {formatarMoeda(venda.saldo_devedor)}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden xl:table-cell">
                         {(() => {
                           const qtdDevolvida =
                             venda.itens?.reduce(
@@ -2097,28 +2162,36 @@ export default function VendasPage() {
                         <span className="font-bold">TOTAL</span>
                       </TableCell>
                       <TableCell className="text-default-400">-</TableCell>
-                      <TableCell className="text-default-400">-</TableCell>
-                      <TableCell className="text-default-400">-</TableCell>
-                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="hidden lg:table-cell text-default-400">
+                        -
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-default-400">
+                        -
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell text-default-400">
+                        -
+                      </TableCell>
                       <TableCell className="text-default-400">-</TableCell>
                       <TableCell>
-                        <span className="font-extrabold text-primary">
+                        <span className="font-extrabold text-foreground">
                           {formatarMoeda(totaisTabela.valorTotal)}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <span className="font-extrabold text-success">
+                      <TableCell className="hidden md:table-cell">
+                        <span className="font-extrabold text-default-600">
                           {formatarMoeda(totaisTabela.valorPago)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`font-extrabold ${totaisTabela.saldoDevedor > 0 ? "text-warning" : "text-gray-400"}`}
+                          className={`font-extrabold ${totaisTabela.saldoDevedor > 0 ? "text-amber-600 dark:text-amber-400" : "text-default-400"}`}
                         >
                           {formatarMoeda(totaisTabela.saldoDevedor)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-default-400">-</TableCell>
+                      <TableCell className="hidden xl:table-cell text-default-400">
+                        -
+                      </TableCell>
                       <TableCell className="text-default-400">-</TableCell>
                     </TableRow>
                   )}
@@ -2129,17 +2202,50 @@ export default function VendasPage() {
         </Card>
       )}
 
-      {vendasOrdenadas.length === 0 && (
-        <Card>
-          <CardBody className="text-center py-12">
-            <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-2">Nenhuma venda encontrada</p>
-            <p className="text-sm text-gray-500">
-              Clique em &quot;Nova Venda&quot; para começar
-            </p>
-          </CardBody>
-        </Card>
-      )}
+      {vendasOrdenadas.length === 0 &&
+        (() => {
+          const temFiltros =
+            chipsFiltros.length > 0 ||
+            busca.trim().length > 0 ||
+            filtroStatus !== "todas" ||
+            periodoCustomizado;
+
+          return (
+            <Card>
+              <CardBody className="text-center py-12">
+                <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
+                  <ShoppingCart className="w-8 h-8 text-default-300" />
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {temFiltros
+                    ? "Nenhuma venda para os filtros"
+                    : "Nenhuma venda registrada"}
+                </p>
+                <p className="text-xs text-default-500 mt-1">
+                  {temFiltros
+                    ? "Tente ajustar a busca ou limpar os filtros."
+                    : "Registre a primeira venda para começar."}
+                </p>
+                <div className="mt-4">
+                  {temFiltros ? (
+                    <Button size="sm" variant="flat" onClick={limparTudo}>
+                      Limpar filtros
+                    </Button>
+                  ) : temPermissao("vendas.criar") ? (
+                    <Button
+                      color="primary"
+                      size="sm"
+                      startContent={<Plus className="w-4 h-4" />}
+                      onClick={() => setModalNovaVendaOpen(true)}
+                    >
+                      Nova Venda
+                    </Button>
+                  ) : null}
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })()}
 
       {/* Paginação */}
       {vendasOrdenadas.length > 0 && totalPaginas > 1 && (
