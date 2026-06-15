@@ -41,19 +41,16 @@ const statusConfig = {
     color: "warning" as const,
     label: "Pendente",
     icon: ClockIcon,
-    borderColor: "border-l-warning",
   },
   confirmada: {
     color: "success" as const,
     label: "Confirmada",
     icon: CheckCircleIcon,
-    borderColor: "border-l-success",
   },
   cancelada: {
     color: "danger" as const,
     label: "Cancelada",
     icon: XCircleIcon,
-    borderColor: "border-l-danger",
   },
 };
 
@@ -72,7 +69,7 @@ export function TransferenciaCard({
 
   return (
     <Card
-      className={`border-l-4 ${config.borderColor} transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 animate-fade-in`}
+      className="border border-default-200/70 shadow-sm transition-shadow hover:shadow-md animate-fade-in"
       shadow="sm"
     >
       <CardBody className="p-4 sm:p-5">
@@ -96,7 +93,7 @@ export function TransferenciaCard({
                 <span className="font-semibold text-foreground truncate max-w-[130px] sm:max-w-[200px]">
                   {transferencia.loja_origem}
                 </span>
-                <ArrowRightIcon className="h-4 w-4 text-primary flex-shrink-0" />
+                <ArrowRightIcon className="h-4 w-4 text-default-400 flex-shrink-0" />
                 <span className="font-semibold text-foreground truncate max-w-[130px] sm:max-w-[200px]">
                   {transferencia.loja_destino}
                 </span>
@@ -173,7 +170,6 @@ export function TransferenciaCard({
                     base: "max-w-[180px]",
                     content: "truncate text-xs",
                   }}
-                  color="primary"
                   size="sm"
                   variant="flat"
                 >

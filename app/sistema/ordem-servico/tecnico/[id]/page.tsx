@@ -551,13 +551,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
   return (
     <div className="space-y-6 pb-8 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+      <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
               isIconOnly
               aria-label="Voltar"
-              className="text-gray-400 hover:text-gray-600"
+              className="text-default-400 hover:text-default-600"
               variant="light"
               onPress={() => router.back()}
             >
@@ -565,18 +565,18 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </Button>
             <div>
               <div className="flex items-center gap-2.5 mb-1">
-                <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-default-400 uppercase tracking-wider">
                   Ordem de Serviço
                 </span>
-                <span className="text-xs text-gray-300">
+                <span className="text-xs text-default-300">
                   #{ordem.numero_os}
                 </span>
               </div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl font-bold text-foreground">
                 {ordem.cliente_nome}
               </h1>
               <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-default-500">
                   Criada em{" "}
                   {new Date(ordem.criado_em).toLocaleDateString("pt-BR", {
                     day: "2-digit",
@@ -585,7 +585,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   })}
                 </p>
                 {ordem.criado_por && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-default-400">
                     • {ordem.criado_por}
                   </span>
                 )}
@@ -600,12 +600,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   : ordem.status === "concluido"
                     ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                     : ordem.status === "aguardando"
-                      ? "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
+                      ? "bg-default-100 text-default-500 border border-default-200"
                       : ordem.status === "em_diagnostico"
                         ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
                         : ordem.status === "aguardando_peca"
                           ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800"
-                          : "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700"
+                          : "bg-default-100 text-default-500 border border-default-200"
               }`}
             >
               {getStatusLabel(ordem.status)}
@@ -630,7 +630,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
         </div>
 
         {/* Quick Info Row */}
-        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-default-200/70">
           {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
             <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
               <CurrencyDollarIcon className="w-3 h-3" />
@@ -661,7 +661,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </span>
           )}
           {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border border-gray-200 dark:border-zinc-700 flex items-center gap-1.5">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-default-100 text-default-500 border border-default-200 flex items-center gap-1.5">
               <ShieldCheckIcon className="w-3 h-3" />
               {ordem.laudo_garantia_dias}{" "}
               {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
@@ -686,7 +686,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
         </div>
 
         {/* Status Progress Bar */}
-        <div className="mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div className="mt-5 pt-4 border-t border-default-200/70">
           <StatusProgressBar current={ordem.status} />
         </div>
       </div>
@@ -721,12 +721,12 @@ export default function OrdemServicoDetalheTecnicoPage() {
               {/* Coluna esquerda: Dados da OS */}
               <div className="lg:col-span-2 space-y-6">
                 {/* OS Info Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
+                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
                     <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                       <InformationCircleIcon className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                    <span className="text-sm font-semibold text-foreground">
                       Informações da OS
                     </span>
                   </div>
@@ -754,10 +754,10 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       </div>
                     )}
                     <div className="md:col-span-2">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
                         Defeito Reclamado
                       </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-zinc-800/50 rounded-xl p-3 border border-gray-100 dark:border-zinc-700">
+                      <p className="text-sm text-default-600 bg-default-100 rounded-xl p-3 border border-default-200/70">
                         {ordem.defeito_reclamado}
                       </p>
                     </div>
@@ -774,7 +774,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 {(ordem.valor_orcamento || ordem.laudo_garantia_dias) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
-                      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-emerald-100 dark:border-emerald-900 p-5">
+                      <div className="bg-content1 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 p-5">
                         <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">
                           Valor do Serviço
                         </p>
@@ -785,13 +785,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     )}
                     {ordem.laudo_garantia_dias &&
                       ordem.laudo_garantia_dias > 0 && (
-                        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-                          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                        <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
+                          <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
                             Garantia
                           </p>
                           <div className="flex items-center gap-2">
-                            <ShieldCheckIcon className="w-5 h-5 text-gray-400" />
-                            <p className="font-semibold text-gray-800 dark:text-white">
+                            <ShieldCheckIcon className="w-5 h-5 text-default-400" />
+                            <p className="font-semibold text-foreground">
                               {ordem.laudo_garantia_dias}{" "}
                               {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
                             </p>
@@ -802,21 +802,21 @@ export default function OrdemServicoDetalheTecnicoPage() {
                 )}
 
                 {/* Observações Técnicas */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
+                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <DocumentTextIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                    <DocumentTextIcon className="w-4 h-4 text-default-400" />
+                    <span className="text-sm font-semibold text-foreground">
                       Observações Técnicas
                     </span>
                   </div>
                   {ordem.observacoes_tecnicas ? (
-                    <div className="p-4 bg-gray-50 dark:bg-zinc-800/50 rounded-xl border border-gray-100 dark:border-zinc-700">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                    <div className="p-4 bg-default-100 rounded-xl border border-default-200/70">
+                      <p className="text-sm text-default-600 whitespace-pre-wrap leading-relaxed">
                         {ordem.observacoes_tecnicas}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-400 italic">
+                    <p className="text-sm text-default-400 italic">
                       Nenhuma observação registrada
                     </p>
                   )}
@@ -826,18 +826,17 @@ export default function OrdemServicoDetalheTecnicoPage() {
               {/* Coluna direita: Controles + Câmera */}
               <div className="space-y-6">
                 {/* Status Update */}
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
-                    <ClockIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
+                    <ClockIcon className="w-4 h-4 text-default-400" />
+                    <span className="text-sm font-semibold text-foreground">
                       Status
                     </span>
                   </div>
                   <div className="space-y-4">
                     <Select
                       classNames={{
-                        trigger:
-                          "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                        trigger: "bg-default-100 border-default-200",
                       }}
                       isDisabled={ordem.status === "concluido"}
                       label="Alterar status"
@@ -889,15 +888,15 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
                 {/* Câmera */}
                 <div
-                  className={`bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border p-5 ${
+                  className={`bg-content1 rounded-xl shadow-sm border p-5 ${
                     bancada
                       ? "border-emerald-200 dark:border-emerald-900"
-                      : "border-gray-100 dark:border-zinc-800"
+                      : "border-default-200/70"
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
-                    <VideoCameraIcon className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
+                    <VideoCameraIcon className="w-4 h-4 text-default-400" />
+                    <span className="text-sm font-semibold text-foreground">
                       Câmera ao Vivo
                     </span>
                   </div>
@@ -906,8 +905,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     <div className="space-y-4">
                       <Select
                         classNames={{
-                          trigger:
-                            "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                          trigger: "bg-default-100 border-default-200",
                         }}
                         isLoading={salvandoBancada}
                         label="Bancada"
@@ -970,7 +968,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               Compartilhar
                             </Button>
                           </div>
-                          <p className="text-[10px] text-gray-400 text-center">
+                          <p className="text-[10px] text-default-400 text-center">
                             Link copiável para enviar ao cliente
                           </p>
                         </div>
@@ -978,13 +976,13 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center py-4 text-center">
-                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
-                        <VideoCameraIcon className="w-5 h-5 text-gray-400" />
+                      <div className="w-10 h-10 rounded-full bg-default-200 flex items-center justify-center mb-2">
+                        <VideoCameraIcon className="w-5 h-5 text-default-400" />
                       </div>
-                      <p className="text-xs text-gray-500 font-medium">
+                      <p className="text-xs text-default-500 font-medium">
                         Câmera disponível
                       </p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
+                      <p className="text-[11px] text-default-400 mt-0.5">
                         ao iniciar manutenção
                       </p>
                     </div>
@@ -994,23 +992,23 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </div>
 
             {/* Observações Editor + Timeline */}
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100 dark:border-zinc-800">
-                <DocumentTextIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-semibold text-gray-800 dark:text-white">
+            <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
+                <DocumentTextIcon className="w-4 h-4 text-default-400" />
+                <span className="text-sm font-semibold text-foreground">
                   Observações Técnicas
                 </span>
               </div>
 
               <div className="relative pl-6 space-y-4">
                 {/* Linha vertical da timeline */}
-                <div className="absolute left-2.5 top-1 bottom-0 w-px bg-gray-200 dark:bg-zinc-700" />
+                <div className="absolute left-2.5 top-1 bottom-0 w-px bg-default-200" />
 
                 {/* Observação existente (se houver) */}
                 {ordem.observacoes_tecnicas && (
                   <div className="relative">
                     <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-zinc-900" />
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                    <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
                       {ordem.data_inicio_servico
                         ? new Date(ordem.data_inicio_servico).toLocaleString(
                             "pt-BR",
@@ -1027,7 +1025,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                             year: "numeric",
                           })}
                     </p>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed bg-gray-50 dark:bg-zinc-800/50 rounded-xl p-3 border border-gray-100 dark:border-zinc-700">
+                    <p className="text-sm text-default-600 whitespace-pre-wrap leading-relaxed bg-default-100 rounded-xl p-3 border border-default-200/70">
                       {ordem.observacoes_tecnicas}
                     </p>
                   </div>
@@ -1042,8 +1040,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   <Textarea
                     classNames={{
                       input: "text-sm",
-                      inputWrapper:
-                        "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
+                      inputWrapper: "bg-default-100 border-default-200",
                     }}
                     isDisabled={ordem.status === "concluido"}
                     minRows={3}
@@ -1075,7 +1072,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
         >
           <div className="mt-6">
             <Card className="shadow-medium">
-              <CardHeader className="bg-gradient-to-r from-secondary/10 to-success/10">
+              <CardHeader>
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <PhotoIcon className="w-5 h-5" />
                   Galeria de Fotos
@@ -1257,7 +1254,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       return pecasAgrupadas.map((peca) => (
                         <div
                           key={peca.chave}
-                          className="p-4 rounded-lg border-2 bg-content2 hover:bg-content3 transition-colors"
+                          className="p-4 rounded-lg border border-default-200/70 bg-content2 hover:bg-content3 transition-colors"
                         >
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex-1 space-y-2">
@@ -1407,7 +1404,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                               (quebra) => (
                                                 <div
                                                   key={quebra.id}
-                                                  className="p-2 bg-white dark:bg-default-100/10 rounded text-xs"
+                                                  className="p-2 bg-default-100 rounded text-xs"
                                                 >
                                                   <div className="flex items-center gap-2 mb-1">
                                                     <Chip
@@ -1538,11 +1535,11 @@ export default function OrdemServicoDetalheTecnicoPage() {
                               {pecas.reduce((sum, p) => sum + p.quantidade, 0)}
                             </p>
                           </div>
-                          <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg">
-                            <p className="text-sm text-primary-700 dark:text-primary-400 mb-1">
+                          <div className="p-4 bg-default-100 dark:bg-default-50/10 rounded-lg">
+                            <p className="text-sm text-default-600 mb-1">
                               Custo Total
                             </p>
-                            <p className="text-2xl font-bold text-primary">
+                            <p className="text-2xl font-bold tabular-nums">
                               R${" "}
                               {pecas
                                 .reduce(
@@ -1553,11 +1550,11 @@ export default function OrdemServicoDetalheTecnicoPage() {
                                 .toFixed(2)}
                             </p>
                           </div>
-                          <div className="p-4 bg-success-50 dark:bg-success-900/20 rounded-lg">
-                            <p className="text-sm text-success-700 dark:text-success-400 mb-1">
+                          <div className="p-4 bg-default-100 dark:bg-default-50/10 rounded-lg">
+                            <p className="text-sm text-default-600 mb-1">
                               Venda Total
                             </p>
-                            <p className="text-2xl font-bold text-success">
+                            <p className="text-2xl font-bold tabular-nums">
                               R${" "}
                               {pecas
                                 .reduce((sum, p) => sum + p.valor_total, 0)
@@ -1647,7 +1644,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     {quebras.map((quebra) => (
                       <div
                         key={quebra.id}
-                        className="p-4 rounded-lg border-2 bg-content2 hover:bg-content3 transition-colors"
+                        className="p-4 rounded-lg border border-default-200/70 bg-content2 hover:bg-content3 transition-colors"
                       >
                         <div className="flex justify-between items-start gap-4">
                           <div className="flex-1 space-y-2">
@@ -1823,11 +1820,11 @@ function DetailField({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
         {label}
       </p>
       <p
-        className={`text-sm text-gray-800 dark:text-white ${mono ? "font-mono" : "font-medium"}`}
+        className={`text-sm text-foreground ${mono ? "font-mono" : "font-medium"}`}
       >
         {value}
       </p>
@@ -1851,9 +1848,9 @@ const STATUS_META: Record<
 > = {
   aguardando: {
     label: "Aguardando",
-    bg: "bg-gray-200 dark:bg-gray-700",
-    dot: "bg-gray-400",
-    line: "bg-gray-200 dark:bg-gray-700",
+    bg: "bg-default-200",
+    dot: "bg-default-400",
+    line: "bg-default-200",
   },
   aprovado: {
     label: "Aprovado",
@@ -1909,8 +1906,8 @@ function StatusProgressBar({ current }: { current: string }) {
           const meta = STATUS_META[step] || {
             label: step,
             bg: "",
-            dot: "bg-gray-400",
-            line: "bg-gray-200",
+            dot: "bg-default-400",
+            line: "bg-default-200",
           };
           const stepIdx = STATUS_ORDER.indexOf(step);
           const isCompleted = currentIndex > stepIdx;
@@ -1925,7 +1922,7 @@ function StatusProgressBar({ current }: { current: string }) {
                       ? "bg-emerald-500 text-white shadow-sm"
                       : isCurrent
                         ? `${meta.dot.replace("bg-", "bg-").replace("-500", "-500")} text-white ring-4 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 ${meta.dot.replace("bg-", "ring-").replace("-500", "-500/30")}`
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                        : "bg-default-200 text-default-400"
                   }`}
                 >
                   {isCompleted ? (
@@ -1956,7 +1953,7 @@ function StatusProgressBar({ current }: { current: string }) {
                         meta.dot.replace("bg-", "text-").replace("-500", "-400")
                       : isCompleted
                         ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-gray-400 dark:text-gray-500"
+                        : "text-default-400"
                   }`}
                 >
                   {meta.label}
@@ -1965,9 +1962,7 @@ function StatusProgressBar({ current }: { current: string }) {
               {idx < visibleSteps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 mx-2 mb-5 rounded-full transition-colors duration-300 ${
-                    currentIndex > stepIdx
-                      ? "bg-emerald-400"
-                      : "bg-gray-200 dark:bg-gray-700"
+                    currentIndex > stepIdx ? "bg-emerald-400" : "bg-default-200"
                   }`}
                 />
               )}

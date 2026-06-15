@@ -2,13 +2,13 @@
 
 import { Tooltip } from "@heroui/react";
 import {
-  Check,
-  Clock,
-  Wrench,
-  Package,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
+  CheckIcon as Check,
+  ClockIcon as Clock,
+  WrenchScrewdriverIcon as Wrench,
+  CubeIcon as Package,
+  CheckCircleIcon as CheckCircle,
+  XCircleIcon as XCircle,
+} from "@heroicons/react/24/outline";
 
 import { StatusOS } from "@/types/ordemServico";
 

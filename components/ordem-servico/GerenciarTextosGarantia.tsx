@@ -51,7 +51,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
                 ${
                   textoSelecionado?.id === texto.id
                     ? "border-primary bg-primary-50"
-                    : "border-gray-200 hover:border-primary-300"
+                    : "border-default-200 hover:border-primary-300"
                 }
               `}
               type="button"
@@ -62,7 +62,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
                   <h4 className="font-semibold">
                     {TIPOS_SERVICO_GARANTIA[texto.tipo_servico]}
                   </h4>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-default-600">
                     {texto.dias_garantia > 0
                       ? `${texto.dias_garantia} dias de garantia`
                       : "Sem dias de garantia"}
@@ -74,7 +74,7 @@ export const GerenciarTextosGarantia: React.FC = () => {
                   ${
                     texto.ativo
                       ? "bg-green-100 text-green-700"
-                      : "bg-gray-100 text-gray-700"
+                      : "bg-default-200 text-default-600"
                   }
                 `}
                 >
@@ -82,11 +82,11 @@ export const GerenciarTextosGarantia: React.FC = () => {
                 </span>
               </div>
 
-              <p className="text-sm text-gray-700 line-clamp-2">
+              <p className="text-sm text-default-600 line-clamp-2">
                 {texto.titulo}
               </p>
 
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-default-500 mt-2">
                 {texto.clausulas.length} cláusula
                 {texto.clausulas.length !== 1 ? "s" : ""}
               </p>
@@ -99,15 +99,15 @@ export const GerenciarTextosGarantia: React.FC = () => {
           <h3 className="text-lg font-semibold">Preview</h3>
 
           {textoSelecionado ? (
-            <div className="border border-gray-200 rounded-lg p-6">
+            <div className="border border-default-200 rounded-lg p-6">
               <TextoGarantiaView textoGarantia={textoSelecionado} />
 
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <p className="text-xs text-gray-500">
+              <div className="mt-6 pt-4 border-t border-default-200">
+                <p className="text-xs text-default-500">
                   Criado em:{" "}
                   {new Date(textoSelecionado.criado_em).toLocaleString("pt-BR")}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-default-500">
                   Atualizado em:{" "}
                   {new Date(textoSelecionado.atualizado_em).toLocaleString(
                     "pt-BR",
@@ -116,8 +116,8 @@ export const GerenciarTextosGarantia: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="border border-dashed border-gray-300 rounded-lg p-12 text-center">
-              <p className="text-gray-500">
+            <div className="border border-dashed border-default-300 rounded-lg p-12 text-center">
+              <p className="text-default-500">
                 Selecione um tipo de garantia para visualizar
               </p>
             </div>

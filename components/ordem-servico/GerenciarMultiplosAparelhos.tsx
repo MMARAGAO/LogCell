@@ -17,12 +17,12 @@ import {
   Chip,
 } from "@heroui/react";
 import {
-  Smartphone,
-  Trash2,
-  Plus,
-  DollarSign,
-  AlertCircle,
-} from "lucide-react";
+  DevicePhoneMobileIcon as Smartphone,
+  TrashIcon as Trash2,
+  PlusIcon as Plus,
+  CurrencyDollarIcon as DollarSign,
+  ExclamationCircleIcon as AlertCircle,
+} from "@heroicons/react/24/outline";
 
 import { OrdemServicoAparelho } from "@/types/ordemServico";
 import {

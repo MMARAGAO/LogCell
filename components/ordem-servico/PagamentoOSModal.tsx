@@ -16,7 +16,11 @@ import {
   Chip,
   Divider,
 } from "@heroui/react";
-import { DollarSign, Trash2, CreditCard } from "lucide-react";
+import {
+  CurrencyDollarIcon as DollarSign,
+  TrashIcon as Trash2,
+  CreditCardIcon as CreditCard,
+} from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
 import { OrdemServico } from "@/types/ordemServico";

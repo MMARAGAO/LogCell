@@ -1,14 +1,8 @@
 "use client";
 
 import { Bars3Icon, MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { Avatar } from "@heroui/avatar";
 import { Input } from "@heroui/input";
-import {
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-} from "@heroui/dropdown";
+
 import { Chip } from "@heroui/chip";
 import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/modal";
 import { useRouter, usePathname } from "next/navigation";
@@ -26,7 +20,6 @@ import {
 import { NotificacoesDropdown } from "./NotificacoesDropdown";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
-import { useFotoPerfil } from "@/hooks/useFotoPerfil";
 import { useAuthContext } from "@/contexts/AuthContext";
 
 interface SearchResult {
@@ -42,8 +35,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { usuario, logout } = useAuthContext();
-  const { fotoUrl, loading: loadingFoto } = useFotoPerfil();
+  const { usuario } = useAuthContext();
   const { temPermissao } = usePermissoes();
   const router = useRouter();
   const pathname = usePathname();
@@ -288,10 +280,6 @@ export function Header({ onMenuClick }: HeaderProps) {
     setIsSearchModalOpen(false);
   };
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   // Extrai o título da página atual
   const getPageTitle = () => {
     if (pathname?.includes("/dashboard")) return "Dashboard";
@@ -444,71 +432,6 @@ export function Header({ onMenuClick }: HeaderProps) {
 
           {/* Notificações */}
           <NotificacoesDropdown usuarioId={usuario?.id} />
-
-          {/* User Menu */}
-          <Dropdown placement="bottom-end">
-            <DropdownTrigger>
-              <button className="flex items-center gap-2 px-2 py-1.5 hover:bg-default-100 rounded-lg transition-colors">
-                <Avatar
-                  isBordered
-                  showFallback
-                  className="w-8 h-8"
-                  color="primary"
-                  name={usuario?.nome}
-                  size="sm"
-                  src={fotoUrl || undefined}
-                />
-                <div className="hidden md:flex flex-col items-start">
-                  <span className="text-sm font-medium max-w-[120px] truncate">
-                    {usuario?.nome}
-                  </span>
-                  <span className="text-xs text-default-400">
-                    {usuario?.ativo ? "Online" : "Offline"}
-                  </span>
-                </div>
-              </button>
-            </DropdownTrigger>
-            <DropdownMenu aria-label="Menu do usuário" variant="flat">
-              <DropdownItem
-                key="perfil-info"
-                className="h-14 gap-2"
-                textValue="Informações do perfil"
-              >
-                <p className="text-xs text-default-500">Logado como</p>
-                <p className="font-semibold text-sm">{usuario?.nome}</p>
-                <p className="text-xs text-default-400">{usuario?.email}</p>
-              </DropdownItem>
-              <DropdownItem
-                key="meu-perfil"
-                description="Editar informações pessoais"
-                onPress={() => router.push("/sistema/perfil")}
-              >
-                Meu Perfil
-              </DropdownItem>
-              <DropdownItem
-                key="configuracoes"
-                description="Preferências do sistema"
-                onPress={() => router.push("/sistema/configuracoes")}
-              >
-                Configurações
-              </DropdownItem>
-              <DropdownItem
-                key="ajuda"
-                description="Central de ajuda"
-                onPress={() => router.push("/sistema/ajuda")}
-              >
-                Ajuda & Suporte
-              </DropdownItem>
-              <DropdownItem
-                key="logout"
-                className="text-danger"
-                color="danger"
-                onPress={handleLogout}
-              >
-                Sair
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
         </div>
       </div>
 

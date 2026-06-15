@@ -40,6 +40,13 @@ import {
 } from "@heroicons/react/24/solid";
 import { PackageX } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { ChevronUpDownIcon } from "@heroicons/react/24/outline";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useFotoPerfil } from "@/hooks/useFotoPerfil";
@@ -243,7 +250,7 @@ function SidebarContent({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { usuario, loading: authLoading } = useAuthContext();
+  const { usuario, loading: authLoading, logout } = useAuthContext();
   const { fotoUrl } = useFotoPerfil();
   const { temPermissao, isAdmin, permissoes, loading } = usePermissoes();
   const menuLoading = authLoading || loading || !usuario;
@@ -256,6 +263,15 @@ function SidebarContent({
     const primeiraRota = getPrimeiraRotaDisponivel(permissoes, isAdmin, false);
 
     router.push(primeiraRota);
+    onClose();
+  };
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
+  const irPara = (rota: string) => {
+    router.push(rota);
     onClose();
   };
 
@@ -428,39 +444,90 @@ function SidebarContent({
       <div
         className={`shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 ${collapsed ? "px-2 py-3" : "px-3 py-3"}`}
       >
-        <div
-          className={`flex items-center ${collapsed ? "flex-col gap-3" : "gap-2 flex-col"}`}
-        >
-          {collapsed ? (
-            <Avatar
-              showFallback
-              className="w-9 h-9 shrink-0"
-              color="primary"
-              name={usuario?.nome}
-              size="sm"
-              src={fotoUrl || undefined}
-            />
-          ) : (
-            <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-900/50 w-full">
-              <Avatar
-                showFallback
-                className="w-9 h-9 shrink-0"
-                color="primary"
-                name={usuario?.nome}
-                size="sm"
-                src={fotoUrl || undefined}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">
-                  {usuario?.nome}
-                </p>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                  {isTecnico ? "Técnico" : "Admin"}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+        <Dropdown placement="top-start">
+          <DropdownTrigger>
+            {collapsed ? (
+              <button
+                aria-label="Menu do usuário"
+                className="mx-auto flex rounded-full transition-opacity hover:opacity-80"
+                type="button"
+              >
+                <Avatar
+                  showFallback
+                  className="w-9 h-9 shrink-0"
+                  color="primary"
+                  name={usuario?.nome}
+                  size="sm"
+                  src={fotoUrl || undefined}
+                />
+              </button>
+            ) : (
+              <button
+                aria-label="Menu do usuário"
+                className="flex w-full items-center gap-3 rounded-lg bg-zinc-50 px-2 py-2 text-left transition-colors hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/60"
+                type="button"
+              >
+                <Avatar
+                  showFallback
+                  className="w-9 h-9 shrink-0"
+                  color="primary"
+                  name={usuario?.nome}
+                  size="sm"
+                  src={fotoUrl || undefined}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                    {usuario?.nome}
+                  </p>
+                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {isTecnico ? "Técnico" : "Admin"}
+                  </p>
+                </div>
+                <ChevronUpDownIcon className="h-4 w-4 shrink-0 text-zinc-400" />
+              </button>
+            )}
+          </DropdownTrigger>
+          <DropdownMenu aria-label="Menu do usuário" variant="flat">
+            <DropdownItem
+              key="perfil-info"
+              className="h-14 gap-2"
+              textValue="Informações do perfil"
+            >
+              <p className="text-xs text-default-500">Logado como</p>
+              <p className="text-sm font-semibold">{usuario?.nome}</p>
+              <p className="text-xs text-default-400">{usuario?.email}</p>
+            </DropdownItem>
+            <DropdownItem
+              key="meu-perfil"
+              description="Editar informações pessoais"
+              onPress={() => irPara("/sistema/perfil")}
+            >
+              Meu Perfil
+            </DropdownItem>
+            <DropdownItem
+              key="configuracoes"
+              description="Preferências do sistema"
+              onPress={() => irPara("/sistema/configuracoes")}
+            >
+              Configurações
+            </DropdownItem>
+            <DropdownItem
+              key="ajuda"
+              description="Central de ajuda"
+              onPress={() => irPara("/sistema/ajuda")}
+            >
+              Ajuda & Suporte
+            </DropdownItem>
+            <DropdownItem
+              key="logout"
+              className="text-danger"
+              color="danger"
+              onPress={handleLogout}
+            >
+              Sair
+            </DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
       </div>
     </>
   );

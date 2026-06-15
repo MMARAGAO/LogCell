@@ -13,16 +13,16 @@ import {
   Spinner,
 } from "@heroui/react";
 import {
-  History,
-  Plus,
-  Edit,
-  Trash2,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Clock,
-  RefreshCw,
-} from "lucide-react";
+  ClipboardDocumentListIcon as History,
+  PlusIcon as Plus,
+  PencilIcon as Edit,
+  TrashIcon as Trash2,
+  CheckCircleIcon as CheckCircle,
+  XCircleIcon as XCircle,
+  ExclamationCircleIcon as AlertCircle,
+  ClockIcon as Clock,
+  ArrowPathIcon as RefreshCw,
+} from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
 import { buscarHistoricoOS } from "@/services/ordemServicoService";

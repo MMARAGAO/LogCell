@@ -21,16 +21,16 @@ import {
   AutocompleteItem,
 } from "@heroui/react";
 import {
-  Package,
-  Store,
-  FileText,
-  Camera,
-  CheckCircle2,
-  ArrowLeft,
-  ArrowRight,
-  AlertCircle,
-  Trash2,
-} from "lucide-react";
+  CubeIcon as Package,
+  BuildingStorefrontIcon as Store,
+  DocumentTextIcon as FileText,
+  CameraIcon as Camera,
+  CheckCircleIcon as CheckCircle2,
+  ArrowLeftIcon as ArrowLeft,
+  ArrowRightIcon as ArrowRight,
+  ExclamationCircleIcon as AlertCircle,
+  TrashIcon as Trash2,
+} from "@heroicons/react/24/outline";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
@@ -571,7 +571,7 @@ export default function FormularioRMA({
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <h2 className="text-2xl font-bold">Novo RMA</h2>
-          <p className="text-sm text-gray-600 font-normal">
+          <p className="text-sm text-default-600 font-normal">
             Registre uma nova solicitação de RMA
           </p>
         </ModalHeader>
@@ -596,7 +596,7 @@ export default function FormularioRMA({
                           ? "bg-success text-white"
                           : atual
                             ? "bg-primary text-white"
-                            : "bg-gray-200 text-gray-500"
+                            : "bg-default-200 text-default-500"
                       }`}
                     >
                       {completa ? (
@@ -607,7 +607,7 @@ export default function FormularioRMA({
                     </div>
                     <p
                       className={`text-xs text-center ${
-                        atual ? "font-semibold" : "text-gray-500"
+                        atual ? "font-semibold" : "text-default-500"
                       }`}
                     >
                       {etapa.titulo}
@@ -679,7 +679,7 @@ export default function FormularioRMA({
                       <div className="flex flex-col">
                         <span className="font-medium">{cliente.nome}</span>
                         {cliente.cpf && (
-                          <span className="text-xs text-gray-500">
+                          <span className="text-xs text-default-500">
                             CPF: {cliente.cpf}
                           </span>
                         )}
@@ -733,7 +733,7 @@ export default function FormularioRMA({
                           <Package className="w-4 h-4 text-primary" />
                         </div>
                       ) : (
-                        <Package className="w-4 h-4 text-gray-400" />
+                        <Package className="w-4 h-4 text-default-400" />
                       )
                     }
                     type="text"
@@ -749,10 +749,10 @@ export default function FormularioRMA({
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                       </div>
                     ) : produtos.length === 0 ? (
-                      <Card className="bg-gray-50">
+                      <Card className="bg-default-100">
                         <CardBody className="text-center py-8">
-                          <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                          <p className="text-gray-500">
+                          <Package className="w-12 h-12 text-default-300 mx-auto mb-2" />
+                          <p className="text-default-500">
                             {buscaProduto
                               ? "Nenhum produto encontrado com esse termo"
                               : "Nenhum produto disponível nesta loja"}
@@ -775,7 +775,7 @@ export default function FormularioRMA({
                                 className={`cursor-pointer transition-all h-full ${
                                   selecionado
                                     ? "ring-2 ring-primary border-primary bg-primary-50"
-                                    : "hover:bg-gray-50 hover:shadow-md"
+                                    : "hover:bg-default-100 hover:shadow-md"
                                 }`}
                                 onPress={() => setProdutoId(produto.id)}
                               >
@@ -785,12 +785,12 @@ export default function FormularioRMA({
                                     {produto.foto_url ? (
                                       <img
                                         alt={produto.descricao}
-                                        className="w-full h-40 object-cover rounded-lg border-2 border-gray-200"
+                                        className="w-full h-40 object-cover rounded-lg border border-default-200"
                                         src={produto.foto_url}
                                       />
                                     ) : (
-                                      <div className="w-full h-40 bg-gray-100 rounded-lg border-2 border-gray-200 flex items-center justify-center">
-                                        <Package className="w-16 h-16 text-gray-400" />
+                                      <div className="w-full h-40 bg-default-200 rounded-lg border border-default-200 flex items-center justify-center">
+                                        <Package className="w-16 h-16 text-default-400" />
                                       </div>
                                     )}
                                   </div>
@@ -832,7 +832,7 @@ export default function FormularioRMA({
 
                                     {/* Grupo (se existir) */}
                                     {produto.grupo && (
-                                      <p className="text-xs text-gray-600 line-clamp-1">
+                                      <p className="text-xs text-default-600 line-clamp-1">
                                         <span className="font-semibold">
                                           Grupo:
                                         </span>{" "}
@@ -842,7 +842,7 @@ export default function FormularioRMA({
 
                                     {/* Modelos */}
                                     {produto.modelos && (
-                                      <p className="text-xs text-gray-600 line-clamp-2">
+                                      <p className="text-xs text-default-600 line-clamp-2">
                                         <span className="font-semibold">
                                           Modelos:
                                         </span>{" "}
@@ -852,7 +852,7 @@ export default function FormularioRMA({
 
                                     {/* Código */}
                                     {produto.codigo_fabricante && (
-                                      <p className="text-xs text-gray-500">
+                                      <p className="text-xs text-default-500">
                                         <span className="font-semibold">
                                           Cód:
                                         </span>{" "}
@@ -861,7 +861,7 @@ export default function FormularioRMA({
                                     )}
 
                                     {/* Footer: Preço e Estoque */}
-                                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                                    <div className="flex items-center justify-between pt-2 border-t border-default-200">
                                       {produto.preco_venda ? (
                                         <Chip
                                           color="success"

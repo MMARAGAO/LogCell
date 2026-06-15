@@ -10,23 +10,23 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import {
-  Package,
-  Eye,
-  Edit,
-  Trash2,
-  MoreVertical,
-  Clock,
-  User,
-  Phone,
-  Smartphone,
-  Calendar,
-  DollarSign,
-  Camera,
-  AlertTriangle,
-  CheckCircle,
-  FileText,
-  Shield,
-} from "lucide-react";
+  CubeIcon as Package,
+  EyeIcon as Eye,
+  PencilIcon as Edit,
+  TrashIcon as Trash2,
+  EllipsisVerticalIcon as MoreVertical,
+  ClockIcon as Clock,
+  UserIcon as User,
+  PhoneIcon as Phone,
+  DevicePhoneMobileIcon as Smartphone,
+  CalendarIcon as Calendar,
+  CurrencyDollarIcon as DollarSign,
+  CameraIcon as Camera,
+  ExclamationTriangleIcon as AlertTriangle,
+  CheckCircleIcon as CheckCircle,
+  DocumentTextIcon as FileText,
+  ShieldCheckIcon as Shield,
+} from "@heroicons/react/24/outline";
 import {
   Modal,
   ModalContent,
@@ -234,7 +234,7 @@ export default function OrdemServicoCard({
 
   return (
     <>
-      <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <Card className="border border-default-200/70 shadow-sm transition-shadow hover:shadow-md">
         <CardBody className="p-4">
           {/* Mini Carrossel de Fotos ou Placeholder */}
           {fotos.length > 0 ? (

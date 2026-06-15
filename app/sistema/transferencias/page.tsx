@@ -457,21 +457,16 @@ export default function TransferenciasPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary-500/15 text-primary">
-            <ArrowPathRoundedSquareIcon className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">
-              Gestão de Transferências
-            </h1>
-            <p className="text-xs sm:text-sm text-default-500 mt-0.5">
-              Gerencie transferências de produtos entre lojas
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Gestão de Transferências
+          </h1>
+          <p className="text-sm text-default-500">
+            Gerencie transferências de produtos entre lojas
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -740,7 +735,7 @@ export default function TransferenciasPage() {
             Object.keys(transferenciasAgrupadas).length > 0 && (
               <>
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-warning-500/15 text-warning">
+                  <div className="p-1.5 rounded-lg bg-default-100 text-default-500">
                     <ClockIcon className="h-4 w-4" />
                   </div>
                   <h2 className="text-base sm:text-lg font-semibold text-foreground">
@@ -763,10 +758,10 @@ export default function TransferenciasPage() {
                     return (
                       <Card
                         key={chave}
-                        className="border-l-4 border-l-warning overflow-hidden"
+                        className="border border-default-200/70 overflow-hidden"
                         shadow="sm"
                       >
-                        <CardHeader className="bg-gradient-to-r from-warning-500/10 to-transparent px-4 sm:px-5 py-3">
+                        <CardHeader className="bg-default-50 border-b border-default-200/70 px-4 sm:px-5 py-3">
                           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-2">
                             <div className="flex items-center gap-2 sm:gap-3">
                               <Chip
@@ -783,7 +778,7 @@ export default function TransferenciasPage() {
                                 <span className="font-semibold truncate max-w-[120px]">
                                   {primeira.loja_origem}
                                 </span>
-                                <ArrowRightIcon className="h-4 w-4 text-warning flex-shrink-0" />
+                                <ArrowRightIcon className="h-4 w-4 text-default-400 flex-shrink-0" />
                                 <span className="font-semibold truncate max-w-[120px]">
                                   {primeira.loja_destino}
                                 </span>
@@ -832,7 +827,7 @@ export default function TransferenciasPage() {
 
           {/* Todas as Transferências */}
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary-500/15 text-primary">
+            <div className="p-1.5 rounded-lg bg-default-100 text-default-500">
               <ArrowPathRoundedSquareIcon className="h-4 w-4" />
             </div>
             <h2 className="text-base sm:text-lg font-semibold text-foreground">

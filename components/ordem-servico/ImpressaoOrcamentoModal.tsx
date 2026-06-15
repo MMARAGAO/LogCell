@@ -17,7 +17,10 @@ import {
   Select,
   SelectItem,
 } from "@heroui/react";
-import { Download, FileText } from "lucide-react";
+import {
+  ArrowDownTrayIcon as Download,
+  DocumentTextIcon as FileText,
+} from "@heroicons/react/24/outline";
 
 import { OrdemServico } from "@/types/ordemServico";
 import { useToast } from "@/components/Toast";
@@ -326,7 +329,9 @@ export default function ImpressaoOrcamentoModal({
             Gerar Documentos da OS
           </div>
           {os && (
-            <p className="text-sm text-gray-600">OS #{os.numero_os || os.id}</p>
+            <p className="text-sm text-default-600">
+              OS #{os.numero_os || os.id}
+            </p>
           )}
         </ModalHeader>
 
@@ -356,10 +361,10 @@ export default function ImpressaoOrcamentoModal({
                 </Card>
 
                 {/* Informações do que será incluído */}
-                <Card className="bg-gray-50 dark:bg-default-100/10">
+                <Card className="bg-default-100 dark:bg-default-100/10">
                   <CardBody className="space-y-2 text-sm">
                     <p className="font-semibold">📄 O PDF incluirá:</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-700 dark:text-gray-300">
+                    <ul className="list-disc list-inside space-y-1 text-default-600">
                       <li>Dados da loja (endereço e telefone)</li>
                       <li>Dados do cliente</li>
                       <li>Dados do equipamento</li>
@@ -412,7 +417,7 @@ export default function ImpressaoOrcamentoModal({
                   </label>
                   <Input
                     endContent={
-                      <span className="text-xs text-gray-500">dias</span>
+                      <span className="text-xs text-default-500">dias</span>
                     }
                     id="orcamento-dias-garantia"
                     min="0"
@@ -422,7 +427,7 @@ export default function ImpressaoOrcamentoModal({
                     value={diasGarantia}
                     onChange={(e) => setDiasGarantia(e.target.value)}
                   />
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-default-600">
                     ℹ️ Use 0 para garantias sem prazo (ex: tampas)
                   </p>
                 </div>
@@ -435,7 +440,7 @@ export default function ImpressaoOrcamentoModal({
                       <p className="text-sm font-semibold">
                         Dados da Loja no PDF:
                       </p>
-                      <Card className="bg-gray-50 dark:bg-default-100/10">
+                      <Card className="bg-default-100 dark:bg-default-100/10">
                         <CardBody className="py-2 text-xs space-y-1">
                           {dadosLoja.nome && (
                             <p>
@@ -479,20 +484,20 @@ export default function ImpressaoOrcamentoModal({
                   </CardBody>
                 </Card>
 
-                <Card className="bg-gray-50 dark:bg-default-100/10">
+                <Card className="bg-default-100 dark:bg-default-100/10">
                   <CardBody className="space-y-3 text-sm">
                     <div>
                       <p className="font-semibold mb-1">
                         Peças ({pecasFiltradas.length}):
                       </p>
                       {pecasFiltradas.length > 0 ? (
-                        <p className="text-gray-700 dark:text-gray-300">
+                        <p className="text-default-600">
                           {pecasFiltradas
                             .map((p) => p.descricao_peca)
                             .join(", ")}
                         </p>
                       ) : (
-                        <p className="text-gray-500 dark:text-gray-400">
+                        <p className="text-default-500">
                           Nenhuma peça será incluída
                         </p>
                       )}
@@ -500,7 +505,7 @@ export default function ImpressaoOrcamentoModal({
                     <Divider />
                     <div>
                       <p className="font-semibold mb-1">Garantia:</p>
-                      <p className="text-gray-700 dark:text-gray-300">
+                      <p className="text-default-600">
                         {tipoGarantia} ({diasGarantia} dias)
                       </p>
                     </div>
@@ -508,9 +513,7 @@ export default function ImpressaoOrcamentoModal({
                     {dadosLoja && (
                       <div>
                         <p className="font-semibold mb-1">Dados da Loja:</p>
-                        <p className="text-gray-700 dark:text-gray-300">
-                          {dadosLoja.nome}
-                        </p>
+                        <p className="text-default-600">{dadosLoja.nome}</p>
                       </div>
                     )}
                   </CardBody>

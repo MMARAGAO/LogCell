@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  EnvelopeIcon,
+  LockClosedIcon,
+} from "@heroicons/react/24/outline";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 
@@ -58,6 +63,9 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
           autoComplete="email"
           label="Email"
           placeholder="seu@email.com"
+          startContent={
+            <EnvelopeIcon className="h-5 w-5 flex-shrink-0 text-default-400" />
+          }
           type="email"
           value={formData.email}
           variant="bordered"
@@ -82,6 +90,9 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
           }
           label="Senha"
           placeholder="Digite sua senha"
+          startContent={
+            <LockClosedIcon className="h-5 w-5 flex-shrink-0 text-default-400" />
+          }
           type={showPassword ? "text" : "password"}
           value={formData.senha}
           variant="bordered"
@@ -96,6 +107,7 @@ export function LoginForm({ onSwitchToCadastro }: LoginFormProps) {
           className="w-full"
           color="primary"
           isLoading={loading}
+          size="lg"
           type="submit"
         >
           Entrar

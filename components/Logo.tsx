@@ -6,16 +6,25 @@ interface LogoProps {
   className?: string;
   width?: number;
   height?: number;
+  /** Força a aparência do tema claro, ignorando o tema do documento. */
+  forceLight?: boolean;
 }
 
 export default function Logo({
   className = "",
   width = 333,
   height = 338,
+  forceLight = false,
 }: LogoProps) {
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
+    if (forceLight) {
+      setIsDark(false);
+
+      return;
+    }
+
     // Função para verificar o tema
     const checkTheme = () => {
       setIsDark(document.documentElement.classList.contains("dark"));
@@ -33,7 +42,7 @@ export default function Logo({
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [forceLight]);
 
   const secondaryColor = isDark ? "#615A5A" : "#FFFFFF";
 

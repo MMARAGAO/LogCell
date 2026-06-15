@@ -17,23 +17,23 @@ import {
   Image,
 } from "@heroui/react";
 import {
-  Package,
-  Store,
-  User,
-  Calendar,
-  FileText,
-  History,
-  Camera,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Truck,
-  PackageCheck,
-  Ban,
-  Trash2,
-  PackagePlus,
-} from "lucide-react";
+  CubeIcon as Package,
+  BuildingStorefrontIcon as Store,
+  UserIcon as User,
+  CalendarIcon as Calendar,
+  DocumentTextIcon as FileText,
+  ArrowPathIcon as History,
+  CameraIcon as Camera,
+  ArrowTrendingUpIcon as TrendingUp,
+  CheckCircleIcon as CheckCircle,
+  XCircleIcon as XCircle,
+  ClockIcon as Clock,
+  TruckIcon as Truck,
+  CheckBadgeIcon as PackageCheck,
+  NoSymbolIcon as Ban,
+  TrashIcon as Trash2,
+  PlusCircleIcon as PackagePlus,
+} from "@heroicons/react/24/outline";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { rmaService } from "@/services/rmaService";
@@ -475,11 +475,11 @@ export default function DetalhesRMA({
                           <div className="flex flex-col items-center">
                             <div
                               className={`w-2 h-2 rounded-full ${
-                                index === 0 ? "bg-primary" : "bg-gray-300"
+                                index === 0 ? "bg-primary" : "bg-default-300"
                               }`}
                             />
                             {index < historico.length - 1 && (
-                              <div className="w-0.5 h-full bg-gray-200 flex-1 my-1" />
+                              <div className="w-0.5 h-full bg-default-200 flex-1 my-1" />
                             )}
                           </div>
 
@@ -631,7 +631,7 @@ export default function DetalhesRMA({
                       color="success"
                       isDisabled={cancelando || deletando || devolvendo}
                       isLoading={devolvendo}
-                      startContent={<PackagePlus size={18} />}
+                      startContent={<PackagePlus className="h-4 w-4" />}
                       variant="flat"
                       onPress={handleDevolverAoEstoque}
                     >
@@ -641,7 +641,7 @@ export default function DetalhesRMA({
                       color="danger"
                       isDisabled={cancelando || deletando || devolvendo}
                       isLoading={cancelando}
-                      startContent={<Ban size={18} />}
+                      startContent={<Ban className="h-4 w-4" />}
                       variant="flat"
                       onPress={handleCancelarRMA}
                     >
@@ -654,7 +654,7 @@ export default function DetalhesRMA({
                     color="danger"
                     isDisabled={cancelando || deletando || devolvendo}
                     isLoading={deletando}
-                    startContent={<Trash2 size={18} />}
+                    startContent={<Trash2 className="h-4 w-4" />}
                     variant="solid"
                     onPress={handleDeletarRMA}
                   >
@@ -738,7 +738,9 @@ export default function DetalhesRMA({
               <Button
                 color="success"
                 isLoading={atualizandoStatus}
-                startContent={!atualizandoStatus && <PackagePlus size={18} />}
+                startContent={
+                  !atualizandoStatus && <PackagePlus className="h-4 w-4" />
+                }
                 onPress={() => handleConfirmarDevolucao(true)}
               >
                 Sim, Devolver ao Estoque

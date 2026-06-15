@@ -18,7 +18,13 @@ import { Tabs, Tab } from "@heroui/tabs";
 import { Divider } from "@heroui/divider";
 import { Chip } from "@heroui/chip";
 import { Card, CardBody } from "@heroui/card";
-import { UserPlus, Wrench, Package, Store, Trash2 } from "lucide-react";
+import {
+  UserPlusIcon as UserPlus,
+  WrenchScrewdriverIcon as Wrench,
+  CubeIcon as Package,
+  BuildingStorefrontIcon as Store,
+  TrashIcon as Trash2,
+} from "@heroicons/react/24/outline";
 
 import {
   OrdemServico,
@@ -1516,7 +1522,7 @@ export default function OrdemServicoFormModal({
                               )
                             }
                           >
-                            <Trash2 size={18} />
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}

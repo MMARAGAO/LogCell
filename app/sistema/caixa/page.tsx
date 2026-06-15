@@ -22,32 +22,40 @@ import {
   TableCell,
   Tabs,
   Tab,
+  Badge,
+  Select,
+  SelectItem,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
 } from "@heroui/react";
 import { Pagination } from "@heroui/pagination";
 import { Spinner } from "@heroui/spinner";
 import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  User,
-  Store,
-  Lock,
-  Unlock,
-  Eye,
-  ShoppingCart,
-  Package,
-  Wrench,
-  Clock,
-  AlertTriangle,
-  History,
-  Banknote,
-  Smartphone,
-  CreditCard,
-  Gift,
-  HelpCircle,
-  RefreshCw,
-} from "lucide-react";
+  CurrencyDollarIcon,
+  ArrowTrendingUpIcon,
+  ArrowTrendingDownIcon,
+  CalendarIcon,
+  UserIcon,
+  BuildingStorefrontIcon,
+  LockClosedIcon,
+  LockOpenIcon,
+  EyeIcon,
+  ShoppingCartIcon,
+  CubeIcon,
+  WrenchScrewdriverIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  BanknotesIcon,
+  DevicePhoneMobileIcon,
+  CreditCardIcon,
+  GiftIcon,
+  QuestionMarkCircleIcon,
+  ArrowPathIcon,
+  FunnelIcon,
+} from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,6 +64,7 @@ import { CaixaCompleto, ResumoCaixa, MovimentacaoCaixa } from "@/types/caixa";
 import { supabase } from "@/lib/supabaseClient";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 
 const ITENS_POR_PAGINA_HISTORICO = 10;
 
@@ -80,6 +89,7 @@ export default function CaixaPage() {
     useState<string>("todos");
   const [dataInicioHistorico, setDataInicioHistorico] = useState("");
   const [dataFimHistorico, setDataFimHistorico] = useState("");
+  const [filtrosHistoricoAbertos, setFiltrosHistoricoAbertos] = useState(false);
   const [paginaHistorico, setPaginaHistorico] = useState(1);
   const [totalHistoricos, setTotalHistoricos] = useState(0);
   const [resumoHistorico, setResumoHistorico] = useState({
@@ -1495,6 +1505,39 @@ export default function CaixaPage() {
   };
 
   // Verificar loading primeiro
+  // Chips de filtros ativos do Histórico
+  const chipsHistorico: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (lojaFiltroHistorico !== "todos") {
+    const lojaNome =
+      lojas.find((l) => String(l.id) === lojaFiltroHistorico)?.nome ||
+      lojaFiltroHistorico;
+
+    chipsHistorico.push({
+      key: "loja",
+      label: `Loja: ${lojaNome}`,
+      onRemove: () => setLojaFiltroHistorico("todos"),
+    });
+  }
+
+  if (dataInicioHistorico || dataFimHistorico) {
+    chipsHistorico.push({
+      key: "periodo",
+      label: `Período: ${dataInicioHistorico || "…"} → ${dataFimHistorico || "…"}`,
+      onRemove: () => {
+        setDataInicioHistorico("");
+        setDataFimHistorico("");
+      },
+    });
+  }
+
+  const limparHistorico = () => {
+    setLojaFiltroHistorico("todos");
+    setDataInicioHistorico("");
+    setDataFimHistorico("");
+  };
+
   if (loading || loadingPermissoes) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -1516,14 +1559,14 @@ export default function CaixaPage() {
   }
 
   return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+    <div className="mx-auto max-w-[1600px] p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Controle de Caixa
           </h1>
-          <p className="text-xs sm:text-sm text-default-600">
+          <p className="text-sm text-default-500">
             Gerencie abertura e fechamento do caixa de cada loja
           </p>
         </div>
@@ -1543,14 +1586,14 @@ export default function CaixaPage() {
               }
             }}
           >
-            <RefreshCw className="w-5 h-5" />
+            <ArrowPathIcon className="w-5 h-5" />
           </Button>
           <Button
             className="hidden sm:flex"
             color="primary"
             isLoading={loading}
             size="lg"
-            startContent={<RefreshCw className="w-5 h-5" />}
+            startContent={<ArrowPathIcon className="w-5 h-5" />}
             variant="flat"
             onPress={() => {
               if (abaAtiva === "caixas") {
@@ -1578,7 +1621,7 @@ export default function CaixaPage() {
           key="caixas"
           title={
             <div className="flex items-center gap-2">
-              <Store className="w-4 h-4" />
+              <BuildingStorefrontIcon className="w-4 h-4" />
               <span>Caixas Atuais</span>
             </div>
           }
@@ -1588,23 +1631,23 @@ export default function CaixaPage() {
             {lojas.map((loja) => (
               <Card
                 key={loja.id}
-                className={loja.caixa ? "border-2 border-success" : ""}
+                className="border border-default-200/70"
+                shadow="sm"
               >
-                <CardHeader className={loja.caixa ? "bg-success/10" : ""}>
-                  <div className="flex justify-between items-start w-full">
-                    <div>
-                      <h2 className="text-xl font-bold flex items-center gap-2">
-                        <Store className="w-5 h-5" />
-                        {loja.nome}
-                      </h2>
-                    </div>
-                    <Chip
-                      color={loja.caixa ? "success" : "default"}
-                      size="sm"
-                      variant="flat"
-                    >
-                      {loja.caixa ? "ABERTO" : "FECHADO"}
-                    </Chip>
+                <CardHeader>
+                  <div className="flex justify-between items-center w-full">
+                    <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+                      <BuildingStorefrontIcon className="w-4 h-4 text-default-500" />
+                      {loja.nome}
+                    </h2>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-default-600">
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          loja.caixa ? "bg-emerald-500" : "bg-default-400"
+                        }`}
+                      />
+                      {loja.caixa ? "Aberto" : "Fechado"}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardBody>
@@ -1613,7 +1656,7 @@ export default function CaixaPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <p className="text-xs text-default-500 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                            <CalendarIcon className="w-3 h-3" />
                             Abertura
                           </p>
                           <p className="text-sm font-semibold">
@@ -1626,7 +1669,7 @@ export default function CaixaPage() {
                         </div>
                         <div>
                           <p className="text-xs text-default-500 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
+                            <ClockIcon className="w-3 h-3" />
                             Duração
                           </p>
                           <p className="text-sm font-semibold">
@@ -1637,7 +1680,7 @@ export default function CaixaPage() {
 
                       <div>
                         <p className="text-xs text-default-500 flex items-center gap-1">
-                          <User className="w-3 h-3" />
+                          <UserIcon className="w-3 h-3" />
                           Responsável
                         </p>
                         <p className="text-sm font-semibold">
@@ -1645,11 +1688,11 @@ export default function CaixaPage() {
                         </p>
                       </div>
 
-                      <div className="bg-success/10 p-3 rounded-lg border border-success/20">
+                      <div className="rounded-lg border border-default-200 bg-default-50 p-3 dark:border-default-100/20 dark:bg-default-100/5">
                         <p className="text-xs text-default-500">
                           Saldo Inicial
                         </p>
-                        <p className="text-2xl font-bold text-success">
+                        <p className="text-2xl font-bold tabular-nums text-foreground">
                           {formatarMoeda(loja.caixa.saldo_inicial)}
                         </p>
                       </div>
@@ -1670,7 +1713,7 @@ export default function CaixaPage() {
                           <Button
                             color="primary"
                             size="sm"
-                            startContent={<Eye className="w-4 h-4" />}
+                            startContent={<EyeIcon className="w-4 h-4" />}
                             variant="flat"
                             onPress={() => handleVerDetalhes(loja.caixa!)}
                           >
@@ -1680,7 +1723,9 @@ export default function CaixaPage() {
                         <Button
                           color="warning"
                           size="sm"
-                          startContent={<TrendingDown className="w-4 h-4" />}
+                          startContent={
+                            <ArrowTrendingDownIcon className="w-4 h-4" />
+                          }
                           variant="flat"
                           onPress={() => handleSangria(loja)}
                         >
@@ -1690,7 +1735,10 @@ export default function CaixaPage() {
                           <Button
                             color="danger"
                             size="sm"
-                            startContent={<Lock className="w-4 h-4" />}
+                            startContent={
+                              <LockClosedIcon className="w-4 h-4" />
+                            }
+                            variant="flat"
                             onPress={() => handleFecharModal(loja)}
                           >
                             Fechar
@@ -1701,7 +1749,7 @@ export default function CaixaPage() {
                   ) : (
                     <div className="space-y-4">
                       <div className="text-center py-6">
-                        <Lock className="w-12 h-12 mx-auto text-default-400 mb-2" />
+                        <LockClosedIcon className="w-12 h-12 mx-auto text-default-400 mb-2" />
                         <p className="text-default-600 text-sm">
                           Caixa fechado
                         </p>
@@ -1714,7 +1762,7 @@ export default function CaixaPage() {
                         <Button
                           className="w-full"
                           color="success"
-                          startContent={<Unlock className="w-4 h-4" />}
+                          startContent={<LockOpenIcon className="w-4 h-4" />}
                           onPress={() => handleAbrirModal(loja)}
                         >
                           Abrir Caixa
@@ -1732,41 +1780,96 @@ export default function CaixaPage() {
           key="historico"
           title={
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4" />
+              <ClockIcon className="w-4 h-4" />
               <span>Histórico</span>
             </div>
           }
         >
-          {/* Filtros */}
-          <Card className="mt-6">
-            <CardBody>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label
-                    className="text-sm text-default-600 mb-2 block"
-                    htmlFor="caixa-historico-loja"
+          {/* Barra de filtros */}
+          <div className="mt-6 rounded-xl border border-default-200/70 bg-content1 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-default-500 tabular-nums">
+                {resumoHistorico.totalCaixas.toLocaleString("pt-BR")} caixa(s)
+              </span>
+              <Badge
+                color="primary"
+                content={chipsHistorico.length}
+                isInvisible={chipsHistorico.length === 0}
+                size="sm"
+              >
+                <Button
+                  radius="md"
+                  size="md"
+                  startContent={<FunnelIcon className="h-4 w-4" />}
+                  variant="flat"
+                  onPress={() => setFiltrosHistoricoAbertos(true)}
+                >
+                  Filtros
+                </Button>
+              </Badge>
+            </div>
+
+            {/* Chips de filtros ativos */}
+            {chipsHistorico.length > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {chipsHistorico.map((chip) => (
+                  <Chip
+                    key={chip.key}
+                    size="sm"
+                    variant="flat"
+                    onClose={chip.onRemove}
                   >
-                    Loja
-                  </label>
-                  <select
-                    className="w-full px-3 py-2 rounded-lg border-2 border-default-200 bg-default-100 hover:border-default-400 focus:border-primary focus:outline-none"
-                    id="caixa-historico-loja"
-                    value={lojaFiltroHistorico}
-                    onChange={(e) => setLojaFiltroHistorico(e.target.value)}
-                  >
-                    <option value="todos">Todas as lojas</option>
-                    {lojas.map((loja) => (
-                      <option key={loja.id} value={loja.id.toString()}>
-                        {loja.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    {chip.label}
+                  </Chip>
+                ))}
+                <Button
+                  className="h-7 px-2 text-xs text-default-500"
+                  size="sm"
+                  variant="light"
+                  onPress={limparHistorico}
+                >
+                  Limpar tudo
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+          <Drawer
+            isOpen={filtrosHistoricoAbertos}
+            size="sm"
+            onOpenChange={setFiltrosHistoricoAbertos}
+          >
+            <DrawerContent>
+              <DrawerHeader className="flex flex-col gap-1">
+                Filtros
+              </DrawerHeader>
+              <DrawerBody className="gap-4">
+                <Select
+                  items={[
+                    { id: "todos", nome: "Todas as lojas" },
+                    ...lojas.map((l) => ({
+                      id: l.id.toString(),
+                      nome: l.nome,
+                    })),
+                  ]}
+                  label="Loja"
+                  selectedKeys={[lojaFiltroHistorico]}
+                  variant="bordered"
+                  onSelectionChange={(keys) =>
+                    setLojaFiltroHistorico(
+                      (Array.from(keys)[0] as string) || "todos",
+                    )
+                  }
+                >
+                  {(loja) => <SelectItem key={loja.id}>{loja.nome}</SelectItem>}
+                </Select>
 
                 <Input
                   label="Data Início"
                   type="date"
                   value={dataInicioHistorico}
+                  variant="bordered"
                   onChange={(e) => setDataInicioHistorico(e.target.value)}
                 />
 
@@ -1774,98 +1877,57 @@ export default function CaixaPage() {
                   label="Data Fim"
                   type="date"
                   value={dataFimHistorico}
+                  variant="bordered"
                   onChange={(e) => setDataFimHistorico(e.target.value)}
                 />
-
-                <Button
-                  className="mt-auto"
-                  color="primary"
-                  isLoading={loading}
-                  onPress={() => carregarHistorico(1)}
-                >
-                  Filtrar
+              </DrawerBody>
+              <DrawerFooter>
+                <Button variant="flat" onPress={limparHistorico}>
+                  Limpar tudo
                 </Button>
-              </div>
-            </CardBody>
-          </Card>
+                <Button
+                  color="primary"
+                  onPress={() => setFiltrosHistoricoAbertos(false)}
+                >
+                  Ver resultados
+                </Button>
+              </DrawerFooter>
+            </DrawerContent>
+          </Drawer>
 
           {/* Resumo Estatístico */}
           {resumoHistorico.totalCaixas > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-              <Card>
-                <CardBody className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <Calendar className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-default-500">
-                        Total de Caixas
-                      </p>
-                      <p className="text-xl font-bold">
-                        {resumoHistorico.totalCaixas}
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
+              <MetricCard
+                icon={<CalendarIcon className="h-5 w-5" />}
+                label="Total de Caixas"
+                value={resumoHistorico.totalCaixas.toLocaleString("pt-BR")}
+              />
+              <MetricCard
+                icon={<ArrowTrendingUpIcon className="h-5 w-5" />}
+                label="Saldo Total Inicial"
+                value={formatarMoeda(resumoHistorico.totalSaldoInicial)}
+              />
+              <MetricCard
+                icon={<CurrencyDollarIcon className="h-5 w-5" />}
+                label="Saldo Total Final"
+                value={formatarMoeda(resumoHistorico.totalSaldoFinal)}
+              />
+              {(() => {
+                const diferenca =
+                  resumoHistorico.totalSaldoFinal -
+                  resumoHistorico.totalSaldoInicial;
 
-              <Card>
-                <CardBody className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-success/10 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-success" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-default-500">
-                        Saldo Total Inicial
-                      </p>
-                      <p className="text-xl font-bold text-success">
-                        {formatarMoeda(resumoHistorico.totalSaldoInicial)}
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-
-              <Card>
-                <CardBody className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <DollarSign className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-default-500">
-                        Saldo Total Final
-                      </p>
-                      <p className="text-xl font-bold text-primary">
-                        {formatarMoeda(resumoHistorico.totalSaldoFinal)}
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-
-              <Card>
-                <CardBody className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-warning/10 rounded-lg">
-                      <TrendingUp className="w-5 h-5 text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-default-500">
-                        Diferença Total
-                      </p>
-                      <p className="text-xl font-bold text-warning">
-                        {formatarMoeda(
-                          resumoHistorico.totalSaldoFinal -
-                            resumoHistorico.totalSaldoInicial,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
+                return (
+                  <MetricCard
+                    emphasis={diferenca !== 0}
+                    icon={<ArrowTrendingUpIcon className="h-5 w-5" />}
+                    label="Diferença Total"
+                    tone={diferenca < 0 ? "danger" : "success"}
+                    value={formatarMoeda(diferenca)}
+                  />
+                );
+              })()}
             </div>
           )}
 
@@ -1925,38 +1987,38 @@ export default function CaixaPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Store className="w-4 h-4 text-default-400" />
+                            <BuildingStorefrontIcon className="w-4 h-4 text-default-400" />
                             {caixa.loja?.nome || "-"}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-default-400" />
+                            <UserIcon className="w-4 h-4 text-default-400" />
                             {caixa.usuario_abertura_info?.nome || "-"}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-default-400" />
+                            <UserIcon className="w-4 h-4 text-default-400" />
                             {caixa.usuario_fechamento_info?.nome || "-"}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-success font-semibold">
+                          <span className="font-medium tabular-nums text-default-600">
                             {formatarMoeda(
                               parseFloat(caixa.saldo_inicial.toString()),
                             )}
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-primary font-semibold">
+                          <span className="font-semibold tabular-nums text-foreground">
                             {formatarMoeda(saldoEsperado)}
                           </span>
                         </TableCell>
                         <TableCell>
                           <Button
                             size="sm"
-                            startContent={<Eye className="w-4 h-4" />}
+                            startContent={<EyeIcon className="w-4 h-4" />}
                             variant="flat"
                             onPress={() => handleVerDetalhes(caixa)}
                           >
@@ -1987,7 +2049,7 @@ export default function CaixaPage() {
       {lojas.length === 0 && !loading && (
         <Card>
           <CardBody className="text-center py-12">
-            <Store className="w-16 h-16 mx-auto text-default-400 mb-4" />
+            <BuildingStorefrontIcon className="w-16 h-16 mx-auto text-default-400 mb-4" />
             <p className="text-default-600">Nenhuma loja cadastrada</p>
           </CardBody>
         </Card>
@@ -2001,7 +2063,7 @@ export default function CaixaPage() {
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <Unlock className="text-success" />
+              <LockOpenIcon className="text-success" />
               Abrir Caixa - {lojaSelecionada?.nome}
             </div>
           </ModalHeader>
@@ -2010,7 +2072,7 @@ export default function CaixaPage() {
               description="Informe o valor em dinheiro no caixa"
               label="Saldo Inicial (Dinheiro em espécie)"
               placeholder="0,00"
-              startContent={<DollarSign className="w-4 h-4" />}
+              startContent={<CurrencyDollarIcon className="w-4 h-4" />}
               step="0.01"
               type="number"
               value={saldoInicial}
@@ -2049,7 +2111,7 @@ export default function CaixaPage() {
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <Lock className="text-danger" />
+              <LockClosedIcon className="text-danger" />
               Fechar Caixa - {lojaSelecionada?.nome}
             </div>
           </ModalHeader>
@@ -2106,7 +2168,7 @@ export default function CaixaPage() {
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <Eye className="w-5 h-5" />
+              <EyeIcon className="w-5 h-5" />
               Detalhes do Caixa - {caixaDetalhes?.loja?.nome}
             </div>
           </ModalHeader>
@@ -2220,15 +2282,15 @@ export default function CaixaPage() {
                         </Card>
 
                         {/* Total Geral do Caixa */}
-                        <Card className="bg-gradient-to-br from-success/20 to-success/10 border-2 border-success/30 col-span-2">
+                        <Card className="col-span-2 border border-default-200 bg-default-50 dark:border-default-100/20 dark:bg-default-100/5">
                           <CardBody>
                             <div className="flex items-center gap-2 mb-1">
-                              <DollarSign className="w-5 h-5 text-success" />
+                              <CurrencyDollarIcon className="w-5 h-5 text-default-500" />
                               <p className="text-sm text-default-700 font-semibold">
                                 TOTAL GERAL DO CAIXA
                               </p>
                             </div>
-                            <p className="text-2xl font-bold text-success">
+                            <p className="text-2xl font-bold tabular-nums text-foreground">
                               {formatarMoeda(
                                 resumo.saldo_inicial +
                                   entradasExibir -
@@ -2249,7 +2311,7 @@ export default function CaixaPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <ShoppingCart className="w-5 h-5" />
+                      <ShoppingCartIcon className="w-5 h-5" />
                       <span className="font-bold">
                         Vendas ({resumo.vendas.quantidade})
                       </span>
@@ -2285,7 +2347,7 @@ export default function CaixaPage() {
                     <Card className="border-primary/30">
                       <CardHeader>
                         <div className="flex items-center gap-2">
-                          <Smartphone className="w-5 h-5 text-primary" />
+                          <DevicePhoneMobileIcon className="w-5 h-5 text-primary" />
                           <span className="font-bold">
                             Vendas de Aparelhos (
                             {resumo.vendas_aparelhos.quantidade})
@@ -2322,7 +2384,7 @@ export default function CaixaPage() {
                   <Card className="border-warning/30">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-warning" />
+                        <CubeIcon className="w-5 h-5 text-warning" />
                         <span className="font-bold">
                           Vendas de Acessórios (
                           {resumo.vendas_acessorios.quantidade})
@@ -2339,7 +2401,7 @@ export default function CaixaPage() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-center gap-2">
-                      <Wrench className="w-5 h-5" />
+                      <WrenchScrewdriverIcon className="w-5 h-5" />
                       <span className="font-bold">
                         Ordens de Serviço ({resumo.ordens_servico.quantidade})
                       </span>
@@ -2374,7 +2436,7 @@ export default function CaixaPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-warning" />
+                        <CubeIcon className="w-5 h-5 text-warning" />
                         <span className="font-bold">
                           Devoluções c/ Crédito (
                           {resumo.devolucoes_com_credito.quantidade})
@@ -2391,7 +2453,7 @@ export default function CaixaPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-danger" />
+                        <CubeIcon className="w-5 h-5 text-danger" />
                         <span className="font-bold">
                           Devoluções s/ Crédito (
                           {resumo.devolucoes_sem_credito.quantidade})
@@ -2408,7 +2470,7 @@ export default function CaixaPage() {
                   <Card className="bg-danger/10 border border-danger/20">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <TrendingDown className="w-5 h-5 text-danger" />
+                        <ArrowTrendingDownIcon className="w-5 h-5 text-danger" />
                         <span className="font-bold">
                           Sangrias ({resumo.sangrias.quantidade})
                         </span>
@@ -2424,7 +2486,7 @@ export default function CaixaPage() {
                   <Card className="bg-danger/10 border border-danger/20">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-danger" />
+                        <ExclamationTriangleIcon className="w-5 h-5 text-danger" />
                         <span className="font-bold">
                           Quebras ({resumo.quebras.quantidade})
                         </span>
@@ -2440,7 +2502,7 @@ export default function CaixaPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Wrench className="w-5 h-5" />
+                        <WrenchScrewdriverIcon className="w-5 h-5" />
                         <span className="font-bold">
                           Ordens de Serviço ({resumo.ordens_servico.quantidade})
                         </span>
@@ -2456,7 +2518,7 @@ export default function CaixaPage() {
                   <Card className="bg-primary/10 border border-primary/20">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <Gift className="w-5 h-5 text-primary" />
+                        <GiftIcon className="w-5 h-5 text-primary" />
                         <span className="font-bold">Crédito do Cliente</span>
                       </div>
                     </CardHeader>
@@ -2497,7 +2559,7 @@ export default function CaixaPage() {
                       <Card className="bg-danger/10 border border-danger/20">
                         <CardHeader>
                           <div className="flex items-center gap-2">
-                            <RefreshCw className="w-5 h-5 text-danger" />
+                            <ArrowPathIcon className="w-5 h-5 text-danger" />
                             <span className="font-bold">
                               OS Reembolso (
                               {resumo.devolu_os_reembolso.quantidade})
@@ -2518,7 +2580,7 @@ export default function CaixaPage() {
                       <Card className="bg-warning/10 border border-warning/20">
                         <CardHeader>
                           <div className="flex items-center gap-2">
-                            <Gift className="w-5 h-5 text-warning" />
+                            <GiftIcon className="w-5 h-5 text-warning" />
                             <span className="font-bold">
                               OS Crédito ({resumo.devolu_os_credito.quantidade})
                             </span>
@@ -2535,33 +2597,42 @@ export default function CaixaPage() {
 
                 {/* Nova seção: Vendas Detalhadas por Forma de Pagamento */}
                 {Object.keys(vendasDetalhadas).length > 0 && (
-                  <Card className="bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/30">
+                  <Card className="border border-default-200/70 dark:border-default-100/20">
                     <CardHeader>
                       <div className="flex items-center gap-2">
-                        <ShoppingCart className="w-5 h-5 text-success" />
+                        <ShoppingCartIcon className="w-5 h-5 text-default-500" />
                         <span className="font-bold text-lg">
                           Vendas Detalhadas por Forma de Pagamento
                         </span>
                       </div>
                     </CardHeader>
                     <CardBody>
-                      <Tabs aria-label="Formas de pagamento" color="success">
+                      <Tabs aria-label="Formas de pagamento" color="primary">
                         {Object.entries(vendasDetalhadas).map(
                           ([formaPagamento, dados]: [string, any]) => {
                             const nomesFormasPagamento: {
                               [key: string]: { label: string; icon: any };
                             } = {
-                              dinheiro: { label: "DINHEIRO", icon: Banknote },
-                              pix: { label: "PIX", icon: Smartphone },
-                              credito: { label: "CRÉDITO", icon: CreditCard },
-                              debito: { label: "DÉBITO", icon: CreditCard },
+                              dinheiro: {
+                                label: "DINHEIRO",
+                                icon: BanknotesIcon,
+                              },
+                              pix: {
+                                label: "PIX",
+                                icon: DevicePhoneMobileIcon,
+                              },
+                              credito: {
+                                label: "CRÉDITO",
+                                icon: CreditCardIcon,
+                              },
+                              debito: { label: "DÉBITO", icon: CreditCardIcon },
                               credito_cliente: {
                                 label: "CRÉDITO CLIENTE",
-                                icon: Gift,
+                                icon: GiftIcon,
                               },
                               nao_informado: {
                                 label: "NÃO INFORMADO",
-                                icon: HelpCircle,
+                                icon: QuestionMarkCircleIcon,
                               },
                             };
 
@@ -2670,10 +2741,10 @@ export default function CaixaPage() {
                 {/* Ordens de Serviço Devolvidas com Crédito */}
                 {resumo.os_devolvidas_com_credito &&
                   resumo.os_devolvidas_com_credito.quantidade > 0 && (
-                    <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/30">
+                    <Card className="border border-default-200/70 dark:border-default-100/20">
                       <CardHeader>
                         <div className="flex items-center gap-2">
-                          <Wrench className="w-5 h-5 text-warning" />
+                          <WrenchScrewdriverIcon className="w-5 h-5 text-default-500" />
                           <span className="font-bold text-lg">
                             OS Devolvidas com Crédito (
                             {resumo.os_devolvidas_com_credito.quantidade})
@@ -2791,17 +2862,17 @@ export default function CaixaPage() {
                                       size="sm"
                                       startContent={
                                         mov.forma_pagamento === "dinheiro" ? (
-                                          <Banknote className="w-3 h-3" />
+                                          <BanknotesIcon className="w-3 h-3" />
                                         ) : mov.forma_pagamento === "pix" ? (
-                                          <Smartphone className="w-3 h-3" />
+                                          <DevicePhoneMobileIcon className="w-3 h-3" />
                                         ) : mov.forma_pagamento === "debito" ? (
-                                          <CreditCard className="w-3 h-3" />
+                                          <CreditCardIcon className="w-3 h-3" />
                                         ) : mov.forma_pagamento ===
                                           "credito" ? (
-                                          <CreditCard className="w-3 h-3" />
+                                          <CreditCardIcon className="w-3 h-3" />
                                         ) : mov.forma_pagamento ===
                                           "credito_loja" ? (
-                                          <Gift className="w-3 h-3" />
+                                          <GiftIcon className="w-3 h-3" />
                                         ) : undefined
                                       }
                                       variant="flat"
@@ -2821,7 +2892,9 @@ export default function CaixaPage() {
                                   <Chip
                                     color="secondary"
                                     size="sm"
-                                    startContent={<Gift className="w-3 h-3" />}
+                                    startContent={
+                                      <GiftIcon className="w-3 h-3" />
+                                    }
                                     variant="flat"
                                   >
                                     Usou Crédito (não soma no caixa)
@@ -2864,7 +2937,7 @@ export default function CaixaPage() {
                                       color="warning"
                                       size="sm"
                                       startContent={
-                                        <AlertTriangle className="w-3 h-3" />
+                                        <ExclamationTriangleIcon className="w-3 h-3" />
                                       }
                                       variant="flat"
                                     >
@@ -2944,7 +3017,7 @@ export default function CaixaPage() {
             {temPermissao("caixa.ver_aparelhos") && (
               <Button
                 color="success"
-                startContent={<Smartphone className="w-4 h-4" />}
+                startContent={<DevicePhoneMobileIcon className="w-4 h-4" />}
                 onPress={() => gerarPDFCaixa("aparelhos")}
               >
                 Relatório Aparelhos
@@ -2952,7 +3025,7 @@ export default function CaixaPage() {
             )}
             <Button
               color="primary"
-              startContent={<ShoppingCart className="w-4 h-4" />}
+              startContent={<ShoppingCartIcon className="w-4 h-4" />}
               onPress={() => gerarPDFCaixa("outros")}
             >
               Relatório Demais Vendas
@@ -2972,7 +3045,7 @@ export default function CaixaPage() {
         <ModalContent>
           <ModalHeader>
             <div className="flex items-center gap-2">
-              <TrendingDown className="text-warning" />
+              <ArrowTrendingDownIcon className="text-warning" />
               Registrar Sangria - {lojaSelecionada?.nome}
             </div>
           </ModalHeader>
@@ -2981,7 +3054,7 @@ export default function CaixaPage() {
               description="Informe o valor retirado do caixa"
               label="Valor da Sangria *"
               placeholder="0,00"
-              startContent={<DollarSign className="w-4 h-4" />}
+              startContent={<CurrencyDollarIcon className="w-4 h-4" />}
               step="0.01"
               type="number"
               value={valorSangria}

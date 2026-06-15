@@ -617,11 +617,11 @@ export default function NovaTransferenciaPage() {
             <ArrowLeftIcon className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-primary-500/15 text-primary">
+            <div className="p-2 rounded-xl bg-default-100 text-default-500">
               <ArrowRightIcon className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 {editando ? "Editar Transferência" : "Nova Transferência"}
               </h1>
               <p className="text-xs sm:text-sm text-default-500 mt-0.5">
@@ -770,8 +770,8 @@ export default function NovaTransferenciaPage() {
 
             {/* Resumo das lojas selecionadas */}
             {lojaOrigemId && (
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-500/15 border border-primary-500/30">
-                <div className="p-2 rounded-lg bg-primary-500/15 text-primary">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-default-100 border border-default-200/70">
+                <div className="p-2 rounded-lg bg-default-200 text-default-500">
                   <BuildingStorefrontIcon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -782,7 +782,7 @@ export default function NovaTransferenciaPage() {
                     {lojaOrigemNome}
                   </p>
                 </div>
-                <ArrowRightIcon className="h-5 w-5 text-primary flex-shrink-0" />
+                <ArrowRightIcon className="h-5 w-5 text-default-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-default-500 uppercase tracking-wider font-medium">
                     Destino {lojaDestinoPadrao ? "" : "(por item)"}

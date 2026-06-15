@@ -17,7 +17,12 @@ import {
   Divider,
   Chip,
 } from "@heroui/react";
-import { AlertCircle, DollarSign, CreditCard, RefreshCw } from "lucide-react";
+import {
+  ExclamationCircleIcon as AlertCircle,
+  CurrencyDollarIcon as DollarSign,
+  CreditCardIcon as CreditCard,
+  ArrowPathIcon as RefreshCw,
+} from "@heroicons/react/24/outline";
 
 import { formatarMoeda } from "@/lib/formatters";
 

@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import {
+  EyeIcon,
+  EyeSlashIcon,
+  EnvelopeIcon,
+  UserIcon,
+} from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 
 import { cadastrarUsuario } from "@/app/sistema/usuarios/actions";
@@ -184,6 +189,9 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
           isRequired
           label="Nome completo"
           placeholder="Seu nome"
+          startContent={
+            <UserIcon className="h-5 w-5 flex-shrink-0 text-default-400" />
+          }
           type="text"
           value={formData.nome}
           variant="bordered"
@@ -195,6 +203,9 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
           autoComplete="email"
           label="Email"
           placeholder="seu@email.com"
+          startContent={
+            <EnvelopeIcon className="h-5 w-5 flex-shrink-0 text-default-400" />
+          }
           type="email"
           value={formData.email}
           variant="bordered"
@@ -281,6 +292,7 @@ export function CadastroForm({ onSwitchToLogin }: CadastroFormProps) {
           className="w-full"
           color="primary"
           isLoading={loading}
+          size="lg"
           type="submit"
         >
           Criar conta

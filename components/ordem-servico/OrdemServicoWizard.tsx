@@ -29,16 +29,16 @@ import {
   Divider,
 } from "@heroui/react";
 import {
-  User,
-  Smartphone,
-  Wrench,
-  DollarSign,
-  CheckCircle,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Trash2,
-} from "lucide-react";
+  UserIcon as User,
+  DevicePhoneMobileIcon as Smartphone,
+  WrenchScrewdriverIcon as Wrench,
+  CurrencyDollarIcon as DollarSign,
+  CheckCircleIcon as CheckCircle,
+  ChevronLeftIcon as ChevronLeft,
+  ChevronRightIcon as ChevronRight,
+  PlusIcon as Plus,
+  TrashIcon as Trash2,
+} from "@heroicons/react/24/outline";
 
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";

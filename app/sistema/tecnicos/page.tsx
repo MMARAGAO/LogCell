@@ -3,12 +3,21 @@
 import type { OrdemServico, OrdemServicoPeca } from "@/types/ordemServico";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, ButtonGroup } from "@heroui/button";
+import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Divider } from "@heroui/divider";
 import { Pagination } from "@heroui/pagination";
 import { Select, SelectItem } from "@heroui/select";
+import { Chip } from "@heroui/chip";
+import { Badge } from "@heroui/badge";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
+} from "@heroui/drawer";
 import {
   MagnifyingGlassIcon,
   ClockIcon,
@@ -20,12 +29,11 @@ import {
   ExclamationCircleIcon,
   LockClosedIcon,
   FunnelIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   CurrencyDollarIcon,
   PhoneIcon,
+  Squares2X2Icon as LayoutGrid,
+  TableCellsIcon as TableIcon,
 } from "@heroicons/react/24/outline";
-import { LayoutGrid, TableIcon } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -37,7 +45,7 @@ const STATUS_STYLE: Record<string, { label: string; classes: string }> = {
   aguardando: {
     label: "Aguardando",
     classes:
-      "bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400 border-gray-200 dark:border-zinc-700",
+      "bg-default-100 text-default-600 dark:text-zinc-400 border-default-200",
   },
   em_diagnostico: {
     label: "Em Diagnóstico",
@@ -81,7 +89,7 @@ export default function TecnicoWorkspacePage() {
   const [busca, setBusca] = useState("");
   const [statusFiltro, setStatusFiltro] = useState<string>("");
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
   const [modoVisualizacao, setModoVisualizacao] = useState<"grid" | "table">(
     "grid",
@@ -278,19 +286,19 @@ export default function TecnicoWorkspacePage() {
       pecas?.reduce((a, p) => a + p.valor_custo * p.quantidade, 0) || 0;
 
     return (
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.1)] transition-shadow">
+      <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5 hover:shadow-md transition-shadow">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-default-400 dark:text-default-500 uppercase tracking-wider">
                 OS
               </span>
-              <span className="text-xs text-gray-300 dark:text-gray-600 font-mono">
+              <span className="text-xs text-default-300 dark:text-default-600 font-mono">
                 #{ordem.numero_os}
               </span>
             </div>
-            <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">
+            <h3 className="text-sm font-bold text-foreground truncate">
               {ordem.cliente_nome}
             </h3>
           </div>
@@ -315,8 +323,8 @@ export default function TecnicoWorkspacePage() {
 
         {/* Info lines */}
         <div className="space-y-1.5 mb-3">
-          <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-            <WrenchScrewdriverIcon className="w-3.5 h-3.5 text-gray-400" />
+          <div className="flex items-center gap-1.5 text-xs text-default-600 dark:text-default-400">
+            <WrenchScrewdriverIcon className="w-3.5 h-3.5 text-default-400" />
             <span>
               {ordem.equipamento_tipo}
               {ordem.equipamento_marca && ` - ${ordem.equipamento_marca}`}
@@ -334,14 +342,14 @@ export default function TecnicoWorkspacePage() {
           )}
 
           {ordem.cliente_telefone && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-500">
+            <div className="flex items-center gap-1.5 text-xs text-default-500 dark:text-default-500">
               <PhoneIcon className="w-3.5 h-3.5" />
               <span>{formatPhone(ordem.cliente_telefone)}</span>
             </div>
           )}
 
-          <div className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2">
-            <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+          <div className="text-xs text-default-500 dark:text-default-500 line-clamp-2">
+            <span className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">
               Defeito:{" "}
             </span>
             {ordem.defeito_reclamado}
@@ -361,13 +369,13 @@ export default function TecnicoWorkspacePage() {
             <Divider className="my-3" />
             <div className="flex items-center gap-1.5 mb-1">
               <CubeIcon className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              <span className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                 Peças
               </span>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-default-500">
                 {pecas.reduce((a, p) => a + p.quantidade, 0)} itens
               </span>
-              <span className="text-xs text-gray-400 ml-auto">
+              <span className="text-xs text-default-400 ml-auto">
                 R$ {totalCusto.toFixed(2)}
               </span>
             </div>
@@ -375,7 +383,7 @@ export default function TecnicoWorkspacePage() {
         )}
 
         {/* Action */}
-        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-zinc-800">
+        <div className="mt-3 pt-3 border-t border-default-200/70">
           {isDisponivel ? (
             <Button
               fullWidth
@@ -413,18 +421,18 @@ export default function TecnicoWorkspacePage() {
     const statusStyle = STATUS_STYLE[ordem.status] || STATUS_STYLE.aguardando;
 
     return (
-      <tr className="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
+      <tr className="border-b border-default-200/70 hover:bg-default-100 dark:hover:bg-zinc-800/50 transition-colors">
         <td className="py-3 px-4">
-          <span className="text-xs text-gray-400 font-mono">
+          <span className="text-xs text-default-400 font-mono">
             #{ordem.numero_os}
           </span>
         </td>
         <td className="py-3 px-4">
-          <p className="text-sm font-medium text-gray-800 dark:text-white">
+          <p className="text-sm font-medium text-foreground">
             {ordem.cliente_nome}
           </p>
         </td>
-        <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400">
+        <td className="py-3 px-4 text-sm text-default-600 dark:text-default-400">
           {ordem.equipamento_tipo}
           {ordem.equipamento_marca && ` ${ordem.equipamento_marca}`}
         </td>
@@ -435,7 +443,7 @@ export default function TecnicoWorkspacePage() {
             {statusStyle.label}
           </span>
         </td>
-        <td className="py-3 px-4 text-xs text-gray-400">
+        <td className="py-3 px-4 text-xs text-default-400">
           {new Date(ordem.criado_em).toLocaleDateString("pt-BR")}
         </td>
         <td className="py-3 px-4">
@@ -466,12 +474,45 @@ export default function TecnicoWorkspacePage() {
     );
   };
 
+  const ORDENACAO_LABELS: Record<string, string> = {
+    mais_recentes: "Mais Recentes",
+    mais_antigas: "Mais Antigas",
+    numero_crescente: "Número (Crescente)",
+    numero_decrescente: "Número (Decrescente)",
+  };
+
+  const limparTudo = () => {
+    setBusca("");
+    setStatusFiltro("");
+    setOrdenacao("mais_recentes");
+  };
+
+  // Chips de filtros ativos (busca tem campo próprio)
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (statusFiltro) {
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${STATUS_STYLE[statusFiltro]?.label || statusFiltro}`,
+      onRemove: () => setStatusFiltro(""),
+    });
+  }
+
+  if (ordenacao !== "mais_recentes") {
+    chipsFiltros.push({
+      key: "ordenacao",
+      label: `Ordem: ${ORDENACAO_LABELS[ordenacao] || ordenacao}`,
+      onRemove: () => setOrdenacao("mais_recentes"),
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-gray-500">Carregando ordens...</p>
+          <p className="text-sm text-default-500">Carregando ordens...</p>
         </div>
       </div>
     );
@@ -480,45 +521,33 @@ export default function TecnicoWorkspacePage() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-5">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+      <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Minhas Ordens de Serviço
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-default-500 mt-1">
           Gerencie suas ordens e pegue novas disponíveis
         </p>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-4 border-t border-default-200/70">
           <StatCard
-            bg="bg-gray-50 dark:bg-zinc-800"
-            color="text-gray-600 dark:text-gray-300"
             icon={<CubeIcon className="w-4 h-4" />}
-            iconBg="bg-gray-100 dark:bg-zinc-700"
             label="Total"
             value={stats.total}
           />
           <StatCard
-            bg="bg-orange-50 dark:bg-orange-900/20"
-            color="text-orange-600 dark:text-orange-400"
             icon={<ClockIcon className="w-4 h-4" />}
-            iconBg="bg-orange-100 dark:bg-orange-900/40"
             label="Disponíveis"
             value={stats.disponiveis}
           />
           <StatCard
-            bg="bg-blue-50 dark:bg-blue-900/20"
-            color="text-blue-600 dark:text-blue-400"
             icon={<WrenchScrewdriverIcon className="w-4 h-4" />}
-            iconBg="bg-blue-100 dark:bg-blue-900/40"
             label="Em Andamento"
             value={stats.em_andamento}
           />
           <StatCard
-            bg="bg-emerald-50 dark:bg-emerald-900/20"
-            color="text-emerald-600 dark:text-emerald-400"
             icon={<CheckCircleIcon className="w-4 h-4" />}
-            iconBg="bg-emerald-100 dark:bg-emerald-900/40"
             label="Concluídas"
             value={stats.concluidas}
           />
@@ -526,74 +555,102 @@ export default function TecnicoWorkspacePage() {
       </div>
 
       {/* Busca + Filtros */}
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Input
             isClearable
             className="flex-1"
-            classNames={{
-              input: "text-sm",
-              inputWrapper:
-                "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-            }}
             placeholder="Buscar por número, cliente, equipamento..."
+            radius="md"
+            size="md"
             startContent={
-              <MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />
+              <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
             }
             value={busca}
             variant="bordered"
-            onChange={(e) => setBusca(e.target.value)}
             onClear={() => setBusca("")}
+            onValueChange={setBusca}
           />
-          <Button
-            className="rounded-xl"
-            endContent={
-              mostrarFiltros ? (
-                <ChevronUpIcon className="w-4 h-4" />
-              ) : (
-                <ChevronDownIcon className="w-4 h-4" />
-              )
-            }
-            startContent={<FunnelIcon className="w-4 h-4" />}
-            variant="flat"
-            onPress={() => setMostrarFiltros(!mostrarFiltros)}
-          >
-            {mostrarFiltros ? "Ocultar" : "Filtros"}
-          </Button>
-          <ButtonGroup>
-            <Button
-              isIconOnly
-              className="rounded-l-xl"
-              color={modoVisualizacao === "grid" ? "primary" : "default"}
-              variant={modoVisualizacao === "grid" ? "solid" : "flat"}
-              onPress={() => setModoVisualizacao("grid")}
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={modoVisualizacao === "grid" ? "primary" : "default"}
+                size="sm"
+                variant={modoVisualizacao === "grid" ? "solid" : "light"}
+                onPress={() => setModoVisualizacao("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={modoVisualizacao === "table" ? "primary" : "default"}
+                size="sm"
+                variant={modoVisualizacao === "table" ? "solid" : "light"}
+                onPress={() => setModoVisualizacao("table")}
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
+            </div>
+            <Badge
+              color="primary"
+              content={chipsFiltros.length}
+              isInvisible={chipsFiltros.length === 0}
+              size="sm"
             >
-              <LayoutGrid className="w-4 h-4" />
-            </Button>
-            <Button
-              isIconOnly
-              className="rounded-r-xl"
-              color={modoVisualizacao === "table" ? "primary" : "default"}
-              variant={modoVisualizacao === "table" ? "solid" : "flat"}
-              onPress={() => setModoVisualizacao("table")}
-            >
-              <TableIcon className="w-4 h-4" />
-            </Button>
-          </ButtonGroup>
+              <Button
+                radius="md"
+                size="md"
+                startContent={<FunnelIcon className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => setFiltrosAbertos(true)}
+              >
+                Filtros
+              </Button>
+            </Badge>
+          </div>
         </div>
 
-        {mostrarFiltros && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+            <Button
+              className="h-7 px-2 text-xs text-default-500"
+              size="sm"
+              variant="light"
+              onPress={limparTudo}
+            >
+              Limpar tudo
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Status"
-              labelPlacement="outside"
               placeholder="Todos"
               selectedKeys={statusFiltro ? [statusFiltro] : []}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setStatusFiltro((Array.from(keys)[0] as string) || "")
@@ -608,14 +665,8 @@ export default function TecnicoWorkspacePage() {
             </Select>
 
             <Select
-              classNames={{
-                trigger:
-                  "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-              }}
               label="Ordenar por"
-              labelPlacement="outside"
               selectedKeys={[ordenacao]}
-              size="sm"
               variant="bordered"
               onSelectionChange={(keys) =>
                 setOrdenacao(Array.from(keys)[0] as string)
@@ -628,33 +679,27 @@ export default function TecnicoWorkspacePage() {
                 Número (Decrescente)
               </SelectItem>
             </Select>
-
-            <Button
-              className="self-end rounded-xl"
-              color="default"
-              size="sm"
-              variant="flat"
-              onPress={() => {
-                setBusca("");
-                setStatusFiltro("");
-                setOrdenacao("mais_recentes");
-              }}
-            >
-              Limpar Filtros
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparTudo}>
+              Limpar tudo
             </Button>
-          </div>
-        )}
-      </div>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Tabs */}
       <Tabs
         classNames={{
           tabList:
-            "gap-6 w-full relative rounded-none p-0 border-b border-gray-100 dark:border-zinc-800",
+            "gap-6 w-full relative rounded-none p-0 border-b border-default-200/70",
           cursor: "w-full bg-primary",
           tab: "max-w-fit px-0 h-10",
           tabContent:
-            "group-data-[selected=true]:text-primary text-sm text-gray-500",
+            "group-data-[selected=true]:text-primary text-sm text-default-500",
         }}
         color="primary"
         selectedKey={selectedTab}
@@ -667,7 +712,7 @@ export default function TecnicoWorkspacePage() {
             <div className="flex items-center gap-2">
               <ClockIcon className="w-4 h-4" />
               <span>Disponíveis</span>
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-400">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-default-200 text-default-600 dark:text-default-400">
                 {osDisponiveis.length}
               </span>
             </div>
@@ -710,16 +755,16 @@ export default function TecnicoWorkspacePage() {
   function renderList() {
     if (ordensFiltradas.length === 0) {
       return (
-        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 p-12">
+        <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-12">
           <div className="text-center">
             {selectedTab === "disponiveis" ? (
-              <ClockIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+              <ClockIcon className="w-12 h-12 mx-auto text-default-300 dark:text-default-600 mb-3" />
             ) : selectedTab === "minhas" ? (
-              <WrenchScrewdriverIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" />
+              <WrenchScrewdriverIcon className="w-12 h-12 mx-auto text-default-300 dark:text-default-600 mb-3" />
             ) : (
               <CheckCircleIcon className="w-12 h-12 mx-auto text-emerald-300 dark:text-emerald-700 mb-3" />
             )}
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-default-500">
               {busca || statusFiltro
                 ? "Nenhuma OS encontrada com esses filtros"
                 : selectedTab === "disponiveis"
@@ -735,7 +780,7 @@ export default function TecnicoWorkspacePage() {
 
     return (
       <>
-        <div className="flex justify-between items-center text-xs text-gray-400 mb-4">
+        <div className="flex justify-between items-center text-xs text-default-400 mb-4">
           <span>
             Mostrando {ordensPaginadas.length} de {ordensFiltradas.length} OS
             {ordensFiltradas.length !== 1 ? "'s" : ""}
@@ -757,27 +802,27 @@ export default function TecnicoWorkspacePage() {
             ))}
           </div>
         ) : (
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.06)] border border-gray-100 dark:border-zinc-800 overflow-hidden">
+          <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-zinc-800/50 border-b border-gray-100 dark:border-zinc-800">
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                  <tr className="bg-default-100/50 border-b border-default-200/70">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Nº OS
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Cliente
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Equipamento
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Data
                     </th>
-                    <th className="py-3 px-4 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-[10px] font-semibold text-default-400 uppercase tracking-wider">
                       Ação
                     </th>
                   </tr>
@@ -813,27 +858,21 @@ function StatCard({
   icon,
   value,
   label,
-  color,
-  bg,
-  iconBg,
 }: {
   icon: React.ReactNode;
   value: number;
   label: string;
-  color: string;
-  bg: string;
-  iconBg: string;
 }) {
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-xl ${bg}`}>
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${color}`}
-      >
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-default-100 dark:bg-default-50/10">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-default-200 text-default-500">
         {icon}
       </div>
       <div>
-        <p className={`text-lg font-bold ${color}`}>{value}</p>
-        <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+        <p className="text-lg font-bold tabular-nums text-foreground">
+          {value}
+        </p>
+        <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider">
           {label}
         </p>
       </div>

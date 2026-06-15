@@ -28,20 +28,23 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  ButtonGroup,
   Pagination,
+  Badge,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
 } from "@heroui/react";
 import {
-  Plus,
-  Search,
-  Filter,
-  FileText,
-  Package,
-  LayoutGrid,
-  Table as TableIcon,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+  PlusIcon as Plus,
+  MagnifyingGlassIcon as Search,
+  FunnelIcon as Filter,
+  DocumentTextIcon as FileText,
+  CubeIcon as Package,
+  Squares2X2Icon as LayoutGrid,
+  TableCellsIcon as TableIcon,
+} from "@heroicons/react/24/outline";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -80,6 +83,26 @@ interface FiltrosOrdemServico {
   dataFim?: string;
   busca?: string;
 }
+
+const STATUS_LABELS: Record<string, string> = {
+  aguardando: "Aguardando",
+  aprovado: "Aprovado",
+  em_andamento: "Em Andamento",
+  aguardando_peca: "Aguardando Peça",
+  concluido: "Concluído",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+  garantia: "Garantia",
+};
+
+const ORDENACAO_LABELS: Record<string, string> = {
+  mais_recentes: "Mais Recentes",
+  mais_antigas: "Mais Antigas",
+  numero_crescente: "Número (Crescente)",
+  numero_decrescente: "Número (Decrescente)",
+  valor_crescente: "Valor (Crescente)",
+  valor_decrescente: "Valor (Decrescente)",
+};
 
 export default function OrdemServicoPage() {
   const { usuario } = useAuth();
@@ -124,7 +147,7 @@ export default function OrdemServicoPage() {
   const [filtroDataInicio, setFiltroDataInicio] = useState<string>(hoje);
   const [filtroDataFim, setFiltroDataFim] = useState<string>(hoje);
   const [ordenacao, setOrdenacao] = useState<string>("mais_recentes");
-  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // Estados de paginação
   const [paginaAtual, setPaginaAtual] = useState(1);
@@ -790,6 +813,57 @@ export default function OrdemServicoPage() {
     return items;
   };
 
+  const limparTudo = () => {
+    setBusca("");
+    setStatusFiltro("");
+    setFiltroLoja("todas");
+    setFiltroDataInicio(hoje);
+    setFiltroDataFim(hoje);
+    setOrdenacao("mais_recentes");
+  };
+
+  // Chips de filtros ativos (busca tem campo próprio)
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (statusFiltro) {
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${STATUS_LABELS[statusFiltro] || statusFiltro}`,
+      onRemove: () => setStatusFiltro(""),
+    });
+  }
+
+  if (filtroLoja !== "todas") {
+    const lojaNome =
+      lojas.find((l) => String(l.id) === filtroLoja)?.nome || filtroLoja;
+
+    chipsFiltros.push({
+      key: "loja",
+      label: `Loja: ${lojaNome}`,
+      onRemove: () => setFiltroLoja("todas"),
+    });
+  }
+
+  if (filtroDataInicio !== hoje || filtroDataFim !== hoje) {
+    chipsFiltros.push({
+      key: "periodo",
+      label: `Período: ${filtroDataInicio || "…"} → ${filtroDataFim || "…"}`,
+      onRemove: () => {
+        setFiltroDataInicio(hoje);
+        setFiltroDataFim(hoje);
+      },
+    });
+  }
+
+  if (ordenacao !== "mais_recentes") {
+    chipsFiltros.push({
+      key: "ordenacao",
+      label: `Ordem: ${ORDENACAO_LABELS[ordenacao] || ordenacao}`,
+      onRemove: () => setOrdenacao("mais_recentes"),
+    });
+  }
+
   if (!usuario || loadingPermissoes) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
@@ -799,12 +873,14 @@ export default function OrdemServicoPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Ordens de Serviço</h1>
-          <p className="text-default-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Ordens de Serviço
+          </h1>
+          <p className="text-sm text-default-500">
             Gerencie as ordens de serviço da sua loja
           </p>
         </div>
@@ -820,189 +896,194 @@ export default function OrdemServicoPage() {
         </Permissao>
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Linha 1: Busca e botões principais */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Input
-                isClearable
-                className="flex-1"
-                placeholder="Buscar por número, cliente, equipamento..."
-                startContent={<Search className="w-4 h-4 text-default-400" />}
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                onClear={() => setBusca("")}
-              />
-
+      {/* Barra de busca e filtros */}
+      <div className="rounded-xl border border-default-200/70 bg-content1 p-3">
+        {/* Linha 1: busca + visualização + filtros */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por número, cliente, equipamento..."
+            radius="md"
+            size="md"
+            startContent={<Search className="h-4 w-4 text-default-400" />}
+            value={busca}
+            variant="bordered"
+            onClear={() => setBusca("")}
+            onValueChange={setBusca}
+          />
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
               <Button
-                className="sm:w-auto"
-                endContent={
-                  mostrarFiltros ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )
-                }
-                startContent={<Filter className="w-4 h-4" />}
-                variant="flat"
-                onPress={() => setMostrarFiltros(!mostrarFiltros)}
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={modoVisualizacao === "grid" ? "primary" : "default"}
+                size="sm"
+                variant={modoVisualizacao === "grid" ? "solid" : "light"}
+                onPress={() => setModoVisualizacao("grid")}
               >
-                {mostrarFiltros ? "Ocultar Filtros" : "Mostrar Filtros"}
+                <LayoutGrid className="h-4 w-4" />
               </Button>
-
-              <ButtonGroup>
-                <Button
-                  isIconOnly
-                  color={modoVisualizacao === "grid" ? "primary" : "default"}
-                  variant={modoVisualizacao === "grid" ? "solid" : "flat"}
-                  onPress={() => setModoVisualizacao("grid")}
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </Button>
-                <Button
-                  isIconOnly
-                  color={modoVisualizacao === "table" ? "primary" : "default"}
-                  variant={modoVisualizacao === "table" ? "solid" : "flat"}
-                  onPress={() => setModoVisualizacao("table")}
-                >
-                  <TableIcon className="w-4 h-4" />
-                </Button>
-              </ButtonGroup>
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={modoVisualizacao === "table" ? "primary" : "default"}
+                size="sm"
+                variant={modoVisualizacao === "table" ? "solid" : "light"}
+                onPress={() => setModoVisualizacao("table")}
+              >
+                <TableIcon className="h-4 w-4" />
+              </Button>
             </div>
-
-            {/* Filtros Avançados (Retrátil) */}
-            {mostrarFiltros && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-default-200">
-                <Select
-                  label="Status"
-                  placeholder="Todos os Status"
-                  selectedKeys={statusFiltro ? [statusFiltro] : []}
-                  size="sm"
-                  onSelectionChange={(keys) => {
-                    const selected = Array.from(keys)[0] as StatusOS | "";
-
-                    setStatusFiltro(selected);
-                  }}
-                >
-                  <SelectItem key="">Todos</SelectItem>
-                  <SelectItem key="aguardando">Aguardando</SelectItem>
-                  <SelectItem key="aprovado">Aprovado</SelectItem>
-                  <SelectItem key="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
-                  <SelectItem key="concluido">Concluído</SelectItem>
-                  <SelectItem key="entregue">Entregue</SelectItem>
-                  <SelectItem key="cancelado">Cancelado</SelectItem>
-                  <SelectItem key="garantia">Garantia</SelectItem>
-                </Select>
-
-                <Select
-                  items={[{ id: 0, nome: "Todas" }, ...lojas]}
-                  label="Loja"
-                  placeholder="Todas as Lojas"
-                  selectedKeys={[filtroLoja]}
-                  size="sm"
-                  onSelectionChange={(keys) =>
-                    setFiltroLoja(Array.from(keys)[0] as string)
-                  }
-                >
-                  {(loja) => (
-                    <SelectItem
-                      key={loja.id === 0 ? "todas" : loja.id.toString()}
-                    >
-                      {loja.nome}
-                    </SelectItem>
-                  )}
-                </Select>
-
-                <Input
-                  label="Data Início"
-                  size="sm"
-                  type="date"
-                  value={filtroDataInicio}
-                  onChange={(e) => setFiltroDataInicio(e.target.value)}
-                />
-
-                <Input
-                  label="Data Fim"
-                  size="sm"
-                  type="date"
-                  value={filtroDataFim}
-                  onChange={(e) => setFiltroDataFim(e.target.value)}
-                />
-
-                <Button
-                  className="sm:col-span-2"
-                  color="default"
-                  size="sm"
-                  variant="flat"
-                  onPress={() => {
-                    setFiltroDataInicio("");
-                    setFiltroDataFim("");
-                  }}
-                >
-                  Limpar Datas
-                </Button>
-
-                <Select
-                  className="sm:col-span-2"
-                  label="Ordenar por"
-                  selectedKeys={[ordenacao]}
-                  size="sm"
-                  onSelectionChange={(keys) =>
-                    setOrdenacao(Array.from(keys)[0] as string)
-                  }
-                >
-                  <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
-                  <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
-                  <SelectItem key="numero_crescente">
-                    Número (Crescente)
-                  </SelectItem>
-                  <SelectItem key="numero_decrescente">
-                    Número (Decrescente)
-                  </SelectItem>
-                  <SelectItem key="valor_crescente">
-                    Valor (Crescente)
-                  </SelectItem>
-                  <SelectItem key="valor_decrescente">
-                    Valor (Decrescente)
-                  </SelectItem>
-                </Select>
-
-                <div className="sm:col-span-2 flex gap-2">
-                  <Button
-                    className="flex-1"
-                    size="sm"
-                    variant="flat"
-                    onPress={() => {
-                      setBusca("");
-                      setStatusFiltro("");
-                      setFiltroLoja("todas");
-                      setFiltroDataInicio("");
-                      setFiltroDataFim("");
-                      setOrdenacao("mais_recentes");
-                    }}
-                  >
-                    Limpar Filtros
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Informações de resultado */}
-            <div className="flex justify-between items-center text-sm text-default-500">
-              <span>
-                Mostrando {ordensPaginadas.length} de {ordensFiltradas.length}{" "}
-                {ordensFiltradas.length === 1 ? "OS" : "OS's"}
-              </span>
-              <span>
-                Página {paginaAtual} de {totalPaginas || 1}
-              </span>
-            </div>
+            <Badge
+              color="primary"
+              content={chipsFiltros.length}
+              isInvisible={chipsFiltros.length === 0}
+              size="sm"
+            >
+              <Button
+                radius="md"
+                size="md"
+                startContent={<Filter className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => setFiltrosAbertos(true)}
+              >
+                Filtros
+              </Button>
+            </Badge>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+            <Button
+              className="h-7 px-2 text-xs text-default-500"
+              size="sm"
+              variant="light"
+              onPress={limparTudo}
+            >
+              Limpar tudo
+            </Button>
+          </div>
+        )}
+
+        {/* Informações de resultado */}
+        <div className="mt-2 flex items-center justify-between text-xs text-default-500">
+          <span className="tabular-nums">
+            Mostrando {ordensPaginadas.length} de {ordensFiltradas.length}{" "}
+            {ordensFiltradas.length === 1 ? "OS" : "OS's"}
+          </span>
+          <span className="tabular-nums">
+            Página {paginaAtual} de {totalPaginas || 1}
+          </span>
+        </div>
+      </div>
+
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
+            <Select
+              label="Status"
+              placeholder="Todos os Status"
+              selectedKeys={statusFiltro ? [statusFiltro] : []}
+              variant="bordered"
+              onSelectionChange={(keys) => {
+                const selected = Array.from(keys)[0] as StatusOS | "";
+
+                setStatusFiltro(selected);
+              }}
+            >
+              <SelectItem key="">Todos</SelectItem>
+              <SelectItem key="aguardando">Aguardando</SelectItem>
+              <SelectItem key="aprovado">Aprovado</SelectItem>
+              <SelectItem key="em_andamento">Em Andamento</SelectItem>
+              <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
+              <SelectItem key="concluido">Concluído</SelectItem>
+              <SelectItem key="entregue">Entregue</SelectItem>
+              <SelectItem key="cancelado">Cancelado</SelectItem>
+              <SelectItem key="garantia">Garantia</SelectItem>
+            </Select>
+
+            <Select
+              items={[{ id: 0, nome: "Todas" }, ...lojas]}
+              label="Loja"
+              placeholder="Todas as Lojas"
+              selectedKeys={[filtroLoja]}
+              variant="bordered"
+              onSelectionChange={(keys) =>
+                setFiltroLoja(Array.from(keys)[0] as string)
+              }
+            >
+              {(loja) => (
+                <SelectItem key={loja.id === 0 ? "todas" : loja.id.toString()}>
+                  {loja.nome}
+                </SelectItem>
+              )}
+            </Select>
+
+            <Input
+              label="Data Início"
+              type="date"
+              value={filtroDataInicio}
+              variant="bordered"
+              onChange={(e) => setFiltroDataInicio(e.target.value)}
+            />
+
+            <Input
+              label="Data Fim"
+              type="date"
+              value={filtroDataFim}
+              variant="bordered"
+              onChange={(e) => setFiltroDataFim(e.target.value)}
+            />
+
+            <Select
+              label="Ordenar por"
+              selectedKeys={[ordenacao]}
+              variant="bordered"
+              onSelectionChange={(keys) =>
+                setOrdenacao(Array.from(keys)[0] as string)
+              }
+            >
+              <SelectItem key="mais_recentes">Mais Recentes</SelectItem>
+              <SelectItem key="mais_antigas">Mais Antigas</SelectItem>
+              <SelectItem key="numero_crescente">Número (Crescente)</SelectItem>
+              <SelectItem key="numero_decrescente">
+                Número (Decrescente)
+              </SelectItem>
+              <SelectItem key="valor_crescente">Valor (Crescente)</SelectItem>
+              <SelectItem key="valor_decrescente">
+                Valor (Decrescente)
+              </SelectItem>
+            </Select>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparTudo}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Lista de OS */}
       {loading ? (

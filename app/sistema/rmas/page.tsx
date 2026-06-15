@@ -18,20 +18,30 @@ import {
   Spinner,
   Tooltip,
   Pagination,
+  Badge,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
 } from "@heroui/react";
 import {
-  Plus,
-  Search,
-  Eye,
-  Package,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-} from "lucide-react";
+  PlusIcon as Plus,
+  MagnifyingGlassIcon as Search,
+  EyeIcon as Eye,
+  CubeIcon as Package,
+  ArrowTrendingUpIcon as TrendingUp,
+  ClockIcon as Clock,
+  CheckCircleIcon as CheckCircle,
+  CheckBadgeIcon,
+  FunnelIcon,
+} from "@heroicons/react/24/outline";
 
+import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/contexts/AuthContext";
 import FormularioRMA from "@/components/rma/FormularioRMA";
 import DetalhesRMA from "@/components/rma/DetalhesRMA";
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import {
   RMA,
@@ -78,6 +88,7 @@ export default function RMAsPage() {
   const [busca, setBusca] = useState("");
   const [filtroTipoOrigem, setFiltroTipoOrigem] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // Opções para selects
   const [lojas, setLojas] = useState<{ id: number; nome: string }[]>([]);
@@ -102,8 +113,6 @@ export default function RMAsPage() {
   const carregarDados = async () => {
     setLoading(true);
     try {
-      const { supabase } = await import("@/lib/supabaseClient");
-
       // Construir query base
       let query = supabase.from("rmas").select(
         `
@@ -184,8 +193,6 @@ export default function RMAsPage() {
 
   const carregarEstatisticas = async () => {
     try {
-      const { supabase } = await import("@/lib/supabaseClient");
-
       let queryStats = supabase
         .from("rmas")
         .select("status", { count: "exact" });
@@ -217,7 +224,6 @@ export default function RMAsPage() {
 
   const carregarLojas = async () => {
     try {
-      const { supabase } = await import("@/lib/supabaseClient");
       const { data } = await supabase
         .from("lojas")
         .select("id, nome")
@@ -257,6 +263,26 @@ export default function RMAsPage() {
     setPaginaAtual(1);
   };
 
+  // Chips de filtros ativos (busca tem campo próprio)
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (filtroTipoOrigem) {
+    chipsFiltros.push({
+      key: "origem",
+      label: `Origem: ${LABELS_TIPO_ORIGEM[filtroTipoOrigem as keyof typeof LABELS_TIPO_ORIGEM] || filtroTipoOrigem}`,
+      onRemove: () => setFiltroTipoOrigem(""),
+    });
+  }
+
+  if (filtroStatus) {
+    chipsFiltros.push({
+      key: "status",
+      label: `Status: ${LABELS_STATUS_RMA[filtroStatus as keyof typeof LABELS_STATUS_RMA] || filtroStatus}`,
+      onRemove: () => setFiltroStatus(""),
+    });
+  }
+
   // Verificar permissão de visualizar
   // Verificar loading primeiro
   if (loading || loadingPermissoes) {
@@ -279,19 +305,21 @@ export default function RMAsPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">RMAs</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            RMAs
+          </h1>
+          <p className="text-sm text-default-500">
             Gerencie as solicitações de retorno de mercadoria
           </p>
         </div>
         {temPermissao("rma.criar") && (
           <Button
             color="primary"
-            startContent={<Plus className="w-4 h-4" />}
+            startContent={<Plus className="h-4 w-4" />}
             onPress={() => setModalNovoRMA(true)}
           >
             Novo RMA
@@ -300,94 +328,117 @@ export default function RMAsPage() {
       </div>
 
       {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-primary-100 rounded-lg">
-              <Package className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Total de RMAs</p>
-              <p className="text-2xl font-bold">{estatisticas.total}</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-warning-100 rounded-lg">
-              <Clock className="w-6 h-6 text-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Pendentes</p>
-              <p className="text-2xl font-bold">{estatisticas.pendentes}</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-secondary-100 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-secondary" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Em Análise</p>
-              <p className="text-2xl font-bold">{estatisticas.emAnalise}</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-success-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Aprovados</p>
-              <p className="text-2xl font-bold">{estatisticas.aprovados}</p>
-            </div>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-success-100 rounded-lg">
-              <CheckCircle className="w-6 h-6 text-success" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Concluídos</p>
-              <p className="text-2xl font-bold">{estatisticas.concluidos}</p>
-            </div>
-          </CardBody>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
+        <MetricCard
+          icon={<Package className="h-5 w-5" />}
+          label="Total de RMAs"
+          value={estatisticas.total}
+        />
+        <MetricCard
+          emphasis={estatisticas.pendentes > 0}
+          icon={<Clock className="h-5 w-5" />}
+          label="Pendentes"
+          tone="warning"
+          value={estatisticas.pendentes}
+        />
+        <MetricCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          label="Em Análise"
+          value={estatisticas.emAnalise}
+        />
+        <MetricCard
+          icon={<CheckCircle className="h-5 w-5" />}
+          label="Aprovados"
+          value={estatisticas.aprovados}
+        />
+        <MetricCard
+          icon={<CheckBadgeIcon className="h-5 w-5" />}
+          label="Concluídos"
+          value={estatisticas.concluidos}
+        />
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardBody>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 space-y-2">
-              <Input
-                isClearable
-                description="Digite palavras-chave separadas por espaço"
-                placeholder="Ex: rma cliente produto (busca inteligente)"
-                startContent={<Search className="w-4 h-4 text-gray-400" />}
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                onClear={() => setBusca("")}
-              />
-              {totalRegistros > 0 && (
-                <p className="text-xs text-default-500">
-                  {totalRegistros} registro{totalRegistros !== 1 ? "s" : ""}{" "}
-                  encontrado{totalRegistros !== 1 ? "s" : ""}
-                </p>
-              )}
-            </div>
+      {/* Barra de busca e filtros */}
+      <div className="rounded-xl border border-default-200/70 bg-content1 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por número, motivo..."
+            radius="md"
+            size="md"
+            startContent={<Search className="h-4 w-4 text-default-400" />}
+            value={busca}
+            variant="bordered"
+            onClear={() => setBusca("")}
+            onValueChange={setBusca}
+          />
+          <Badge
+            color="primary"
+            content={chipsFiltros.length}
+            isInvisible={chipsFiltros.length === 0}
+            size="sm"
+          >
+            <Button
+              radius="md"
+              size="md"
+              startContent={<FunnelIcon className="h-4 w-4" />}
+              variant="flat"
+              onPress={() => setFiltrosAbertos(true)}
+            >
+              Filtros
+            </Button>
+          </Badge>
+        </div>
 
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+            <Button
+              className="h-7 px-2 text-xs text-default-500"
+              size="sm"
+              variant="light"
+              onPress={limparFiltros}
+            >
+              Limpar tudo
+            </Button>
+          </div>
+        )}
+
+        {/* Contagem */}
+        {totalRegistros > 0 && (
+          <div className="mt-2 flex items-center">
+            <span className="ml-auto text-xs text-default-500 tabular-nums">
+              {totalRegistros} registro{totalRegistros !== 1 ? "s" : ""}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
             <Select
-              className="w-full md:w-64"
-              placeholder="Tipo de Origem"
+              label="Tipo de Origem"
+              placeholder="Todas as origens"
               selectedKeys={filtroTipoOrigem ? [filtroTipoOrigem] : []}
+              variant="bordered"
               onChange={(e) => setFiltroTipoOrigem(e.target.value)}
             >
               {Object.entries(LABELS_TIPO_ORIGEM).map(([valor, label]) => (
@@ -396,24 +447,27 @@ export default function RMAsPage() {
             </Select>
 
             <Select
-              className="w-full md:w-64"
-              placeholder="Status"
+              label="Status"
+              placeholder="Todos os status"
               selectedKeys={filtroStatus ? [filtroStatus] : []}
+              variant="bordered"
               onChange={(e) => setFiltroStatus(e.target.value)}
             >
               {Object.entries(LABELS_STATUS_RMA).map(([valor, label]) => (
                 <SelectItem key={valor}>{label}</SelectItem>
               ))}
             </Select>
-
-            {(busca || filtroTipoOrigem || filtroStatus) && (
-              <Button variant="flat" onPress={limparFiltros}>
-                Limpar
-              </Button>
-            )}
-          </div>
-        </CardBody>
-      </Card>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparFiltros}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Tabela */}
       <Card>
@@ -448,7 +502,7 @@ export default function RMAsPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{rma.produtos?.descricao}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-default-500">
                           {LABELS_TIPO_RMA[rma.tipo_rma]}
                         </p>
                       </div>
@@ -457,12 +511,12 @@ export default function RMAsPage() {
                       <div>
                         <p className="font-medium">{rma.lojas?.nome}</p>
                         {rma.clientes && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-default-500">
                             {rma.clientes.nome}
                           </p>
                         )}
                         {rma.fornecedores && (
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-default-500">
                             {rma.fornecedores.nome}
                           </p>
                         )}

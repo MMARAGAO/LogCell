@@ -16,7 +16,12 @@ import {
   CardBody,
   Spinner,
 } from "@heroui/react";
-import { FileText, AlertCircle, FileCheck, Printer } from "lucide-react";
+import {
+  DocumentTextIcon as FileText,
+  ExclamationCircleIcon as AlertCircle,
+  DocumentCheckIcon as FileCheck,
+  PrinterIcon as Printer,
+} from "@heroicons/react/24/outline";
 
 import { abrirPreviewPDF } from "@/lib/pdfPreview";
 import { supabase } from "@/lib/supabaseClient";

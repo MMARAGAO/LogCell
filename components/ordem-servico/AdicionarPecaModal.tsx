@@ -25,17 +25,17 @@ import {
   TableCell,
 } from "@heroui/react";
 import {
-  PackagePlus,
-  Package,
-  Store,
-  ShoppingBag,
-  Search,
-  Tag,
-  Box,
-  TrendingUp,
-  Edit,
-  Trash2,
-} from "lucide-react";
+  PlusCircleIcon as PackagePlus,
+  CubeIcon as Package,
+  BuildingStorefrontIcon as Store,
+  ShoppingBagIcon as ShoppingBag,
+  MagnifyingGlassIcon as Search,
+  TagIcon as Tag,
+  ArchiveBoxIcon as Box,
+  ArrowTrendingUpIcon as TrendingUp,
+  PencilIcon as Edit,
+  TrashIcon as Trash2,
+} from "@heroicons/react/24/outline";
 
 import { useToast } from "@/components/Toast";
 import {
@@ -836,13 +836,13 @@ export default function AdicionarPecaModal({
                 <>
                   <Divider className="my-2" />
 
-                  <div className="bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20 p-4 rounded-lg">
+                  <div className="rounded-lg border border-default-200 bg-default-50 p-4 dark:border-default-100/20 dark:bg-default-100/5">
                     <h3 className="text-sm font-bold mb-3 text-primary">
                       Configurações do Produto Selecionado
                     </h3>
 
                     <div className="grid grid-cols-3 gap-3 mb-4">
-                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                      <div className="bg-default-100 p-3 rounded-lg">
                         <p className="text-xs text-default-500 mb-1">
                           Custo Padrão
                         </p>
@@ -850,7 +850,7 @@ export default function AdicionarPecaModal({
                           R$ {produtoSelecionado.preco_compra.toFixed(2)}
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                      <div className="bg-default-100 p-3 rounded-lg">
                         <p className="text-xs text-default-500 mb-1">
                           Venda Padrão
                         </p>
@@ -858,7 +858,7 @@ export default function AdicionarPecaModal({
                           R$ {produtoSelecionado.preco_venda.toFixed(2)}
                         </p>
                       </div>
-                      <div className="bg-white dark:bg-default-100/50 p-3 rounded-lg">
+                      <div className="bg-default-100 p-3 rounded-lg">
                         <p className="text-xs text-default-500 mb-1">
                           Disponível
                         </p>

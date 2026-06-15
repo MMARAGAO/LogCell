@@ -21,24 +21,24 @@ import {
   Spinner,
 } from "@heroui/react";
 import {
-  User,
-  Phone,
-  Mail,
-  Smartphone,
-  Tag,
-  Wrench,
-  FileText,
-  Calendar,
-  Package,
-  MapPin,
-  Clock,
-  AlertCircle,
-  ShoppingBag,
-  XCircle,
-  Camera,
-  AlertTriangle,
-  CheckCircle,
-} from "lucide-react";
+  UserIcon as User,
+  PhoneIcon as Phone,
+  EnvelopeIcon as Mail,
+  DevicePhoneMobileIcon as Smartphone,
+  TagIcon as Tag,
+  WrenchScrewdriverIcon as Wrench,
+  DocumentTextIcon as FileText,
+  CalendarIcon as Calendar,
+  CubeIcon as Package,
+  MapPinIcon as MapPin,
+  ClockIcon as Clock,
+  ExclamationCircleIcon as AlertCircle,
+  ShoppingBagIcon as ShoppingBag,
+  XCircleIcon as XCircle,
+  CameraIcon as Camera,
+  ExclamationTriangleIcon as AlertTriangle,
+  CheckCircleIcon as CheckCircle,
+} from "@heroicons/react/24/outline";
 
 import StatusProgressBar from "./StatusProgressBar";
 import GerenciarFotosOSModal from "./GerenciarFotosOSModal";
@@ -616,7 +616,7 @@ export default function OrdemServicoDetalhesModal({
         <ModalBody>
           <div className="space-y-6">
             {/* BARRA DE PROGRESSO */}
-            <Card className="bg-gradient-to-r from-primary-50 to-secondary-50 dark:from-primary-900/20 dark:to-secondary-900/20">
+            <Card className="border border-default-200/70 dark:border-default-100/20">
               <CardBody>
                 <h3 className="text-sm font-semibold mb-2 text-center">
                   Status da Ordem de Serviço
