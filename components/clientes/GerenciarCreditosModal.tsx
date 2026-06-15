@@ -12,7 +12,13 @@ import {
   Textarea,
   Divider,
 } from "@heroui/react";
-import { Wallet, Plus, Minus, AlertCircle, History } from "lucide-react";
+import {
+  WalletIcon as Wallet,
+  PlusIcon as Plus,
+  MinusIcon as Minus,
+  ExclamationCircleIcon as AlertCircle,
+  ClockIcon as History,
+} from "@heroicons/react/24/outline";
 
 import { HistoricoCreditosModal } from "./HistoricoCreditosModal";
 

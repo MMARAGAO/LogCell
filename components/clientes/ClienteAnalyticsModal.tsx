@@ -16,17 +16,17 @@ import {
   TableCell,
 } from "@heroui/table";
 import {
-  BarChart3,
-  TrendingUp,
-  CreditCard,
-  Smartphone,
-  ShoppingBag,
-  Wallet,
-  DollarSign,
-  AlertTriangle,
-  Clock,
-  Activity,
-} from "lucide-react";
+  ChartBarIcon as BarChart3,
+  ArrowTrendingUpIcon as TrendingUp,
+  CreditCardIcon as CreditCard,
+  DevicePhoneMobileIcon as Smartphone,
+  ShoppingBagIcon as ShoppingBag,
+  WalletIcon as Wallet,
+  CurrencyDollarIcon as DollarSign,
+  ExclamationTriangleIcon as AlertTriangle,
+  ClockIcon as Clock,
+  BoltIcon as Activity,
+} from "@heroicons/react/24/outline";
 
 import {
   LineChart,

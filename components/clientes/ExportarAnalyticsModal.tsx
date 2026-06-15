@@ -24,16 +24,16 @@ import {
   TableCell,
 } from "@heroui/react";
 import {
-  Search,
-  FileSpreadsheet,
-  User,
-  AlertCircle,
-  CheckSquare,
-  Square,
-  Info,
-  Eye,
-  ArrowLeft,
-} from "lucide-react";
+  MagnifyingGlassIcon as Search,
+  TableCellsIcon as FileSpreadsheet,
+  UserIcon as User,
+  ExclamationCircleIcon as AlertCircle,
+  CheckCircleIcon as CheckSquare,
+  StopIcon as Square,
+  InformationCircleIcon as Info,
+  EyeIcon as Eye,
+  ArrowLeftIcon as ArrowLeft,
+} from "@heroicons/react/24/outline";
 
 import { buscarClientes } from "@/services/clienteService";
 import { buscarAnalyticsCliente } from "@/services/clienteAnalyticsService";

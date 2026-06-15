@@ -57,7 +57,7 @@ export function HistoricoLojaModal({
 
     if (operacao === "INSERT") {
       return (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-default-600">
           <p className="font-medium text-green-600 mb-2">✓ Loja criada</p>
           {dados_novos && (
             <div className="bg-green-50 p-3 rounded-lg space-y-1">
@@ -83,7 +83,7 @@ export function HistoricoLojaModal({
 
     if (operacao === "DELETE") {
       return (
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-default-600">
           <p className="font-medium text-red-600 mb-2">✗ Loja excluída</p>
         </div>
       );
@@ -105,10 +105,10 @@ export function HistoricoLojaModal({
 
             return (
               <div key={campo} className="bg-orange-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700 mb-1">
+                <p className="font-medium text-default-600 mb-1">
                   {HistoricoLojasService.formatarCampo(campo)}
                 </p>
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-default-600">
                   <span className="text-red-600 line-through">
                     {HistoricoLojasService.formatarValor(campo, valorAntigo)}
                   </span>
@@ -134,7 +134,7 @@ export function HistoricoLojaModal({
           <ClockIcon className="w-5 h-5" />
           <div>
             <p className="text-lg">Histórico de Alterações</p>
-            <p className="text-sm font-normal text-gray-500">{lojaNome}</p>
+            <p className="text-sm font-normal text-default-500">{lojaNome}</p>
           </div>
         </ModalHeader>
 
@@ -144,8 +144,8 @@ export function HistoricoLojaModal({
               <Spinner label="Carregando histórico..." />
             </div>
           ) : historico.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <ClockIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <div className="text-center py-8 text-default-500">
+              <ClockIcon className="w-12 h-12 mx-auto mb-2 text-default-300" />
               <p>Nenhuma alteração registrada</p>
             </div>
           ) : (
@@ -153,7 +153,7 @@ export function HistoricoLojaModal({
               {historico.map((item) => (
                 <div
                   key={item.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="border border-default-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                 >
                   {/* Cabeçalho */}
                   <div className="flex items-start justify-between mb-3">
@@ -167,7 +167,7 @@ export function HistoricoLojaModal({
                       >
                         {HistoricoLojasService.formatarOperacao(item.operacao)}
                       </Chip>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-default-600">
                         {new Date(item.criado_em).toLocaleString("pt-BR")}
                       </span>
                     </div>
@@ -177,10 +177,10 @@ export function HistoricoLojaModal({
                   {renderizarAlteracao(item)}
 
                   {/* Rodapé - Usuário */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-xs text-gray-500">
+                  <div className="mt-3 pt-3 border-t border-default-200/70">
+                    <p className="text-xs text-default-500">
                       Realizado por:{" "}
-                      <span className="font-medium text-gray-700">
+                      <span className="font-medium text-default-600">
                         {item.usuario_nome || "Sistema"}
                       </span>
                       {item.usuario_email && ` (${item.usuario_email})`}

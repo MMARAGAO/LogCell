@@ -13,7 +13,6 @@ import {
 } from "@heroui/table";
 import { Chip } from "@heroui/chip";
 import { Card, CardBody, CardFooter } from "@heroui/card";
-import { Tabs, Tab } from "@heroui/tabs";
 import {
   Dropdown,
   DropdownTrigger,
@@ -33,6 +32,8 @@ import {
   BuildingStorefrontIcon,
   ClockIcon,
   PhotoIcon,
+  Squares2X2Icon,
+  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 import { deletarLoja, alternarStatusLoja } from "./actions";
@@ -529,11 +530,13 @@ export default function LojasPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-[1600px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Lojas / Filiais</h1>
-          <p className="text-default-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Lojas / Filiais
+          </h1>
+          <p className="text-sm text-default-500">
             Gerencie as lojas e filiais do sistema
           </p>
         </div>
@@ -563,30 +566,46 @@ export default function LojasPage() {
         total={stats.total}
       />
 
-      {/* Barra de Busca */}
-      <div className="mb-6">
-        <Input
-          isClearable
-          placeholder="Buscar por nome, CNPJ, cidade ou estado..."
-          startContent={<MagnifyingGlassIcon className="w-5 h-5" />}
-          value={searchTerm}
-          onClear={() => setSearchTerm("")}
-          onValueChange={setSearchTerm}
-        />
-      </div>
-
-      {/* Tabs de Visualização */}
-      <div className="mb-6">
-        <Tabs
-          color="primary"
-          selectedKey={visualizacao}
-          onSelectionChange={(key) =>
-            setVisualizacao(key as "tabela" | "cards")
-          }
-        >
-          <Tab key="cards" title="Cards" />
-          <Tab key="tabela" title="Tabela" />
-        </Tabs>
+      {/* Barra de busca + visualização */}
+      <div className="mb-6 rounded-xl border border-default-200/70 bg-content1 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por nome, CNPJ, cidade ou estado..."
+            radius="md"
+            size="md"
+            startContent={
+              <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
+            }
+            value={searchTerm}
+            variant="bordered"
+            onClear={() => setSearchTerm("")}
+            onValueChange={setSearchTerm}
+          />
+          <div className="flex items-center gap-1 self-end rounded-lg bg-default-100 p-1 sm:self-auto">
+            <Button
+              isIconOnly
+              className="h-7 w-7 min-w-0"
+              color={visualizacao === "cards" ? "primary" : "default"}
+              size="sm"
+              variant={visualizacao === "cards" ? "solid" : "light"}
+              onPress={() => setVisualizacao("cards")}
+            >
+              <Squares2X2Icon className="h-4 w-4" />
+            </Button>
+            <Button
+              isIconOnly
+              className="h-7 w-7 min-w-0"
+              color={visualizacao === "tabela" ? "primary" : "default"}
+              size="sm"
+              variant={visualizacao === "tabela" ? "solid" : "light"}
+              onPress={() => setVisualizacao("tabela")}
+            >
+              <TableCellsIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Loading e Empty State */}

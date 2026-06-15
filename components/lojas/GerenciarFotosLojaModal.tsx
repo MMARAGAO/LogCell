@@ -219,7 +219,7 @@ export function GerenciarFotosLojaModal({
             <PhotoIcon className="w-5 h-5" />
             <div>
               <p className="text-lg">Gerenciar Fotos</p>
-              <p className="text-sm font-normal text-gray-500">{lojaNome}</p>
+              <p className="text-sm font-normal text-default-500">{lojaNome}</p>
             </div>
           </ModalHeader>
 
@@ -234,7 +234,7 @@ export function GerenciarFotosLojaModal({
                 {fotos.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-semibold text-gray-700">
+                      <h3 className="text-sm font-semibold text-default-600">
                         Preview do Carrossel
                       </h3>
                       <Button size="sm" variant="flat" onPress={onPreviewOpen}>
@@ -270,7 +270,7 @@ export function GerenciarFotosLojaModal({
                   >
                     {uploading ? "Enviando..." : "Adicionar Fotos"}
                   </Button>
-                  <p className="text-xs text-gray-500 mt-2">
+                  <p className="text-xs text-default-500 mt-2">
                     Formatos: JPG, PNG, WebP, GIF | Tamanho máximo: 5MB por foto
                   </p>
                 </div>
@@ -278,16 +278,16 @@ export function GerenciarFotosLojaModal({
                 {/* Lista de Fotos */}
                 {fotos.length > 0 ? (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-gray-700">
+                    <h3 className="text-sm font-semibold text-default-600">
                       Fotos Cadastradas ({fotos.length})
                     </h3>
                     {fotos.map((foto) => (
                       <div
                         key={foto.id}
-                        className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+                        className="flex items-center gap-4 p-3 border border-default-200 rounded-lg hover:shadow-md transition-shadow"
                       >
                         {/* Thumbnail */}
-                        <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                        <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-default-200">
                           <Image
                             fill
                             alt={foto.legenda || "Foto"}
@@ -324,7 +324,7 @@ export function GerenciarFotosLojaModal({
                           ) : (
                             <>
                               <button
-                                className="text-sm font-medium text-gray-700 truncate cursor-pointer hover:text-primary text-left"
+                                className="text-sm font-medium text-default-600 truncate cursor-pointer hover:text-primary text-left"
                                 type="button"
                                 onClick={() => handleEditarLegenda(foto)}
                               >
@@ -332,7 +332,7 @@ export function GerenciarFotosLojaModal({
                                   "Sem legenda (clique para editar)"}
                               </button>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-default-500">
                                   Ordem: {foto.ordem + 1}
                                 </span>
                                 {foto.is_principal && (
@@ -380,7 +380,7 @@ export function GerenciarFotosLojaModal({
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-400">
+                  <div className="text-center py-8 text-default-400">
                     <PhotoIcon className="w-12 h-12 mx-auto mb-2" />
                     <p className="text-sm">Nenhuma foto cadastrada</p>
                     <p className="text-xs mt-1">

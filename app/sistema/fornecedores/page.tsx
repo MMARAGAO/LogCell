@@ -21,23 +21,24 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import {
-  Search,
-  Plus,
-  Building2,
-  Phone,
-  Mail,
-  MapPin,
-  Edit,
-  Trash2,
-  CheckCircle,
-  XCircle,
-  Package,
-  LayoutGrid,
-  List,
-  MoreVertical,
-} from "lucide-react";
+  MagnifyingGlassIcon as Search,
+  PlusIcon as Plus,
+  BuildingStorefrontIcon as Building2,
+  PhoneIcon as Phone,
+  EnvelopeIcon as Mail,
+  MapPinIcon as MapPin,
+  PencilSquareIcon as Edit,
+  TrashIcon as Trash2,
+  CheckCircleIcon as CheckCircle,
+  XCircleIcon as XCircle,
+  CubeIcon as Package,
+  Squares2X2Icon as LayoutGrid,
+  TableCellsIcon as List,
+  EllipsisVerticalIcon as MoreVertical,
+} from "@heroicons/react/24/outline";
 
 import { Fornecedor } from "@/types/fornecedor";
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import {
   buscarFornecedores,
   deletarFornecedor,
@@ -293,70 +294,111 @@ export default function FornecedoresPage() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
-          <Building2 className="w-8 h-8" />
-          Fornecedores
-        </h1>
-        <p className="text-default-500">
-          Gerencie os fornecedores e suas associações com produtos
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Fornecedores
+          </h1>
+          <p className="text-sm text-default-500">
+            Gerencie os fornecedores e suas associações com produtos
+          </p>
+        </div>
+        {temPermissao("fornecedores.criar") && (
+          <Button
+            color="primary"
+            size="lg"
+            startContent={<Plus className="h-4 w-4" />}
+            onClick={handleNovoFornecedor}
+          >
+            Novo Fornecedor
+          </Button>
+        )}
       </div>
 
-      {/* Filtros e Ações */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1 w-full md:w-auto">
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <MetricCard
+          icon={<Building2 className="h-5 w-5" />}
+          label="Total"
+          value={fornecedores.length}
+        />
+        <MetricCard
+          icon={<CheckCircle className="h-5 w-5" />}
+          label="Ativos"
+          value={fornecedores.filter((f) => f.ativo).length}
+        />
+        <MetricCard
+          emphasis={fornecedores.filter((f) => !f.ativo).length > 0}
+          icon={<XCircle className="h-5 w-5" />}
+          label="Inativos"
+          tone="danger"
+          value={fornecedores.filter((f) => !f.ativo).length}
+        />
+      </div>
+
+      {/* Barra de busca + filtros */}
+      <div className="rounded-xl border border-default-200/70 bg-content1 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Input
             isClearable
-            className="w-full md:w-96"
+            className="flex-1"
             placeholder="Buscar por nome, CNPJ, email ou cidade..."
-            startContent={<Search className="w-4 h-4 text-default-400" />}
+            radius="md"
+            size="md"
+            startContent={<Search className="h-4 w-4 text-default-400" />}
             value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchTerm(e.target.value)
-            }
+            variant="bordered"
             onClear={() => setSearchTerm("")}
+            onValueChange={setSearchTerm}
           />
-
-          <Button
-            color={showApenasAtivos ? "primary" : "default"}
-            variant={showApenasAtivos ? "flat" : "bordered"}
-            onClick={() => setShowApenasAtivos(!showApenasAtivos)}
-          >
-            {showApenasAtivos ? "Apenas Ativos" : "Todos"}
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          {/* Botões de Visualização */}
-          <Button
-            isIconOnly
-            color={visualizacao === "cards" ? "primary" : "default"}
-            variant={visualizacao === "cards" ? "flat" : "light"}
-            onClick={() => setVisualizacao("cards")}
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </Button>
-          <Button
-            isIconOnly
-            color={visualizacao === "tabela" ? "primary" : "default"}
-            variant={visualizacao === "tabela" ? "flat" : "light"}
-            onClick={() => setVisualizacao("tabela")}
-          >
-            <List className="w-5 h-5" />
-          </Button>
-
-          {temPermissao("fornecedores.criar") && (
-            <Button
-              color="primary"
-              startContent={<Plus className="w-4 h-4" />}
-              onClick={handleNovoFornecedor}
-            >
-              Novo Fornecedor
-            </Button>
-          )}
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            {/* Segmented de status */}
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
+              <Button
+                className="h-7 min-w-0 px-3"
+                color={!showApenasAtivos ? "primary" : "default"}
+                size="sm"
+                variant={!showApenasAtivos ? "solid" : "light"}
+                onPress={() => setShowApenasAtivos(false)}
+              >
+                Todos
+              </Button>
+              <Button
+                className="h-7 min-w-0 px-3"
+                color={showApenasAtivos ? "primary" : "default"}
+                size="sm"
+                variant={showApenasAtivos ? "solid" : "light"}
+                onPress={() => setShowApenasAtivos(true)}
+              >
+                Ativos
+              </Button>
+            </div>
+            {/* Toggle de visualização */}
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={visualizacao === "cards" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "cards" ? "solid" : "light"}
+                onPress={() => setVisualizacao("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={visualizacao === "tabela" ? "primary" : "default"}
+                size="sm"
+                variant={visualizacao === "tabela" ? "solid" : "light"}
+                onPress={() => setVisualizacao("tabela")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -335,7 +335,7 @@ export function LojaFormModal({
 
               {/* Seção: Dados da Loja */}
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700">
+                <h3 className="text-sm font-semibold text-default-600">
                   Dados da Loja
                 </h3>
 
@@ -425,7 +425,7 @@ export function LojaFormModal({
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700">
+                      <h3 className="text-sm font-semibold text-default-600">
                         Fotos da Loja
                       </h3>
                       <input
@@ -464,7 +464,7 @@ export function LojaFormModal({
 
                         {/* Lista de fotos */}
                         <div className="space-y-2">
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-default-500">
                             {fotos.length}{" "}
                             {fotos.length === 1 ? "foto" : "fotos"}{" "}
                             cadastrada(s)
@@ -473,7 +473,7 @@ export function LojaFormModal({
                             {fotos.map((foto) => (
                               <div
                                 key={foto.id}
-                                className="relative group aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors"
+                                className="relative group aspect-square rounded-lg overflow-hidden border-2 border-default-200 hover:border-primary transition-colors"
                               >
                                 <Image
                                   fill
@@ -527,12 +527,12 @@ export function LojaFormModal({
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                        <PhotoIcon className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                        <p className="text-sm text-gray-500">
+                      <div className="text-center py-8 border-2 border-dashed border-default-200 rounded-lg">
+                        <PhotoIcon className="w-12 h-12 mx-auto mb-2 text-default-300" />
+                        <p className="text-sm text-default-500">
                           Nenhuma foto adicionada
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-default-400 mt-1">
                           Clique em &quot;Adicionar Fotos&quot; para começar
                         </p>
                       </div>

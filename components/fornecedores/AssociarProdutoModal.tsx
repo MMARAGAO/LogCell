@@ -12,7 +12,12 @@ import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
-import { Search, Trash2, Package, TruckIcon } from "lucide-react";
+import {
+  MagnifyingGlassIcon as Search,
+  TrashIcon as Trash2,
+  CubeIcon as Package,
+  TruckIcon,
+} from "@heroicons/react/24/outline";
 
 import { Fornecedor } from "@/types/fornecedor";
 import { Produto } from "@/types/index";

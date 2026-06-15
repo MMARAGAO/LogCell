@@ -10,7 +10,6 @@ import {
   CardBody,
   Spinner,
   Pagination,
-  DateRangePicker,
   Select,
   SelectItem,
   Chip,
@@ -24,7 +23,12 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  ButtonGroup,
+  Badge,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerBody,
+  DrawerFooter,
 } from "@heroui/react";
 import {
   Modal,
@@ -34,30 +38,29 @@ import {
   ModalHeader,
 } from "@heroui/modal";
 import {
-  Plus,
-  Search,
-  Users,
-  UserCheck,
-  UserX,
-  LayoutGrid,
-  List,
-  Filter,
-  Download,
-  SortAsc,
-  SortDesc,
-  MoreVertical,
-  Edit,
-  Trash2,
-  DollarSign,
-  Clock,
-  Phone,
-  Mail,
-  MapPin,
-  BarChart3,
-  FileSpreadsheet,
-} from "lucide-react";
+  PlusIcon as Plus,
+  MagnifyingGlassIcon as Search,
+  UsersIcon as Users,
+  UserPlusIcon as UserCheck,
+  UserMinusIcon as UserX,
+  Squares2X2Icon as LayoutGrid,
+  Bars3Icon as List,
+  FunnelIcon as Filter,
+  ArrowDownTrayIcon as Download,
+  BarsArrowUpIcon as SortAsc,
+  BarsArrowDownIcon as SortDesc,
+  EllipsisVerticalIcon as MoreVertical,
+  PencilSquareIcon as Edit,
+  TrashIcon as Trash2,
+  CurrencyDollarIcon as DollarSign,
+  ClockIcon as Clock,
+  PhoneIcon as Phone,
+  EnvelopeIcon as Mail,
+  MapPinIcon as MapPin,
+  ChartBarIcon as BarChart3,
+  TableCellsIcon as FileSpreadsheet,
+} from "@heroicons/react/24/outline";
 import { useSearchParams } from "next/navigation";
-import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";
 import { ConfirmModal } from "@/components/ConfirmModal";
@@ -139,12 +142,16 @@ export default function ClientesPage() {
     null,
   );
   const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
-  const [periodoRelatorio, setPeriodoRelatorio] = useState<any>({
-    start: parseDate(
-      `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`,
-    ),
-    end: today(getLocalTimeZone()),
-  });
+  const primeiroDiaMesStr = () =>
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
+  const hojeStr = () => {
+    const d = new Date();
+
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const [dataInicioRel, setDataInicioRel] =
+    useState<string>(primeiroDiaMesStr());
+  const [dataFimRel, setDataFimRel] = useState<string>(hojeStr());
 
   const [busca, setBusca] = useState("");
   const [filtroAtivo, setFiltroAtivo] = useState<boolean | undefined>(
@@ -166,7 +173,7 @@ export default function ClientesPage() {
     "nome",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [showFilters, setShowFilters] = useState(false);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
 
   // Preencher busca vinda da URL
   useEffect(() => {
@@ -349,17 +356,15 @@ export default function ClientesPage() {
 
   const handleAbrirRelatorioCompras = (cliente: Cliente) => {
     setClienteRelatorio(cliente);
-    setPeriodoRelatorio({
-      start: parseDate(
-        `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`,
-      ),
-      end: today(getLocalTimeZone()),
-    });
+    setDataInicioRel(primeiroDiaMesStr());
+    setDataFimRel(hojeStr());
     setModalRelatorioOpen(true);
   };
 
-  const formatarDataRange = (data: any): string => {
-    return `${data.year}-${String(data.month).padStart(2, "0")}-${String(data.day).padStart(2, "0")}`;
+  const formatarDataBR = (iso: string): string => {
+    const [y, m, d] = iso.split("-");
+
+    return `${d}/${m}/${y}`;
   };
 
   const formatarMoeda = (valor: number): string => {
@@ -371,7 +376,7 @@ export default function ClientesPage() {
 
   const handleGerarRelatorioCompras = async () => {
     if (!clienteRelatorio) return;
-    if (!periodoRelatorio?.start || !periodoRelatorio?.end) {
+    if (!dataInicioRel || !dataFimRel) {
       toast.error("Selecione um período válido");
 
       return;
@@ -382,21 +387,13 @@ export default function ClientesPage() {
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      const inicio = periodoRelatorio.start;
-      const fim = periodoRelatorio.end;
-      const dataInicioIso = new Date(
-        inicio.year,
-        inicio.month - 1,
-        inicio.day,
-        0,
-        0,
-        0,
-        0,
-      ).toISOString();
+      const [ai, am, ad] = dataInicioRel.split("-").map(Number);
+      const [fy, fm, fd] = dataFimRel.split("-").map(Number);
+      const dataInicioIso = new Date(ai, am - 1, ad, 0, 0, 0, 0).toISOString();
       const dataFimIso = new Date(
-        fim.year,
-        fim.month - 1,
-        fim.day,
+        fy,
+        fm - 1,
+        fd,
         23,
         59,
         59,
@@ -491,7 +488,7 @@ export default function ClientesPage() {
       doc.setFont("helvetica", "normal");
       doc.text(`Cliente: ${clienteRelatorio.nome}`, 14, 24);
       doc.text(
-        `Periodo: ${formatarDataRange(inicio)} ate ${formatarDataRange(fim)}`,
+        `Periodo: ${formatarDataBR(dataInicioRel)} ate ${formatarDataBR(dataFimRel)}`,
         14,
         30,
       );
@@ -615,23 +612,47 @@ export default function ClientesPage() {
     );
   }
 
+  const SORT_BY_LABELS: Record<string, string> = {
+    nome: "Nome",
+    criado_em: "Data de Cadastro",
+    ultima_compra: "Última Compra",
+  };
+
+  const limparFiltros = () => {
+    setSortBy("nome");
+    setSortOrder("asc");
+  };
+
+  // Chips de filtros ativos (busca tem campo próprio; status fica nos cards)
+  const chipsFiltros: { key: string; label: string; onRemove: () => void }[] =
+    [];
+
+  if (sortBy !== "nome" || sortOrder !== "asc") {
+    chipsFiltros.push({
+      key: "ordenacao",
+      label: `Ordem: ${SORT_BY_LABELS[sortBy]} (${sortOrder === "asc" ? "Crescente" : "Decrescente"})`,
+      onRemove: limparFiltros,
+    });
+  }
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 p-6">
       {toast.ToastComponent}
       {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Clientes</h1>
-          <p className="text-default-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Clientes
+          </h1>
+          <p className="text-sm text-default-500">
             Gerencie o cadastro de clientes
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Permissao permissao="clientes.visualizar">
             <Button
-              color="secondary"
               size="lg"
-              startContent={<FileSpreadsheet className="w-4 h-4" />}
+              startContent={<FileSpreadsheet className="h-4 w-4" />}
               variant="flat"
               onPress={() => setModalExportOpen(true)}
             >
@@ -642,7 +663,7 @@ export default function ClientesPage() {
             <Button
               color="primary"
               size="lg"
-              startContent={<Plus className="w-4 h-4" />}
+              startContent={<Plus className="h-4 w-4" />}
               onPress={handleNovoCliente}
             >
               Novo Cliente
@@ -651,203 +672,222 @@ export default function ClientesPage() {
         </div>
       </div>
 
-      {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Cards de Estatísticas (clicáveis = filtro por status) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card
           isPressable
-          className={filtroAtivo === undefined ? "ring-2 ring-primary" : ""}
+          className={`border shadow-sm ${filtroAtivo === undefined ? "border-primary ring-1 ring-primary" : "border-default-200/70"}`}
           onPress={() => setFiltroAtivo(undefined)}
         >
           <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-default-100 rounded-lg">
-              <Users className="w-6 h-6 text-default-600" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-default-100 text-default-500">
+              <Users className="h-5 w-5" />
             </div>
             <div>
               <p className="text-sm text-default-500">Total</p>
-              <p className="text-2xl font-bold">{stats.total}</p>
+              <p className="text-2xl font-bold tabular-nums text-foreground">
+                {stats.total}
+              </p>
             </div>
           </CardBody>
         </Card>
 
         <Card
           isPressable
-          className={filtroAtivo === true ? "ring-2 ring-success" : ""}
+          className={`border shadow-sm ${filtroAtivo === true ? "border-primary ring-1 ring-primary" : "border-default-200/70"}`}
           onPress={() => setFiltroAtivo(true)}
         >
           <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-success-100 rounded-lg">
-              <UserCheck className="w-6 h-6 text-success" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-default-100 text-default-500">
+              <UserCheck className="h-5 w-5" />
             </div>
             <div>
               <p className="text-sm text-default-500">Ativos</p>
-              <p className="text-2xl font-bold text-success">{stats.ativos}</p>
+              <p className="text-2xl font-bold tabular-nums text-foreground">
+                {stats.ativos}
+              </p>
             </div>
           </CardBody>
         </Card>
 
         <Card
           isPressable
-          className={filtroAtivo === false ? "ring-2 ring-danger" : ""}
+          className={`border shadow-sm ${filtroAtivo === false ? "border-primary ring-1 ring-primary" : "border-default-200/70"}`}
           onPress={() => setFiltroAtivo(false)}
         >
           <CardBody className="flex flex-row items-center gap-3">
-            <div className="p-3 bg-danger-100 rounded-lg">
-              <UserX className="w-6 h-6 text-danger" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-default-100 text-default-500">
+              <UserX className="h-5 w-5" />
             </div>
             <div>
               <p className="text-sm text-default-500">Inativos</p>
-              <p className="text-2xl font-bold text-danger">{stats.inativos}</p>
+              <p className="text-2xl font-bold tabular-nums text-foreground">
+                {stats.inativos}
+              </p>
             </div>
           </CardBody>
         </Card>
       </div>
 
       {/* Busca e Filtros */}
-      <Card>
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Primeira linha: Busca e controles */}
-            <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-start">
-              {/* Campo de busca */}
-              <div className="flex-1">
-                <Input
-                  isClearable
-                  classNames={{
-                    base: "w-full",
-                    mainWrapper: "h-full",
-                    input: "text-small",
-                    inputWrapper:
-                      "h-full font-normal text-default-500 bg-default-400/20 dark:bg-default-500/20",
-                  }}
-                  placeholder="Buscar por nome, telefone, CPF ou email..."
-                  size="lg"
-                  startContent={
-                    <Search className="w-4 h-4 text-default-400 pointer-events-none flex-shrink-0" />
-                  }
-                  type="search"
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  onClear={() => setBusca("")}
-                />
-                {(busca !== buscaDebounced || totalClientes > 0) && (
-                  <p className="text-xs text-default-400 mt-1 ml-1">
-                    {busca !== buscaDebounced ? (
-                      "Aguardando digitação..."
-                    ) : totalClientes > 0 ? (
-                      <>
-                        {totalClientes} cliente
-                        {totalClientes !== 1 ? "s" : ""} encontrado
-                        {totalClientes !== 1 ? "s" : ""}
-                      </>
-                    ) : null}
-                  </p>
-                )}
-              </div>
-
-              {/* Controles */}
-              <div className="flex gap-2 flex-shrink-0">
-                <Button
-                  className="min-w-[120px]"
-                  color={showFilters ? "primary" : "default"}
-                  size="lg"
-                  startContent={<Filter className="w-4 h-4" />}
-                  variant={showFilters ? "solid" : "flat"}
-                  onPress={() => setShowFilters(!showFilters)}
-                >
-                  Filtros
-                </Button>
-                <ButtonGroup size="lg">
-                  <Button
-                    isIconOnly
-                    color={viewMode === "cards" ? "primary" : "default"}
-                    variant={viewMode === "cards" ? "solid" : "flat"}
-                    onPress={() => setViewMode("cards")}
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    isIconOnly
-                    color={viewMode === "table" ? "primary" : "default"}
-                    variant={viewMode === "table" ? "solid" : "flat"}
-                    onPress={() => setViewMode("table")}
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </ButtonGroup>
-              </div>
+      <div className="rounded-xl border border-default-200/70 bg-content1 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por nome, telefone, CPF ou email..."
+            radius="md"
+            size="md"
+            startContent={<Search className="h-4 w-4 text-default-400" />}
+            type="search"
+            value={busca}
+            variant="bordered"
+            onClear={() => setBusca("")}
+            onValueChange={setBusca}
+          />
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="flex items-center gap-1 rounded-lg bg-default-100 p-1">
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={viewMode === "cards" ? "primary" : "default"}
+                size="sm"
+                variant={viewMode === "cards" ? "solid" : "light"}
+                onPress={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                isIconOnly
+                className="h-7 w-7 min-w-0"
+                color={viewMode === "table" ? "primary" : "default"}
+                size="sm"
+                variant={viewMode === "table" ? "solid" : "light"}
+                onPress={() => setViewMode("table")}
+              >
+                <List className="h-4 w-4" />
+              </Button>
             </div>
-
-            {/* Filtros expandidos */}
-            {showFilters && (
-              <div className="pt-4 border-t border-divider">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <Select
-                    classNames={{
-                      base: "items-center",
-                      label: "min-w-[100px]",
-                    }}
-                    label="Ordenar por"
-                    labelPlacement="outside-left"
-                    selectedKeys={[sortBy]}
-                    onChange={(e) =>
-                      setSortBy(
-                        e.target.value as
-                          | "nome"
-                          | "criado_em"
-                          | "ultima_compra",
-                      )
-                    }
-                  >
-                    <SelectItem key="nome">Nome</SelectItem>
-                    <SelectItem key="criado_em">Data de Cadastro</SelectItem>
-                    <SelectItem key="ultima_compra">Última Compra</SelectItem>
-                  </Select>
-
-                  <Select
-                    classNames={{
-                      base: "items-center",
-                      label: "min-w-[60px]",
-                    }}
-                    label="Ordem"
-                    labelPlacement="outside-left"
-                    selectedKeys={[sortOrder]}
-                    onChange={(e) =>
-                      setSortOrder(e.target.value as "asc" | "desc")
-                    }
-                  >
-                    <SelectItem
-                      key="asc"
-                      startContent={<SortAsc className="w-4 h-4" />}
-                    >
-                      Crescente
-                    </SelectItem>
-                    <SelectItem
-                      key="desc"
-                      startContent={<SortDesc className="w-4 h-4" />}
-                    >
-                      Decrescente
-                    </SelectItem>
-                  </Select>
-
-                  <div className="md:col-span-2 lg:col-span-2 flex justify-end">
-                    <Button
-                      color="primary"
-                      size="lg"
-                      startContent={<Download className="w-4 h-4" />}
-                      variant="flat"
-                      onPress={() => {
-                        toast.success("Funcionalidade em desenvolvimento");
-                      }}
-                    >
-                      Exportar Lista
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            <Badge
+              color="primary"
+              content={chipsFiltros.length}
+              isInvisible={chipsFiltros.length === 0}
+              size="sm"
+            >
+              <Button
+                radius="md"
+                size="md"
+                startContent={<Filter className="h-4 w-4" />}
+                variant="flat"
+                onPress={() => setFiltrosAbertos(true)}
+              >
+                Filtros
+              </Button>
+            </Badge>
           </div>
-        </CardBody>
-      </Card>
+        </div>
+
+        {/* Chips de filtros ativos */}
+        {chipsFiltros.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {chipsFiltros.map((chip) => (
+              <Chip
+                key={chip.key}
+                size="sm"
+                variant="flat"
+                onClose={chip.onRemove}
+              >
+                {chip.label}
+              </Chip>
+            ))}
+            <Button
+              className="h-7 px-2 text-xs text-default-500"
+              size="sm"
+              variant="light"
+              onPress={limparFiltros}
+            >
+              Limpar tudo
+            </Button>
+          </div>
+        )}
+
+        {/* Contagem */}
+        <div className="mt-2 flex items-center">
+          <span className="ml-auto text-xs text-default-500 tabular-nums">
+            {busca !== buscaDebounced
+              ? "Aguardando digitação..."
+              : totalClientes > 0
+                ? `${totalClientes} cliente${totalClientes !== 1 ? "s" : ""}`
+                : ""}
+          </span>
+        </div>
+      </div>
+
+      {/* Drawer de Filtros (mesmo padrão das demais telas) */}
+      <Drawer
+        isOpen={filtrosAbertos}
+        size="sm"
+        onOpenChange={setFiltrosAbertos}
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex flex-col gap-1">Filtros</DrawerHeader>
+          <DrawerBody className="gap-4">
+            <Select
+              label="Ordenar por"
+              selectedKeys={[sortBy]}
+              variant="bordered"
+              onChange={(e) =>
+                setSortBy(
+                  e.target.value as "nome" | "criado_em" | "ultima_compra",
+                )
+              }
+            >
+              <SelectItem key="nome">Nome</SelectItem>
+              <SelectItem key="criado_em">Data de Cadastro</SelectItem>
+              <SelectItem key="ultima_compra">Última Compra</SelectItem>
+            </Select>
+
+            <Select
+              label="Ordem"
+              selectedKeys={[sortOrder]}
+              variant="bordered"
+              onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+            >
+              <SelectItem
+                key="asc"
+                startContent={<SortAsc className="h-4 w-4" />}
+              >
+                Crescente
+              </SelectItem>
+              <SelectItem
+                key="desc"
+                startContent={<SortDesc className="h-4 w-4" />}
+              >
+                Decrescente
+              </SelectItem>
+            </Select>
+
+            <Button
+              className="mt-2"
+              startContent={<Download className="h-4 w-4" />}
+              variant="flat"
+              onPress={() => {
+                toast.success("Funcionalidade em desenvolvimento");
+              }}
+            >
+              Exportar Lista
+            </Button>
+          </DrawerBody>
+          <DrawerFooter>
+            <Button variant="flat" onPress={limparFiltros}>
+              Limpar tudo
+            </Button>
+            <Button color="primary" onPress={() => setFiltrosAbertos(false)}>
+              Ver resultados
+            </Button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
 
       {/* Lista de Clientes */}
       {loading ? (
@@ -1147,14 +1187,22 @@ export default function ClientesPage() {
             <p className="text-sm text-default-600">
               Cliente: <strong>{clienteRelatorio?.nome || "-"}</strong>
             </p>
-            <DateRangePicker
-              granularity="day"
-              label="Periodo"
-              pageBehavior="visible"
-              value={periodoRelatorio}
-              visibleMonths={2}
-              onChange={setPeriodoRelatorio}
-            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Data início"
+                type="date"
+                value={dataInicioRel}
+                variant="bordered"
+                onChange={(e) => setDataInicioRel(e.target.value)}
+              />
+              <Input
+                label="Data fim"
+                type="date"
+                value={dataFimRel}
+                variant="bordered"
+                onChange={(e) => setDataFimRel(e.target.value)}
+              />
+            </div>
           </ModalBody>
           <ModalFooter>
             <Button

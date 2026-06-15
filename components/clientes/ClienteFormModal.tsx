@@ -17,7 +17,12 @@ import {
   Tabs,
   Tab,
 } from "@heroui/react";
-import { User, Phone, MapPin, FileText } from "lucide-react";
+import {
+  UserIcon as User,
+  PhoneIcon as Phone,
+  MapPinIcon as MapPin,
+  DocumentTextIcon as FileText,
+} from "@heroicons/react/24/outline";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/Toast";

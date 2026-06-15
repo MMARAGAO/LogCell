@@ -375,11 +375,13 @@ export default function UsuariosPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-[1600px]">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Usuários</h1>
-          <p className="text-default-500 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Usuários
+          </h1>
+          <p className="text-sm text-default-500">
             Gerencie os usuários do sistema
           </p>
         </div>
@@ -409,37 +411,46 @@ export default function UsuariosPage() {
         total={stats.total}
       />
 
-      {/* Barra de Pesquisa */}
-      <div className="mb-6 flex gap-4 items-center">
-        <Input
-          className="max-w-md"
-          placeholder="Buscar por nome, email, CPF ou telefone..."
-          startContent={
-            <MagnifyingGlassIcon className="w-5 h-5 text-default-400" />
-          }
-          value={searchTerm}
-          variant="bordered"
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <div className="flex gap-2">
-          <Button
-            isIconOnly
-            aria-label="Visualização em tabela"
-            color={viewMode === "table" ? "primary" : "default"}
-            variant={viewMode === "table" ? "flat" : "light"}
-            onPress={() => setViewMode("table")}
-          >
-            <TableCellsIcon className="w-5 h-5" />
-          </Button>
-          <Button
-            isIconOnly
-            aria-label="Visualização em cards"
-            color={viewMode === "cards" ? "primary" : "default"}
-            variant={viewMode === "cards" ? "flat" : "light"}
-            onPress={() => setViewMode("cards")}
-          >
-            <Squares2X2Icon className="w-5 h-5" />
-          </Button>
+      {/* Barra de busca + visualização */}
+      <div className="mb-6 rounded-xl border border-default-200/70 bg-content1 p-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            isClearable
+            className="flex-1"
+            placeholder="Buscar por nome, email, CPF ou telefone..."
+            radius="md"
+            size="md"
+            startContent={
+              <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
+            }
+            value={searchTerm}
+            variant="bordered"
+            onValueChange={setSearchTerm}
+          />
+          <div className="flex items-center gap-1 self-end rounded-lg bg-default-100 p-1 sm:self-auto">
+            <Button
+              isIconOnly
+              aria-label="Visualização em cards"
+              className="h-7 w-7 min-w-0"
+              color={viewMode === "cards" ? "primary" : "default"}
+              size="sm"
+              variant={viewMode === "cards" ? "solid" : "light"}
+              onPress={() => setViewMode("cards")}
+            >
+              <Squares2X2Icon className="h-4 w-4" />
+            </Button>
+            <Button
+              isIconOnly
+              aria-label="Visualização em tabela"
+              className="h-7 w-7 min-w-0"
+              color={viewMode === "table" ? "primary" : "default"}
+              size="sm"
+              variant={viewMode === "table" ? "solid" : "light"}
+              onPress={() => setViewMode("table")}
+            >
+              <TableCellsIcon className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

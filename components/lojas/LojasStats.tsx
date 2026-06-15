@@ -1,12 +1,13 @@
 "use client";
 
-import { Card, CardBody } from "@heroui/card";
 import {
   BuildingStorefrontIcon,
   CheckCircleIcon,
   XCircleIcon,
   PlusCircleIcon,
 } from "@heroicons/react/24/outline";
+
+import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 
 interface LojasStatsProps {
   total: number;
@@ -21,56 +22,30 @@ export function LojasStats({
   inativas,
   novasEsteMes,
 }: LojasStatsProps) {
-  const stats = [
-    {
-      label: "Total de Lojas",
-      value: total,
-      icon: BuildingStorefrontIcon,
-      color: "text-primary",
-      bgColor: "bg-primary-50",
-    },
-    {
-      label: "Lojas Ativas",
-      value: ativas,
-      icon: CheckCircleIcon,
-      color: "text-success",
-      bgColor: "bg-success-50",
-    },
-    {
-      label: "Lojas Inativas",
-      value: inativas,
-      icon: XCircleIcon,
-      color: "text-danger",
-      bgColor: "bg-danger-50",
-    },
-    {
-      label: "Novas Este Mês",
-      value: novasEsteMes,
-      icon: PlusCircleIcon,
-      color: "text-secondary",
-      bgColor: "bg-secondary-50",
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {stats.map((stat) => {
-        const Icon = stat.icon;
-
-        return (
-          <Card key={stat.label}>
-            <CardBody className="flex flex-row items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                <Icon className={`w-6 h-6 ${stat.color}`} />
-              </div>
-              <div>
-                <p className="text-sm text-default-500">{stat.label}</p>
-                <p className="text-2xl font-bold">{stat.value}</p>
-              </div>
-            </CardBody>
-          </Card>
-        );
-      })}
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <MetricCard
+        icon={<BuildingStorefrontIcon className="h-5 w-5" />}
+        label="Total de Lojas"
+        value={total}
+      />
+      <MetricCard
+        icon={<CheckCircleIcon className="h-5 w-5" />}
+        label="Lojas Ativas"
+        value={ativas}
+      />
+      <MetricCard
+        emphasis={inativas > 0}
+        icon={<XCircleIcon className="h-5 w-5" />}
+        label="Lojas Inativas"
+        tone="danger"
+        value={inativas}
+      />
+      <MetricCard
+        icon={<PlusCircleIcon className="h-5 w-5" />}
+        label="Novas Este Mês"
+        value={novasEsteMes}
+      />
     </div>
   );
 }

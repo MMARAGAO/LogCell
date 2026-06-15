@@ -12,20 +12,20 @@ import {
   DropdownItem,
 } from "@heroui/dropdown";
 import {
-  User,
-  Phone,
-  Mail,
-  MapPin,
-  Edit,
-  Trash2,
-  MoreVertical,
-  FileText,
-  Power,
-  PowerOff,
-  Wallet,
-  Download,
-  BarChart3,
-} from "lucide-react";
+  UserIcon as User,
+  PhoneIcon as Phone,
+  EnvelopeIcon as Mail,
+  MapPinIcon as MapPin,
+  PencilSquareIcon as Edit,
+  TrashIcon as Trash2,
+  EllipsisVerticalIcon as MoreVertical,
+  DocumentTextIcon as FileText,
+  PowerIcon as Power,
+  NoSymbolIcon as PowerOff,
+  WalletIcon as Wallet,
+  ArrowDownTrayIcon as Download,
+  ChartBarIcon as BarChart3,
+} from "@heroicons/react/24/outline";
 
 import { usePermissoes } from "@/hooks/usePermissoes";
 

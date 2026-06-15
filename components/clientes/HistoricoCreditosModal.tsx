@@ -18,7 +18,13 @@ import {
   AccordionItem,
 } from "@heroui/react";
 import { useState, useEffect } from "react";
-import { History, TrendingUp, TrendingDown, Wallet, Clock } from "lucide-react";
+import {
+  ClockIcon as History,
+  ArrowTrendingUpIcon as TrendingUp,
+  ArrowTrendingDownIcon as TrendingDown,
+  WalletIcon as Wallet,
+  ClockIcon as Clock,
+} from "@heroicons/react/24/outline";
 
 interface HistoricoCreditosModalProps {
   isOpen: boolean;
@@ -163,8 +169,8 @@ export function HistoricoCreditosModal({
               {creditos.length === 0 ? (
                 <Card>
                   <CardBody className="text-center py-12">
-                    <Wallet className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-600">
+                    <Wallet className="w-12 h-12 text-default-400 mx-auto mb-3" />
+                    <p className="text-default-600">
                       Nenhum histórico de créditos
                     </p>
                   </CardBody>
@@ -223,7 +229,7 @@ export function HistoricoCreditosModal({
                                   )}
                                 </div>
                                 {credito.criado_em && (
-                                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                  <p className="text-xs text-default-500 flex items-center gap-1 mt-1">
                                     <Clock className="w-3 h-3" />
                                     {formatarData(credito.criado_em)}
                                   </p>
@@ -244,7 +250,7 @@ export function HistoricoCreditosModal({
                           {/* Valores */}
                           <div className="grid grid-cols-3 gap-4 mb-3">
                             <div>
-                              <p className="text-xs text-gray-600 mb-1">
+                              <p className="text-xs text-default-600 mb-1">
                                 {ehRetirada ? "Valor Retirado" : "Valor Total"}
                               </p>
                               <p
@@ -258,7 +264,7 @@ export function HistoricoCreditosModal({
                             {!ehRetirada && (
                               <>
                                 <div>
-                                  <p className="text-xs text-gray-600 mb-1">
+                                  <p className="text-xs text-default-600 mb-1">
                                     Utilizado
                                   </p>
                                   <p className="font-semibold text-sm text-warning">
@@ -266,7 +272,7 @@ export function HistoricoCreditosModal({
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-gray-600 mb-1">
+                                  <p className="text-xs text-default-600 mb-1">
                                     Saldo
                                   </p>
                                   <p className="font-semibold text-sm text-success">
@@ -280,15 +286,17 @@ export function HistoricoCreditosModal({
                           {/* Motivo e Origem */}
                           {credito.motivo && (
                             <div className="bg-default-50 p-2 rounded text-xs">
-                              <p className="text-gray-600 mb-1">
+                              <p className="text-default-600 mb-1">
                                 <strong>Motivo:</strong>
                               </p>
-                              <p className="text-gray-700">{credito.motivo}</p>
+                              <p className="text-default-600">
+                                {credito.motivo}
+                              </p>
                             </div>
                           )}
 
                           {credito.venda_origem_id && (
-                            <div className="mt-2 text-xs text-gray-600">
+                            <div className="mt-2 text-xs text-default-600">
                               <span>
                                 Origem: Venda #
                                 {credito.venda_origem_id.slice(0, 8)}
@@ -297,7 +305,7 @@ export function HistoricoCreditosModal({
                           )}
 
                           {credito.devolucao_id && (
-                            <div className="mt-2 text-xs text-gray-600">
+                            <div className="mt-2 text-xs text-default-600">
                               <span>
                                 Devolução: #{credito.devolucao_id.slice(0, 8)}
                               </span>
@@ -305,7 +313,7 @@ export function HistoricoCreditosModal({
                           )}
 
                           {credito.usuario && (
-                            <div className="mt-2 text-xs text-gray-600">
+                            <div className="mt-2 text-xs text-default-600">
                               <span>Gerado por: {credito.usuario.nome}</span>
                             </div>
                           )}
