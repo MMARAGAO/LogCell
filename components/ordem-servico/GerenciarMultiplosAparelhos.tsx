@@ -65,6 +65,21 @@ export default function GerenciarMultiplosAparelhos({
     useState<OrdemServicoAparelho | null>(null);
   const [totais, setTotais] = useState<any>(null);
 
+  // Anti-autofill: limpa campos IMEI/Nº Série preenchidos com email pelo navegador
+  useEffect(() => {
+    if (!mostraNovo) return;
+    setFormData((prev) => {
+      const imei = prev.equipamento_imei || "";
+      const serie = prev.equipamento_numero_serie || "";
+
+      if (imei.includes("@") || serie.includes("@")) {
+        return { ...prev, equipamento_imei: "", equipamento_numero_serie: "" };
+      }
+
+      return prev;
+    });
+  }, [mostraNovo]);
+
   const [formData, setFormData] = useState<AparelhoForm>({
     id_ordem_servico: idOrdemServico,
     id_loja: idLoja,
@@ -498,15 +513,20 @@ export default function GerenciarMultiplosAparelhos({
                           }
                         />
                         <Input
-                          autoComplete="off"
+                          autoComplete="new-password"
                           data-form-type="other"
                           data-lpignore="true"
                           label="Série / IMEI"
-                          value={formData.equipamento_numero_serie || ""}
+                          value={
+                            formData.equipamento_imei ||
+                            formData.equipamento_numero_serie ||
+                            ""
+                          }
                           onChange={(e) =>
                             setFormData({
                               ...formData,
                               equipamento_numero_serie: e.target.value,
+                              equipamento_imei: e.target.value,
                             })
                           }
                         />

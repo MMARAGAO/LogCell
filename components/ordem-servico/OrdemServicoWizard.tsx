@@ -144,6 +144,23 @@ export default function OrdemServicoWizard({
   const [valorDesconto, setValorDesconto] = useState("");
   const [observacoes, setObservacoes] = useState("");
 
+  // Anti-autofill: limpa campos IMEI/Nº Série preenchidos com email pelo navegador
+  useEffect(() => {
+    if (passoAtual !== 2) return;
+    setAparelhos((prev) =>
+      prev.map((ap) => {
+        const imei = ap.equipamento_imei || "";
+        const serie = ap.equipamento_numero_serie || "";
+
+        if (imei.includes("@") || serie.includes("@")) {
+          return { ...ap, equipamento_imei: "", equipamento_numero_serie: "" };
+        }
+
+        return ap;
+      }),
+    );
+  }, [passoAtual]);
+
   const adicionarAparelho = () => {
     const sequencia = aparelhos.length + 1;
     const idLojaAparelho = lojaId || lojas[0]?.id;
@@ -797,7 +814,7 @@ export default function OrdemServicoWizard({
                             }
                           />
                           <Input
-                            autoComplete="off"
+                            autoComplete="new-password"
                             data-form-type="other"
                             data-lpignore="true"
                             label="IMEI ou Nº de Série"

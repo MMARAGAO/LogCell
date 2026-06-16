@@ -158,6 +158,23 @@ export default function OrdemServicoFormModal({
     >
   >([]);
 
+  // Anti-autofill: limpa campos IMEI/Nº Série preenchidos com email pelo navegador
+  useEffect(() => {
+    if (tabSelecionada !== "aparelhos") return;
+    setAparelhos((prev) =>
+      prev.map((ap) => {
+        const imei = ap.equipamento_imei || "";
+        const serie = ap.equipamento_numero_serie || "";
+
+        if (imei.includes("@") || serie.includes("@")) {
+          return { ...ap, equipamento_imei: "", equipamento_numero_serie: "" };
+        }
+
+        return ap;
+      }),
+    );
+  }, [tabSelecionada]);
+
   // Peças temporárias (antes de salvar a OS) - cada peça tem sua própria loja
   const [pecasTemp, setPecasTemp] = useState<any[]>([]);
 
@@ -1241,7 +1258,7 @@ export default function OrdemServicoFormModal({
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <Input
-                            autoComplete="off"
+                            autoComplete="new-password"
                             data-form-type="other"
                             data-lpignore="true"
                             label="Número de Série / IMEI"
