@@ -116,7 +116,7 @@ export default function TecnicoWorkspacePage() {
         .from("ordem_servico")
         .select("*")
         .eq("tecnico_responsavel", usuario.id)
-        .neq("status", "concluido")
+        .not("status", "in", "(concluido,cancelado,entregue,devolvida)")
         .order("criado_em", { ascending: false });
 
       setMinhasOS(minhas || []);

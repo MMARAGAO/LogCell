@@ -16,9 +16,9 @@ import {
   CardBody,
   Divider,
   Chip,
+  Alert,
 } from "@heroui/react";
 import {
-  ExclamationCircleIcon as AlertCircle,
   CurrencyDollarIcon as DollarSign,
   CreditCardIcon as CreditCard,
   ArrowPathIcon as RefreshCw,
@@ -130,20 +130,12 @@ export default function DevolverOSModal({
 
         <ModalBody>
           {/* Alerta */}
-          <Card className="bg-warning-50 border-warning-200 border">
-            <CardBody className="flex flex-row items-start gap-3 p-4">
-              <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-warning-800 font-medium">
-                  Atenção: Esta ação não pode ser desfeita
-                </p>
-                <p className="text-xs text-warning-700 mt-1">
-                  A devolução irá desfazer o serviço, devolver peças ao estoque
-                  e processar o valor pago.
-                </p>
-              </div>
-            </CardBody>
-          </Card>
+          <Alert
+            color="warning"
+            description="A devolução irá desfazer o serviço, devolver peças ao estoque e processar o valor pago."
+            title="Atenção: esta ação não pode ser desfeita"
+            variant="faded"
+          />
 
           {/* Informações da OS */}
           <div className="space-y-3">

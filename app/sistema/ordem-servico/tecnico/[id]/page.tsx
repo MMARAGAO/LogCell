@@ -4,13 +4,19 @@ import type { OrdemServico } from "@/types/ordemServico";
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
+import { Tooltip } from "@heroui/tooltip";
 import { Textarea } from "@heroui/input";
-import { Select, SelectItem } from "@heroui/select";
-import { Spinner } from "@heroui/spinner";
+import { Skeleton } from "@heroui/skeleton";
 import { Tabs, Tab } from "@heroui/tabs";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/modal";
 import { createBrowserClient } from "@supabase/ssr";
 import {
   ArrowLeftIcon,
@@ -31,9 +37,8 @@ import {
   FireIcon,
   ExclamationCircleIcon,
   CubeIcon,
-  CheckIcon,
-  VideoCameraIcon,
-  ShareIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import Image from "next/image";
 
@@ -41,7 +46,9 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useToast } from "@/components/Toast";
 import { useConfirm } from "@/hooks/useConfirm";
 import LaudoTecnico from "@/components/ordem-servico/LaudoTecnico";
-import RegistrarQuebraModal from "@/components/ordem-servico/RegistrarQuebraModal";
+import SectionCard from "@/components/ordem-servico/SectionCard";
+import OSControlSidebar from "@/components/ordem-servico/OSControlSidebar";
+import TabPecas from "@/components/ordem-servico/TabPecas";
 
 // Função para formatar telefone
 const formatarTelefone = (telefone: string) => {
@@ -79,7 +86,6 @@ export default function OrdemServicoDetalheTecnicoPage() {
   const [uploadingFoto, setUploadingFoto] = useState(false);
   const [fotoSelecionada, setFotoSelecionada] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [quebraModal, setQuebraModal] = useState(false);
   const [quebras, setQuebras] = useState<any[]>([]);
   const [loadingQuebras, setLoadingQuebras] = useState(false);
   const [activeTab, setActiveTab] = useState("informacoes");
@@ -87,6 +93,8 @@ export default function OrdemServicoDetalheTecnicoPage() {
   const [loadingPecas, setLoadingPecas] = useState(false);
   const [bancada, setBancada] = useState("");
   const [salvandoBancada, setSalvandoBancada] = useState(false);
+  const [checklistConclusao, setChecklistConclusao] = useState(false);
+  const [bancadasOcupadas, setBancadasOcupadas] = useState<string[]>([]);
 
   useEffect(() => {
     if (params.id) {
@@ -94,8 +102,37 @@ export default function OrdemServicoDetalheTecnicoPage() {
       carregarFotos();
       carregarQuebras();
       carregarPecas();
+      carregarBancadasOcupadas();
     }
   }, [params.id]);
+
+  // Bancadas já associadas a OUTRAS OS ativas (não podem ser reutilizadas)
+  const carregarBancadasOcupadas = async () => {
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    try {
+      // Bancada é liberada (null) automaticamente quando a OS sai do estado
+      // ativo, então basta considerar ocupada qualquer OS (≠ esta) com bancada.
+      const { data, error } = await supabase
+        .from("ordem_servico")
+        .select("bancada")
+        .not("bancada", "is", null)
+        .neq("id", params.id);
+
+      if (error) throw error;
+
+      const ocupadas = Array.from(
+        new Set((data || []).map((o: any) => o.bancada).filter(Boolean)),
+      );
+
+      setBancadasOcupadas(ocupadas as string[]);
+    } catch (error) {
+      console.error("Erro ao carregar bancadas ocupadas:", error);
+    }
+  };
 
   const carregarOrdem = async () => {
     const supabase = createBrowserClient(
@@ -423,6 +460,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
           status: "concluido",
           observacoes_tecnicas: observacoes,
           data_conclusao: new Date().toISOString(),
+          bancada: null, // libera a bancada ao concluir
           atualizado_em: new Date().toISOString(),
           atualizado_por: usuario?.id,
         })
@@ -495,7 +533,9 @@ export default function OrdemServicoDetalheTecnicoPage() {
       });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (
+    status: string,
+  ): "default" | "primary" | "secondary" | "success" | "warning" | "danger" => {
     switch (status) {
       case "aguardando":
         return "default";
@@ -504,6 +544,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
       case "em_andamento":
         return "warning";
       case "aguardando_pecas":
+      case "aguardando_peca":
         return "danger";
       case "concluido":
         return "success";
@@ -531,10 +572,36 @@ export default function OrdemServicoDetalheTecnicoPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-default-500">Carregando...</p>
+      <div className="space-y-6 pb-8 max-w-6xl mx-auto">
+        {/* Header skeleton */}
+        <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5 space-y-4">
+          <div className="flex items-center gap-4">
+            <Skeleton className="rounded-lg w-10 h-10" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-3 w-32 rounded-lg" />
+              <Skeleton className="h-5 w-48 rounded-lg" />
+            </div>
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-px w-full rounded-none" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-20 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-16 rounded-full" />
+          </div>
+        </div>
+
+        {/* Conteúdo: main + sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-44 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-32 w-full rounded-xl" />
+          </div>
         </div>
       </div>
     );
@@ -548,8 +615,31 @@ export default function OrdemServicoDetalheTecnicoPage() {
     );
   }
 
+  const osConcluida = ordem.status === "concluido";
+  const temAlteracoes =
+    novoStatus !== ordem.status ||
+    observacoes !== (ordem.observacoes_tecnicas || "");
+
   return (
     <div className="space-y-6 pb-8 max-w-6xl mx-auto">
+      {/* Breadcrumb */}
+      <nav
+        aria-label="Trilha de navegação"
+        className="flex items-center gap-1.5 text-xs text-default-400"
+      >
+        <button
+          className="hover:text-default-600 transition-colors"
+          type="button"
+          onClick={() => router.push("/sistema/ordem-servico/tecnico")}
+        >
+          Minhas Ordens
+        </button>
+        <ChevronRightIcon className="w-3 h-3 shrink-0" />
+        <span className="text-default-600 font-medium">
+          OS #{ordem.numero_os}
+        </span>
+      </nav>
+
       {/* Header */}
       <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -565,7 +655,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </Button>
             <div>
               <div className="flex items-center gap-2.5 mb-1">
-                <span className="text-[11px] font-semibold text-default-400 uppercase tracking-wider">
+                <span className="text-[11px] font-semibold text-default-500 uppercase tracking-wider">
                   Ordem de Serviço
                 </span>
                 <span className="text-xs text-default-300">
@@ -593,38 +683,38 @@ export default function OrdemServicoDetalheTecnicoPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                ordem.status === "em_andamento"
-                  ? "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-800"
-                  : ordem.status === "concluido"
-                    ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
-                    : ordem.status === "aguardando"
-                      ? "bg-default-100 text-default-500 border border-default-200"
-                      : ordem.status === "em_diagnostico"
-                        ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                        : ordem.status === "aguardando_peca"
-                          ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800"
-                          : "bg-default-100 text-default-500 border border-default-200"
-              }`}
-            >
+            <Chip color={getStatusColor(ordem.status)} size="sm" variant="flat">
               {getStatusLabel(ordem.status)}
-            </span>
+            </Chip>
             {ordem.equipamento_senha && (
-              <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-800 flex items-center gap-1">
-                <LockClosedIcon className="w-3 h-3" />
+              <Chip
+                color="warning"
+                size="sm"
+                startContent={<LockClosedIcon className="w-3 h-3" />}
+                variant="flat"
+              >
                 {ordem.equipamento_senha}
-              </span>
+              </Chip>
             )}
             {ordem.prioridade === "urgente" && (
-              <span className="text-xs px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border border-red-200 dark:border-red-800 flex items-center gap-1">
-                <FireIcon className="w-3 h-3" /> Urgente
-              </span>
+              <Chip
+                color="danger"
+                size="sm"
+                startContent={<FireIcon className="w-3 h-3" />}
+                variant="flat"
+              >
+                Urgente
+              </Chip>
             )}
             {ordem.prioridade === "alta" && (
-              <span className="text-xs px-2.5 py-1 rounded-full bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-800 flex items-center gap-1">
-                <ExclamationCircleIcon className="w-3 h-3" /> Alta
-              </span>
+              <Chip
+                color="warning"
+                size="sm"
+                startContent={<ExclamationCircleIcon className="w-3 h-3" />}
+                variant="flat"
+              >
+                Alta
+              </Chip>
             )}
           </div>
         </div>
@@ -632,56 +722,64 @@ export default function OrdemServicoDetalheTecnicoPage() {
         {/* Quick Info Row */}
         <div className="flex flex-wrap gap-2 mt-5 pt-4 border-t border-default-200/70">
           {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
-              <CurrencyDollarIcon className="w-3 h-3" />
+            <Chip
+              color="success"
+              size="sm"
+              startContent={<CurrencyDollarIcon className="w-3 h-3" />}
+              variant="flat"
+            >
               R$ {ordem.valor_orcamento.toFixed(2)}
-            </span>
+            </Chip>
           )}
           {ordem.previsao_entrega && (
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${(() => {
+            <Chip
+              color={(() => {
                 const diff = Math.ceil(
                   (new Date(ordem.previsao_entrega).getTime() - Date.now()) /
                     86400000,
                 );
 
-                if (diff < 0)
-                  return "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-300 border-red-200 dark:border-red-800";
-                if (diff <= 2)
-                  return "bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-300 border-orange-200 dark:border-orange-800";
+                if (diff < 0) return "danger";
+                if (diff <= 2) return "warning";
 
-                return "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800";
-              })()}`}
+                return "default";
+              })()}
+              size="sm"
+              startContent={<CalendarIcon className="w-3 h-3" />}
+              variant="flat"
             >
-              <CalendarIcon className="w-3 h-3" />
               {new Date(ordem.previsao_entrega).toLocaleDateString("pt-BR", {
                 day: "2-digit",
                 month: "short",
               })}
-            </span>
+            </Chip>
           )}
           {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 && (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-default-100 text-default-500 border border-default-200 flex items-center gap-1.5">
-              <ShieldCheckIcon className="w-3 h-3" />
+            <Chip
+              color="default"
+              size="sm"
+              startContent={<ShieldCheckIcon className="w-3 h-3" />}
+              variant="flat"
+            >
               {ordem.laudo_garantia_dias}{" "}
               {ordem.laudo_garantia_dias === 1 ? "dia" : "dias"}
-            </span>
+            </Chip>
           )}
           {ordem.tipo_cliente && (
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1.5 ${
-                ordem.tipo_cliente === "lojista"
-                  ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800"
-                  : "bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 border-purple-200 dark:border-purple-800"
-              }`}
+            <Chip
+              color="default"
+              size="sm"
+              startContent={
+                ordem.tipo_cliente === "lojista" ? (
+                  <BuildingStorefrontIcon className="w-3 h-3" />
+                ) : (
+                  <UserIcon className="w-3 h-3" />
+                )
+              }
+              variant="flat"
             >
-              {ordem.tipo_cliente === "lojista" ? (
-                <BuildingStorefrontIcon className="w-3 h-3" />
-              ) : (
-                <UserIcon className="w-3 h-3" />
-              )}
               {ordem.tipo_cliente === "lojista" ? "Lojista" : "Consumidor"}
-            </span>
+            </Chip>
           )}
         </div>
 
@@ -691,45 +789,41 @@ export default function OrdemServicoDetalheTecnicoPage() {
         </div>
       </div>
 
-      {/* Tabs de Navegação */}
-      <Tabs
-        classNames={{
-          tabList: "gap-6 w-full relative rounded-none p-0",
-          cursor: "w-full bg-primary",
-          tab: "max-w-fit px-4 h-12",
-          tabContent: "group-data-[selected=true]:text-primary",
-        }}
-        color="primary"
-        selectedKey={activeTab}
-        size="lg"
-        variant="underlined"
-        onSelectionChange={(key) => setActiveTab(key as string)}
-      >
-        {/* Tab 1: Informações e Ações */}
-        <Tab
-          key="informacoes"
-          title={
-            <div className="flex items-center gap-2">
-              <InformationCircleIcon className="w-5 h-5" />
-              <span>Informações</span>
-            </div>
-          }
-        >
-          <div className="mt-6 space-y-6">
-            {/* Grid 2 colunas: Info OS + Controles */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Coluna esquerda: Dados da OS */}
-              <div className="lg:col-span-2 space-y-6">
+      {/* Layout "issue": conteúdo principal + sidebar de controles */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+        {/* Conteúdo principal: Tabs */}
+        <div className="min-w-0">
+          {/* Tabs de Navegação */}
+          <Tabs
+            classNames={{
+              tabList:
+                "gap-6 w-full relative rounded-none p-0 overflow-x-auto flex-nowrap",
+              cursor: "w-full bg-primary",
+              tab: "max-w-fit px-4 h-12",
+              tabContent: "group-data-[selected=true]:text-primary",
+            }}
+            color="primary"
+            selectedKey={activeTab}
+            size="lg"
+            variant="underlined"
+            onSelectionChange={(key) => setActiveTab(key as string)}
+          >
+            {/* Tab 1: Informações e Ações */}
+            <Tab
+              key="informacoes"
+              title={
+                <div className="flex items-center gap-2">
+                  <InformationCircleIcon className="w-5 h-5" />
+                  <span>Informações</span>
+                </div>
+              }
+            >
+              <div className="mt-6 space-y-6">
                 {/* OS Info Card */}
-                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <InformationCircleIcon className="w-4 h-4 text-primary" />
-                    </div>
-                    <span className="text-sm font-semibold text-foreground">
-                      Informações da OS
-                    </span>
-                  </div>
+                <SectionCard
+                  icon={<InformationCircleIcon className="w-4 h-4" />}
+                  title="Informações da OS"
+                >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <DetailField label="Cliente" value={ordem.cliente_nome} />
                     <DetailField
@@ -745,7 +839,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     )}
                     {ordem.equipamento_senha && (
                       <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-                        <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
+                        <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-1">
                           Senha do Dispositivo
                         </p>
                         <p className="text-lg font-bold font-mono text-amber-700 dark:text-amber-300">
@@ -754,7 +848,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       </div>
                     )}
                     <div className="md:col-span-2">
-                      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
+                      <p className="text-[11px] font-semibold text-default-500 uppercase tracking-wider mb-1">
                         Defeito Reclamado
                       </p>
                       <p className="text-sm text-default-600 bg-default-100 rounded-xl p-3 border border-default-200/70">
@@ -768,14 +862,14 @@ export default function OrdemServicoDetalheTecnicoPage() {
                       />
                     )}
                   </div>
-                </div>
+                </SectionCard>
 
                 {/* Valores + Guarantia */}
                 {(ordem.valor_orcamento || ordem.laudo_garantia_dias) && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {ordem.valor_orcamento && ordem.valor_orcamento > 0 && (
                       <div className="bg-content1 rounded-xl shadow-sm border border-emerald-100 dark:border-emerald-900 p-5">
-                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">
+                        <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">
                           Valor do Serviço
                         </p>
                         <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
@@ -786,7 +880,7 @@ export default function OrdemServicoDetalheTecnicoPage() {
                     {ordem.laudo_garantia_dias &&
                       ordem.laudo_garantia_dias > 0 && (
                         <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
-                          <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
+                          <p className="text-[11px] font-semibold text-default-500 uppercase tracking-wider mb-1">
                             Garantia
                           </p>
                           <div className="flex items-center gap-2">
@@ -801,1007 +895,438 @@ export default function OrdemServicoDetalheTecnicoPage() {
                   </div>
                 )}
 
-                {/* Observações Técnicas */}
-                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <DocumentTextIcon className="w-4 h-4 text-default-400" />
-                    <span className="text-sm font-semibold text-foreground">
-                      Observações Técnicas
-                    </span>
-                  </div>
-                  {ordem.observacoes_tecnicas ? (
-                    <div className="p-4 bg-default-100 rounded-xl border border-default-200/70">
-                      <p className="text-sm text-default-600 whitespace-pre-wrap leading-relaxed">
-                        {ordem.observacoes_tecnicas}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-default-400 italic">
-                      Nenhuma observação registrada
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Coluna direita: Controles + Câmera */}
-              <div className="space-y-6">
-                {/* Status Update */}
-                <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
-                    <ClockIcon className="w-4 h-4 text-default-400" />
-                    <span className="text-sm font-semibold text-foreground">
-                      Status
-                    </span>
-                  </div>
-                  <div className="space-y-4">
-                    <Select
-                      classNames={{
-                        trigger: "bg-default-100 border-default-200",
-                      }}
-                      isDisabled={ordem.status === "concluido"}
-                      label="Alterar status"
-                      labelPlacement="outside"
-                      placeholder="Selecione..."
-                      selectedKeys={[novoStatus]}
-                      size="md"
-                      variant="bordered"
-                      onChange={(e) => setNovoStatus(e.target.value)}
-                    >
-                      <SelectItem key="em_andamento">Em Andamento</SelectItem>
-                      <SelectItem key="em_diagnostico">
-                        Em Diagnóstico
-                      </SelectItem>
-                      <SelectItem key="aguardando_pecas">
-                        Aguardando Peças
-                      </SelectItem>
-                    </Select>
-                    <Button
-                      fullWidth
-                      className="font-medium"
-                      color="primary"
-                      isDisabled={ordem.status === "concluido"}
-                      isLoading={salvando}
-                      size="md"
-                      startContent={<ClockIcon className="w-4 h-4" />}
-                      variant="solid"
-                      onPress={salvarAtualizacao}
-                    >
-                      Salvar
-                    </Button>
-                    <Button
-                      fullWidth
-                      className="font-medium"
-                      color="success"
-                      isDisabled={
-                        ordem.status === "concluido" || !observacoes.trim()
-                      }
-                      isLoading={salvando}
-                      size="md"
-                      startContent={<CheckCircleIcon className="w-4 h-4" />}
-                      variant="flat"
-                      onPress={concluirOS}
-                    >
-                      Concluir OS
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Câmera */}
-                <div
-                  className={`bg-content1 rounded-xl shadow-sm border p-5 ${
-                    bancada
-                      ? "border-emerald-200 dark:border-emerald-900"
-                      : "border-default-200/70"
-                  }`}
+                {/* Observações Editor + Timeline */}
+                <SectionCard
+                  icon={<DocumentTextIcon className="w-4 h-4" />}
+                  title="Observações Técnicas"
                 >
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
-                    <VideoCameraIcon className="w-4 h-4 text-default-400" />
-                    <span className="text-sm font-semibold text-foreground">
-                      Câmera ao Vivo
-                    </span>
-                  </div>
+                  <div className="relative pl-6 space-y-4">
+                    {/* Linha vertical da timeline */}
+                    <div className="absolute left-2.5 top-1 bottom-0 w-px bg-default-200" />
 
-                  {novoStatus === "em_andamento" || bancada ? (
-                    <div className="space-y-4">
-                      <Select
-                        classNames={{
-                          trigger: "bg-default-100 border-default-200",
-                        }}
-                        isLoading={salvandoBancada}
-                        label="Bancada"
-                        labelPlacement="outside"
-                        placeholder="Selecione a bancada"
-                        selectedKeys={bancada ? [bancada] : []}
-                        size="md"
-                        variant="bordered"
-                        onChange={(e) => salvarBancada(e.target.value)}
-                      >
-                        <SelectItem key="bancada-1">Bancada 1</SelectItem>
-                        <SelectItem key="bancada-2">Bancada 2</SelectItem>
-                        <SelectItem key="bancada-3">Bancada 3</SelectItem>
-                        <SelectItem key="bancada-4">Bancada 4</SelectItem>
-                        <SelectItem key="bancada-5">Bancada 5</SelectItem>
-                      </Select>
-
-                      {bancada && (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                                Bancada {bancada.replace("bancada-", "")} ativa
-                              </p>
-                              <p className="text-[11px] text-emerald-500">
-                                Transmitindo ao vivo
-                              </p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              className="font-medium text-xs"
-                              color="primary"
-                              size="sm"
-                              startContent={
-                                <VideoCameraIcon className="w-3.5 h-3.5" />
-                              }
-                              variant="flat"
-                              onPress={() =>
-                                window.open(
-                                  `/ver-stream/${ordem.id}`,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                )
-                              }
-                            >
-                              Ver ao Vivo
-                            </Button>
-                            <Button
-                              className="font-medium text-xs"
-                              color="success"
-                              size="sm"
-                              startContent={
-                                <ShareIcon className="w-3.5 h-3.5" />
-                              }
-                              variant="solid"
-                              onPress={compartilharStream}
-                            >
-                              Compartilhar
-                            </Button>
-                          </div>
-                          <p className="text-[10px] text-default-400 text-center">
-                            Link copiável para enviar ao cliente
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center py-4 text-center">
-                      <div className="w-10 h-10 rounded-full bg-default-200 flex items-center justify-center mb-2">
-                        <VideoCameraIcon className="w-5 h-5 text-default-400" />
-                      </div>
-                      <p className="text-xs text-default-500 font-medium">
-                        Câmera disponível
-                      </p>
-                      <p className="text-[11px] text-default-400 mt-0.5">
-                        ao iniciar manutenção
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Observações Editor + Timeline */}
-            <div className="bg-content1 rounded-xl shadow-sm border border-default-200/70 p-5">
-              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-default-200/70">
-                <DocumentTextIcon className="w-4 h-4 text-default-400" />
-                <span className="text-sm font-semibold text-foreground">
-                  Observações Técnicas
-                </span>
-              </div>
-
-              <div className="relative pl-6 space-y-4">
-                {/* Linha vertical da timeline */}
-                <div className="absolute left-2.5 top-1 bottom-0 w-px bg-default-200" />
-
-                {/* Observação existente (se houver) */}
-                {ordem.observacoes_tecnicas && (
-                  <div className="relative">
-                    <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-orange-500 ring-2 ring-white dark:ring-zinc-900" />
-                    <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
-                      {ordem.data_inicio_servico
-                        ? new Date(ordem.data_inicio_servico).toLocaleString(
-                            "pt-BR",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )
-                        : new Date(ordem.criado_em).toLocaleString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                    </p>
-                    <p className="text-sm text-default-600 whitespace-pre-wrap leading-relaxed bg-default-100 rounded-xl p-3 border border-default-200/70">
-                      {ordem.observacoes_tecnicas}
-                    </p>
-                  </div>
-                )}
-
-                {/* Nova observação */}
-                <div className="relative">
-                  <div className="absolute -left-4 top-2 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white dark:ring-zinc-900" />
-                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider mb-1">
-                    Nova Observação
-                  </p>
-                  <Textarea
-                    classNames={{
-                      input: "text-sm",
-                      inputWrapper: "bg-default-100 border-default-200",
-                    }}
-                    isDisabled={ordem.status === "concluido"}
-                    minRows={3}
-                    placeholder="Descreva o diagnóstico, procedimentos realizados..."
-                    value={observacoes}
-                    variant="bordered"
-                    onChange={(e) => setObservacoes(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </Tab>
-
-        {/* Tab 2: Fotos */}
-        <Tab
-          key="fotos"
-          title={
-            <div className="flex items-center gap-2">
-              <PhotoIcon className="w-5 h-5" />
-              <span>Fotos</span>
-              {fotos.length > 0 && (
-                <Chip size="sm" variant="flat">
-                  {fotos.length}
-                </Chip>
-              )}
-            </div>
-          }
-        >
-          <div className="mt-6">
-            <Card className="shadow-medium">
-              <CardHeader>
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <PhotoIcon className="w-5 h-5" />
-                  Galeria de Fotos
-                </h2>
-              </CardHeader>
-              <CardBody className="space-y-4">
-                {/* Upload */}
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    type="file"
-                    onChange={handleFileSelect}
-                  />
-                  <Button
-                    className="w-full"
-                    color="secondary"
-                    isLoading={uploadingFoto}
-                    size="lg"
-                    startContent={<PhotoIcon className="w-5 h-5" />}
-                    variant="flat"
-                    onPress={() => fileInputRef.current?.click()}
-                  >
-                    {uploadingFoto ? "Enviando..." : "Adicionar Fotos"}
-                  </Button>
-                  <p className="text-xs text-default-400 mt-2 text-center">
-                    Máximo 5MB por foto • JPG, PNG, GIF
-                  </p>
-                </div>
-
-                {/* Grid de Fotos */}
-                {fotos.length > 0 ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {fotos.map((foto) => (
-                      <div key={foto.id} className="relative group">
-                        <button
-                          className="aspect-square rounded-xl overflow-hidden bg-default-100 cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-primary"
-                          type="button"
-                          onClick={() => setFotoSelecionada(foto.url)}
-                        >
-                          <Image
-                            alt="Foto da OS"
-                            className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                            height={300}
-                            src={foto.url}
-                            width={300}
-                          />
-                        </button>
-                        {foto.is_principal && (
-                          <Chip
-                            className="absolute top-2 left-2 shadow-lg"
-                            color="warning"
-                            size="sm"
-                          >
-                            ⭐ Principal
-                          </Chip>
-                        )}
-                        <Button
-                          isIconOnly
-                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                          color="danger"
-                          size="sm"
-                          variant="solid"
-                          onPress={() => removerFoto(foto.id, foto.url)}
-                        >
-                          <TrashIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-16 text-default-400 bg-default-50 dark:bg-default-100/10 rounded-xl">
-                    <PhotoIcon className="w-20 h-20 mx-auto mb-4 opacity-40" />
-                    <p className="font-medium text-lg">
-                      Nenhuma foto adicionada
-                    </p>
-                    <p className="text-sm mt-2">
-                      Clique no botão acima para adicionar fotos do equipamento
-                    </p>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-        </Tab>
-
-        {/* Tab 3: Laudo Técnico */}
-        <Tab
-          key="laudo"
-          title={
-            <div className="flex items-center gap-2">
-              <DocumentTextIcon className="w-5 h-5" />
-              <span>Laudo Técnico</span>
-            </div>
-          }
-        >
-          <div className="mt-6">
-            <LaudoTecnico ordemServicoId={ordem.id} />
-          </div>
-        </Tab>
-
-        {/* Tab 4: Peças/Produtos */}
-        <Tab
-          key="pecas"
-          title={
-            <div className="flex items-center gap-2">
-              <CubeIcon className="w-5 h-5" />
-              <span>Peças</span>
-              {pecas.length > 0 && (
-                <Chip color="primary" size="sm" variant="flat">
-                  {pecas.length}
-                </Chip>
-              )}
-            </div>
-          }
-        >
-          <div className="mt-6">
-            <Card className="shadow-medium">
-              <CardHeader>
-                <h2 className="text-lg font-semibold">Peças Associadas à OS</h2>
-              </CardHeader>
-              <CardBody>
-                {loadingPecas ? (
-                  <div className="flex justify-center py-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : pecas.length === 0 ? (
-                  <div className="text-center py-16 text-default-400">
-                    <CubeIcon className="w-20 h-20 mx-auto mb-4 opacity-30" />
-                    <p className="text-lg font-medium">
-                      Nenhuma peça associada
-                    </p>
-                    <p className="text-sm mt-2">
-                      Ainda não foram adicionadas peças a esta OS
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {(() => {
-                      // Agrupar peças pelo id_produto e tipo_produto
-                      const pecasAgrupadas = pecas.reduce(
-                        (acc: any[], peca) => {
-                          const chave = `${peca.id_produto || peca.descricao_peca}_${peca.tipo_produto}`;
-                          const existente = acc.find((p) => p.chave === chave);
-
-                          if (existente) {
-                            // Somar quantidades
-                            existente.quantidade += peca.quantidade;
-                            existente.ids.push(peca.id);
-                            // Manter o mais recente baixado/reservado
-                            if (peca.estoque_baixado) {
-                              existente.estoque_baixado = true;
-                              existente.data_baixa_estoque =
-                                peca.data_baixa_estoque;
-                            }
-                            if (
-                              peca.estoque_reservado &&
-                              !existente.estoque_baixado
-                            ) {
-                              existente.estoque_reservado = true;
-                              existente.data_reserva_estoque =
-                                peca.data_reserva_estoque;
-                            }
-                          } else {
-                            acc.push({
-                              ...peca,
-                              chave,
-                              ids: [peca.id],
-                            });
-                          }
-
-                          return acc;
-                        },
-                        [],
-                      );
-
-                      return pecasAgrupadas.map((peca) => (
-                        <div
-                          key={peca.chave}
-                          className="p-4 rounded-lg border border-default-200/70 bg-content2 hover:bg-content3 transition-colors"
-                        >
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="flex-1 space-y-2">
-                              {/* Tipo de Produto */}
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Chip
-                                  color={
-                                    peca.tipo_produto === "estoque"
-                                      ? "primary"
-                                      : "secondary"
-                                  }
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {peca.tipo_produto === "estoque"
-                                    ? "Estoque"
-                                    : "Avulso/Externo"}
-                                </Chip>
-                                {peca.estoque_reservado && (
-                                  <Chip color="warning" size="sm" variant="dot">
-                                    Reservado
-                                  </Chip>
-                                )}
-                                {peca.estoque_baixado && (
-                                  <Chip
-                                    color="success"
-                                    size="sm"
-                                    startContent={
-                                      <CheckIcon className="w-3 h-3" />
-                                    }
-                                    variant="dot"
-                                  >
-                                    Baixado
-                                  </Chip>
-                                )}
-                              </div>
-
-                              {/* Descrição */}
-                              <div>
-                                <p className="font-semibold text-lg">
-                                  {peca.tipo_produto === "estoque" &&
-                                  peca.produtos
-                                    ? peca.produtos.descricao
-                                    : peca.descricao_peca}
-                                </p>
-                                {peca.tipo_produto === "estoque" &&
-                                  peca.produtos?.codigo_barras && (
-                                    <p className="text-xs text-default-500 font-mono mt-1">
-                                      Código: {peca.produtos.codigo_barras}
-                                    </p>
-                                  )}
-                              </div>
-
-                              {/* Informações */}
-                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-default-600">
-                                <span className="font-medium">
-                                  Qtd: {peca.quantidade}
-                                </span>
-                                <span>
-                                  Custo Un.: R$ {peca.valor_custo.toFixed(2)}
-                                </span>
-                                <span>
-                                  Venda Un.: R$ {peca.valor_venda.toFixed(2)}
-                                </span>
-                              </div>
-
-                              {/* Datas */}
-                              {(peca.data_reserva_estoque ||
-                                peca.data_baixa_estoque) && (
-                                <div className="text-xs text-default-400 space-y-1">
-                                  {peca.data_reserva_estoque && (
-                                    <p>
-                                      Reservado em:{" "}
-                                      {new Date(
-                                        peca.data_reserva_estoque,
-                                      ).toLocaleString("pt-BR", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
-                                  )}
-                                  {peca.data_baixa_estoque && (
-                                    <p>
-                                      Baixado em:{" "}
-                                      {new Date(
-                                        peca.data_baixa_estoque,
-                                      ).toLocaleString("pt-BR", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        year: "numeric",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Observação */}
-                              {peca.observacao && (
-                                <p className="text-sm text-default-500 bg-default-100 dark:bg-default-50/10 p-2 rounded">
-                                  Obs: {peca.observacao}
-                                </p>
-                              )}
-
-                              {/* Quebras Associadas */}
-                              {(() => {
-                                const quebrasRelacionadas = quebras.filter(
-                                  (q) => q.id_produto === peca.id_produto,
-                                );
-
-                                if (quebrasRelacionadas.length > 0) {
-                                  const totalQuebrado =
-                                    quebrasRelacionadas.reduce(
-                                      (sum, q) => sum + q.quantidade,
-                                      0,
-                                    );
-                                  const totalValor = quebrasRelacionadas.reduce(
-                                    (sum, q) => sum + (q.valor_total || 0),
-                                    0,
-                                  );
-
-                                  return (
-                                    <div className="mt-2 p-3 bg-danger-50 dark:bg-danger-900/20 border-l-3 border-danger rounded">
-                                      <div className="flex items-start gap-2">
-                                        <ExclamationTriangleIcon className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                          <div className="flex items-center justify-between mb-2">
-                                            <p className="text-sm font-semibold text-danger">
-                                              Quebras Registradas
-                                            </p>
-                                            <Chip
-                                              color="danger"
-                                              size="sm"
-                                              variant="flat"
-                                            >
-                                              {quebrasRelacionadas.length}{" "}
-                                              registro(s)
-                                            </Chip>
-                                          </div>
-
-                                          <div className="space-y-2">
-                                            {quebrasRelacionadas.map(
-                                              (quebra) => (
-                                                <div
-                                                  key={quebra.id}
-                                                  className="p-2 bg-default-100 rounded text-xs"
-                                                >
-                                                  <div className="flex items-center gap-2 mb-1">
-                                                    <Chip
-                                                      color={
-                                                        quebra.aprovado
-                                                          ? "success"
-                                                          : "warning"
-                                                      }
-                                                      size="sm"
-                                                      variant="flat"
-                                                    >
-                                                      {quebra.aprovado
-                                                        ? "Aprovada"
-                                                        : "Pendente"}
-                                                    </Chip>
-                                                    <span className="font-semibold text-danger-700 dark:text-danger-300">
-                                                      Qtd: {quebra.quantidade}
-                                                    </span>
-                                                    <span className="text-default-500">
-                                                      Tipo:{" "}
-                                                      {quebra.tipo_ocorrencia ||
-                                                        "quebra"}
-                                                    </span>
-                                                  </div>
-                                                  {quebra.responsavel && (
-                                                    <p className="text-default-600 dark:text-default-400 mb-1">
-                                                      <span className="font-medium">
-                                                        Resp.:
-                                                      </span>{" "}
-                                                      {quebra.responsavel}
-                                                    </p>
-                                                  )}
-                                                  <p className="text-default-600 dark:text-default-400">
-                                                    {quebra.motivo}
-                                                  </p>
-                                                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-default-200 dark:border-default-100">
-                                                    <span className="text-default-500">
-                                                      Registrado em{" "}
-                                                      {new Date(
-                                                        quebra.criado_em,
-                                                      ).toLocaleString(
-                                                        "pt-BR",
-                                                        {
-                                                          day: "2-digit",
-                                                          month: "2-digit",
-                                                          year: "numeric",
-                                                          hour: "2-digit",
-                                                          minute: "2-digit",
-                                                        },
-                                                      )}
-                                                      {quebra.aprovado_em &&
-                                                        ` • Aprovado em ${new Date(quebra.aprovado_em).toLocaleDateString("pt-BR")}`}
-                                                    </span>
-                                                    {quebra.valor_total > 0 && (
-                                                      <span className="font-semibold text-danger">
-                                                        R${" "}
-                                                        {quebra.valor_total.toFixed(
-                                                          2,
-                                                        )}
-                                                      </span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              ),
-                                            )}
-                                          </div>
-
-                                          {quebrasRelacionadas.length > 1 && (
-                                            <div className="mt-2 pt-2 border-t border-danger-200 dark:border-danger-800 flex items-center justify-between text-xs font-semibold text-danger-700 dark:text-danger-300">
-                                              <span>
-                                                Total Quebrado: {totalQuebrado}{" "}
-                                                unidade(s)
-                                              </span>
-                                              {totalValor > 0 && (
-                                                <span>
-                                                  Total: R${" "}
-                                                  {totalValor.toFixed(2)}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-
-                                return null;
-                              })()}
-                            </div>
-
-                            {/* Valores Totais */}
-                            <div className="text-right space-y-1">
-                              <div>
-                                <p className="text-xs text-default-500">
-                                  Custo Total
-                                </p>
-                                <p className="text-lg font-bold text-primary">
-                                  R${" "}
-                                  {(peca.valor_custo * peca.quantidade).toFixed(
-                                    2,
-                                  )}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-default-500">
-                                  Venda Total
-                                </p>
-                                <p className="text-base font-semibold text-success">
-                                  R$ {peca.valor_total.toFixed(2)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ));
-                    })()}
-
-                    {/* Totais Gerais */}
-                    {pecas.length > 1 && (
-                      <div className="pt-4 mt-2 border-t-2">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 bg-default-100 dark:bg-default-50/10 rounded-lg">
-                            <p className="text-sm text-default-600 mb-1">
-                              Total de Itens
-                            </p>
-                            <p className="text-2xl font-bold">
-                              {pecas.reduce((sum, p) => sum + p.quantidade, 0)}
-                            </p>
-                          </div>
-                          <div className="p-4 bg-default-100 dark:bg-default-50/10 rounded-lg">
-                            <p className="text-sm text-default-600 mb-1">
-                              Custo Total
-                            </p>
-                            <p className="text-2xl font-bold tabular-nums">
-                              R${" "}
-                              {pecas
-                                .reduce(
-                                  (sum, p) =>
-                                    sum + p.valor_custo * p.quantidade,
-                                  0,
-                                )
-                                .toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="p-4 bg-default-100 dark:bg-default-50/10 rounded-lg">
-                            <p className="text-sm text-default-600 mb-1">
-                              Venda Total
-                            </p>
-                            <p className="text-2xl font-bold tabular-nums">
-                              R${" "}
-                              {pecas
-                                .reduce((sum, p) => sum + p.valor_total, 0)
-                                .toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-        </Tab>
-
-        {/* Tab 5: Quebras/Perdas */}
-        <Tab
-          key="quebras"
-          title={
-            <div className="flex items-center gap-2">
-              <ExclamationTriangleIcon className="w-5 h-5" />
-              <span>Quebras</span>
-              {quebras.length > 0 && (
-                <Chip
-                  color={
-                    quebras.some((q) => !q.aprovado) ? "warning" : "default"
-                  }
-                  size="sm"
-                  variant="flat"
-                >
-                  {quebras.length}
-                </Chip>
-              )}
-            </div>
-          }
-        >
-          <div className="mt-6 space-y-6">
-            {/* Botão de Registrar Quebra */}
-            <Card className="shadow-medium">
-              <CardBody>
-                <Button
-                  className="w-full"
-                  color="danger"
-                  size="lg"
-                  startContent={<ExclamationTriangleIcon className="w-5 h-5" />}
-                  variant="flat"
-                  onPress={() => setQuebraModal(true)}
-                >
-                  Registrar Quebra/Perda de Peça
-                </Button>
-                <p className="text-xs text-center text-default-400 mt-3">
-                  Use apenas se uma peça quebrar ou for perdida durante o reparo
-                </p>
-              </CardBody>
-            </Card>
-
-            {/* Lista de Quebras */}
-            <Card className="shadow-medium">
-              <CardHeader>
-                <div className="flex items-center justify-between w-full">
-                  <h2 className="text-lg font-semibold">Quebras Registradas</h2>
-                  {quebras.length > 0 && (
-                    <Chip size="sm" variant="flat">
-                      {quebras.length} registro(s)
-                    </Chip>
-                  )}
-                </div>
-              </CardHeader>
-              <CardBody>
-                {loadingQuebras ? (
-                  <div className="flex justify-center py-8">
-                    <Spinner size="lg" />
-                  </div>
-                ) : quebras.length === 0 ? (
-                  <div className="text-center py-16 text-default-400">
-                    <CheckCircleIcon className="w-20 h-20 mx-auto mb-4 opacity-30 text-success" />
-                    <p className="text-lg font-medium">
-                      Nenhuma quebra registrada
-                    </p>
-                    <p className="text-sm mt-2">
-                      Isso é ótimo! Mantenha o cuidado com as peças.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {quebras.map((quebra) => (
-                      <div
-                        key={quebra.id}
-                        className="p-4 rounded-lg border border-default-200/70 bg-content2 hover:bg-content3 transition-colors"
-                      >
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold text-lg">
-                                {quebra.produtos?.descricao ||
-                                  "Produto não identificado"}
-                              </span>
-                              <Chip
-                                color={quebra.aprovado ? "success" : "warning"}
-                                size="sm"
-                                variant="dot"
-                              >
-                                {quebra.aprovado ? "Aprovada" : "Pendente"}
-                              </Chip>
-                            </div>
-
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-default-600">
-                              <span className="font-medium">
-                                Qtd: {quebra.quantidade}
-                              </span>
-                              <span>Tipo: {quebra.tipo_ocorrencia}</span>
-                              <span>Resp.: {quebra.responsavel}</span>
-                            </div>
-
-                            {quebra.motivo && (
-                              <p className="text-sm text-default-500 bg-default-100 dark:bg-default-50/10 p-2 rounded">
-                                {quebra.motivo}
-                              </p>
-                            )}
-
-                            <div className="text-xs text-default-400">
-                              Registrado em{" "}
-                              {new Date(quebra.criado_em).toLocaleString(
+                    {/* Observação existente (se houver) */}
+                    {ordem.observacoes_tecnicas && (
+                      <div className="relative">
+                        <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-default-400 ring-2 ring-white dark:ring-zinc-900" />
+                        <p className="text-[11px] font-semibold text-default-500 uppercase tracking-wider mb-1">
+                          {ordem.data_inicio_servico
+                            ? new Date(
+                                ordem.data_inicio_servico,
+                              ).toLocaleString("pt-BR", {
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : new Date(ordem.criado_em).toLocaleString(
                                 "pt-BR",
                                 {
                                   day: "2-digit",
-                                  month: "2-digit",
+                                  month: "short",
                                   year: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
                                 },
                               )}
-                              {quebra.aprovado && quebra.aprovado_em && (
-                                <span className="ml-2">
-                                  • Aprovado em{" "}
-                                  {new Date(
-                                    quebra.aprovado_em,
-                                  ).toLocaleDateString("pt-BR")}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <div className="text-xl font-bold text-danger">
-                              R$ {quebra.valor_total.toFixed(2)}
-                            </div>
-                            {quebra.descontar_tecnico && (
-                              <Chip
-                                className="mt-2"
-                                color="danger"
-                                size="sm"
-                                variant="flat"
-                              >
-                                Será Descontado
-                              </Chip>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Total */}
-                    {quebras.length > 1 && (
-                      <div className="pt-4 mt-2 border-t-2">
-                        <div className="flex justify-between items-center p-4 bg-danger-50 dark:bg-danger-900/20 rounded-lg">
-                          <div>
-                            <span className="text-lg font-semibold">
-                              Total de Quebras:
-                            </span>
-                            <div className="flex gap-4 mt-1 text-sm text-default-600">
-                              <span>
-                                {quebras.filter((q) => !q.aprovado).length}{" "}
-                                pendente(s)
-                              </span>
-                              <span>
-                                {quebras.filter((q) => q.aprovado).length}{" "}
-                                aprovada(s)
-                              </span>
-                            </div>
-                          </div>
-                          <span className="text-2xl font-bold text-danger">
-                            R${" "}
-                            {quebras
-                              .reduce((sum, q) => sum + q.valor_total, 0)
-                              .toFixed(2)}
-                          </span>
-                        </div>
+                        </p>
+                        <p className="text-sm text-default-600 whitespace-pre-wrap leading-relaxed bg-default-100 rounded-xl p-3 border border-default-200/70">
+                          {ordem.observacoes_tecnicas}
+                        </p>
                       </div>
                     )}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
-        </Tab>
-      </Tabs>
 
-      {/* Modal de visualização de foto */}
-      {fotoSelecionada && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
-          role="button"
-          tabIndex={0}
-          onClick={() => setFotoSelecionada(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setFotoSelecionada(null);
-            }
-          }}
-        >
-          <Button
-            isIconOnly
-            className="absolute top-4 right-4 z-10 shadow-2xl"
-            color="danger"
-            size="lg"
-            variant="solid"
-            onPress={() => setFotoSelecionada(null)}
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </Button>
-          <div className="max-w-6xl max-h-[90vh] p-4">
-            <Image
-              alt="Foto ampliada"
-              className="w-full h-full object-contain rounded-xl shadow-2xl"
-              height={1600}
-              src={fotoSelecionada}
-              width={1600}
-              onClick={(e) => e.stopPropagation()}
-            />
+                    {/* Nova observação */}
+                    <div className="relative">
+                      <div className="absolute -left-4 top-2 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-white dark:ring-zinc-900" />
+                      <p className="text-[11px] font-semibold text-primary uppercase tracking-wider mb-1">
+                        Nova Observação
+                      </p>
+                      <Textarea
+                        classNames={{
+                          input: "text-sm",
+                          inputWrapper: "bg-default-100 border-default-200",
+                        }}
+                        isDisabled={ordem.status === "concluido"}
+                        minRows={3}
+                        placeholder="Descreva o diagnóstico, procedimentos realizados..."
+                        value={observacoes}
+                        variant="bordered"
+                        onChange={(e) => setObservacoes(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+              </div>
+            </Tab>
+
+            {/* Tab 2: Fotos */}
+            <Tab
+              key="fotos"
+              title={
+                <div className="flex items-center gap-2">
+                  <PhotoIcon className="w-5 h-5" />
+                  <span>Fotos</span>
+                  {fotos.length > 0 && (
+                    <Chip size="sm" variant="flat">
+                      {fotos.length}
+                    </Chip>
+                  )}
+                </div>
+              }
+            >
+              <div className="mt-6">
+                <SectionCard
+                  bodyClassName="space-y-4"
+                  icon={<PhotoIcon className="w-4 h-4" />}
+                  title="Galeria de Fotos"
+                >
+                  {/* Upload */}
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                      type="file"
+                      onChange={handleFileSelect}
+                    />
+                    <Button
+                      className="w-full"
+                      color="secondary"
+                      isLoading={uploadingFoto}
+                      size="lg"
+                      startContent={<PhotoIcon className="w-5 h-5" />}
+                      variant="flat"
+                      onPress={() => fileInputRef.current?.click()}
+                    >
+                      {uploadingFoto ? "Enviando..." : "Adicionar Fotos"}
+                    </Button>
+                    <p className="text-xs text-default-400 mt-2 text-center">
+                      Máximo 5MB por foto • JPG, PNG, GIF
+                    </p>
+                  </div>
+
+                  {/* Grid de Fotos */}
+                  {fotos.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {fotos.map((foto, fotoIdx) => (
+                        <div key={foto.id} className="relative group">
+                          <button
+                            className="aspect-square rounded-xl overflow-hidden bg-default-100 cursor-pointer hover:shadow-lg transition-shadow border-2 border-transparent hover:border-primary"
+                            type="button"
+                            onClick={() => setFotoSelecionada(foto.url)}
+                          >
+                            <Image
+                              alt={`Foto ${fotoIdx + 1} da OS`}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              height={300}
+                              src={foto.url}
+                              width={300}
+                            />
+                          </button>
+                          {foto.is_principal && (
+                            <Chip
+                              className="absolute top-2 left-2 shadow-lg"
+                              color="warning"
+                              size="sm"
+                            >
+                              ⭐ Principal
+                            </Chip>
+                          )}
+                          <Tooltip closeDelay={0} content="Remover foto">
+                            <Button
+                              isIconOnly
+                              aria-label="Remover foto"
+                              className="absolute top-2 right-2 opacity-80 group-hover:opacity-100 transition-opacity shadow-lg"
+                              color="danger"
+                              size="sm"
+                              variant="solid"
+                              onPress={() => removerFoto(foto.id, foto.url)}
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 text-default-400 bg-default-50 dark:bg-default-100/10 rounded-xl">
+                      <PhotoIcon className="w-20 h-20 mx-auto mb-4 opacity-40" />
+                      <p className="font-medium text-lg">
+                        Nenhuma foto adicionada
+                      </p>
+                      <p className="text-sm mt-2">
+                        Clique no botão acima para adicionar fotos do
+                        equipamento
+                      </p>
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+            </Tab>
+
+            {/* Tab 3: Laudo Técnico */}
+            <Tab
+              key="laudo"
+              title={
+                <div className="flex items-center gap-2">
+                  <DocumentTextIcon className="w-5 h-5" />
+                  <span>Laudo Técnico</span>
+                </div>
+              }
+            >
+              <div className="mt-6">
+                <LaudoTecnico ordemServicoId={ordem.id} />
+              </div>
+            </Tab>
+
+            {/* Tab 4: Peças/Produtos */}
+            <Tab
+              key="pecas"
+              title={
+                <div className="flex items-center gap-2">
+                  <CubeIcon className="w-5 h-5" />
+                  <span>Peças</span>
+                  {pecas.length > 0 && (
+                    <Chip color="primary" size="sm" variant="flat">
+                      {pecas.length}
+                    </Chip>
+                  )}
+                </div>
+              }
+            >
+              <TabPecas
+                loadingPecas={loadingPecas}
+                pecas={pecas}
+                quebras={quebras}
+              />
+            </Tab>
+          </Tabs>
+        </div>
+
+        {/* Sidebar de controles (Status + Câmera) — persistente em todas as abas */}
+        <aside className="space-y-6 lg:sticky lg:top-4">
+          <OSControlSidebar
+            bancada={bancada}
+            bancadasOcupadas={bancadasOcupadas}
+            novoStatus={novoStatus}
+            ordemId={ordem.id}
+            salvandoBancada={salvandoBancada}
+            statusAtual={ordem.status}
+            onBancadaChange={salvarBancada}
+            onCompartilhar={compartilharStream}
+            onNovoStatusChange={setNovoStatus}
+          />
+        </aside>
+      </div>
+
+      {/* Barra de ações fixa */}
+      <div className="sticky bottom-0 z-40 pt-2">
+        <div className="bg-content1/95 backdrop-blur-md border border-default-200/70 rounded-xl shadow-lg p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs">
+            {osConcluida ? (
+              <span className="flex items-center gap-1.5 font-medium text-success">
+                <CheckCircleIcon className="w-4 h-4" />
+                OS concluída
+              </span>
+            ) : temAlteracoes ? (
+              <span className="flex items-center gap-1.5 font-medium text-warning-600 dark:text-warning-400">
+                <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                Alterações não salvas
+              </span>
+            ) : (
+              <span className="text-default-400">
+                Nenhuma alteração pendente
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              className="flex-1 sm:flex-none font-medium"
+              color="primary"
+              isDisabled={osConcluida}
+              isLoading={salvando}
+              size="md"
+              startContent={<ClockIcon className="w-4 h-4" />}
+              variant="solid"
+              onPress={salvarAtualizacao}
+            >
+              Salvar
+            </Button>
+            <Button
+              className="flex-1 sm:flex-none font-medium"
+              color="success"
+              isDisabled={osConcluida}
+              isLoading={salvando}
+              size="md"
+              startContent={<CheckCircleIcon className="w-4 h-4" />}
+              variant="solid"
+              onPress={() => setChecklistConclusao(true)}
+            >
+              Concluir OS
+            </Button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Modal de Quebra */}
-      <RegistrarQuebraModal
-        idLoja={ordem.id_loja}
-        isOpen={quebraModal}
-        ordemServicoId={ordem.id}
-        onClose={() => setQuebraModal(false)}
-        onQuebraRegistrada={() => {
-          toast.success("Quebra registrada com sucesso!");
-          carregarQuebras();
+      {/* Checklist de Conclusão */}
+      <Modal
+        isOpen={checklistConclusao}
+        placement="center"
+        size="md"
+        onClose={() => setChecklistConclusao(false)}
+      >
+        <ModalContent>
+          <ModalHeader className="flex items-center gap-2">
+            <CheckCircleIcon className="w-5 h-5 text-success" />
+            Concluir Ordem de Serviço
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-500">
+              Revise os itens antes de concluir a OS #{ordem.numero_os}:
+            </p>
+            <div className="space-y-2">
+              <ChecklistItem
+                blocking
+                action={
+                  !observacoes.trim()
+                    ? {
+                        label: "Preencher",
+                        onClick: () => {
+                          setChecklistConclusao(false);
+                          setActiveTab("informacoes");
+                        },
+                      }
+                    : undefined
+                }
+                label="Observação técnica preenchida"
+                ok={!!observacoes.trim()}
+              />
+              <ChecklistItem
+                ok
+                label={`Status: ${getStatusLabel(novoStatus)} → Concluído`}
+              />
+              {quebras.filter((q) => !q.aprovado).length > 0 && (
+                <ChecklistItem
+                  warning
+                  label={`${quebras.filter((q) => !q.aprovado).length} quebra(s) pendente(s) de aprovação`}
+                />
+              )}
+              {ordem.laudo_garantia_dias && ordem.laudo_garantia_dias > 0 ? (
+                <ChecklistItem
+                  info
+                  label={`Garantia que será aplicada: ${ordem.laudo_garantia_dias} ${
+                    ordem.laudo_garantia_dias === 1 ? "dia" : "dias"
+                  }`}
+                />
+              ) : null}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={() => setChecklistConclusao(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="success"
+              isDisabled={!observacoes.trim()}
+              isLoading={salvando}
+              startContent={<CheckCircleIcon className="w-4 h-4" />}
+              onPress={concluirOS}
+            >
+              Confirmar conclusão
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Modal de visualização de foto */}
+      <Modal
+        hideCloseButton
+        backdrop="blur"
+        classNames={{
+          base: "bg-transparent shadow-none",
+          body: "p-0",
         }}
-      />
+        isOpen={!!fotoSelecionada}
+        size="5xl"
+        onClose={() => setFotoSelecionada(null)}
+      >
+        <ModalContent>
+          <ModalBody>
+            {(() => {
+              const idx = fotos.findIndex((f) => f.url === fotoSelecionada);
+              const total = fotos.length;
+              const irPara = (delta: number) => {
+                if (idx < 0 || total === 0) return;
+                const novo = (idx + delta + total) % total;
+
+                setFotoSelecionada(fotos[novo].url);
+              };
+
+              return (
+                <div className="relative flex items-center justify-center">
+                  <Button
+                    isIconOnly
+                    aria-label="Fechar"
+                    className="absolute top-2 right-2 z-10 shadow-lg"
+                    color="danger"
+                    size="sm"
+                    variant="solid"
+                    onPress={() => setFotoSelecionada(null)}
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </Button>
+
+                  {total > 1 && (
+                    <Button
+                      isIconOnly
+                      aria-label="Foto anterior"
+                      className="absolute left-2 z-10 shadow-lg"
+                      radius="full"
+                      variant="solid"
+                      onPress={() => irPara(-1)}
+                    >
+                      <ChevronLeftIcon className="w-5 h-5" />
+                    </Button>
+                  )}
+
+                  {fotoSelecionada && (
+                    <Image
+                      alt="Foto ampliada"
+                      className="max-h-[85vh] w-auto object-contain rounded-xl shadow-2xl"
+                      height={1600}
+                      src={fotoSelecionada}
+                      width={1600}
+                    />
+                  )}
+
+                  {total > 1 && (
+                    <Button
+                      isIconOnly
+                      aria-label="Próxima foto"
+                      className="absolute right-2 z-10 shadow-lg"
+                      radius="full"
+                      variant="solid"
+                      onPress={() => irPara(1)}
+                    >
+                      <ChevronRightIcon className="w-5 h-5" />
+                    </Button>
+                  )}
+
+                  {total > 1 && idx >= 0 && (
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
+                      <Chip size="sm" variant="solid">
+                        {idx + 1} / {total}
+                      </Chip>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
       {/* Dialog de Confirmação */}
       <ConfirmDialog />
@@ -1820,7 +1345,7 @@ function DetailField({
 }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold text-default-400 uppercase tracking-wider mb-1">
+      <p className="text-[11px] font-semibold text-default-500 uppercase tracking-wider mb-1">
         {label}
       </p>
       <p
@@ -1828,6 +1353,57 @@ function DetailField({
       >
         {value}
       </p>
+    </div>
+  );
+}
+
+function ChecklistItem({
+  label,
+  ok,
+  blocking,
+  info,
+  warning,
+  action,
+}: {
+  label: string;
+  ok?: boolean;
+  blocking?: boolean;
+  info?: boolean;
+  warning?: boolean;
+  action?: { label: string; onClick: () => void };
+}) {
+  // Item bloqueante não cumprido = pendência obrigatória (danger)
+  const pendente = blocking && !ok;
+
+  let Icon = InformationCircleIcon;
+  let cor = "text-default-400";
+
+  if (pendente) {
+    Icon = ExclamationCircleIcon;
+    cor = "text-danger";
+  } else if (ok) {
+    Icon = CheckCircleIcon;
+    cor = "text-success";
+  } else if (warning) {
+    Icon = ExclamationTriangleIcon;
+    cor = "text-warning-500";
+  }
+
+  return (
+    <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-default-100 border border-default-200/70">
+      <Icon className={`w-5 h-5 shrink-0 ${cor}`} />
+      <span className="flex-1 text-sm text-default-600">{label}</span>
+      {action && (
+        <Button
+          className="text-xs"
+          color="primary"
+          size="sm"
+          variant="light"
+          onPress={action.onClick}
+        >
+          {action.label}
+        </Button>
+      )}
     </div>
   );
 }
@@ -1944,7 +1520,7 @@ function StatusProgressBar({ current }: { current: string }) {
                   )}
                 </div>
                 <span
-                  className={`mt-1.5 text-[9px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${
+                  className={`mt-1.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap transition-colors ${
                     isCurrent
                       ? meta.dot
                           .replace("bg-", "text-")
@@ -1953,7 +1529,7 @@ function StatusProgressBar({ current }: { current: string }) {
                         meta.dot.replace("bg-", "text-").replace("-500", "-400")
                       : isCompleted
                         ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-default-400"
+                        : "text-default-500"
                   }`}
                 >
                   {meta.label}

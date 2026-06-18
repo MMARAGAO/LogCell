@@ -156,13 +156,43 @@ export default function AdicionarPecaModal({
     try {
       const { supabase } = await import("@/lib/supabaseClient");
 
-      // Se houver busca, buscar mais produtos para filtrar no cliente
-      // Caso contrário, usar paginação normal
-      const limiteBusca = termoBusca.trim() ? 5000 : itensPorPagina;
-      const inicioBusca = termoBusca.trim() ? 0 : (pagina - 1) * itensPorPagina;
-      const fimBusca = termoBusca.trim()
-        ? limiteBusca - 1
-        : inicioBusca + itensPorPagina - 1;
+      // BUSCA: filtro tokenizado no servidor (RPC) — varre TODO o estoque da
+      // loja, sem o teto de 1000 linhas do PostgREST que escondia produtos.
+      if (termoBusca.trim()) {
+        const { data, error } = await supabase.rpc("buscar_produtos_estoque", {
+          p_loja_id: lojaId,
+          p_busca: termoBusca,
+        });
+
+        if (error) throw error;
+
+        const produtosBusca: ProdutoEstoque[] = (data || []).map(
+          (item: any) => ({
+            id: item.produto_id,
+            descricao: item.descricao,
+            marca: item.marca,
+            categoria: item.categoria,
+            modelos: item.modelos,
+            preco_compra: item.preco_compra || 0,
+            preco_venda: item.preco_venda || 0,
+            quantidade: item.quantidade,
+            loja_id: item.loja_id,
+            loja_nome: item.loja_nome,
+          }),
+        );
+
+        // Paginação local sobre os resultados da busca
+        const ini = (pagina - 1) * itensPorPagina;
+
+        setTotalProdutos(produtosBusca.length);
+        setProdutosEstoque(produtosBusca.slice(ini, ini + itensPorPagina));
+
+        return;
+      }
+
+      // SEM BUSCA: paginação normal no servidor
+      const inicioBusca = (pagina - 1) * itensPorPagina;
+      const fimBusca = inicioBusca + itensPorPagina - 1;
 
       // Construir query principal do estoque
       const { data, error, count } = await supabase
@@ -217,44 +247,8 @@ export default function AdicionarPecaModal({
         },
       );
 
-      // Se houver busca, filtrar no cliente
-      if (termoBusca.trim()) {
-        // Normalizar acentos: "carcaça" → "carcaca", "s/ flex" → remove especiais
-        const normalizar = (texto: string) =>
-          texto
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .toLowerCase();
-
-        // Separar termos, remover vazios e ignorar termos só com caracteres especiais
-        const termos = normalizar(termoBusca)
-          .split(/\s+/)
-          .filter((t) => t.length > 0 && /^[a-z0-9\/-]+$/.test(t));
-
-        if (termos.length === 0) {
-          setTotalProdutos(produtosFormatados.length);
-          setProdutosEstoque(produtosFormatados);
-        } else {
-          // Filtrar produtos onde TODOS os termos apareçam em algum campo
-          const produtosFiltrados = produtosFormatados.filter((p) => {
-            const textoCompleto = normalizar(
-              `${p.descricao || ""} ${p.marca || ""} ${p.categoria || ""} ${p.modelos || ""}`,
-            );
-
-            return termos.every((termo) => textoCompleto.includes(termo));
-          });
-
-          // Aplicar paginação local
-          const inicio = (pagina - 1) * itensPorPagina;
-          const fim = inicio + itensPorPagina;
-
-          setTotalProdutos(produtosFiltrados.length);
-          setProdutosEstoque(produtosFiltrados.slice(inicio, fim));
-        }
-      } else {
-        setTotalProdutos(count || 0);
-        setProdutosEstoque(produtosFormatados);
-      }
+      setTotalProdutos(count || 0);
+      setProdutosEstoque(produtosFormatados);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
       toast.showToast("Erro ao carregar produtos do estoque", "error");

@@ -1047,6 +1047,7 @@ export default function EstoquePage() {
                   <TableColumn>MARCA</TableColumn>
                   <TableColumn>CATEGORIA</TableColumn>
                   <TableColumn>PREÇO VENDA</TableColumn>
+                  <TableColumn>PREÇO CUSTO</TableColumn>
                   <TableColumn>ESTOQUE</TableColumn>
                   <TableColumn>LOJAS</TableColumn>
                   <TableColumn>STATUS</TableColumn>
@@ -1109,6 +1110,17 @@ export default function EstoquePage() {
                         {produto.preco_venda ? (
                           <span className="font-medium tabular-nums text-foreground">
                             {formatarMoeda(produto.preco_venda)}
+                          </span>
+                        ) : (
+                          <span className="text-default-300">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {!temPermissao("estoque.ver_preco_custo") ? (
+                          <span className="text-default-300">—</span>
+                        ) : produto.preco_compra ? (
+                          <span className="font-medium tabular-nums text-default-600">
+                            {formatarMoeda(produto.preco_compra)}
                           </span>
                         ) : (
                           <span className="text-default-300">—</span>

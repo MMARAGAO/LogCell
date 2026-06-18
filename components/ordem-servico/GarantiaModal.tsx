@@ -15,10 +15,10 @@ import {
   Card,
   CardBody,
   Spinner,
+  Alert,
 } from "@heroui/react";
 import {
   DocumentTextIcon as FileText,
-  ExclamationCircleIcon as AlertCircle,
   DocumentCheckIcon as FileCheck,
   PrinterIcon as Printer,
 } from "@heroicons/react/24/outline";
@@ -251,22 +251,13 @@ export default function GarantiaModal({
           </p>
         </ModalHeader>
         <ModalBody className="gap-4">
-          \n {/* Info Card */}
-          <Card className="bg-primary-50 border-primary-200 border dark:bg-primary-900/20 dark:border-primary-700/60">
-            <CardBody className="flex flex-row items-start gap-3 p-3">
-              <AlertCircle className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-primary-800 font-medium dark:text-primary-200">
-                  Personalize a garantia antes de imprimir
-                </p>
-                <p className="text-xs text-primary-700 mt-1 dark:text-primary-300">
-                  Escolha o tipo de serviço e ajuste os dias de garantia
-                  conforme necessário. As observações técnicas da OS serão
-                  incluídas automaticamente.
-                </p>
-              </div>
-            </CardBody>
-          </Card>
+          {/* Info Card */}
+          <Alert
+            color="primary"
+            description="Escolha o tipo de serviço e ajuste os dias de garantia conforme necessário. As observações técnicas da OS serão incluídas automaticamente."
+            title="Personalize a garantia antes de imprimir"
+            variant="faded"
+          />
           {/* Tipo de Garantia */}
           <div>
             <Select
@@ -340,22 +331,12 @@ export default function GarantiaModal({
               </CardBody>
             </Card>
           ) : (
-            <Card className="bg-warning-50 border border-warning dark:bg-warning-900/20 dark:border-warning-700/60">
-              <CardBody className="gap-2">
-                <div className="flex gap-2">
-                  <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-small">
-                      Texto de garantia não encontrado
-                    </p>
-                    <p className="text-tiny">
-                      Nenhum texto de garantia cadastrado para este tipo de
-                      serviço. O sistema usará termos padrão.
-                    </p>
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
+            <Alert
+              color="warning"
+              description="Nenhum texto de garantia cadastrado para este tipo de serviço. O sistema usará termos padrão."
+              title="Texto de garantia não encontrado"
+              variant="faded"
+            />
           )}
         </ModalBody>
         <ModalFooter>

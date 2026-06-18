@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@heroui/button";
+import { Alert } from "@heroui/react";
 
 import { TextoGarantiaView } from "./TextoGarantiaView";
 
@@ -21,11 +22,12 @@ export const GerenciarTextosGarantia: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-600">
-          Erro ao carregar textos de garantia: {error}
-        </p>
-      </div>
+      <Alert
+        color="danger"
+        description={error}
+        title="Erro ao carregar textos de garantia"
+        variant="faded"
+      />
     );
   }
 

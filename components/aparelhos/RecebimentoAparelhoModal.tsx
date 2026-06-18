@@ -69,7 +69,6 @@ export function RecebimentoAparelhoModal({
   const [tipoPagamento, setTipoPagamento] = useState<string>("dinheiro");
   const [valorPagamento, setValorPagamento] = useState<string>("");
   const [parcelas, setParcelas] = useState(1);
-  const [taxaInclusa, setTaxaInclusa] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cadastroClienteAberto, setCadastroClienteAberto] = useState(false);
   const [infoTaxa, setInfoTaxa] = useState<{
@@ -99,7 +98,6 @@ export function RecebimentoAparelhoModal({
       setValorPagamento("");
       setInfoTaxa(null);
       setParcelas(1);
-      setTaxaInclusa(false);
       setBrindes([]);
       setDescricaoBrinde("");
       setValorBrinde("");
@@ -193,7 +191,7 @@ export function RecebimentoAparelhoModal({
           forma_pagamento: forma,
           parcelas: tipoPagamento === "cartao_credito" ? parcelas : 1,
           loja_id: lojaId,
-          taxa_inclusa: taxaInclusa,
+          taxa_inclusa: true, // taxa sempre inclusa
         });
 
         setInfoTaxa({
@@ -208,7 +206,7 @@ export function RecebimentoAparelhoModal({
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [tipoPagamento, valorPagamento, parcelas, lojaId, taxaInclusa]);
+  }, [tipoPagamento, valorPagamento, parcelas, lojaId]);
 
   async function carregarClientes() {
     try {
@@ -279,7 +277,7 @@ export function RecebimentoAparelhoModal({
           forma_pagamento: tipoPagamento as "cartao_credito" | "cartao_debito",
           parcelas: tipoPagamento === "cartao_credito" ? parcelas : 1,
           loja_id: lojaId,
-          taxa_inclusa: taxaInclusa,
+          taxa_inclusa: true, // taxa sempre inclusa
         });
 
         taxa = result.taxa_percentual;
@@ -298,7 +296,7 @@ export function RecebimentoAparelhoModal({
         parcelas: ehCartao ? parcelas : undefined,
         taxa,
         liquido,
-        taxaInclusa: ehCartao ? taxaInclusa : undefined,
+        taxaInclusa: ehCartao ? true : undefined,
       },
     ]);
     setValorPagamento("");
@@ -611,26 +609,6 @@ export function RecebimentoAparelhoModal({
                     <SelectItem key={tipo.value}>{tipo.label}</SelectItem>
                   ))}
                 </Select>
-                {(tipoPagamento === "cartao_credito" ||
-                  tipoPagamento === "cartao_debito") && (
-                  <Select
-                    className="flex-1 min-w-[120px]"
-                    classNames={{
-                      trigger:
-                        "bg-gray-50 dark:bg-zinc-800 border-gray-200 dark:border-zinc-700",
-                    }}
-                    placeholder="Taxa inclusa?"
-                    selectedKeys={[taxaInclusa ? "sim" : "nao"]}
-                    size="sm"
-                    variant="bordered"
-                    onSelectionChange={(keys) => {
-                      setTaxaInclusa(Array.from(keys)[0] === "sim");
-                    }}
-                  >
-                    <SelectItem key="nao">Taxa à parte</SelectItem>
-                    <SelectItem key="sim">Taxa inclusa</SelectItem>
-                  </Select>
-                )}
                 {tipoPagamento === "cartao_credito" && (
                   <Select
                     className="flex-1 min-w-[100px]"
@@ -705,21 +683,19 @@ export function RecebimentoAparelhoModal({
                       {infoTaxa.taxa.toFixed(2)}%
                     </strong>
                   </span>
-                  {!taxaInclusa && (
-                    <span className="text-gray-600 dark:text-gray-400">
-                      Valor bruto:{" "}
-                      <strong className="text-gray-800 dark:text-white">
-                        {formatarMoeda(infoTaxa.bruto)}
-                      </strong>
-                    </span>
-                  )}
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Valor bruto:{" "}
+                    <strong className="text-gray-800 dark:text-white">
+                      {formatarMoeda(infoTaxa.bruto)}
+                    </strong>
+                  </span>
                   <span className="text-gray-600 dark:text-gray-400">
                     Líquido:{" "}
                     <strong className="text-emerald-600 dark:text-emerald-400">
                       {formatarMoeda(infoTaxa.liquido)}
                     </strong>
                   </span>
-                  {!taxaInclusa && infoTaxa.parcelas > 1 && (
+                  {infoTaxa.parcelas > 1 && (
                     <span className="text-gray-600 dark:text-gray-400">
                       Parcela:{" "}
                       <strong className="text-gray-800 dark:text-white">

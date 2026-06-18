@@ -10,3 +10,4 @@ export { default as GerenciarFotosOSModal } from "./GerenciarFotosOSModal";
 export { default as PagamentoOSModal } from "./PagamentoOSModal";
 export { default as DevolverOSModal } from "./DevolverOSModal";
 export { default as GerenciarMultiplosAparelhos } from "./GerenciarMultiplosAparelhos";
+export { default as SectionCard } from "./SectionCard";

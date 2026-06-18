@@ -11,11 +11,25 @@ import { Button } from "@heroui/button";
 import { Input, Textarea } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
 import { Checkbox } from "@heroui/checkbox";
+import { Chip } from "@heroui/chip";
+import { Alert } from "@heroui/react";
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
+
 import {
   ExclamationTriangleIcon,
   PlusIcon,
   TrashIcon,
+  WrenchScrewdriverIcon,
+  ArchiveBoxIcon,
+  ClockIcon,
+  UserIcon,
+  BuildingStorefrontIcon,
+  UsersIcon,
+  TruckIcon,
+  CubeIcon,
+  TagIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -421,241 +435,266 @@ export default function RegistrarQuebraModal({
   return (
     <Modal isOpen={isOpen} scrollBehavior="inside" size="2xl" onClose={onClose}>
       <ModalContent>
-        <ModalHeader className="flex items-center gap-2">
-          <ExclamationTriangleIcon className="w-5 h-5 text-warning" />
-          Registrar Quebra/Perda de Peça
+        <ModalHeader className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <ExclamationTriangleIcon className="w-5 h-5 text-warning" />
+            Registrar Quebra/Perda de Peça
+          </div>
+          <p className="text-sm font-normal text-default-500">
+            O registro vai para aprovação do administrador antes da baixa no
+            estoque.
+          </p>
         </ModalHeader>
         <ModalBody>
           <div className="space-y-4">
-            <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-3">
-              <p className="text-sm text-warning-700 dark:text-warning-300">
-                ⚠️ Este registro será enviado para aprovação do administrador
-                antes da baixa no estoque.
-              </p>
-            </div>
-
             {/* Aviso se não houver produtos */}
             {produtos.length === 0 && (
-              <div className="bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-800 rounded-lg p-3">
-                <p className="text-sm text-danger-700 dark:text-danger-300">
-                  ❌ Nenhum produto foi vinculado a esta OS ainda. Adicione
-                  produtos na OS antes de registrar quebras.
-                </p>
-              </div>
+              <Alert
+                color="danger"
+                description="Adicione produtos na OS antes de registrar quebras."
+                title="Nenhum produto vinculado a esta OS"
+                variant="faded"
+              />
             )}
 
-            {/* Produto */}
-            <Select
-              classNames={{
-                trigger: "min-h-12",
-                value: "text-default-900",
-              }}
-              description={
-                produtos.length > 0
-                  ? `${produtos.length} produto(s) nesta OS`
-                  : "Nenhum produto vinculado a esta OS"
-              }
-              isDisabled={produtos.length === 0}
-              label="Produto/Peça que quebrou"
-              placeholder="Selecione o produto"
-              selectedKeys={
-                produtoSelecionado ? [produtoSelecionado] : undefined
-              }
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys as Set<string>)[0];
-                const value = selected || "";
-
-                console.log("Produto selecionado:", value);
-                console.log("Keys recebidas:", keys);
-                setProdutoSelecionado(value);
-              }}
-            >
-              {produtos.map((produto) => {
-                // Para produtos internos usa ID, para externos usa descrição completa (com sufixo)
-                const chaveQuebra =
-                  produto.tipo === "externa"
-                    ? produto.descricao // Mantém "(Externa)" para comparar com banco
-                    : produto.id;
-
-                // Quebras já registradas no banco
-                const quantidadeQuebradaBanco =
-                  quebrasExistentes[chaveQuebra] || 0;
-
-                // Quebras na lista atual (aguardando registro)
-                const quantidadeQuebradaLista = quebrasLista
-                  .filter((q) => {
-                    if (produto.tipo === "externa") {
-                      return q.produto_nome === produto.descricao;
-                    } else {
-                      return q.id_produto === produto.id;
-                    }
-                  })
-                  .reduce((sum, q) => sum + q.quantidade, 0);
-
-                // Total de quebras (banco + lista)
-                const quantidadeQuebradaTotal =
-                  quantidadeQuebradaBanco + quantidadeQuebradaLista;
-
-                // Disponível para quebrar
-                const disponivel =
-                  produto.quantidade_na_os - quantidadeQuebradaTotal;
-
-                // Debug para peças externas
-                if (produto.tipo === "externa") {
-                  console.log(`[${produto.descricao}]`, {
-                    chaveQuebra,
-                    quantidade_na_os: produto.quantidade_na_os,
-                    banco: quantidadeQuebradaBanco,
-                    lista: quantidadeQuebradaLista,
-                    total: quantidadeQuebradaTotal,
-                    disponivel,
-                  });
+            {/* Seção: Peça */}
+            <Secao icon={<CubeIcon className="w-4 h-4" />} title="Peça">
+              {/* Produto */}
+              <Select
+                classNames={{
+                  trigger: "min-h-12",
+                  value: "text-default-900",
+                }}
+                description={
+                  produtos.length > 0
+                    ? `${produtos.length} produto(s) nesta OS`
+                    : "Nenhum produto vinculado a esta OS"
                 }
+                isDisabled={produtos.length === 0}
+                label="Produto/Peça que quebrou"
+                placeholder="Selecione o produto"
+                selectedKeys={
+                  produtoSelecionado ? [produtoSelecionado] : undefined
+                }
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys as Set<string>)[0];
 
-                return (
-                  <SelectItem
-                    key={produto.id}
-                    className={disponivel <= 0 ? "opacity-50" : ""}
-                    isDisabled={disponivel <= 0}
-                    textValue={produto.descricao}
-                  >
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="flex-1">{produto.descricao}</span>
-                      <div className="flex items-center gap-2 text-xs">
-                        {quantidadeQuebradaTotal > 0 && (
-                          <span className="text-danger-500 font-medium">
-                            {quantidadeQuebradaTotal} quebrada(s)
-                          </span>
-                        )}
-                        <span
-                          className={
-                            disponivel === 0
-                              ? "text-danger-500 font-bold"
-                              : "text-default-400"
-                          }
-                        >
-                          {disponivel === 0
-                            ? "ESGOTADO"
-                            : `${disponivel} disponível`}
-                        </span>
-                        <span className="text-default-400">
-                          | R$ {produto.preco_venda.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </Select>
-
-            {/* Aviso de quebras existentes */}
-            {produtoSelecionado &&
-              quebrasExistentes[produtoSelecionado] > 0 && (
-                <div className="bg-warning-50 dark:bg-warning-900/20 border border-warning-200 dark:border-warning-800 rounded-lg p-3">
-                  <p className="text-sm text-warning-700 dark:text-warning-300">
-                    ⚠️ Este produto já tem{" "}
-                    <strong>{quebrasExistentes[produtoSelecionado]}</strong>{" "}
-                    quebra(s) registrada(s) nesta OS. Disponível para quebrar:{" "}
-                    <strong>
-                      {(produtos.find((p) => p.id === produtoSelecionado)
-                        ?.quantidade_na_os || 0) -
-                        quebrasExistentes[produtoSelecionado]}
-                    </strong>
-                  </p>
-                </div>
-              )}
-
-            {/* Quantidade */}
-            <Input
-              label="Quantidade"
-              min={1}
-              type="number"
-              value={quantidade}
-              onChange={(e) => setQuantidade(e.target.value)}
-            />
-
-            {/* Tipo de Ocorrência */}
-            <Select
-              disallowEmptySelection
-              label="Tipo de Ocorrência"
-              selectedKeys={[tipoOcorrencia]}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0];
-
-                setTipoOcorrencia(selected ? String(selected) : "quebra");
-              }}
-            >
-              <SelectItem key="quebra">🔨 Quebra (durante o reparo)</SelectItem>
-              <SelectItem key="defeito">
-                ⚠️ Defeito (peça veio com defeito)
-              </SelectItem>
-              <SelectItem key="perda">📦 Perda (extraviada)</SelectItem>
-              <SelectItem key="vencimento">
-                ⏰ Vencimento (prazo vencido)
-              </SelectItem>
-            </Select>
-
-            {/* Responsável */}
-            <Select
-              disallowEmptySelection
-              description="Quem causou ou foi responsável pela ocorrência"
-              label="Responsável"
-              selectedKeys={[responsavel]}
-              onSelectionChange={(keys) => {
-                const selected = Array.from(keys)[0];
-
-                setResponsavel(selected ? String(selected) : "tecnico");
-              }}
-            >
-              <SelectItem key="tecnico">👤 Técnico</SelectItem>
-              <SelectItem key="fornecedor">
-                🏭 Fornecedor (peça com defeito)
-              </SelectItem>
-              <SelectItem key="cliente">
-                👥 Cliente (equipamento danificado)
-              </SelectItem>
-              <SelectItem key="transporte">
-                🚚 Transporte (danificada no envio)
-              </SelectItem>
-            </Select>
-
-            {/* Motivo */}
-            <Textarea
-              isRequired
-              label="Motivo Detalhado"
-              minRows={3}
-              placeholder="Descreva o que aconteceu com a peça..."
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-            />
-
-            {/* Descontar do Técnico */}
-            {responsavel === "tecnico" && (
-              <Checkbox
-                isSelected={descontarTecnico}
-                onValueChange={setDescontarTecnico}
+                  setProdutoSelecionado(selected || "");
+                }}
               >
-                <div>
-                  <p className="text-sm">Descontar do salário do técnico</p>
-                  <p className="text-xs text-default-400">
-                    O valor será descontado no pagamento
-                  </p>
-                </div>
-              </Checkbox>
-            )}
+                {produtos.map((produto) => {
+                  // Para produtos internos usa ID, para externos usa descrição completa
+                  const chaveQuebra =
+                    produto.tipo === "externa" ? produto.descricao : produto.id;
+                  const quantidadeQuebradaBanco =
+                    quebrasExistentes[chaveQuebra] || 0;
+                  const quantidadeQuebradaLista = quebrasLista
+                    .filter((q) =>
+                      produto.tipo === "externa"
+                        ? q.produto_nome === produto.descricao
+                        : q.id_produto === produto.id,
+                    )
+                    .reduce((sum, q) => sum + q.quantidade, 0);
+                  const quantidadeQuebradaTotal =
+                    quantidadeQuebradaBanco + quantidadeQuebradaLista;
+                  const disponivel =
+                    produto.quantidade_na_os - quantidadeQuebradaTotal;
 
-            {/* Valor Total */}
+                  return (
+                    <SelectItem
+                      key={produto.id}
+                      className={disponivel <= 0 ? "opacity-50" : ""}
+                      isDisabled={disponivel <= 0}
+                      textValue={produto.descricao}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex-1 truncate">
+                          {produto.descricao}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {quantidadeQuebradaTotal > 0 && (
+                            <Chip color="danger" size="sm" variant="flat">
+                              {quantidadeQuebradaTotal} quebrada(s)
+                            </Chip>
+                          )}
+                          <Chip
+                            color={disponivel === 0 ? "danger" : "default"}
+                            size="sm"
+                            variant="flat"
+                          >
+                            {disponivel === 0
+                              ? "Esgotado"
+                              : `${disponivel} disp.`}
+                          </Chip>
+                          <span className="text-xs text-default-500 tabular-nums">
+                            R$ {produto.preco_venda.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </Select>
+
+              {/* Aviso de quebras existentes */}
+              {produtoSelecionado &&
+                quebrasExistentes[produtoSelecionado] > 0 && (
+                  <Alert
+                    color="warning"
+                    description={
+                      <>
+                        Este produto já tem{" "}
+                        <strong>{quebrasExistentes[produtoSelecionado]}</strong>{" "}
+                        quebra(s) registrada(s) nesta OS. Disponível para
+                        quebrar:{" "}
+                        <strong>
+                          {(produtos.find((p) => p.id === produtoSelecionado)
+                            ?.quantidade_na_os || 0) -
+                            quebrasExistentes[produtoSelecionado]}
+                        </strong>
+                      </>
+                    }
+                    variant="faded"
+                  />
+                )}
+
+              {/* Quantidade */}
+              <Input
+                label="Quantidade"
+                min={1}
+                type="number"
+                value={quantidade}
+                variant="bordered"
+                onChange={(e) => setQuantidade(e.target.value)}
+              />
+            </Secao>
+
+            {/* Seção: Classificação */}
+            <Secao icon={<TagIcon className="w-4 h-4" />} title="Classificação">
+              {/* Tipo de Ocorrência */}
+              <Select
+                disallowEmptySelection
+                label="Tipo de Ocorrência"
+                selectedKeys={[tipoOcorrencia]}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0];
+
+                  setTipoOcorrencia(selected ? String(selected) : "quebra");
+                }}
+              >
+                <SelectItem
+                  key="quebra"
+                  startContent={<WrenchScrewdriverIcon className="w-4 h-4" />}
+                >
+                  Quebra (durante o reparo)
+                </SelectItem>
+                <SelectItem
+                  key="defeito"
+                  startContent={<ExclamationTriangleIcon className="w-4 h-4" />}
+                >
+                  Defeito (peça veio com defeito)
+                </SelectItem>
+                <SelectItem
+                  key="perda"
+                  startContent={<ArchiveBoxIcon className="w-4 h-4" />}
+                >
+                  Perda (extraviada)
+                </SelectItem>
+                <SelectItem
+                  key="vencimento"
+                  startContent={<ClockIcon className="w-4 h-4" />}
+                >
+                  Vencimento (prazo vencido)
+                </SelectItem>
+              </Select>
+
+              {/* Responsável */}
+              <Select
+                disallowEmptySelection
+                description="Quem causou ou foi responsável pela ocorrência"
+                label="Responsável"
+                selectedKeys={[responsavel]}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0];
+
+                  setResponsavel(selected ? String(selected) : "tecnico");
+                }}
+              >
+                <SelectItem
+                  key="tecnico"
+                  startContent={<UserIcon className="w-4 h-4" />}
+                >
+                  Técnico
+                </SelectItem>
+                <SelectItem
+                  key="fornecedor"
+                  startContent={<BuildingStorefrontIcon className="w-4 h-4" />}
+                >
+                  Fornecedor (peça com defeito)
+                </SelectItem>
+                <SelectItem
+                  key="cliente"
+                  startContent={<UsersIcon className="w-4 h-4" />}
+                >
+                  Cliente (equipamento danificado)
+                </SelectItem>
+                <SelectItem
+                  key="transporte"
+                  startContent={<TruckIcon className="w-4 h-4" />}
+                >
+                  Transporte (danificada no envio)
+                </SelectItem>
+              </Select>
+
+              {/* Descontar do Técnico */}
+              {responsavel === "tecnico" && (
+                <Checkbox
+                  isSelected={descontarTecnico}
+                  onValueChange={setDescontarTecnico}
+                >
+                  <div>
+                    <p className="text-sm">Descontar do salário do técnico</p>
+                    <p className="text-xs text-default-500">
+                      O valor será descontado no pagamento
+                    </p>
+                  </div>
+                </Checkbox>
+              )}
+            </Secao>
+
+            {/* Seção: Detalhes */}
+            <Secao
+              icon={<DocumentTextIcon className="w-4 h-4" />}
+              title="Detalhes"
+            >
+              {/* Motivo */}
+              <Textarea
+                isRequired
+                label="Motivo Detalhado"
+                minRows={3}
+                placeholder="Descreva o que aconteceu com a peça..."
+                value={motivo}
+                variant="bordered"
+                onChange={(e) => setMotivo(e.target.value)}
+              />
+            </Secao>
+
+            {/* Faixa de ação: resumo + adicionar */}
             {produtoSelecionado && (
-              <div className="bg-default-100 rounded-lg p-3">
-                <p className="text-sm text-default-600">Valor Total:</p>
-                <p className="text-lg font-semibold text-danger">
+              <div className="flex items-center justify-between rounded-lg border border-default-200/70 bg-default-100 px-3 py-2.5">
+                <span className="text-sm text-default-600">
+                  Valor desta quebra
+                </span>
+                <span className="text-lg font-semibold text-danger tabular-nums">
                   R${" "}
                   {(
                     (produtos.find((p) => p.id === produtoSelecionado)
                       ?.preco_venda || 0) * parseInt(quantidade || "1")
                   ).toFixed(2)}
-                </p>
+                </span>
               </div>
             )}
 
@@ -672,11 +711,16 @@ export default function RegistrarQuebraModal({
 
             {/* Lista de Quebras Adicionadas */}
             {quebrasLista.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-default-700">
-                  Quebras a serem registradas ({quebrasLista.length}):
-                </p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
+              <div className="space-y-2 pt-2 border-t border-default-200/70">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-default-700">
+                    Quebras a serem registradas
+                  </p>
+                  <Chip color="default" size="sm" variant="flat">
+                    {quebrasLista.length}
+                  </Chip>
+                </div>
+                <div className="space-y-2">
                   {quebrasLista.map((quebra, index) => (
                     <div
                       key={index}
@@ -691,7 +735,7 @@ export default function RegistrarQuebraModal({
                             Qtd: {quebra.quantidade} • {quebra.tipo_ocorrencia}{" "}
                             • {quebra.responsavel}
                           </p>
-                          <p className="text-xs text-default-400 mt-1 line-clamp-2">
+                          <p className="text-xs text-default-500 mt-1 line-clamp-2">
                             {quebra.motivo}
                           </p>
                           <p className="text-sm font-semibold text-danger mt-1">
@@ -713,11 +757,11 @@ export default function RegistrarQuebraModal({
                 </div>
 
                 {/* Valor Total de Todas as Quebras */}
-                <div className="bg-danger-50 dark:bg-danger-900/20 p-3 rounded-lg border border-danger-200 dark:border-danger-800">
-                  <p className="text-sm text-danger-700 dark:text-danger-300">
-                    Valor Total de Todas as Quebras:
+                <div className="flex items-center justify-between bg-danger-100 dark:bg-danger-900/40 p-3 rounded-lg border border-danger dark:border-danger-700/60">
+                  <p className="text-sm font-medium text-danger-700 dark:text-danger-300">
+                    Valor total de todas as quebras
                   </p>
-                  <p className="text-xl font-bold text-danger">
+                  <p className="text-xl font-bold text-danger tabular-nums">
                     R${" "}
                     {quebrasLista
                       .reduce((acc, q) => acc + q.valor_total, 0)
@@ -728,11 +772,16 @@ export default function RegistrarQuebraModal({
             )}
           </div>
         </ModalBody>
-        <ModalFooter>
-          <Button variant="light" onPress={onClose}>
+        <ModalFooter className="flex-col-reverse sm:flex-row">
+          <Button
+            className="w-full sm:w-auto"
+            variant="light"
+            onPress={onClose}
+          >
             Cancelar
           </Button>
           <Button
+            className="w-full sm:w-auto"
             color="danger"
             isDisabled={quebrasLista.length === 0}
             isLoading={loading}
@@ -745,5 +794,28 @@ export default function RegistrarQuebraModal({
         </ModalFooter>
       </ModalContent>
     </Modal>
+  );
+}
+
+/** Bloco de seção do formulário: container neutro com ícone + título. */
+function Secao({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-default-200/70 bg-default-50 dark:bg-default-100/5 p-3 space-y-3">
+      <div className="flex items-center gap-2 text-default-500">
+        {icon}
+        <p className="text-xs font-semibold uppercase tracking-wider">
+          {title}
+        </p>
+      </div>
+      {children}
+    </div>
   );
 }

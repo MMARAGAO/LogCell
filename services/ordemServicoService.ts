@@ -533,6 +533,16 @@ export async function mudarStatusOS(
       dados.data_entrega_cliente = new Date().toISOString();
     }
 
+    // Libera a bancada quando a OS sai do estado ativo
+    if (
+      novoStatus === "concluido" ||
+      novoStatus === "entregue" ||
+      novoStatus === "cancelado" ||
+      novoStatus === "devolvida"
+    ) {
+      dados.bancada = null;
+    }
+
     const { data, error } = await supabase
       .from("ordem_servico")
       .update(dados)
@@ -713,7 +723,11 @@ export async function devolverOrdemServico(
       tipoDevolucao === "credito" ? "devolvida_com_credito" : "devolvida";
     const { error: erroStatus } = await supabase
       .from("ordem_servico")
-      .update({ status: "devolvida", status_devolucao: statusDevolucao })
+      .update({
+        status: "devolvida",
+        status_devolucao: statusDevolucao,
+        bancada: null, // libera a bancada ao devolver
+      })
       .eq("id", id);
 
     if (erroStatus)

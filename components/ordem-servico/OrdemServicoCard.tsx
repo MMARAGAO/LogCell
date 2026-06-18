@@ -26,6 +26,8 @@ import {
   CheckCircleIcon as CheckCircle,
   DocumentTextIcon as FileText,
   ShieldCheckIcon as Shield,
+  VideoCameraIcon as Video,
+  ShareIcon as Share,
 } from "@heroicons/react/24/outline";
 import {
   Modal,
@@ -118,6 +120,25 @@ export default function OrdemServicoCard({
     if (!data) return "-";
 
     return new Date(data).toLocaleDateString("pt-BR");
+  };
+
+  const compartilharStream = () => {
+    const url = `${window.location.origin}/ver-stream/${os.id}`;
+
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success("Link da câmera copiado!"))
+      .catch(() => {
+        // Fallback para iOS/Safari
+        const textarea = document.createElement("textarea");
+
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        toast.success("Link copiado!");
+      });
   };
 
   const abrirModalGarantia = () => {
@@ -271,6 +292,18 @@ export default function OrdemServicoCard({
                 >
                   {PRIORIDADE_OS_LABELS[os.prioridade]}
                 </Chip>
+                {os.bancada && (
+                  <Chip
+                    color="danger"
+                    size="sm"
+                    startContent={
+                      <span className="mx-1 w-2 h-2 rounded-full bg-white animate-pulse" />
+                    }
+                    variant="solid"
+                  >
+                    Ao Vivo
+                  </Chip>
+                )}
               </div>
             </div>
 
@@ -303,6 +336,34 @@ export default function OrdemServicoCard({
                 >
                   Visualizar
                 </DropdownItem>
+                {os.bancada ? (
+                  <DropdownItem
+                    key="ver-stream"
+                    color="danger"
+                    description={`Bancada ${os.bancada.replace("bancada-", "")} transmitindo`}
+                    startContent={<Video className="w-4 h-4" />}
+                    onPress={() =>
+                      window.open(
+                        `/ver-stream/${os.id}`,
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                  >
+                    Ver Câmera ao Vivo
+                  </DropdownItem>
+                ) : null}
+                {os.bancada ? (
+                  <DropdownItem
+                    key="compartilhar-stream"
+                    color="primary"
+                    description="Copiar link para enviar ao cliente"
+                    startContent={<Share className="w-4 h-4" />}
+                    onPress={compartilharStream}
+                  >
+                    Compartilhar Link da Câmera
+                  </DropdownItem>
+                ) : null}
                 <DropdownItem
                   key="editar"
                   startContent={<Edit className="w-4 h-4" />}
