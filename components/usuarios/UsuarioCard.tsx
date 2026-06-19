@@ -19,6 +19,7 @@ import {
   XCircleIcon,
   CheckCircleIcon,
   TrashIcon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 
 import { useFotoPerfilUsuario } from "@/hooks/useFotoPerfilUsuario";
@@ -31,6 +32,7 @@ interface UsuarioCardProps {
   onHistorico: (usuario: Usuario) => void;
   onAlternarStatus: (usuario: Usuario) => void;
   onExcluir: (usuario: Usuario) => void;
+  onResetarSenha: (usuario: Usuario) => void;
 }
 
 export function UsuarioCard({
@@ -40,6 +42,7 @@ export function UsuarioCard({
   onHistorico,
   onAlternarStatus,
   onExcluir,
+  onResetarSenha,
 }: UsuarioCardProps) {
   const { fotoUrl } = useFotoPerfilUsuario(usuario.id);
   const { temPermissao } = usePermissoes();
@@ -85,6 +88,18 @@ export function UsuarioCard({
         onPress={() => onAlternarStatus(usuario)}
       >
         {usuario.ativo ? "Desativar" : "Ativar"}
+      </DropdownItem>,
+    );
+  }
+
+  if (temPermissao("usuarios.editar")) {
+    menuItems.push(
+      <DropdownItem
+        key="reset-senha"
+        startContent={<KeyIcon className="w-4 h-4" />}
+        onPress={() => onResetarSenha(usuario)}
+      >
+        Resetar Senha
       </DropdownItem>,
     );
   }

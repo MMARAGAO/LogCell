@@ -624,7 +624,7 @@ export function RecebimentoAparelhoModal({
                       setParcelas(parseInt(Array.from(keys)[0] as string) || 1)
                     }
                   >
-                    {Array.from({ length: 12 }, (_, i) => (
+                    {Array.from({ length: 18 }, (_, i) => (
                       <SelectItem key={String(i + 1)}>
                         {i === 0 ? "À vista" : `${i + 1}x`}
                       </SelectItem>

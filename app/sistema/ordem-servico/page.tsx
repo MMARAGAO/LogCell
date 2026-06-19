@@ -679,6 +679,40 @@ export default function OrdemServicoPage() {
     }
   };
 
+  const handleReabrirOS = async (os: OrdemServico) => {
+    if (!usuario) return;
+
+    const confirmado = await confirm({
+      title: "Reabrir OS",
+      message: `Tem certeza que deseja reabrir a OS #${os.numero_os}? Ela voltará a ficar disponível para todos os técnicos.`,
+      confirmText: "Sim, reabrir",
+      cancelText: "Cancelar",
+    });
+
+    if (!confirmado) return;
+
+    try {
+      await supabase
+        .from("ordem_servico")
+        .update({
+          status: "aguardando",
+          tecnico_responsavel: null,
+          data_conclusao: null,
+          data_entrega_cliente: null,
+          bancada: null,
+          atualizado_em: new Date().toISOString(),
+          atualizado_por: usuario.id,
+        })
+        .eq("id", os.id);
+
+      await carregarOrdensServico();
+      toast.success("OS reaberta com sucesso!");
+    } catch (error) {
+      console.error("Erro ao reabrir OS:", error);
+      toast.error("Erro ao reabrir OS");
+    }
+  };
+
   const getStatusLabel = (status: StatusOS): string => {
     const labels: Record<StatusOS, string> = {
       aguardando: "Aguardando",
@@ -765,6 +799,20 @@ export default function OrdemServicoPage() {
         label: "Devolver OS",
         onPress: () => handleDevolverOS(os),
         color: "warning" as const,
+      });
+    }
+
+    // Reabrir OS (retorno de garantia)
+    if (
+      temPermissao("os.editar") &&
+      (os.status === "concluido" || os.status === "entregue")
+    ) {
+      items.push({
+        key: "reabrir",
+        label: "Reabrir OS",
+        onPress: () => handleReabrirOS(os),
+        color: "secondary" as const,
+        description: "Retorno de garantia - volta a ficar disponível",
       });
     }
 
@@ -1128,6 +1176,7 @@ export default function OrdemServicoPage() {
               onGerenciarFotos={handleGerenciarFotos}
               onGerenciarPagamentos={handleGerenciarPagamentos}
               onGerenciarPecas={handleGerenciarPecas}
+              onReabrirOS={handleReabrirOS}
               onVerHistorico={handleVerHistorico}
               onVisualizar={handleVisualizarOS}
             />

@@ -65,6 +65,7 @@ import { useConfirm } from "@/hooks/useConfirm";
 import { useToast } from "@/components/Toast";
 import { DetalhesAparelhoModal } from "@/components/aparelhos/DetalhesAparelhoModal";
 import { RecebimentoAparelhoModal } from "@/components/aparelhos/RecebimentoAparelhoModal";
+import SimuladorTaxasModal from "@/components/aparelhos/SimuladorTaxasModal";
 import { NovaVendaModal } from "@/components/aparelhos/NovaVendaModal";
 import { DescontoModal } from "@/components/vendas/DescontoModal";
 import { TrocaDeVendedor } from "@/components/vendas/TrocaDeVendedor";
@@ -124,7 +125,8 @@ export default function VendasAparelhosPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
   );
   const { usuario } = useAuthContext();
-  const { temPermissao } = usePermissoes();
+  const { temPermissao, lojaId, isAdmin } = usePermissoes();
+  const [simuladorAberto, setSimuladorAberto] = useState(false);
   const toast = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -387,6 +389,28 @@ export default function VendasAparelhosPage() {
           } else {
             filtros.push(["eq", "venda_id", '""']);
           }
+        } else {
+          filtros.push(["eq", "venda_id", '""']);
+        }
+      }
+
+      // Filtro por vendedor (usuário não-admin só vê as próprias vendas)
+      if (!isAdmin && usuario?.id) {
+        const { data: vendasVendedor } = await supabase
+          .from("vendas")
+          .select("id")
+          .eq("vendedor_id", usuario.id);
+
+        const vendasIdsVendedor = Array.from(
+          new Set(vendasVendedor?.map((v: any) => v.id) || []),
+        );
+
+        if (vendasIdsVendedor.length > 0) {
+          filtros.push([
+            "in",
+            "venda_id",
+            `(${vendasIdsVendedor.map((id) => `"${id}"`).join(",")})`,
+          ]);
         } else {
           filtros.push(["eq", "venda_id", '""']);
         }
@@ -1186,6 +1210,15 @@ export default function VendasAparelhosPage() {
             </Button>
             <Button
               className="rounded-xl text-xs font-medium"
+              color="default"
+              startContent={<Percent className="w-4 h-4" />}
+              variant="flat"
+              onPress={() => setSimuladorAberto(true)}
+            >
+              Simular Taxas
+            </Button>
+            <Button
+              className="rounded-xl text-xs font-medium"
               color="primary"
               startContent={<ArrowDownTrayIcon className="w-4 h-4" />}
               variant="flat"
@@ -1510,6 +1543,11 @@ export default function VendasAparelhosPage() {
           }}
         />
       )}
+      <SimuladorTaxasModal
+        isOpen={simuladorAberto}
+        lojaId={lojaId}
+        onClose={() => setSimuladorAberto(false)}
+      />
       <NovaVendaModal
         isOpen={modalNovaVenda}
         venda={vendaParaEditar}

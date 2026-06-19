@@ -28,6 +28,7 @@ import {
   ShieldCheckIcon as Shield,
   VideoCameraIcon as Video,
   ShareIcon as Share,
+  ArrowPathIcon as ArrowPath,
 } from "@heroicons/react/24/outline";
 import {
   Modal,
@@ -63,6 +64,7 @@ interface OrdemServicoCardProps {
   onGerenciarFotos?: (os: OrdemServico) => void;
   onGerenciarPagamentos?: (os: OrdemServico) => void;
   onAssumirOS?: (os: OrdemServico) => void;
+  onReabrirOS?: (os: OrdemServico) => void;
 }
 
 export default function OrdemServicoCard({
@@ -76,6 +78,7 @@ export default function OrdemServicoCard({
   onGerenciarFotos,
   onGerenciarPagamentos,
   onAssumirOS,
+  onReabrirOS,
 }: OrdemServicoCardProps) {
   const { temPermissao } = usePermissoes();
   const [fotos, setFotos] = useState<string[]>([]);
@@ -410,6 +413,16 @@ export default function OrdemServicoCard({
                 >
                   Tipo de Garantia
                 </DropdownItem>
+                {["concluido", "entregue"].includes(os.status) && onReabrirOS ? (
+                  <DropdownItem
+                    key="reabrir"
+                    color="secondary"
+                    startContent={<ArrowPath className="w-4 h-4" />}
+                    onPress={() => onReabrirOS(os)}
+                  >
+                    Reabrir OS
+                  </DropdownItem>
+                ) : null}
                 <DropdownItem
                   key="historico"
                   startContent={<Clock className="w-4 h-4" />}

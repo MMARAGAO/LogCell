@@ -1684,7 +1684,7 @@ export function VendaAparelhoModal({
                             setParcelasPagamento(parseInt(e.target.value))
                           }
                         >
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map(
+                          {Array.from({ length: 18 }, (_, i) => i + 1).map(
                             (n) => (
                               <SelectItem key={n.toString()}>
                                 {n}x de{" "}

@@ -33,6 +33,7 @@ import {
   ClockIcon,
   TableCellsIcon,
   Squares2X2Icon,
+  KeyIcon,
 } from "@heroicons/react/24/outline";
 
 import { deletarUsuario, alternarStatusUsuario } from "./actions";
@@ -47,6 +48,7 @@ import { UsuariosStats } from "@/components/usuarios/UsuariosStats";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { PermissoesModal } from "@/components/usuarios/PermissoesModal";
 import { HistoricoUsuarioModal } from "@/components/usuarios/HistoricoUsuarioModal";
+import { ResetarSenhaModal } from "@/components/usuarios/ResetarSenhaModal";
 import { UsuarioCard } from "@/components/usuarios/UsuarioCard";
 import { useToast } from "@/components/Toast";
 
@@ -86,6 +88,12 @@ export default function UsuariosPage() {
     isOpen: isHistoricoOpen,
     onOpen: onHistoricoOpen,
     onClose: onHistoricoClose,
+  } = useDisclosure();
+
+  const {
+    isOpen: isResetSenhaOpen,
+    onOpen: onResetSenhaOpen,
+    onClose: onResetSenhaClose,
   } = useDisclosure();
 
   // Carrega usuários e suas fotos
@@ -333,6 +341,18 @@ export default function UsuariosPage() {
       );
     }
 
+    if (temPermissao("usuarios.editar")) {
+      items.push(
+        <DropdownItem
+          key="reset-senha"
+          startContent={<KeyIcon className="w-4 h-4" />}
+          onPress={() => handleResetarSenha(usuario)}
+        >
+          Resetar Senha
+        </DropdownItem>,
+      );
+    }
+
     if (temPermissao("usuarios.deletar")) {
       items.push(
         <DropdownItem
@@ -348,6 +368,11 @@ export default function UsuariosPage() {
     }
 
     return items;
+  };
+
+  const handleResetarSenha = (usuario: Usuario) => {
+    setSelectedUsuario(usuario);
+    onResetSenhaOpen();
   };
 
   // Verificar loading de permissões
@@ -558,6 +583,7 @@ export default function UsuariosPage() {
                   onHistoricoOpen();
                 }}
                 onPermissoes={handlePermissoes}
+                onResetarSenha={handleResetarSenha}
               />
             ))
           )}
@@ -593,6 +619,13 @@ export default function UsuariosPage() {
           onClose={onHistoricoClose}
         />
       )}
+
+      {/* Modal de Resetar Senha */}
+      <ResetarSenhaModal
+        isOpen={isResetSenhaOpen}
+        usuario={selectedUsuario}
+        onClose={onResetSenhaClose}
+      />
 
       {/* Modal de Confirmação de Exclusão */}
       <ConfirmModal

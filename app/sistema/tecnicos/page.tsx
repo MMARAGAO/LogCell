@@ -72,6 +72,11 @@ const STATUS_STYLE: Record<string, { label: string; classes: string }> = {
     classes:
       "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
   },
+  entregue: {
+    label: "Entregue",
+    classes:
+      "bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-300 border-sky-200 dark:border-sky-800",
+  },
 };
 
 export default function TecnicoWorkspacePage() {
@@ -125,7 +130,7 @@ export default function TecnicoWorkspacePage() {
         .from("ordem_servico")
         .select("*")
         .eq("tecnico_responsavel", usuario.id)
-        .eq("status", "concluido")
+        .in("status", ["concluido", "entregue"])
         .order("data_conclusao", { ascending: false })
         .limit(50);
 
@@ -188,6 +193,34 @@ export default function TecnicoWorkspacePage() {
       carregarOrdens();
     } catch {
       toast.error("Erro ao atribuir ordem");
+    }
+  };
+
+  const reabrirOS = async (ordemId: string) => {
+    if (!usuario) return;
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    );
+
+    try {
+      await supabase
+        .from("ordem_servico")
+        .update({
+          tecnico_responsavel: null,
+          status: "aguardando",
+          data_conclusao: null,
+          data_entrega_cliente: null,
+          bancada: null,
+          atualizado_em: new Date().toISOString(),
+          atualizado_por: usuario.id,
+        })
+        .eq("id", ordemId);
+
+      toast.success("OS reaberta e disponível para todos os técnicos!");
+      carregarOrdens();
+    } catch {
+      toast.error("Erro ao reabrir OS");
     }
   };
 
@@ -394,11 +427,24 @@ export default function TecnicoWorkspacePage() {
             >
               Pegar OS
             </Button>
-          ) : isConcluida ? (
-            <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-              <CheckCircleIcon className="w-4 h-4" />
-              Serviço Concluído
-            </div>
+          ) : selectedTab === "concluidas" ? (
+            ordem.status === "entregue" ? (
+              <Button
+                fullWidth
+                className="font-medium text-xs rounded-xl"
+                color="warning"
+                size="sm"
+                variant="flat"
+                onPress={() => reabrirOS(ordem.id)}
+              >
+                Reabrir OS
+              </Button>
+            ) : (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                <CheckCircleIcon className="w-4 h-4" />
+                Serviço Concluído
+              </div>
+            )
           ) : (
             <Button
               fullWidth
@@ -467,6 +513,16 @@ export default function TecnicoWorkspacePage() {
               onPress={() => pegarOrdem(ordem.id)}
             >
               Pegar
+            </Button>
+          ) : selectedTab === "concluidas" && ordem.status === "entregue" ? (
+            <Button
+              className="text-xs rounded-xl"
+              color="warning"
+              size="sm"
+              variant="flat"
+              onPress={() => reabrirOS(ordem.id)}
+            >
+              Reabrir
             </Button>
           ) : null}
         </td>
@@ -662,6 +718,7 @@ export default function TecnicoWorkspacePage() {
               <SelectItem key="em_andamento">Em Andamento</SelectItem>
               <SelectItem key="aguardando_peca">Aguardando Peça</SelectItem>
               <SelectItem key="concluido">Concluído</SelectItem>
+              <SelectItem key="entregue">Entregue</SelectItem>
             </Select>
 
             <Select
@@ -771,7 +828,7 @@ export default function TecnicoWorkspacePage() {
                   ? "Não há ordens disponíveis no momento"
                   : selectedTab === "minhas"
                     ? "Você não tem ordens em andamento"
-                    : "Você ainda não concluiu nenhuma ordem"}
+                    : "Nenhuma ordem finalizada encontrada"}
             </p>
           </div>
         </div>
