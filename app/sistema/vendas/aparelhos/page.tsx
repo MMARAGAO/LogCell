@@ -268,11 +268,13 @@ export default function VendasAparelhosPage() {
     clienteFiltro,
     statusFiltro,
     ordenacao,
+    usuario?.id,
+    isAdmin,
   ]);
 
   useEffect(() => {
     carregarVendas(false);
-  }, [paginaAtual]);
+  }, [paginaAtual, usuario?.id, isAdmin]);
 
   async function carregarVendas(calcularKpis: boolean = true) {
     try {
