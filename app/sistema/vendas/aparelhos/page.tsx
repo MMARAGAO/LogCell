@@ -56,8 +56,7 @@ import {
   EllipsisVertical,
   Percent,
 } from "lucide-react";
-import { createBrowserClient } from "@supabase/ssr";
-
+import { supabase } from "@/lib/supabaseClient";
 import { formatarMoeda, formatarDataUtc } from "@/lib/formatters";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
@@ -120,11 +119,7 @@ type TrocaPendente = {
 };
 
 export default function VendasAparelhosPage() {
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-  const { usuario } = useAuthContext();
+  const { usuario, loading: authLoading } = useAuthContext();
   const { temPermissao, lojaId, isAdmin } = usePermissoes();
   const [simuladorAberto, setSimuladorAberto] = useState(false);
   const toast = useToast();
@@ -270,13 +265,20 @@ export default function VendasAparelhosPage() {
     ordenacao,
     usuario?.id,
     isAdmin,
+    authLoading,
   ]);
 
   useEffect(() => {
     carregarVendas(false);
-  }, [paginaAtual, usuario?.id, isAdmin]);
+  }, [paginaAtual, usuario?.id, isAdmin, authLoading]);
 
   async function carregarVendas(calcularKpis: boolean = true) {
+    // Aguarda a autenticação resolver antes de consultar. Sem isso, a query
+    // pode sair como "anon" (JWT ainda não anexado) e o filtro por vendedor
+    // retorna vazio, zerando a lista de um vendedor não-admin silenciosamente.
+    if (authLoading) return;
+    if (!isAdmin && !usuario?.id) return;
+
     try {
       // Monta filtros
       const filtros: any[] = [["eq", "status", '"vendido"']];
