@@ -279,6 +279,12 @@ export default function VendasAparelhosPage() {
     if (authLoading) return;
     if (!isAdmin && !usuario?.id) return;
 
+    // Vendedor não-admin só enxerga as próprias vendas. Filtramos via inner join
+    // embedded (vendas!inner.vendedor_id) em vez de pré-buscar os IDs e montar um
+    // "venda_id=in.(...)" gigante — uma lista grande de UUIDs estoura o limite de
+    // tamanho de URL do proxy reverso e retorna 502.
+    const filtrarPorVendedor = !isAdmin && !!usuario?.id;
+
     try {
       // Monta filtros
       const filtros: any[] = [["eq", "status", '"vendido"']];
@@ -398,36 +404,24 @@ export default function VendasAparelhosPage() {
         }
       }
 
-      // Filtro por vendedor (usuário não-admin só vê as próprias vendas)
-      if (!isAdmin && usuario?.id) {
-        const { data: vendasVendedor } = await supabase
-          .from("vendas")
-          .select("id")
-          .eq("vendedor_id", usuario.id);
-
-        const vendasIdsVendedor = Array.from(
-          new Set(vendasVendedor?.map((v: any) => v.id) || []),
-        );
-
-        if (vendasIdsVendedor.length > 0) {
-          filtros.push([
-            "in",
-            "venda_id",
-            `(${vendasIdsVendedor.map((id) => `"${id}"`).join(",")})`,
-          ]);
-        } else {
-          filtros.push(["eq", "venda_id", '""']);
-        }
-      }
+      // (O filtro por vendedor é aplicado via inner join embedded mais abaixo,
+      //  diretamente nos query builders — ver filtrarPorVendedor.)
 
       // Busca total de registros (para KPIs) - busca IDs de todas as vendas do periodo
-      let allQuery = supabase
+      const selectKpis: string = filtrarPorVendedor
+        ? "venda_id, data_venda, valor_venda, valor_compra, vendas!inner(vendedor_id)"
+        : "venda_id, data_venda, valor_venda, valor_compra";
+      let allQuery: any = supabase
         .from("aparelhos")
-        .select("venda_id, data_venda, valor_venda, valor_compra")
+        .select(selectKpis)
         .eq("status", "vendido")
         .not("venda_id", "is", null);
 
       let allQueryBuilder: any = allQuery;
+
+      if (filtrarPorVendedor) {
+        allQueryBuilder = allQueryBuilder.eq("vendas.vendedor_id", usuario!.id);
+      }
 
       filtros.forEach((f) => {
         if (f[0] === "gte")
@@ -538,13 +532,20 @@ export default function VendasAparelhosPage() {
       setTotalPaginasBackend(totalPages);
 
       // Busca página atual com dados completos
-      let query = supabase
+      const selectListagem: string = filtrarPorVendedor
+        ? "*, loja:lojas(id, nome), vendas!inner(vendedor_id)"
+        : "*, loja:lojas(id, nome)";
+      let query: any = supabase
         .from("aparelhos")
-        .select("*, loja:lojas(id, nome)")
+        .select(selectListagem)
         .eq("status", "vendido")
         .not("venda_id", "is", null);
 
       let queryBuilder: any = query;
+
+      if (filtrarPorVendedor) {
+        queryBuilder = queryBuilder.eq("vendas.vendedor_id", usuario!.id);
+      }
 
       filtros.forEach((f) => {
         if (f[0] === "gte")
@@ -576,7 +577,7 @@ export default function VendasAparelhosPage() {
       }
 
       const vendasIds = aparelhos
-        .map((a) => a.venda_id)
+        .map((a: any) => a.venda_id)
         .filter(Boolean) as string[];
       const vendasResult =
         vendasIds.length > 0
@@ -656,14 +657,14 @@ export default function VendasAparelhosPage() {
       // Contar quantos aparelhos por venda_id
       const countPorVenda: Record<string, number> = {};
 
-      aparelhos.forEach((a) => {
+      aparelhos.forEach((a: any) => {
         if (a.venda_id) {
           countPorVenda[a.venda_id] = (countPorVenda[a.venda_id] || 0) + 1;
         }
       });
 
       setVendas(
-        aparelhos.map((a) => {
+        aparelhos.map((a: any) => {
           const venda = vendasMap.get(a.venda_id || "");
           const pagamentos = pagamentosPorVenda[a.venda_id || ""] || [];
           const brindes = brindesPorVenda[a.venda_id || ""] || [];
