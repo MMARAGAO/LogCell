@@ -584,7 +584,7 @@ export default function VendasAparelhosPage() {
           ? await supabase
               .from("vendas")
               .select(
-                "id, numero_venda, cliente_id, status, valor_total, valor_desconto, vendedor_id, criado_em",
+                "id, numero_venda, cliente_id, status, valor_total, valor_pago, saldo_devedor, valor_desconto, vendedor_id, criado_em",
               )
               .in("id", vendasIds)
           : { data: [] };
@@ -828,8 +828,10 @@ export default function VendasAparelhosPage() {
       `${v.marca || ""} ${v.modelo || ""}`,
       v.imei || "",
       v.valor_venda || 0,
-      v.pagamento_total,
-      (v.valor_exibido || 0) - v.pagamento_total,
+      v.venda ? Number(v.venda.valor_pago ?? v.pagamento_total) : v.pagamento_total,
+      v.venda
+        ? Number(v.venda.saldo_devedor ?? 0)
+        : (v.valor_exibido || 0) - v.pagamento_total,
       v.venda?.status === "concluida" ? "Concluída" : "Pendente",
       v.data_venda ? formatarDataUtc(v.data_venda) : "",
     ]);
@@ -1146,7 +1148,9 @@ export default function VendasAparelhosPage() {
           `<tr><td>${TIPO_LABEL[p.tipo_pagamento] || p.tipo_pagamento}</td><td style="text-align:right">${formatarMoeda(p.liquido ?? p.valor)}</td></tr>`,
       )
       .join("");
-    const saldo = (v.valor_exibido || 0) - v.pagamento_total;
+    const saldo = v.venda
+      ? Number(v.venda.saldo_devedor ?? 0)
+      : (v.valor_exibido || 0) - v.pagamento_total;
 
     win.document.write(`
       <html><head><title>Recibo #${v.venda?.numero_venda}</title>
@@ -2119,8 +2123,13 @@ export default function VendasAparelhosPage() {
                 </thead>
                 <tbody>
                   {vendasPaginadas.map((v) => {
-                    const saldo =
-                      (v.valor_exibido || 0) - (v.pagamento_total || 0);
+                    // Saldo/pago autoritativos do banco (não o líquido).
+                    const saldo = v.venda
+                      ? Number(v.venda.saldo_devedor ?? 0)
+                      : (v.valor_exibido || 0) - (v.pagamento_total || 0);
+                    const pagoExibido = v.venda
+                      ? Number(v.venda.valor_pago ?? v.pagamento_total)
+                      : v.pagamento_total;
 
                     return (
                       <tr
@@ -2156,7 +2165,7 @@ export default function VendasAparelhosPage() {
                             )}
                         </td>
                         <td className="hidden md:table-cell py-3 px-4 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {formatarMoeda(v.pagamento_total)}
+                          {formatarMoeda(pagoExibido)}
                         </td>
                         <td className="py-3 px-4">
                           <span
@@ -2334,8 +2343,16 @@ export default function VendasAparelhosPage() {
   }
 
   function renderCard(v: any) {
-    const saldo = (v.valor_exibido || 0) - (v.pagamento_total || 0);
-    const isQuitado = saldo <= 0;
+    // Pago/saldo autoritativos do banco. O pagamento_total soma o LÍQUIDO
+    // (valor após a taxa do cartão) e não reflete o que o cliente pagou —
+    // a taxa é custo da loja, não saldo em aberto. Usar valor_pago/saldo_devedor.
+    const saldo = v.venda
+      ? Number(v.venda.saldo_devedor ?? 0)
+      : (v.valor_exibido || 0) - (v.pagamento_total || 0);
+    const pagoExibido = v.venda
+      ? Number(v.venda.valor_pago ?? v.pagamento_total)
+      : v.pagamento_total;
+    const isQuitado = saldo <= 0.01;
 
     return (
       <div
@@ -2390,7 +2407,7 @@ export default function VendasAparelhosPage() {
                 </p>
               )}
             <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-              Pago: {formatarMoeda(v.pagamento_total)}
+              Pago: {formatarMoeda(pagoExibido)}
             </p>
             {!isQuitado && (
               <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">

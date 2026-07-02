@@ -591,21 +591,11 @@ export function VendaAparelhoModal({
         clienteId = novoCliente.id;
       }
 
-      // 2. Gerar número da venda
-      const { data: ultimaVenda } = await supabase
-        .from("vendas")
-        .select("numero_venda")
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      const numeroVenda = ultimaVenda ? ultimaVenda.numero_venda + 1 : 1;
-
-      // 3. Criar venda
+      // numero_venda é gerado pela sequence do banco (default nextval),
+      // garantindo unicidade. NÃO calcular por max+1 (racy e colide com importados).
       const { data: venda, error: erroVenda } = await supabase
         .from("vendas")
         .insert({
-          numero_venda: numeroVenda,
           cliente_id: clienteId,
           loja_id: lojaId,
           vendedor_id: usuario.id,
@@ -621,7 +611,7 @@ export function VendaAparelhoModal({
           finalizado_em: new Date().toISOString(),
           finalizado_por: usuario.id,
         })
-        .select("id")
+        .select("id, numero_venda")
         .single();
 
       if (erroVenda) throw erroVenda;
@@ -761,7 +751,7 @@ export function VendaAparelhoModal({
               quantidade_nova: novaQuantidade,
               quantidade_alterada: -brinde.quantidade,
               tipo_movimentacao: "brinde_aparelho",
-              motivo: `Brinde na venda #${numeroVenda}`,
+              motivo: `Brinde na venda #${venda.numero_venda}`,
               usuario_id: usuario.id,
             });
           }

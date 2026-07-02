@@ -33,20 +33,11 @@ export class VendasService {
     data_prevista_pagamento?: string;
   }): Promise<{ success: boolean; venda?: Venda; error?: string }> {
     try {
-      // Gera número da venda
-      const { data: vendas } = await supabase
-        .from("vendas")
-        .select("numero_venda")
-        .order("criado_em", { ascending: false })
-        .limit(1);
-
-      const numeroVenda =
-        vendas && vendas.length > 0 ? vendas[0].numero_venda + 1 : 1;
-
+      // numero_venda é gerado pela sequence do banco (default nextval),
+      // garantindo unicidade. NÃO calcular por max+1 (racy e colide com importados).
       const { data, error } = await supabase
         .from("vendas")
         .insert({
-          numero_venda: numeroVenda,
           cliente_id: dados.cliente_id,
           loja_id: dados.loja_id,
           vendedor_id: dados.vendedor_id,
