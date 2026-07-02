@@ -55,6 +55,7 @@ export async function salvarPermissoes(
   dados: {
     permissoes: PermissoesModulos;
     loja_id?: number | null;
+    loja_ids?: number[] | null;
     todas_lojas?: boolean;
   },
 ) {
@@ -83,6 +84,8 @@ export async function salvarPermissoes(
       const dadosUpdate = {
         permissoes: dados.permissoes,
         loja_id: dados.loja_id,
+        loja_ids:
+          dados.loja_ids && dados.loja_ids.length > 0 ? dados.loja_ids : null,
         todas_lojas: dados.todas_lojas,
         atualizado_em: new Date().toISOString(),
       };
@@ -124,6 +127,8 @@ export async function salvarPermissoes(
           usuario_id: usuarioId,
           permissoes: dados.permissoes,
           loja_id: dados.loja_id,
+          loja_ids:
+            dados.loja_ids && dados.loja_ids.length > 0 ? dados.loja_ids : null,
           todas_lojas: dados.todas_lojas,
         })
         .select("*");

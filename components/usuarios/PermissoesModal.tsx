@@ -13,7 +13,7 @@ import { Checkbox } from "@heroui/checkbox";
 import { Divider } from "@heroui/divider";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
-import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
+import { Select, SelectItem } from "@heroui/select";
 
 import { PermissoesModulos, Loja } from "@/types";
 import { PermissoesService } from "@/services/permissoesService";
@@ -48,7 +48,7 @@ export function PermissoesModal({
     PermissoesService.getPermissoesPadrao(),
   );
   const [lojas, setLojas] = useState<Loja[]>([]);
-  const [lojaSelecionada, setLojaSelecionada] = useState<number | null>(null);
+  const [lojasSelecionadas, setLojasSelecionadas] = useState<number[]>([]);
   const [todasLojas, setTodasLojas] = useState(false);
 
   // Estados para metas do usuário
@@ -123,7 +123,14 @@ export function PermissoesModal({
 
           console.log("🔀 Permissões após merge:", permissoesMerged);
           setPermissoes(permissoesMerged);
-          setLojaSelecionada(result.data.loja_id || null);
+          setLojasSelecionadas(
+            Array.isArray(result.data.loja_ids) &&
+              result.data.loja_ids.length > 0
+              ? result.data.loja_ids
+              : result.data.loja_id
+                ? [result.data.loja_id]
+                : [],
+          );
           setTodasLojas(result.data.todas_lojas || false);
 
           // Carregar metas do usuário
@@ -156,7 +163,7 @@ export function PermissoesModal({
         } else {
           console.log("ℹ️ Nenhuma permissão customizada, usando padrão");
           setPermissoes(PermissoesService.getPermissoesPadrao());
-          setLojaSelecionada(null);
+          setLojasSelecionadas([]);
           setTodasLojas(false);
           setMetaMensalVendas(META_MENSAL_PADRAO);
           setDiasUteis(DIAS_UTEIS_PADRAO);
@@ -259,18 +266,14 @@ export function PermissoesModal({
       console.log("💾 Iniciando salvamento de permissões");
       console.log("🔍 Estado atual do modal:", {
         todasLojas,
-        lojaSelecionada,
-        lojaNome: lojas.find((l) => l.id === lojaSelecionada)?.nome,
-      });
-      console.log("📊 Dados que serão salvos no banco:", {
-        usuarioId,
-        loja_id: todasLojas ? null : lojaSelecionada,
-        todas_lojas: todasLojas,
+        lojasSelecionadas,
       });
 
+      // loja_ids = fonte de verdade multi-loja; loja_id = primeira (compat legado)
       const dadosSalvar = {
         permissoes,
-        loja_id: todasLojas ? null : lojaSelecionada,
+        loja_id: todasLojas ? null : (lojasSelecionadas[0] ?? null),
+        loja_ids: todasLojas ? null : lojasSelecionadas,
         todas_lojas: todasLojas,
       };
 
@@ -297,7 +300,7 @@ export function PermissoesModal({
             if (dashboardPessoalHabilitado) {
               const metaResult = await salvarMetaUsuario({
                 usuario_id: usuarioId,
-                loja_id: todasLojas ? null : (lojaSelecionada ?? null),
+                loja_id: todasLojas ? null : (lojasSelecionadas[0] ?? null),
                 meta_mensal_vendas: parseFloat(metaMensalVendas || "0"),
                 meta_mensal_os: 0,
                 dias_uteis_mes: parseInt(diasUteis || "26", 10),
@@ -406,7 +409,7 @@ export function PermissoesModal({
                         console.log(
                           "✅ Marcado 'Todas as Lojas' - limpando loja específica",
                         );
-                        setLojaSelecionada(null);
+                        setLojasSelecionadas([]);
                       } else {
                         console.log(
                           "❌ Desmarcado 'Todas as Lojas' - selecione uma loja específica",
@@ -423,44 +426,48 @@ export function PermissoesModal({
                   </Checkbox>
 
                   {!todasLojas && (
-                    <Autocomplete
+                    <Select
                       className="max-w-full"
                       isDisabled={todasLojas}
-                      label="Loja"
-                      placeholder="Selecione uma loja"
-                      selectedKey={lojaSelecionada?.toString()}
-                      onSelectionChange={(key) => {
-                        const lojaId = key ? Number(key) : null;
-                        const lojaNome = lojas.find(
-                          (l) => l.id === lojaId,
-                        )?.nome;
+                      label="Lojas"
+                      placeholder="Selecione uma ou mais lojas"
+                      selectedKeys={new Set(
+                        lojasSelecionadas.map((id) => id.toString()),
+                      )}
+                      selectionMode="multiple"
+                      onSelectionChange={(keys) => {
+                        const ids = Array.from(keys as Set<string>).map((k) =>
+                          Number(k),
+                        );
 
-                        console.log("🏪 Loja selecionada:", {
-                          id: lojaId,
-                          nome: lojaNome,
-                        });
-                        setLojaSelecionada(lojaId);
+                        console.log("🏪 Lojas selecionadas:", ids);
+                        setLojasSelecionadas(ids);
                       }}
                     >
                       {lojas.map((loja) => (
-                        <AutocompleteItem key={loja.id.toString()}>
+                        <SelectItem key={loja.id.toString()}>
                           {loja.nome}
-                        </AutocompleteItem>
+                        </SelectItem>
                       ))}
-                    </Autocomplete>
+                    </Select>
                   )}
 
-                  {!todasLojas && !lojaSelecionada && (
+                  {!todasLojas && lojasSelecionadas.length === 0 && (
                     <p className="text-xs text-warning font-semibold">
                       ⚠️ ATENÇÃO: Nenhuma loja selecionada! Você precisa
-                      selecionar uma loja ou marcar &quot;Todas as Lojas&quot;.
+                      selecionar ao menos uma loja ou marcar &quot;Todas as
+                      Lojas&quot;.
                     </p>
                   )}
 
-                  {lojaSelecionada && !todasLojas && (
+                  {lojasSelecionadas.length > 0 && !todasLojas && (
                     <p className="text-xs text-success font-semibold">
-                      ✓ Acesso restrito à loja:{" "}
-                      {lojas.find((l) => l.id === lojaSelecionada)?.nome}
+                      ✓ Acesso a{" "}
+                      {lojasSelecionadas.length === 1 ? "loja" : "lojas"}:{" "}
+                      {lojas
+                        .filter((l) => lojasSelecionadas.includes(l.id))
+                        .map((l) => l.nome)
+                        .join(", ")}
                     </p>
                   )}
 

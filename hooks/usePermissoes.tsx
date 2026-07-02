@@ -17,6 +17,7 @@ export function usePermissoes() {
   >(null);
   const [loading, setLoading] = useState(true);
   const [lojaId, setLojaId] = useState<number | null>(null);
+  const [lojaIdsDb, setLojaIdsDb] = useState<number[] | null>(null);
   const [todasLojas, setTodasLojas] = useState(false);
 
   // Obter perfil do usuário
@@ -73,6 +74,7 @@ export function usePermissoes() {
     if (!usuario?.id) {
       setPermissoesCustomizadas(null);
       setLojaId(null);
+      setLojaIdsDb(null);
       setTodasLojas(false);
       setLoading(false);
 
@@ -96,7 +98,7 @@ export function usePermissoes() {
         // Tentar buscar permissões do banco
         const { data, error } = await supabase
           .from("permissoes")
-          .select("permissoes, loja_id, todas_lojas")
+          .select("permissoes, loja_id, loja_ids, todas_lojas")
           .eq("usuario_id", usuario.id)
           .maybeSingle();
 
@@ -113,6 +115,7 @@ export function usePermissoes() {
           console.log("✅ Usando permissões padrão do perfil:", perfil);
           setPermissoesCustomizadas(null);
           setLojaId(null);
+          setLojaIdsDb(null);
           setTodasLojas(false);
         } else if (data) {
           // Registro de permissões encontrado (pode ter ou não permissões customizadas)
@@ -134,6 +137,11 @@ export function usePermissoes() {
 
           setPermissoesCustomizadas(data.permissoes ? permissoesArray : null);
           setLojaId(novaLojaId);
+          setLojaIdsDb(
+            Array.isArray(data.loja_ids) && data.loja_ids.length > 0
+              ? data.loja_ids
+              : null,
+          );
           setTodasLojas(novasTodasLojas);
         } else {
           // Nenhum registro de permissões encontrado
@@ -143,6 +151,7 @@ export function usePermissoes() {
           );
           setPermissoesCustomizadas(null);
           setLojaId(null);
+          setLojaIdsDb(null);
           setTodasLojas(false);
         }
       } catch (err: any) {
@@ -157,6 +166,7 @@ export function usePermissoes() {
         console.log("✅ Usando permissões padrão do perfil:", perfil);
         setPermissoesCustomizadas(null);
         setLojaId(null);
+        setLojaIdsDb(null);
         setTodasLojas(false);
       } finally {
         if (!isCancelled) {
@@ -208,13 +218,14 @@ export function usePermissoes() {
     return permissoesRequeridas.some((p) => permissoes.includes(p));
   };
 
-  // Lista de lojas do usuário (multi-loja). Por enquanto derivada do loja_id
-  // único; quando a coluna loja_ids existir no banco, passa a ler dela aqui.
-  // Manter lojaId (= primeira) para compatibilidade com código legado.
-  const lojaIds = useMemo<number[]>(
-    () => (lojaId != null ? [lojaId] : []),
-    [lojaId],
-  );
+  // Lista de lojas do usuário (multi-loja). Lê loja_ids do banco quando houver;
+  // senão, deriva do loja_id único (fallback retrocompatível).
+  // Mantém lojaId (= primeira) para compatibilidade com código legado.
+  const lojaIds = useMemo<number[]>(() => {
+    if (lojaIdsDb && lojaIdsDb.length > 0) return lojaIdsDb;
+
+    return lojaId != null ? [lojaId] : [];
+  }, [lojaIdsDb, lojaId]);
 
   // Verificar se é admin
   const isAdmin = perfil === "admin";
