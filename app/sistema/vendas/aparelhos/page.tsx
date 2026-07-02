@@ -407,10 +407,10 @@ export default function VendasAparelhosPage() {
       // (O filtro por vendedor é aplicado via inner join embedded mais abaixo,
       //  diretamente nos query builders — ver filtrarPorVendedor.)
 
-      // Busca total de registros (para KPIs) - busca IDs de todas as vendas do periodo
+      // Busca todos os aparelhos do período (para KPIs e para paginar POR VENDA)
       const selectKpis: string = filtrarPorVendedor
-        ? "venda_id, data_venda, valor_venda, valor_compra, vendas!inner(vendedor_id)"
-        : "venda_id, data_venda, valor_venda, valor_compra";
+        ? "venda_id, data_venda, valor_venda, valor_compra, atualizado_em, vendas!inner(vendedor_id)"
+        : "venda_id, data_venda, valor_venda, valor_compra, atualizado_em";
       let allQuery: any = supabase
         .from("aparelhos")
         .select(selectKpis)
@@ -441,8 +441,22 @@ export default function VendasAparelhosPage() {
           allQueryBuilder = allQueryBuilder.or(f[1].replace(/%25/g, "%"));
       });
       allQuery = allQueryBuilder;
-      const { data: allData } = await allQuery;
-      const totalRegistros = allData?.length || 0;
+      const { data: allData } = await allQuery.order(ordenacao, {
+        ascending: false,
+      });
+
+      // Lista de vendas distintas na ordem (a paginação agora é POR VENDA,
+      // não por aparelho — assim uma venda multi-aparelho vira 1 card só).
+      const vendaIdsOrdenados: string[] = [];
+      const vistosVenda = new Set<string>();
+
+      (allData || []).forEach((a: any) => {
+        if (a.venda_id && !vistosVenda.has(a.venda_id)) {
+          vistosVenda.add(a.venda_id);
+          vendaIdsOrdenados.push(a.venda_id);
+        }
+      });
+      const totalRegistros = vendaIdsOrdenados.length;
 
       // KPIs: calcula de todos os registros (só quando filtros mudam)
       if (calcularKpis) {
@@ -484,7 +498,6 @@ export default function VendasAparelhosPage() {
           hojeCount = 0;
         const porTipo: Record<string, number> = {};
         const brindesTotal: Record<string, number> = {};
-        const allVendasMap = new Map(allVendas?.map((v: any) => [v.id, v]));
 
         allBrindes?.forEach((b: any) => {
           brindesTotal[b.venda_id] =
@@ -500,18 +513,36 @@ export default function VendasAparelhosPage() {
 
           porTipo[tipo] = (porTipo[tipo] || 0) + val;
         });
-        allData?.forEach((a: any) => {
-          totalQtd++;
-          const custoBrindes = brindesTotal[a.venda_id] || 0;
-          const pagtoValor =
-            allPagtos
-              ?.filter((p: any) => p.venda_id === a.venda_id)
-              .reduce((s: number, p: any) => s + (p.liquido ?? p.valor), 0) ||
-            0;
+        // Agrega POR VENDA — o pagamento é da venda inteira; contar por
+        // aparelho inflava o lucro (atribuía o pagamento total a cada aparelho).
+        const custoApPorVenda: Record<string, number> = {};
+        const dataVendaPorVenda: Record<string, string> = {};
+        const pagtoPorVenda: Record<string, number> = {};
 
-          totalLucro += pagtoValor - (a.valor_compra || 0) - custoBrindes;
-          if (allVendasStatus.get(a.venda_id) === "em_andamento") pendentes++;
-          if (a.data_venda?.startsWith(hoje)) hojeCount++;
+        allData?.forEach((a: any) => {
+          custoApPorVenda[a.venda_id] =
+            (custoApPorVenda[a.venda_id] || 0) + (a.valor_compra || 0);
+          if (
+            a.data_venda &&
+            (!dataVendaPorVenda[a.venda_id] ||
+              a.data_venda > dataVendaPorVenda[a.venda_id])
+          ) {
+            dataVendaPorVenda[a.venda_id] = a.data_venda;
+          }
+        });
+        allPagtos?.forEach((p: any) => {
+          if (allVendasStatus.get(p.venda_id) === "cancelada") return;
+          pagtoPorVenda[p.venda_id] =
+            (pagtoPorVenda[p.venda_id] || 0) + (p.liquido ?? p.valor);
+        });
+        allVendasIds.forEach((vid: string) => {
+          totalQtd++;
+          totalLucro +=
+            (pagtoPorVenda[vid] || 0) -
+            (custoApPorVenda[vid] || 0) -
+            (brindesTotal[vid] || 0);
+          if (allVendasStatus.get(vid) === "em_andamento") pendentes++;
+          if (dataVendaPorVenda[vid]?.startsWith(hoje)) hojeCount++;
         });
 
         setKpis({
@@ -524,50 +555,33 @@ export default function VendasAparelhosPage() {
         });
       }
 
-      // Paginação backend
+      // Paginação POR VENDA
       const totalPages = Math.ceil(totalRegistros / ITENS_POR_PAGINA);
       const pagina = Math.min(paginaAtual, totalPages || 1);
       const inicio = (pagina - 1) * ITENS_POR_PAGINA;
 
       setTotalPaginasBackend(totalPages);
 
-      // Busca página atual com dados completos
-      const selectListagem: string = filtrarPorVendedor
-        ? "*, loja:lojas(id, nome), vendas!inner(vendedor_id)"
-        : "*, loja:lojas(id, nome)";
-      let query: any = supabase
-        .from("aparelhos")
-        .select(selectListagem)
-        .eq("status", "vendido")
-        .not("venda_id", "is", null);
+      // IDs das vendas desta página (já filtradas/ordenadas em vendaIdsOrdenados)
+      const vendaIdsPagina = vendaIdsOrdenados.slice(
+        inicio,
+        inicio + ITENS_POR_PAGINA,
+      );
 
-      let queryBuilder: any = query;
+      if (vendaIdsPagina.length === 0) {
+        setVendas([]);
+        setLoading(false);
 
-      if (filtrarPorVendedor) {
-        queryBuilder = queryBuilder.eq("vendas.vendedor_id", usuario!.id);
+        return;
       }
 
-      filtros.forEach((f) => {
-        if (f[0] === "gte")
-          queryBuilder = queryBuilder.gte(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "lte")
-          queryBuilder = queryBuilder.lte(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "eq")
-          queryBuilder = queryBuilder.eq(f[1], f[2].replace(/"/g, ""));
-        else if (f[0] === "in") {
-          const ids = f[2]
-            .replace(/[\(\)"]/g, "")
-            .split(",")
-            .filter(Boolean);
-
-          if (ids.length > 0) queryBuilder = queryBuilder.in(f[1], ids);
-        } else if (f[0] === "or")
-          queryBuilder = queryBuilder.or(f[1].replace(/%25/g, "%"));
-      });
-      query = queryBuilder;
-      const { data: aparelhos } = await query
-        .order(ordenacao, { ascending: false })
-        .range(inicio, inicio + ITENS_POR_PAGINA - 1);
+      // Busca TODOS os aparelhos das vendas da página (para agrupar por venda)
+      const { data: aparelhos } = await supabase
+        .from("aparelhos")
+        .select("*, loja:lojas(id, nome)")
+        .eq("status", "vendido")
+        .in("venda_id", vendaIdsPagina)
+        .order(ordenacao, { ascending: false });
 
       if (!aparelhos) {
         setVendas([]);
@@ -576,9 +590,7 @@ export default function VendasAparelhosPage() {
         return;
       }
 
-      const vendasIds = aparelhos
-        .map((a: any) => a.venda_id)
-        .filter(Boolean) as string[];
+      const vendasIds = vendaIdsPagina;
       const vendasResult =
         vendasIds.length > 0
           ? await supabase
@@ -654,48 +666,64 @@ export default function VendasAparelhosPage() {
         (vendedoresResult.data || []).map((v: any) => [v.id, v.nome]),
       );
 
-      // Contar quantos aparelhos por venda_id
-      const countPorVenda: Record<string, number> = {};
+      // Agrupa os aparelhos por venda_id
+      const aparelhosPorVenda: Record<string, any[]> = {};
 
       aparelhos.forEach((a: any) => {
-        if (a.venda_id) {
-          countPorVenda[a.venda_id] = (countPorVenda[a.venda_id] || 0) + 1;
-        }
+        if (a.venda_id) (aparelhosPorVenda[a.venda_id] ??= []).push(a);
       });
 
+      // 1 entrada por venda (na ordem de vendaIdsPagina). O aparelho de maior
+      // valor vira o "representativo" do cabeçalho; o card lista todos.
       setVendas(
-        aparelhos.map((a: any) => {
-          const venda = vendasMap.get(a.venda_id || "");
-          const pagamentos = pagamentosPorVenda[a.venda_id || ""] || [];
-          const brindes = brindesPorVenda[a.venda_id || ""] || [];
-          const totalPago = pagamentos.reduce(
-            (s: number, p: any) => s + (p.liquido ?? p.valor),
-            0,
-          );
-          const custoBrindes = brindes.reduce(
-            (s: number, b: any) => s + (b.valor_custo || 0),
-            0,
-          );
+        vendaIdsPagina
+          .map((vid: string) => {
+            const aps = aparelhosPorVenda[vid] || [];
 
-          return {
-            ...a,
-            pagamentos,
-            brindes,
-            pagamento_total: totalPago,
-            pagamento_qtd: pagamentos.length,
-            custo_brindes: custoBrindes,
-            lucro: totalPago - (a.valor_compra || 0) - custoBrindes,
-            venda,
-            cliente: venda ? clientesMap.get(venda.cliente_id) : null,
-            vendedor_nome: venda?.vendedor_id
-              ? vendedoresMap.get(venda.vendedor_id) || "—"
-              : "—",
-            valor_exibido: venda?.valor_total ?? a.valor_venda,
-            qtd_aparelhos_venda: a.venda_id
-              ? countPorVenda[a.venda_id] || 1
-              : 1,
-          };
-        }),
+            if (aps.length === 0) return null;
+            const rep =
+              aps.reduce(
+                (m: any, a: any) =>
+                  (a.valor_venda || 0) > (m?.valor_venda || 0) ? a : m,
+                aps[0],
+              ) || aps[0];
+            const venda = vendasMap.get(vid);
+            const pagamentos = pagamentosPorVenda[vid] || [];
+            const brindes = brindesPorVenda[vid] || [];
+            const totalPago = pagamentos.reduce(
+              (s: number, p: any) => s + (p.liquido ?? p.valor),
+              0,
+            );
+            const custoBrindes = brindes.reduce(
+              (s: number, b: any) => s + (b.valor_custo || 0),
+              0,
+            );
+            const custoAparelhos = aps.reduce(
+              (s: number, a: any) => s + (a.valor_compra || 0),
+              0,
+            );
+
+            return {
+              ...rep,
+              aparelhosVenda: aps,
+              pagamentos,
+              brindes,
+              pagamento_total: totalPago,
+              pagamento_qtd: pagamentos.length,
+              custo_brindes: custoBrindes,
+              // Lucro AGREGADO da venda (não por aparelho): pagamento líquido
+              // menos a soma dos custos dos aparelhos e dos brindes.
+              lucro: totalPago - custoAparelhos - custoBrindes,
+              venda,
+              cliente: venda ? clientesMap.get(venda.cliente_id) : null,
+              vendedor_nome: venda?.vendedor_id
+                ? vendedoresMap.get(venda.vendedor_id) || "—"
+                : "—",
+              valor_exibido: venda?.valor_total ?? rep.valor_venda,
+              qtd_aparelhos_venda: aps.length,
+            };
+          })
+          .filter(Boolean),
       );
     } catch (err) {
       console.error("Erro ao carregar vendas:", err);
@@ -2501,15 +2529,103 @@ export default function VendasAparelhosPage() {
           )}
         </div>
 
+        {(v.aparelhosVenda?.length || 0) > 1 && (
+          <div className="mb-3 rounded-xl border border-gray-100 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800">
+            {v.aparelhosVenda.map((ap: any) => (
+              <div
+                key={ap.id}
+                className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-800 dark:text-white truncate">
+                    {ap.marca} {ap.modelo}
+                  </p>
+                  <p className="text-gray-400 dark:text-gray-500 truncate">
+                    {ap.imei && <span className="font-mono">{ap.imei}</span>}
+                    {[ap.armazenamento, ap.memoria_ram, ap.cor].filter(Boolean)
+                      .length > 0 && (
+                      <span>
+                        {ap.imei ? " • " : ""}
+                        {[ap.armazenamento, ap.memoria_ram, ap.cor]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-gray-600 dark:text-gray-300 font-medium">
+                    {formatarMoeda(ap.valor_venda || 0)}
+                  </span>
+                  <Dropdown>
+                    <DropdownTrigger>
+                      <Button
+                        isIconOnly
+                        className="rounded-lg"
+                        size="sm"
+                        variant="light"
+                      >
+                        <EllipsisVertical className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu
+                      aria-label="Ações do aparelho"
+                      onAction={(key) => {
+                        if (key === "detalhes")
+                          setModalDetalhes({ ...v, ...ap, venda: v.venda });
+                        else if (key === "brinde")
+                          setBrindeModal({
+                            vendaId: v.venda_id,
+                            aparelhoId: ap.id,
+                          });
+                        else if (key === "troca")
+                          setTrocaModal({
+                            vendaId: v.venda_id,
+                            aparelhoId: ap.id,
+                          });
+                      }}
+                    >
+                      <DropdownItem
+                        key="detalhes"
+                        startContent={
+                          <DevicePhoneMobileIcon className="w-4 h-4" />
+                        }
+                      >
+                        Detalhes
+                      </DropdownItem>
+                      <DropdownItem
+                        key="brinde"
+                        startContent={<GiftIcon className="w-4 h-4" />}
+                      >
+                        Adicionar Brinde
+                      </DropdownItem>
+                      <DropdownItem
+                        key="troca"
+                        startContent={
+                          <DevicePhoneMobileIcon className="w-4 h-4" />
+                        }
+                      >
+                        Gerenciar Troca
+                      </DropdownItem>
+                    </DropdownMenu>
+                  </Dropdown>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <Divider className="mb-3" />
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <DevicePhoneMobileIcon className="w-3.5 h-3.5" />
             <span>
-              {v.armazenamento || ""}
-              {v.memoria_ram ? ` • ${v.memoria_ram}` : ""}
-              {v.cor ? ` • ${v.cor}` : ""}
+              {(v.qtd_aparelhos_venda || 1) > 1
+                ? `${v.qtd_aparelhos_venda} aparelhos`
+                : [v.armazenamento, v.memoria_ram, v.cor]
+                    .filter(Boolean)
+                    .join(" • ")}
             </span>
           </div>
           <Dropdown>
