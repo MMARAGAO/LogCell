@@ -135,8 +135,11 @@ export function NovaVendaModal({
         setClientes([venda.cliente]);
       }
 
-      // Aparelho (edição de venda única)
-      if (venda.id) {
+      // Aparelho(s) — carrega TODOS os aparelhos da venda ao editar (uma venda
+      // pode ter vários aparelhos; carregar só um corromperia o valor_total ao salvar).
+      if (Array.isArray(venda.aparelhosVenda) && venda.aparelhosVenda.length > 0) {
+        setAparelhosSelecionados(venda.aparelhosVenda);
+      } else if (venda.id) {
         setAparelhosSelecionados([venda]);
       }
 
