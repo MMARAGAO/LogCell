@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 
 export interface KpisAparelhos {
   vendasHoje: number;
@@ -13,7 +14,7 @@ export interface KpisAparelhos {
 
 export class AparelhosDashboardService {
   static async getKpis(
-    params: { loja_id?: number; data?: Date } = {},
+    params: { loja_id?: number | number[]; data?: Date } = {},
   ): Promise<KpisAparelhos> {
     const hoje = params.data ? new Date(params.data) : new Date();
     const inicioHoje = new Date(
@@ -58,7 +59,7 @@ export class AparelhosDashboardService {
         .gte("data_venda", inicioHoje.toISOString())
         .lte("data_venda", fimHoje.toISOString());
 
-      if (params.loja_id) query = query.eq("loja_id", params.loja_id);
+      query = aplicarEscopoLoja(query, "loja_id", params.loja_id);
 
       const { data } = await query;
 
@@ -75,7 +76,7 @@ export class AparelhosDashboardService {
         .gte("data_pagamento", inicioHoje.toISOString())
         .lte("data_pagamento", fimHoje.toISOString());
 
-      if (params.loja_id) query = query.eq("venda.loja_id", params.loja_id);
+      query = aplicarEscopoLoja(query, "venda.loja_id", params.loja_id);
 
       const { data } = await query;
       const vendaIds = Array.from(
@@ -116,8 +117,7 @@ export class AparelhosDashboardService {
         .select("id, saldo_devedor, loja_id")
         .gt("saldo_devedor", 0);
 
-      if (params.loja_id)
-        queryVendas = queryVendas.eq("loja_id", params.loja_id);
+      queryVendas = aplicarEscopoLoja(queryVendas, "loja_id", params.loja_id);
 
       const { data: vendas } = await queryVendas;
       const vendaIds = (vendas || []).map((v) => v.id);
@@ -166,7 +166,7 @@ export class AparelhosDashboardService {
           .lte("data_venda", fimMes.toISOString())
           .range(from, to);
 
-        if (params.loja_id) query = query.eq("loja_id", params.loja_id);
+        query = aplicarEscopoLoja(query, "loja_id", params.loja_id);
 
         const { data } = await query;
         const batch = data || [];
@@ -205,7 +205,7 @@ export class AparelhosDashboardService {
           .eq("status", "disponivel")
           .range(from, to);
 
-        if (params.loja_id) query = query.eq("loja_id", params.loja_id);
+        query = aplicarEscopoLoja(query, "loja_id", params.loja_id);
 
         const { data } = await query;
         const batch = data || [];
@@ -231,7 +231,10 @@ export class AparelhosDashboardService {
     };
   }
 
-  static async getUltimasVendasAparelhos(loja_id?: number, limit: number = 10) {
+  static async getUltimasVendasAparelhos(
+    loja_id?: number | number[],
+    limit: number = 10,
+  ) {
     let query = supabase
       .from("aparelhos")
       .select("id, marca, modelo, valor_venda, data_venda, venda_id, loja_id")
@@ -239,14 +242,17 @@ export class AparelhosDashboardService {
       .order("data_venda", { ascending: false })
       .limit(limit);
 
-    if (loja_id) query = query.eq("loja_id", loja_id);
+    query = aplicarEscopoLoja(query, "loja_id", loja_id);
 
     const { data } = await query;
 
     return data || [];
   }
 
-  static async getRecebimentosPendentes(loja_id?: number, limit: number = 10) {
+  static async getRecebimentosPendentes(
+    loja_id?: number | number[],
+    limit: number = 10,
+  ) {
     // Vendas com saldo_devedor > 0 que estão relacionadas com aparelhos
     let queryVendas = supabase
       .from("vendas")
@@ -257,7 +263,7 @@ export class AparelhosDashboardService {
       .order("criado_em", { ascending: false })
       .limit(200);
 
-    if (loja_id) queryVendas = queryVendas.eq("loja_id", loja_id);
+    queryVendas = aplicarEscopoLoja(queryVendas, "loja_id", loja_id);
 
     const { data: vendas } = await queryVendas;
     const vendaIds = (vendas || []).map((v) => v.id);

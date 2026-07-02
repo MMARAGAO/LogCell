@@ -33,6 +33,7 @@ import { MinusIcon, PlusIcon } from "@heroicons/react/24/solid";
 
 import { useToast } from "@/components/Toast";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Loja {
@@ -77,6 +78,7 @@ export default function NovaTransferenciaPage() {
   const searchParams = useSearchParams();
   const toast = useToast();
   const { verificarSessao, usuario } = useAuth();
+  const { temAcessoLoja } = usePermissoes();
 
   const transferenciaId = searchParams.get("id");
   const editando = Boolean(transferenciaId);
@@ -730,9 +732,12 @@ export default function NovaTransferenciaPage() {
                 }
               }}
             >
-              {lojas.map((loja) => (
-                <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
-              ))}
+              {/* Origem: só as lojas do usuário (admin vê todas via temAcessoLoja) */}
+              {lojas
+                .filter((loja) => temAcessoLoja(loja.id))
+                .map((loja) => (
+                  <SelectItem key={loja.id.toString()}>{loja.nome}</SelectItem>
+                ))}
             </Select>
 
             <div style={{ display: lojaOrigemId ? "" : "none" }}>

@@ -33,6 +33,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissoes } from "@/hooks/usePermissoes";
 import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { CarrosselFotos, CarrosselFoto } from "@/components/CarrosselFotos";
 import { rmaService } from "@/services/rmaService";
@@ -95,6 +96,7 @@ export default function FormularioRMA({
   onSuccess,
 }: FormularioRMAProps) {
   const { usuario } = useAuth();
+  const { temAcessoLoja } = usePermissoes();
   const [etapaAtual, setEtapaAtual] = useState(1);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -174,7 +176,8 @@ export default function FormularioRMA({
         .order("nome");
 
       setProdutos(produtosData || []);
-      setLojas(lojasData || []);
+      // Escopo: admin vê todas; não-admin só as lojas dele (1 ou N)
+      setLojas((lojasData || []).filter((l: any) => temAcessoLoja(l.id)));
       setClientes(todosClientes);
       setFornecedores(fornecedoresData || []);
     } catch (error) {

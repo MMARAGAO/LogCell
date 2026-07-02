@@ -38,11 +38,12 @@ import { ModalDevolucao } from "@/components/devolucoes/ModalDevolucao";
 import { HistoricoDevolucoes } from "@/components/devolucoes/HistoricoDevolucoes";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 
 export default function DevolucoesPage() {
   const { usuario } = useAuth();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
-  const { lojaId, podeVerTodasLojas } = useLojaFilter();
+  const { lojaIds, podeVerTodasLojas } = useLojaFilter();
 
   const [vendas, setVendas] = useState<VendaCompleta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,7 +102,7 @@ export default function DevolucoesPage() {
     if (!loadingPermissoes) {
       carregarVendas(paginaAtual, debouncedBusca);
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas, debouncedBusca]);
+  }, [loadingPermissoes, lojaIds, podeVerTodasLojas, debouncedBusca]);
 
   const carregarVendas = async (pagina: number, termoBusca: string) => {
     try {
@@ -122,9 +123,9 @@ export default function DevolucoesPage() {
         .order("criado_em", { ascending: false })
         .range(offset, offset + itensPorPagina - 1);
 
-      if (lojaId !== null && !podeVerTodasLojas) {
-        countQuery = countQuery.eq("loja_id", lojaId);
-        dataQuery = dataQuery.eq("loja_id", lojaId);
+      if (lojaIds.length > 0 && !podeVerTodasLojas) {
+        countQuery = aplicarEscopoLoja(countQuery, "loja_id", lojaIds);
+        dataQuery = aplicarEscopoLoja(dataQuery, "loja_id", lojaIds);
       }
 
       if (termoBusca) {

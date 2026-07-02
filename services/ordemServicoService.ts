@@ -3,6 +3,7 @@
 // =====================================================
 
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import {
   OrdemServico,
   OrdemServicoFormData,
@@ -23,7 +24,7 @@ import {
  */
 export async function buscarOrdensServico(filtros?: {
   status?: StatusOS;
-  id_loja?: number;
+  id_loja?: number | number[];
   cliente_nome?: string;
   numero_os?: number;
   data_inicio?: string;
@@ -52,7 +53,7 @@ export async function buscarOrdensServico(filtros?: {
     }
 
     if (filtros?.id_loja) {
-      query = query.eq("id_loja", filtros.id_loja);
+      query = aplicarEscopoLoja(query, "id_loja", filtros.id_loja);
     }
 
     if (filtros?.cliente_nome) {

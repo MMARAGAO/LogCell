@@ -222,7 +222,8 @@ export default function VendasPage() {
     getDescontoMaximo,
     validarDesconto,
   } = usePermissoes();
-  const { aplicarFiltroLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
+  const { aplicarFiltroLoja, podeVerTodasLojas, lojaId, lojaIds } =
+    useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
@@ -302,12 +303,15 @@ export default function VendasPage() {
       if (podeVerTodasLojas) {
         // Usuário pode ver todas as lojas - deixar "todas"
         setFiltroLoja("todas");
-      } else if (lojaId !== null) {
-        // Usuário tem acesso a uma loja específica - auto-selecionar
-        setFiltroLoja(lojaId.toString());
+      } else if (lojaIds.length === 1) {
+        // Usuário tem acesso a uma única loja - auto-selecionar
+        setFiltroLoja(lojaIds[0].toString());
+      } else if (lojaIds.length > 1) {
+        // Usuário com múltiplas lojas - mostrar todas as dele por padrão
+        setFiltroLoja("todas");
       }
     }
-  }, [loadingPermissoes, podeVerTodasLojas, lojaId]);
+  }, [loadingPermissoes, podeVerTodasLojas, lojaIds]);
 
   const formatarMoeda = (valor: number) => {
     return valor.toLocaleString("pt-BR", {
@@ -345,12 +349,17 @@ export default function VendasPage() {
     } else {
       console.log("⏳ [VENDAS] Aguardando permissões serem carregadas...");
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas]); // Recarregar se mudar a loja
+  }, [loadingPermissoes, lojaIds, podeVerTodasLojas]); // Recarregar se mudar a loja
 
   // 🔔 Realtime: atualizar vendas quando houver mudanças
   useRealtime({
     table: "vendas",
-    filter: lojaId && !podeVerTodasLojas ? `loja_id=eq.${lojaId}` : undefined,
+    filter:
+      lojaIds.length > 0 && !podeVerTodasLojas
+        ? lojaIds.length === 1
+          ? `loja_id=eq.${lojaIds[0]}`
+          : `loja_id=in.(${lojaIds.join(",")})`
+        : undefined,
     enabled: !loadingPermissoes, // Só ativar após permissões carregarem
     onEvent: (payload) => {
       console.log("🔔 [REALTIME VENDAS] Evento:", payload.eventType, payload);
@@ -417,11 +426,18 @@ export default function VendasPage() {
       filtros.loja_id = parseInt(filtroLoja);
     }
 
-    // SEGURANÇA: Se o usuário não tem acesso a todas as lojas,
-    // força o filtro pela loja dele (independente do filtro da UI)
-    if (!podeVerTodasLojas && lojaId !== null) {
-      filtros.loja_id = lojaId;
-    } else if (!podeVerTodasLojas && lojaId === null) {
+    // SEGURANÇA: Se o usuário não tem acesso a todas as lojas, restringe às
+    // lojas dele. Respeita a escolha do dropdown apenas se for uma loja dele.
+    if (!podeVerTodasLojas && lojaIds.length > 0) {
+      const escolha = parseInt(filtroLoja);
+
+      if (filtroLoja !== "todas" && lojaIds.includes(escolha)) {
+        filtros.loja_id = escolha;
+      } else {
+        // 1 loja → number; N lojas → number[] (o service trata ambos)
+        filtros.loja_id = lojaIds.length === 1 ? lojaIds[0] : lojaIds;
+      }
+    } else if (!podeVerTodasLojas && lojaIds.length === 0) {
       console.warn(
         "⚠️ ERRO DE SEGURANÇA: Usuário sem loja definida e sem permissão para ver tudo!",
       );
@@ -1710,8 +1726,12 @@ export default function VendasPage() {
                     )),
                   ] as any)
                 : ([
-                    lojas
-                      .filter((l) => l.id === lojaId)
+                    // Com 2+ lojas, oferecer "todas as minhas"; com 1, só ela
+                    ...(lojaIds.length > 1
+                      ? [<SelectItem key="todas">Todas as Lojas</SelectItem>]
+                      : []),
+                    ...lojas
+                      .filter((l) => lojaIds.includes(l.id))
                       .map((loja) => (
                         <SelectItem key={loja.id.toString()}>
                           {loja.nome}

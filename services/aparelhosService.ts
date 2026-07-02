@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import {
   Aparelho,
   AparelhoFormData,
@@ -32,9 +33,9 @@ export async function getAparelhos(
       )
       .order(filtros?.order_by || "criado_em", { ascending: false });
 
-    // Filtrar por loja
+    // Filtrar por loja (escopo do usuário: 1 → eq, N → in)
     if (filtros?.loja_id) {
-      query = query.eq("loja_id", filtros.loja_id);
+      query = aplicarEscopoLoja(query, "loja_id", filtros.loja_id);
     }
 
     // Filtrar por marca

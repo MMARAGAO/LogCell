@@ -26,6 +26,7 @@ import { createBrowserClient } from "@supabase/ssr";
 
 import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import { MetasService } from "@/services/metasService";
 
 const TIMEZONE_DASHBOARD = "America/Sao_Paulo";
@@ -238,7 +239,7 @@ export default function DashboardPessoal() {
   const ITENS_POR_PAGINA_DRILLDOWN = 10;
   const ITENS_POR_PAGINA_GANHOS_OS = 5;
   const { usuario } = useAuthContext();
-  const { lojaId, perfil } = usePermissoes();
+  const { lojaId, lojaIds, perfil } = usePermissoes();
   const [metricas, setMetricas] = useState<MetricasPessoais | null>(null);
   const [loading, setLoading] = useState(true);
   const [atualizando, setAtualizando] = useState(false);
@@ -258,7 +259,7 @@ export default function DashboardPessoal() {
   );
   const [lojas, setLojas] = useState<LojaOpcao[]>([]);
   const [filtroLojaId, setFiltroLojaId] = useState<string>(
-    lojaId ? String(lojaId) : "todas",
+    lojaIds.length === 1 ? String(lojaIds[0]) : "todas",
   );
   const [detalheSelecionado, setDetalheSelecionado] =
     useState<DetalheSelecionado>(null);
@@ -273,14 +274,14 @@ export default function DashboardPessoal() {
     }
 
     carregarLojas();
-  }, [usuario, lojaId]);
+  }, [usuario, lojaIds]);
 
   useEffect(() => {
     if (!usuario) return;
     carregarMetricas();
   }, [
     usuario,
-    lojaId,
+    lojaIds,
     periodoFiltro,
     dataInicioPersonalizada,
     dataFimPersonalizada,
@@ -292,7 +293,8 @@ export default function DashboardPessoal() {
   }, [detalheSelecionado]);
 
   const carregarLojas = async () => {
-    if (!usuario || lojaId) return;
+    // Com 1 loja fixa não há o que escolher. Admin (lojaIds vazio) vê todas.
+    if (!usuario || lojaIds.length === 1) return;
 
     try {
       const supabase = createBrowserClient(
@@ -306,12 +308,17 @@ export default function DashboardPessoal() {
 
       if (error) throw error;
 
-      setLojas(
-        (data || []).map((loja: any) => ({
-          id: Number(loja.id),
-          nome: String(loja.nome || `Loja ${loja.id}`),
-        })),
-      );
+      let lojasData = (data || []).map((loja: any) => ({
+        id: Number(loja.id),
+        nome: String(loja.nome || `Loja ${loja.id}`),
+      }));
+
+      // Não-admin com múltiplas lojas: restringe o seletor às lojas dele
+      if (lojaIds.length > 1) {
+        lojasData = lojasData.filter((l) => lojaIds.includes(l.id));
+      }
+
+      setLojas(lojasData);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
     }
@@ -361,7 +368,7 @@ export default function DashboardPessoal() {
     usuarioId: string,
     inicioISO: string,
     fimISO: string,
-    lojaEscopoId?: number,
+    lojaEscopoId?: number | number[],
   ) => {
     const tamanhoPagina = 1000;
     let pagina = 0;
@@ -399,9 +406,11 @@ export default function DashboardPessoal() {
         .order("criado_em", { ascending: false })
         .range(inicio, fim);
 
-      if (lojaEscopoId) {
-        queryPagamentos = queryPagamentos.eq("venda.loja_id", lojaEscopoId);
-      }
+      queryPagamentos = aplicarEscopoLoja(
+        queryPagamentos,
+        "venda.loja_id",
+        lojaEscopoId,
+      );
 
       const { data, error } = await queryPagamentos;
 
@@ -425,7 +434,7 @@ export default function DashboardPessoal() {
     perfilAtual: string,
     inicioISO: string,
     fimISO: string,
-    lojaEscopoId?: number,
+    lojaEscopoId?: number | number[],
   ) => {
     const tamanhoPagina = 1000;
     let pagina = 0;
@@ -467,9 +476,11 @@ export default function DashboardPessoal() {
         queryPagamentosOS = queryPagamentosOS.eq("os.criado_por", usuarioId);
       }
 
-      if (lojaEscopoId) {
-        queryPagamentosOS = queryPagamentosOS.eq("os.id_loja", lojaEscopoId);
-      }
+      queryPagamentosOS = aplicarEscopoLoja(
+        queryPagamentosOS,
+        "os.id_loja",
+        lojaEscopoId,
+      );
 
       const { data, error } = await queryPagamentosOS;
 
@@ -568,8 +579,17 @@ export default function DashboardPessoal() {
         );
       }
 
-      const lojaEscopoId =
-        lojaId || (filtroLojaId !== "todas" ? Number(filtroLojaId) : undefined);
+      // Escopo de loja: respeita uma escolha específica do dropdown; senão usa
+      // as lojas do usuário (1 → number; N → number[]). Admin sem escolha = todas.
+      const escolhaDropdown =
+        filtroLojaId !== "todas" ? Number(filtroLojaId) : undefined;
+      const lojaEscopoId: number | number[] | undefined =
+        escolhaDropdown ??
+        (lojaIds.length === 1
+          ? lojaIds[0]
+          : lojaIds.length > 1
+            ? lojaIds
+            : undefined);
 
       const pagamentosMesRaw = await buscarPagamentosRecebidos(
         supabase,
@@ -700,9 +720,11 @@ export default function DashboardPessoal() {
         .gte("criado_em", inicioMesISO)
         .lte("criado_em", fimMesISO);
 
-      if (lojaEscopoId) {
-        queryExcluidos = queryExcluidos.eq("venda.loja_id", lojaEscopoId);
-      }
+      queryExcluidos = aplicarEscopoLoja(
+        queryExcluidos,
+        "venda.loja_id",
+        lojaEscopoId,
+      );
 
       const { data: pagamentosExcluidosRaw } = await queryExcluidos;
 
@@ -1038,9 +1060,11 @@ export default function DashboardPessoal() {
         .order("data_prevista_pagamento", { ascending: true })
         .order("criado_em", { ascending: false });
 
-      if (lojaEscopoId) {
-        queryVendasPendentes = queryVendasPendentes.eq("loja_id", lojaEscopoId);
-      }
+      queryVendasPendentes = aplicarEscopoLoja(
+        queryVendasPendentes,
+        "loja_id",
+        lojaEscopoId,
+      );
 
       const { data: vendasPendentes, error: erroVendasPendentes } =
         await queryVendasPendentes;
@@ -1174,10 +1198,12 @@ export default function DashboardPessoal() {
           dataInicio: getDateKeyInTimezone(escopo.inicio),
           dataFim: getDateKeyInTimezone(escopo.fim),
           descricao: escopo.descricao,
-          lojaDescricao: lojaEscopoId
-            ? lojas.find((loja) => loja.id === lojaEscopoId)?.nome ||
-              `Loja ${lojaEscopoId}`
-            : "Todas as lojas",
+          lojaDescricao: Array.isArray(lojaEscopoId)
+            ? "Minhas lojas"
+            : lojaEscopoId
+              ? lojas.find((loja) => loja.id === lojaEscopoId)?.nome ||
+                `Loja ${lojaEscopoId}`
+              : "Todas as lojas",
         },
         exclusoesAplicadas,
         ganhosOS: {
@@ -1417,11 +1443,15 @@ export default function DashboardPessoal() {
             <span className="block mb-1 font-semibold">Loja</span>
             <select
               className="w-full rounded-lg border border-default-200 bg-default-50 px-3 py-2"
-              disabled={Boolean(lojaId)}
-              value={lojaId ? String(lojaId) : filtroLojaId}
+              disabled={lojaIds.length === 1}
+              value={
+                lojaIds.length === 1 ? String(lojaIds[0]) : filtroLojaId
+              }
               onChange={(event) => setFiltroLojaId(event.target.value)}
             >
-              {!lojaId ? <option value="todas">Todas as lojas</option> : null}
+              {lojaIds.length !== 1 ? (
+                <option value="todas">Todas as lojas</option>
+              ) : null}
               {lojas.map((loja) => (
                 <option key={loja.id} value={String(loja.id)}>
                   {loja.nome}

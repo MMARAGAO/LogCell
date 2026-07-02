@@ -144,7 +144,7 @@ export interface BrindeAparelho {
 }
 
 export interface FiltrosAparelhos {
-  loja_id?: number;
+  loja_id?: number | number[];
   marca?: string;
   modelo?: string;
   estado?: EstadoAparelho;

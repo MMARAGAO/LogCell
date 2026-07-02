@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
+
 import { usePermissoes } from "./usePermissoes";
 
 /**
@@ -11,13 +13,7 @@ import { usePermissoes } from "./usePermissoes";
  * funções auxiliares para filtrar queries do Supabase
  */
 export function useLojaFilter() {
-  const { lojaId, todasLojas, isAdmin } = usePermissoes();
-
-  console.log("🏪 [useLojaFilter] Valores recebidos:", {
-    lojaId,
-    todasLojas,
-    isAdmin,
-  });
+  const { lojaId, lojaIds, todasLojas, isAdmin } = usePermissoes();
 
   /**
    * Verifica se o usuário tem acesso a uma loja específica
@@ -33,10 +29,10 @@ export function useLojaFilter() {
       // Se tem acesso a todas as lojas
       if (todasLojas) return true;
 
-      // Verificar se é a loja específica do usuário
-      return lojaId === lojaIdVerificar;
+      // Verificar se a loja está entre as do usuário
+      return lojaIds.includes(lojaIdVerificar);
     };
-  }, [isAdmin, todasLojas, lojaId]);
+  }, [isAdmin, todasLojas, lojaIds]);
 
   /**
    * Retorna o filtro de loja para queries do Supabase
@@ -53,14 +49,14 @@ export function useLojaFilter() {
    * ```
    */
   const getLojaFilter = useMemo(() => {
-    return (): number | null => {
+    return (): number[] | null => {
       // Admin ou todas as lojas = sem filtro
       if (isAdmin || todasLojas) return null;
 
-      // Retorna a loja específica do usuário
-      return lojaId;
+      // Retorna as lojas do usuário (vazio também significa "sem filtro útil")
+      return lojaIds.length > 0 ? lojaIds : null;
     };
-  }, [isAdmin, todasLojas, lojaId]);
+  }, [isAdmin, todasLojas, lojaIds]);
 
   /**
    * Aplica filtro de loja em uma query do Supabase
@@ -76,14 +72,8 @@ export function useLojaFilter() {
     query: T,
     campo: string = "loja_id",
   ): T => {
-    const filtro = getLojaFilter();
-
-    if (filtro !== null) {
-      // @ts-ignore - Supabase query builder
-      return query.eq(campo, filtro);
-    }
-
-    return query;
+    // Aplica .eq (1 loja) ou .in (N lojas) automaticamente. No-op se sem filtro.
+    return aplicarEscopoLoja(query, campo, getLojaFilter());
   };
 
   /**
@@ -106,8 +96,8 @@ export function useLojaFilter() {
       return items;
     }
 
-    // Filtrar apenas items da loja específica
-    return items.filter((item) => item[campo] === filtro);
+    // Filtrar apenas items das lojas do usuário
+    return items.filter((item) => filtro.includes(item[campo]));
   };
 
   /**
@@ -122,37 +112,35 @@ export function useLojaFilter() {
       return "Você tem acesso a todas as lojas";
     }
 
-    if (lojaId) {
-      return `Você tem acesso apenas à loja ID: ${lojaId}`;
+    if (lojaIds.length === 1) {
+      return `Você tem acesso apenas à loja ID: ${lojaIds[0]}`;
+    }
+
+    if (lojaIds.length > 1) {
+      return `Você tem acesso às lojas: ${lojaIds.join(", ")}`;
     }
 
     return "Nenhuma loja configurada. Entre em contato com o administrador.";
-  }, [isAdmin, todasLojas, lojaId]);
+  }, [isAdmin, todasLojas, lojaIds]);
 
   /**
    * Indica se o usuário tem permissão de visualizar dados de múltiplas lojas
    */
   const podeVerTodasLojas = useMemo(() => {
-    const resultado = isAdmin || todasLojas;
-
-    console.log("🔍 [podeVerTodasLojas] Recalculado:", resultado, {
-      isAdmin,
-      todasLojas,
-    });
-
-    return resultado;
+    return isAdmin || todasLojas;
   }, [isAdmin, todasLojas]);
 
   /**
    * Indica se o usuário precisa de filtro de loja
    */
   const precisaFiltro = useMemo(() => {
-    return !isAdmin && !todasLojas && lojaId !== null;
-  }, [isAdmin, todasLojas, lojaId]);
+    return !isAdmin && !todasLojas && lojaIds.length > 0;
+  }, [isAdmin, todasLojas, lojaIds]);
 
   return {
     // Dados
     lojaId,
+    lojaIds,
     todasLojas,
     podeVerTodasLojas,
     precisaFiltro,

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import {
   CaixaCompleto,
   AbrirCaixaParams,
@@ -160,7 +161,7 @@ export class CaixaService {
 
   // Listar caixas com filtros
   static async listarCaixas(filtros?: {
-    loja_id?: number;
+    loja_id?: number | number[];
     status?: "aberto" | "fechado";
     data_inicio?: string;
     data_fim?: string;
@@ -182,7 +183,7 @@ export class CaixaService {
         .order("data_abertura", { ascending: false });
 
       if (filtros?.loja_id) {
-        query = query.eq("loja_id", filtros.loja_id);
+        query = aplicarEscopoLoja(query, "loja_id", filtros.loja_id);
       }
 
       if (filtros?.status) {
@@ -955,7 +956,7 @@ export class CaixaService {
 
   // Buscar resumo agregado do histórico (totais de todos os caixas, sem paginação)
   static async buscarResumoHistorico(filtros?: {
-    loja_id?: number;
+    loja_id?: number | number[];
     data_inicio?: string;
     data_fim?: string;
   }): Promise<{
@@ -971,7 +972,7 @@ export class CaixaService {
         .limit(10000);
 
       if (filtros?.loja_id) {
-        query = query.eq("loja_id", filtros.loja_id);
+        query = aplicarEscopoLoja(query, "loja_id", filtros.loja_id);
       }
 
       if (filtros?.data_inicio) {

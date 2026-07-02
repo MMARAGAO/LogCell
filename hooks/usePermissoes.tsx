@@ -208,6 +208,14 @@ export function usePermissoes() {
     return permissoesRequeridas.some((p) => permissoes.includes(p));
   };
 
+  // Lista de lojas do usuário (multi-loja). Por enquanto derivada do loja_id
+  // único; quando a coluna loja_ids existir no banco, passa a ler dela aqui.
+  // Manter lojaId (= primeira) para compatibilidade com código legado.
+  const lojaIds = useMemo<number[]>(
+    () => (lojaId != null ? [lojaId] : []),
+    [lojaId],
+  );
+
   // Verificar se é admin
   const isAdmin = perfil === "admin";
 
@@ -264,8 +272,8 @@ export function usePermissoes() {
     // Se tem acesso a todas as lojas
     if (todasLojas) return true;
 
-    // Verificar se é a loja específica do usuário
-    return lojaId === lojaIdVerificar;
+    // Verificar se a loja está entre as do usuário
+    return lojaIds.includes(lojaIdVerificar);
   };
 
   return {
@@ -281,6 +289,7 @@ export function usePermissoes() {
     getDescontoMaximo,
     validarDesconto,
     lojaId,
+    lojaIds,
     todasLojas,
     temAcessoLoja,
   };

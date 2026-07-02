@@ -1,6 +1,7 @@
 import type { BrindeAparelho } from "@/types/aparelhos";
 
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 
 interface RegistrarBrindeInput {
   loja_id: number;
@@ -36,7 +37,7 @@ export const BrindesAparelhosService = {
   async somarBrindesPeriodo(params: {
     dataInicio: string;
     dataFim: string;
-    lojaId?: number;
+    lojaId?: number | number[];
   }): Promise<number> {
     const inicioISO = `${params.dataInicio}T00:00:00`;
     const fimISO = `${params.dataFim}T23:59:59`;
@@ -54,7 +55,7 @@ export const BrindesAparelhosService = {
         .lte("data_ocorrencia", fimISO)
         .range(from, to);
 
-      if (params.lojaId) query = query.eq("loja_id", params.lojaId);
+      query = aplicarEscopoLoja(query, "loja_id", params.lojaId);
 
       const { data, error } = await query;
 

@@ -1,7 +1,7 @@
 export interface DashboardAparelhosFiltro {
   data_inicio: string;
   data_fim: string;
-  loja_id?: number;
+  loja_id?: number | number[];
 }
 
 export interface LinhaRanking {

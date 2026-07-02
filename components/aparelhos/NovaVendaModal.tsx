@@ -52,7 +52,7 @@ export function NovaVendaModal({
   );
   const { usuario } = useAuthContext();
   const toast = useToast();
-  const { temPermissao } = usePermissoes();
+  const { temPermissao, temAcessoLoja } = usePermissoes();
 
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -203,22 +203,26 @@ export function NovaVendaModal({
       .select("id, nome")
       .order("nome");
 
-    setLojas(lj || []);
+    // Escopo: admin vê todas; não-admin só as lojas dele (temAcessoLoja já
+    // considera 1 ou N lojas). Na edição, garante a loja original da venda.
+    const lojasAcessiveis = (lj || []).filter(
+      (l) => temAcessoLoja(l.id) || l.id === venda?.loja_id,
+    );
+
+    setLojas(lojasAcessiveis);
 
     const lojasAbertas = new Set<number>();
 
-    if (lj) {
-      for (const loja of lj) {
-        const caixa = await CaixaService.buscarCaixaAberto(loja.id);
+    for (const loja of lojasAcessiveis) {
+      const caixa = await CaixaService.buscarCaixaAberto(loja.id);
 
-        if (caixa) lojasAbertas.add(loja.id);
-      }
+      if (caixa) lojasAbertas.add(loja.id);
     }
     // Em modo edição, sempre inclui a loja original da venda
     if (venda?.loja_id) lojasAbertas.add(venda.loja_id);
     setLojasComCaixaAberto(lojasAbertas);
 
-    const primeiraAberta = lj?.find((l) => lojasAbertas.has(l.id));
+    const primeiraAberta = lojasAcessiveis.find((l) => lojasAbertas.has(l.id));
 
     setLojaId(venda?.loja_id || primeiraAberta?.id || 0);
   }

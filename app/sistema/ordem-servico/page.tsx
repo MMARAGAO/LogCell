@@ -75,7 +75,7 @@ import {
 } from "@/services/ordemServicoService";
 
 interface FiltrosOrdemServico {
-  idLoja?: number;
+  idLoja?: number | number[];
   status?: StatusOS;
   clienteNome?: string;
   numeroOS?: number;
@@ -112,7 +112,7 @@ export default function OrdemServicoPage() {
   const toast = useToast();
   const { confirm, ConfirmDialog } = useConfirm();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
-  const { lojaId, podeVerTodasLojas } = useLojaFilter();
+  const { lojaIds, podeVerTodasLojas } = useLojaFilter();
 
   // Estados (DEVEM vir antes de qualquer return condicional)
   const [ordensServico, setOrdensServico] = useState<OrdemServico[]>([]);
@@ -175,7 +175,13 @@ export default function OrdemServicoPage() {
       const { LojasService } = await import("@/services/lojasService");
       const data = await LojasService.getLojasAtivas();
 
-      setLojas(data.map((loja) => ({ id: loja.id, nome: loja.nome })));
+      let lojasList = data.map((loja) => ({ id: loja.id, nome: loja.nome }));
+
+      // Não-admin: restringe às lojas do usuário (1 ou N)
+      if (!podeVerTodasLojas && lojaIds.length > 0) {
+        lojasList = lojasList.filter((l) => lojaIds.includes(l.id));
+      }
+      setLojas(lojasList);
     } catch (error) {
       console.error("Erro ao carregar lojas:", error);
       setLojas([]);
@@ -200,9 +206,9 @@ export default function OrdemServicoPage() {
     }
 
     // Aplicar filtro de loja se usuário não tiver acesso a todas
-    if (lojaId !== null && !podeVerTodasLojas) {
-      filtros.idLoja = lojaId;
-      console.log(`🏪 Filtrando Ordens de Serviço da loja ${lojaId}`);
+    if (lojaIds.length > 0 && !podeVerTodasLojas) {
+      // 1 loja → number; N lojas → number[] (o service trata ambos)
+      filtros.idLoja = lojaIds.length === 1 ? lojaIds[0] : lojaIds;
     }
 
     if (busca) {
@@ -245,7 +251,7 @@ export default function OrdemServicoPage() {
     carregarOrdensServico();
   }, [
     statusFiltro,
-    lojaId,
+    lojaIds,
     podeVerTodasLojas,
     filtroDataInicio,
     filtroDataFim,

@@ -7,6 +7,7 @@ import type {
 } from "@/types/dashboardAparelhos";
 
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import { BrindesAparelhosService } from "@/services/brindesAparelhosService";
 
 interface AparelhoVendaRow {
@@ -159,7 +160,7 @@ export class DashboardAparelhosService {
   private static async buscarAparelhosVendidos(
     inicioISO: string,
     fimISO: string,
-    lojaId?: number,
+    lojaId?: number | number[],
   ): Promise<AparelhoVendaRow[]> {
     const pageSize = 1000;
     let from = 0;
@@ -177,7 +178,7 @@ export class DashboardAparelhosService {
         .lte("data_venda", fimISO)
         .range(from, to);
 
-      if (lojaId) query = query.eq("loja_id", lojaId);
+      query = aplicarEscopoLoja(query, "loja_id", lojaId);
 
       const { data, error } = await query;
 

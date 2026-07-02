@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@heroui/button";
 import { Input } from "@heroui/input";
 import { Select, SelectItem } from "@heroui/select";
@@ -151,6 +151,7 @@ export default function AparelhosPage() {
   const {
     temPermissao,
     lojaId,
+    lojaIds,
     todasLojas,
     loading: loadingPermissoes,
   } = usePermissoes();
@@ -234,11 +235,22 @@ export default function AparelhosPage() {
   const podeVerDashboard = temPermissao("aparelhos.ver_dashboard");
   const podeRegistrarDevolucao = temPermissao("devolucoes.criar");
   const podeVerHistoricoDevolucao = temPermissao("devolucoes.visualizar");
-  const lojaIdFinal = todasLojas ? null : lojaId;
+  // Escopo de LEITURA (filtra a lista/KPIs): null = todas; 1 loja = number; N = number[]
+  const lojaScope = useMemo<number | number[] | null>(() => {
+    if (todasLojas || lojaIds.length === 0) return null;
+
+    return lojaIds.length === 1 ? lojaIds[0] : lojaIds;
+  }, [todasLojas, lojaIds]);
+  // Loja padrão para modais de operação (loja única; admin escolhe = undefined)
+  const lojaModalPadrao: number | undefined = todasLojas
+    ? undefined
+    : (lojaId ?? lojaIds[0]);
 
   useEffect(() => {
     const carregarLojas = async () => {
-      if (!todasLojas) return;
+      // Admin vê todas; não-admin com 2+ lojas escolhe entre as dele;
+      // com 1 loja não há seletor de criação (usa a loja única).
+      if (!todasLojas && lojaIds.length <= 1) return;
       try {
         const { data, error } = await supabase
           .from("lojas")
@@ -246,7 +258,12 @@ export default function AparelhosPage() {
           .order("nome");
 
         if (error) throw error;
-        setLojas(data || []);
+        let lojasData = data || [];
+
+        if (!todasLojas && lojaIds.length > 1) {
+          lojasData = lojasData.filter((l: any) => lojaIds.includes(l.id));
+        }
+        setLojas(lojasData);
       } catch (error) {
         console.error("Erro ao carregar lojas:", error);
         setLojas([]);
@@ -254,7 +271,7 @@ export default function AparelhosPage() {
     };
 
     carregarLojas();
-  }, [todasLojas]);
+  }, [todasLojas, lojaIds]);
 
   // Debounce da busca: ao digitar (ou ao escanear IMEI), aguarda 400ms,
   // volta para a primeira página e dispara o recarregamento.
@@ -272,19 +289,19 @@ export default function AparelhosPage() {
     if (podeVisualizar) {
       carregarDados();
     }
-  }, [lojaIdFinal, podeVisualizar, filtros, paginaAtual, buscaDebounced]);
+  }, [lojaScope, podeVisualizar, filtros, paginaAtual, buscaDebounced]);
 
   useEffect(() => {
     if (podeVisualizar && podeVerDashboard) {
       carregarKpis();
     }
-  }, [lojaIdFinal, podeVisualizar, podeVerDashboard]);
+  }, [lojaScope, podeVisualizar, podeVerDashboard]);
 
   async function carregarKpis() {
     try {
       setLoadingKpis(true);
       const k = await AparelhosDashboardService.getKpis({
-        loja_id: lojaIdFinal || undefined,
+        loja_id: lojaScope ?? undefined,
       });
 
       setKpis(k);
@@ -301,7 +318,7 @@ export default function AparelhosPage() {
       const filtrosComLoja: FiltrosAparelhos = {
         ...filtros,
         busca: buscaDebounced || undefined,
-        loja_id: lojaIdFinal || undefined,
+        loja_id: lojaScope ?? undefined,
         status: filtros.status === "com_pagamento" ? undefined : filtros.status,
         page: paginaAtual,
         pageSize: itensPorPagina,
@@ -1687,7 +1704,7 @@ export default function AparelhosPage() {
         {modalFormAberto && (
           <AparelhoFormModal
             aparelho={aparelhoParaEditar}
-            lojaId={lojaIdFinal || undefined}
+            lojaId={lojaModalPadrao}
             lojas={lojas}
             onClose={handleFecharForm}
           />
@@ -1712,7 +1729,7 @@ export default function AparelhosPage() {
           <RecebimentoAparelhoModal
             aparelho={aparelhoParaReceber}
             isOpen={modalRecebimentoAberto}
-            lojaId={lojaIdFinal || undefined}
+            lojaId={lojaModalPadrao}
             onClose={async (sucesso) => {
               setModalRecebimentoAberto(false);
               setAparelhoParaReceber(undefined);
@@ -1728,7 +1745,7 @@ export default function AparelhosPage() {
           <VendaAparelhoModal
             aparelho={aparelhoParaVender}
             isOpen={modalVendaAberto}
-            lojaId={lojaIdFinal || 1}
+            lojaId={lojaModalPadrao ?? 1}
             onClose={async (sucesso) => {
               setModalVendaAberto(false);
               setAparelhoParaVender(undefined);
@@ -1744,7 +1761,7 @@ export default function AparelhosPage() {
           <ModalDevolucaoAparelho
             aparelho={aparelhoParaDevolucao}
             isOpen={modalDevolucaoAberto}
-            lojaId={lojaIdFinal || 1}
+            lojaId={lojaModalPadrao ?? 1}
             onClose={() => {
               setModalDevolucaoAberto(false);
               setAparelhoParaDevolucao(undefined);

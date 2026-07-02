@@ -105,7 +105,7 @@ export default function EstoquePage() {
     loading: loadingPermissoes,
     permissoes,
   } = usePermissoes();
-  const { filtrarPorLoja, podeVerTodasLojas, lojaId } = useLojaFilter();
+  const { filtrarPorLoja, podeVerTodasLojas, lojaIds } = useLojaFilter();
   const toast = useToast();
   const searchParams = useSearchParams();
   const buscaParam = searchParams.get("busca");
@@ -194,7 +194,7 @@ export default function EstoquePage() {
       carregarLojas();
       carregarFiltros();
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
+  }, [loadingPermissoes, lojaIds, podeVerTodasLojas]);
 
   // Re-carregar quando filtros mudarem
   useEffect(() => {
@@ -234,11 +234,12 @@ export default function EstoquePage() {
       const podeVerOutrasLojas =
         podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas");
 
-      if (lojaId !== null && !podeVerOutrasLojas) {
+      if (lojaIds.length > 0 && !podeVerOutrasLojas) {
         dados = dados.map((produto: any) => {
           const estoquesFiltrados =
-            produto.estoques_lojas?.filter((e: any) => e.id_loja === lojaId) ||
-            [];
+            produto.estoques_lojas?.filter((e: any) =>
+              lojaIds.includes(e.id_loja),
+            ) || [];
 
           return {
             ...produto,
@@ -334,11 +335,12 @@ export default function EstoquePage() {
       const podeVerOutrasLojas =
         podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas");
 
-      if (lojaId !== null && !podeVerOutrasLojas) {
+      if (lojaIds.length > 0 && !podeVerOutrasLojas) {
         dados = dados.map((produto: any) => {
           const estoquesFiltrados =
-            produto.estoques_lojas?.filter((e: any) => e.id_loja === lojaId) ||
-            [];
+            produto.estoques_lojas?.filter((e: any) =>
+              lojaIds.includes(e.id_loja),
+            ) || [];
 
           return {
             ...produto,

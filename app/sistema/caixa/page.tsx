@@ -64,6 +64,7 @@ import { CaixaCompleto, ResumoCaixa, MovimentacaoCaixa } from "@/types/caixa";
 import { supabase } from "@/lib/supabaseClient";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 
 const ITENS_POR_PAGINA_HISTORICO = 10;
@@ -77,7 +78,7 @@ interface LojaComCaixa {
 export default function CaixaPage() {
   const { usuario } = useAuth();
   const { temPermissao, loading: loadingPermissoes } = usePermissoes();
-  const { aplicarFiltroLoja, lojaId, podeVerTodasLojas } = useLojaFilter();
+  const { lojaIds, podeVerTodasLojas } = useLojaFilter();
 
   const [lojas, setLojas] = useState<LojaComCaixa[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +132,7 @@ export default function CaixaPage() {
       carregarLojas();
       carregarHistorico();
     }
-  }, [loadingPermissoes, lojaId, podeVerTodasLojas]);
+  }, [loadingPermissoes, lojaIds, podeVerTodasLojas]);
 
   useEffect(() => {
     if (abaAtiva === "historico") {
@@ -170,9 +171,8 @@ export default function CaixaPage() {
         .order("nome");
 
       // Aplicar filtro de loja se usuário não tiver acesso a todas
-      if (lojaId !== null && !podeVerTodasLojas) {
-        query = query.eq("id", lojaId);
-        console.log(`🏪 Filtrando caixa da loja ${lojaId}`);
+      if (lojaIds.length > 0 && !podeVerTodasLojas) {
+        query = aplicarEscopoLoja(query, "id", lojaIds);
       }
 
       const { data, error } = await query;
@@ -214,8 +214,8 @@ export default function CaixaPage() {
 
       if (lojaFiltroHistorico !== "todos") {
         filtros.loja_id = parseInt(lojaFiltroHistorico);
-      } else if (lojaId !== null && !podeVerTodasLojas) {
-        filtros.loja_id = lojaId;
+      } else if (lojaIds.length > 0 && !podeVerTodasLojas) {
+        filtros.loja_id = lojaIds.length === 1 ? lojaIds[0] : lojaIds;
       }
 
       if (dataInicioHistorico) {

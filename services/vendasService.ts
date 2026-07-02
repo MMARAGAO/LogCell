@@ -9,6 +9,7 @@
 } from "@/types/vendas";
 
 import { supabase } from "@/lib/supabaseClient";
+import { aplicarEscopoLoja } from "@/lib/lojaScope";
 
 export class VendasService {
   /**
@@ -1450,7 +1451,7 @@ export class VendasService {
   static async listarVendas(filtros?: {
     cliente_id?: string;
     vendedor_id?: string;
-    loja_id?: number;
+    loja_id?: number | number[];
     status?: string;
     data_inicio?: string;
     data_fim?: string;
@@ -1481,7 +1482,7 @@ export class VendasService {
         query = query.eq("vendedor_id", filtros.vendedor_id);
       }
       if (filtros?.loja_id) {
-        query = query.eq("loja_id", filtros.loja_id);
+        query = aplicarEscopoLoja(query, "loja_id", filtros.loja_id);
       }
       if (filtros?.status) {
         query = query.eq("status", filtros.status);
