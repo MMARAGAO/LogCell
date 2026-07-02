@@ -466,29 +466,53 @@ export default function VendasAparelhosPage() {
             allData?.map((a: any) => a.venda_id).filter(Boolean) as string[],
           ),
         );
-        const { data: allPagtos } =
+        // Busca em LOTES: um .in() com centenas de UUIDs estoura o limite de
+        // tamanho de URL do proxy e retorna vazio (faturamento/lucro zerados).
+        const buscarEmLotes = async (
+          tabela: string,
+          colunas: string,
+          campo: string,
+          ids: string[],
+          lote = 60,
+        ): Promise<any[]> => {
+          const out: any[] = [];
+
+          for (let i = 0; i < ids.length; i += lote) {
+            const { data } = await supabase
+              .from(tabela)
+              .select(colunas)
+              .in(campo, ids.slice(i, i + lote));
+
+            if (data) out.push(...data);
+          }
+
+          return out;
+        };
+
+        const allPagtos =
           allVendasIds.length > 0
-            ? await supabase
-                .from("pagamentos_venda")
-                .select("venda_id, valor, liquido, tipo_pagamento")
-                .in("venda_id", allVendasIds)
-            : { data: [] };
-        const { data: allBrindes } =
+            ? await buscarEmLotes(
+                "pagamentos_venda",
+                "venda_id, valor, liquido, tipo_pagamento",
+                "venda_id",
+                allVendasIds,
+              )
+            : [];
+        const allBrindes =
           allVendasIds.length > 0
-            ? await supabase
-                .from("brindes_aparelhos")
-                .select("venda_id, valor_custo")
-                .in("venda_id", allVendasIds)
-            : { data: [] };
-        const { data: allVendas } =
+            ? await buscarEmLotes(
+                "brindes_aparelhos",
+                "venda_id, valor_custo",
+                "venda_id",
+                allVendasIds,
+              )
+            : [];
+        const allVendas =
           allVendasIds.length > 0
-            ? await supabase
-                .from("vendas")
-                .select("id, status")
-                .in("id", allVendasIds)
-            : { data: [] };
+            ? await buscarEmLotes("vendas", "id, status", "id", allVendasIds)
+            : [];
         const allVendasStatus = new Map(
-          allVendas?.map((v: any) => [v.id, v.status]),
+          allVendas.map((v: any) => [v.id, v.status]),
         );
 
         let totalPagos = 0,
@@ -503,6 +527,12 @@ export default function VendasAparelhosPage() {
           brindesTotal[b.venda_id] =
             (brindesTotal[b.venda_id] || 0) + (b.valor_custo || 0);
         });
+        // Agrega POR VENDA — o pagamento é da venda inteira; contar por
+        // aparelho inflava o lucro (atribuía o pagamento total a cada aparelho).
+        const custoApPorVenda: Record<string, number> = {};
+        const dataVendaPorVenda: Record<string, string> = {};
+        const pagtoPorVenda: Record<string, number> = {};
+
         allPagtos?.forEach((p: any) => {
           const vid = p.venda_id;
           const val = p.liquido ?? p.valor;
@@ -512,13 +542,8 @@ export default function VendasAparelhosPage() {
           const tipo = p.tipo_pagamento || "outros";
 
           porTipo[tipo] = (porTipo[tipo] || 0) + val;
+          pagtoPorVenda[vid] = (pagtoPorVenda[vid] || 0) + val;
         });
-        // Agrega POR VENDA — o pagamento é da venda inteira; contar por
-        // aparelho inflava o lucro (atribuía o pagamento total a cada aparelho).
-        const custoApPorVenda: Record<string, number> = {};
-        const dataVendaPorVenda: Record<string, string> = {};
-        const pagtoPorVenda: Record<string, number> = {};
-
         allData?.forEach((a: any) => {
           custoApPorVenda[a.venda_id] =
             (custoApPorVenda[a.venda_id] || 0) + (a.valor_compra || 0);
@@ -529,11 +554,6 @@ export default function VendasAparelhosPage() {
           ) {
             dataVendaPorVenda[a.venda_id] = a.data_venda;
           }
-        });
-        allPagtos?.forEach((p: any) => {
-          if (allVendasStatus.get(p.venda_id) === "cancelada") return;
-          pagtoPorVenda[p.venda_id] =
-            (pagtoPorVenda[p.venda_id] || 0) + (p.liquido ?? p.valor);
         });
         allVendasIds.forEach((vid: string) => {
           totalQtd++;
