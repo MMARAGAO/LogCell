@@ -98,6 +98,16 @@ import { exportarEstoqueParaExcel } from "@/lib/exportarExcel";
 import { MetricCard } from "@/components/dashboard/executive/MetricCard";
 import { ProdutoCard } from "@/components/estoque/ProdutoCard";
 
+// Abrevia o nome da loja removendo o prefixo comum "AUTORIZADA [CELL]" para a
+// visualização por tabela ficar legível (ex.: "AUTORIZADA CELL- FEIRA" -> "FEIRA").
+function abreviarLoja(nome?: string): string {
+  const abrev = (nome || "")
+    .replace(/^autorizada\s*(cell)?[\s-]*/i, "")
+    .trim();
+
+  return abrev || nome || "";
+}
+
 export default function EstoquePage() {
   const { usuario: user } = useAuthContext();
   const {
@@ -1145,14 +1155,15 @@ export default function EstoquePage() {
                       <TableCell>
                         {produto.estoques_lojas &&
                         produto.estoques_lojas.length > 0 ? (
-                          <div className="flex max-w-[240px] flex-wrap gap-1">
+                          <div className="flex max-w-[280px] flex-wrap gap-1">
                             {produto.estoques_lojas.map((estoque: any) => (
                               <span
                                 key={estoque.id_loja}
                                 className="inline-flex items-center gap-1 rounded-md bg-default-100 px-1.5 py-0.5 text-xs dark:bg-default-100/10"
+                                title={estoque.loja_nome}
                               >
-                                <span className="max-w-[90px] truncate text-default-500">
-                                  {estoque.loja_nome}
+                                <span className="text-default-500">
+                                  {abreviarLoja(estoque.loja_nome)}
                                 </span>
                                 <span
                                   className={`font-semibold tabular-nums ${
