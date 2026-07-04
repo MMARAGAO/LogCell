@@ -418,8 +418,10 @@ export default function VendasPage() {
 
     // Envia todos os filtros ativos para o servidor
     if (busca) filtros.cliente_nome = busca;
-    if (filtroDataInicio) filtros.data_inicio = filtroDataInicio;
-    if (filtroDataFim) filtros.data_fim = filtroDataFim;
+    // Quando ha busca (nº da venda ou nome), ignora o filtro de data para
+    // encontrar a venda em qualquer periodo (senao so aparece no dia filtrado).
+    if (!busca && filtroDataInicio) filtros.data_inicio = filtroDataInicio;
+    if (!busca && filtroDataFim) filtros.data_fim = filtroDataFim;
     if (filtroStatus !== "todas") filtros.status = filtroStatus;
     if (filtroCliente !== "todos") filtros.cliente_id = filtroCliente;
     if (filtroLoja !== "todas" && podeVerTodasLojas) {

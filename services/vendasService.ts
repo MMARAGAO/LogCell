@@ -1491,20 +1491,31 @@ export class VendasService {
       }
 
       if (filtros?.cliente_nome) {
+        const termo = filtros.cliente_nome.trim();
+
         const { data: clientes } = await supabase
           .from("clientes")
           .select("id")
-          .ilike("nome", `%${filtros.cliente_nome}%`)
+          .ilike("nome", `%${termo}%`)
           .limit(10000);
 
-        if (clientes && clientes.length > 0) {
-          query = query.in(
-            "cliente_id",
-            clientes.map((c) => c.id),
-          );
-        } else {
+        const clienteIds = (clientes || []).map((c) => c.id);
+        const condicoes: string[] = [];
+
+        // Numero da venda (quando o termo for numerico) — acha a venda direto
+        if (/^\d+$/.test(termo)) {
+          condicoes.push(`numero_venda.eq.${termo}`);
+        }
+        // Nome do cliente
+        if (clienteIds.length > 0) {
+          condicoes.push(`cliente_id.in.(${clienteIds.join(",")})`);
+        }
+
+        if (condicoes.length === 0) {
           return [];
         }
+
+        query = query.or(condicoes.join(","));
       }
 
       const { data, error } = await query;

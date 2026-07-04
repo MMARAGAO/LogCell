@@ -197,11 +197,13 @@ export default function OrdemServicoPage() {
       filtros.status = statusFiltro;
     }
 
-    if (filtroDataInicio) {
+    // Quando ha busca (nº da OS, nome, CPF/CNPJ), ignora o filtro de data para
+    // encontrar a OS em qualquer periodo (senao so aparece no dia filtrado).
+    if (!busca && filtroDataInicio) {
       filtros.dataInicio = filtroDataInicio;
     }
 
-    if (filtroDataFim) {
+    if (!busca && filtroDataFim) {
       filtros.dataFim = filtroDataFim;
     }
 
