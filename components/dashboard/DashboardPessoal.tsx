@@ -618,90 +618,29 @@ export default function DashboardPessoal() {
 
       // Calcula lucro dos aparelhos no período
       let lucroAparelhosPeriodo = 0;
-      let lucroAparelhosHoje = 0;
-      let lucroAparelhosMes = 0;
+      // hoje/mes de aparelho nao sao exibidos (card mostra apenas o periodo)
+      const lucroAparelhosHoje = 0;
+      const lucroAparelhosMes = 0;
 
+      // Lucro de aparelhos: usa a MESMA funcao do dashboard principal
+      // (calcular_metricas_vendedores -> proporcional ao pago), garantindo que
+      // o Dashboard Pessoal bata com o ranking/cards. Antes era margem cheia
+      // recalculada no cliente (divergia do principal).
       try {
-        const { data: aparelhosVendidos } = await supabase
-          .from("aparelhos")
-          .select(
-            `
-            id, valor_venda, valor_compra, data_venda,
-            venda_id,
-            venda:vendas!inner(vendedor_id)
-          `,
-          )
-          .eq("status", "vendido")
-          .eq("venda.vendedor_id", usuario.id)
-          .not("venda_id", "is", null)
-          .gte("data_venda", inicioEscopoISO)
-          .lte("data_venda", fimEscopoISO);
+        const { data: metricasVend } = await supabase.rpc(
+          "calcular_metricas_vendedores",
+          {
+            p_data_inicio: inicioEscopoISO,
+            p_data_fim: fimEscopoISO,
+            p_loja_id: null,
+          },
+        );
 
-        if (aparelhosVendidos && aparelhosVendidos.length > 0) {
-          const vendaIds = Array.from(
-            new Set(
-              aparelhosVendidos.map((a: any) => a.venda_id).filter(Boolean),
-            ),
-          );
+        const minhas = (metricasVend || []).find(
+          (m: any) => m.vendedor_id === usuario.id,
+        );
 
-          const { data: brindesData } = await supabase
-            .from("brindes_aparelhos")
-            .select("venda_id, valor_custo")
-            .in("venda_id", vendaIds);
-
-          const { data: taxasData } = await supabase
-            .from("pagamentos_venda")
-            .select("venda_id, valor, liquido")
-            .in("venda_id", vendaIds)
-            .in("tipo_pagamento", ["cartao_credito", "cartao_debito"]);
-
-          const brindesPorVenda: Record<string, number> = {};
-
-          brindesData?.forEach((b: any) => {
-            brindesPorVenda[b.venda_id] =
-              (brindesPorVenda[b.venda_id] || 0) + (b.valor_custo || 0);
-          });
-
-          const taxasPorVenda: Record<string, number> = {};
-
-          taxasData?.forEach((p: any) => {
-            const taxa = (p.valor || 0) - (p.liquido || 0);
-
-            if (taxa > 0) {
-              taxasPorVenda[p.venda_id] =
-                (taxasPorVenda[p.venda_id] || 0) + taxa;
-            }
-          });
-
-          const chaveHojeData = getDateKeyInTimezone(new Date().toISOString());
-          const chaveMesAtualLocal = chaveHojeData.slice(0, 7);
-          const inicioMesLucro = new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            1,
-          )
-            .toISOString()
-            .split("T")[0];
-
-          aparelhosVendidos.forEach((a: any) => {
-            const vendaId = a.venda_id;
-            const custo =
-              (a.valor_compra || 0) +
-              (brindesPorVenda[vendaId] || 0) +
-              (taxasPorVenda[vendaId] || 0);
-            const lucro = (a.valor_venda || 0) - custo;
-            const dataVenda = a.data_venda?.split("T")[0] || "";
-
-            lucroAparelhosPeriodo += lucro;
-
-            if (dataVenda === chaveHojeData) {
-              lucroAparelhosHoje += lucro;
-            }
-            if (dataVenda.startsWith(chaveMesAtualLocal)) {
-              lucroAparelhosMes += lucro;
-            }
-          });
-        }
+        lucroAparelhosPeriodo = Number(minhas?.lucro_aparelhos || 0);
       } catch (err) {
         console.error("Erro ao calcular lucro de aparelhos:", err);
       }
@@ -1706,9 +1645,7 @@ export default function DashboardPessoal() {
                   {formatarMoeda(metricas.vendasTipo.produtosPeriodo)}
                 </p>
                 <p className="text-xs text-emerald-500 dark:text-emerald-400 mt-0.5">
-                  {metricas.vendasHoje.total > 0
-                    ? `R$ ${((metricas.vendasTipo.produtosHoje / metricas.vendasHoje.total) * 100).toFixed(0)}% do recebido hoje`
-                    : "—"}
+                  Recebido no período
                 </p>
               </div>
             </div>
