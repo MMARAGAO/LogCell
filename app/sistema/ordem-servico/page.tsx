@@ -197,13 +197,16 @@ export default function OrdemServicoPage() {
       filtros.status = statusFiltro;
     }
 
-    // Quando ha busca (nº da OS, nome, CPF/CNPJ), ignora o filtro de data para
-    // encontrar a OS em qualquer periodo (senao so aparece no dia filtrado).
-    if (!busca && filtroDataInicio) {
+    // Busca por NUMERO (termo so digitos) = lookup unico -> ignora a data para
+    // achar a OS em qualquer periodo. Busca por texto (nome/CPF) combina com o
+    // periodo. Datas em branco = sem filtro (mostra tudo desde o inicio).
+    const buscaNumerica = /^\d+$/.test(busca.trim());
+
+    if (filtroDataInicio && !buscaNumerica) {
       filtros.dataInicio = filtroDataInicio;
     }
 
-    if (!busca && filtroDataFim) {
+    if (filtroDataFim && !buscaNumerica) {
       filtros.dataFim = filtroDataFim;
     }
 
@@ -873,8 +876,9 @@ export default function OrdemServicoPage() {
     setBusca("");
     setStatusFiltro("");
     setFiltroLoja("todas");
-    setFiltroDataInicio(hoje);
-    setFiltroDataFim(hoje);
+    // Datas em branco = sem filtro de periodo (mostra tudo desde o inicio)
+    setFiltroDataInicio("");
+    setFiltroDataFim("");
     setOrdenacao("mais_recentes");
   };
 

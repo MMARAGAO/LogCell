@@ -418,10 +418,14 @@ export default function VendasPage() {
 
     // Envia todos os filtros ativos para o servidor
     if (busca) filtros.cliente_nome = busca;
-    // Quando ha busca (nº da venda ou nome), ignora o filtro de data para
-    // encontrar a venda em qualquer periodo (senao so aparece no dia filtrado).
-    if (!busca && filtroDataInicio) filtros.data_inicio = filtroDataInicio;
-    if (!busca && filtroDataFim) filtros.data_fim = filtroDataFim;
+    // Busca por NUMERO (termo so digitos) = lookup unico -> ignora a data para
+    // achar a venda em qualquer periodo. Busca por NOME combina com o periodo.
+    // Datas em branco = sem filtro (mostra tudo desde o inicio).
+    const buscaNumerica = /^\d+$/.test(busca.trim());
+
+    if (filtroDataInicio && !buscaNumerica)
+      filtros.data_inicio = filtroDataInicio;
+    if (filtroDataFim && !buscaNumerica) filtros.data_fim = filtroDataFim;
     if (filtroStatus !== "todas") filtros.status = filtroStatus;
     if (filtroCliente !== "todos") filtros.cliente_id = filtroCliente;
     if (filtroLoja !== "todas" && podeVerTodasLojas) {
@@ -1433,8 +1437,9 @@ export default function VendasPage() {
     setFiltroLoja("todas");
     setFiltroFormaPagamento("todas");
     setFiltroCliente("todos");
-    setFiltroDataInicio(hoje);
-    setFiltroDataFim(hoje);
+    // Datas em branco = sem filtro de periodo (mostra tudo desde o inicio)
+    setFiltroDataInicio("");
+    setFiltroDataFim("");
     setFiltroVencidas(false);
     setOrdenacao("mais_recentes");
   };
