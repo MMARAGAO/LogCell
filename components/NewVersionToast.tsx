@@ -35,7 +35,21 @@ export function NewVersionToast() {
     fetchVersion();
     const interval = setInterval(fetchVersion, CHECK_INTERVAL);
 
-    return () => clearInterval(interval);
+    // Em mobile, o app fica em segundo plano (troca de app, tela bloqueada)
+    // e o navegador pausa o setInterval. Sem isso, o dispositivo pode ficar
+    // dias rodando um bundle JS antigo sem nunca notar que há versão nova.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchVersion();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, [fetchVersion]);
 
   if (!visible) return null;

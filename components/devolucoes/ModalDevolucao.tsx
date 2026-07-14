@@ -125,13 +125,19 @@ export function ModalDevolucao({
       0,
     );
 
-    // Calcular desconto baseado apenas nos itens sendo devolvidos
-    const descontoItens = itensDevolucao.reduce((total, item) => {
-      // Desconto proporcional à quantidade devolvida
-      return total + item.desconto_unitario * item.quantidade_devolver;
-    }, 0);
+    if (subtotalItens === 0) return 0;
 
-    return subtotalItens - descontoItens;
+    // Aplica o mesmo desconto proporcional do backend (processarDevolucao)
+    // percentualDesconto = valor_desconto / valor_total (preço final)
+    let totalComDesconto = subtotalItens;
+
+    if (venda.valor_desconto > 0 && venda.valor_total > 0) {
+      const percentualDesconto = venda.valor_desconto / venda.valor_total;
+      const descontoProporcional = subtotalItens * percentualDesconto;
+      totalComDesconto = subtotalItens - descontoProporcional;
+    }
+
+    return totalComDesconto;
   };
 
   const validarDevolucao = (): boolean => {
