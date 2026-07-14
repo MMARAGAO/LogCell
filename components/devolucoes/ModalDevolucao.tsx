@@ -127,12 +127,11 @@ export function ModalDevolucao({
 
     if (subtotalItens === 0) return 0;
 
-    // Aplica o mesmo desconto proporcional do backend (processarDevolucao)
-    // percentualDesconto = valor_desconto / valor_total (preço final)
     let totalComDesconto = subtotalItens;
 
     if (venda.valor_desconto > 0 && venda.valor_total > 0) {
-      const percentualDesconto = venda.valor_desconto / venda.valor_total;
+      const subtotalOriginal = venda.valor_total + venda.valor_desconto;
+      const percentualDesconto = venda.valor_desconto / subtotalOriginal;
       const descontoProporcional = subtotalItens * percentualDesconto;
       totalComDesconto = subtotalItens - descontoProporcional;
     }

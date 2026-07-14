@@ -1760,7 +1760,8 @@ export class VendasService {
       let valorDevolvido = subtotalItens;
 
       if (venda.valor_desconto > 0 && venda.valor_total > 0) {
-        const percentualDesconto = venda.valor_desconto / venda.valor_total;
+        const subtotalOriginal = venda.valor_total + venda.valor_desconto;
+        const percentualDesconto = venda.valor_desconto / subtotalOriginal;
         const descontoProporcional = subtotalItens * percentualDesconto;
 
         valorDevolvido = subtotalItens - descontoProporcional;
