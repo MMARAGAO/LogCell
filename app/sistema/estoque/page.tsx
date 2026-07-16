@@ -101,9 +101,7 @@ import { ProdutoCard } from "@/components/estoque/ProdutoCard";
 // Abrevia o nome da loja removendo o prefixo comum "AUTORIZADA [CELL]" para a
 // visualização por tabela ficar legível (ex.: "AUTORIZADA CELL- FEIRA" -> "FEIRA").
 function abreviarLoja(nome?: string): string {
-  const abrev = (nome || "")
-    .replace(/^autorizada\s*(cell)?[\s-]*/i, "")
-    .trim();
+  const abrev = (nome || "").replace(/^autorizada\s*(cell)?[\s-]*/i, "").trim();
 
   return abrev || nome || "";
 }
@@ -139,6 +137,7 @@ export default function EstoquePage() {
   const [marcaFiltro, setMarcaFiltro] = useState<string>("todos");
   const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todos");
   const [estoqueFiltro, setEstoqueFiltro] = useState<string>("todos");
+  const [lojaFiltro, setLojaFiltro] = useState<string>("todos");
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [marcasDisponiveis, setMarcasDisponiveis] = useState<string[]>([]);
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>(
@@ -217,6 +216,7 @@ export default function EstoquePage() {
     marcaFiltro,
     categoriaFiltro,
     estoqueFiltro,
+    lojaFiltro,
     paginaAtual,
   ]);
 
@@ -249,6 +249,27 @@ export default function EstoquePage() {
           const estoquesFiltrados =
             produto.estoques_lojas?.filter((e: any) =>
               lojaIds.includes(e.id_loja),
+            ) || [];
+
+          return {
+            ...produto,
+            estoques_lojas: estoquesFiltrados,
+            total_estoque: estoquesFiltrados.reduce(
+              (sum: number, e: any) => sum + (e.quantidade || 0),
+              0,
+            ),
+          };
+        });
+      }
+
+      // Filtro manual de loja (selecionado no drawer de filtros)
+      if (lojaFiltro !== "todos") {
+        const idLojaFiltro = Number(lojaFiltro);
+
+        dados = dados.map((produto: any) => {
+          const estoquesFiltrados =
+            produto.estoques_lojas?.filter(
+              (e: any) => e.id_loja === idLojaFiltro,
             ) || [];
 
           return {
@@ -350,6 +371,26 @@ export default function EstoquePage() {
           const estoquesFiltrados =
             produto.estoques_lojas?.filter((e: any) =>
               lojaIds.includes(e.id_loja),
+            ) || [];
+
+          return {
+            ...produto,
+            estoques_lojas: estoquesFiltrados,
+            total_estoque: estoquesFiltrados.reduce(
+              (sum: number, e: any) => sum + (e.quantidade || 0),
+              0,
+            ),
+          };
+        });
+      }
+
+      if (lojaFiltro !== "todos") {
+        const idLojaFiltro = Number(lojaFiltro);
+
+        dados = dados.map((produto: any) => {
+          const estoquesFiltrados =
+            produto.estoques_lojas?.filter(
+              (e: any) => e.id_loja === idLojaFiltro,
             ) || [];
 
           return {
@@ -611,6 +652,14 @@ export default function EstoquePage() {
     setModalProduto(true);
   };
 
+  // Lojas que o usuário pode filtrar (respeitando o escopo de acesso)
+  const podeVerOutrasLojas =
+    podeVerTodasLojas || temPermissao("estoque.ver_estoque_outras_lojas");
+  const lojasFiltraveis = podeVerOutrasLojas
+    ? lojas
+    : lojas.filter((loja) => lojaIds.includes(loja.id));
+  const mostrarFiltroLoja = lojasFiltraveis.length > 1;
+
   // Preparar items para os Autocomplete de filtros
   const marcasItems = [
     { key: "todos", label: "Todas as Marcas" },
@@ -631,6 +680,7 @@ export default function EstoquePage() {
     setMarcaFiltro("todos");
     setCategoriaFiltro("todos");
     setEstoqueFiltro("todos");
+    setLojaFiltro("todos");
     setStatusFiltro("ativos");
   };
 
@@ -671,6 +721,17 @@ export default function EstoquePage() {
       label: `Status: ${STATUS_LABEL[statusFiltro] ?? statusFiltro}`,
       onRemove: () => setStatusFiltro("ativos"),
     });
+  if (lojaFiltro !== "todos") {
+    const lojaNome = lojasFiltraveis.find(
+      (l) => String(l.id) === lojaFiltro,
+    )?.nome;
+
+    chipsFiltros.push({
+      key: "loja",
+      label: `Loja: ${lojaNome || lojaFiltro}`,
+      onRemove: () => setLojaFiltro("todos"),
+    });
+  }
 
   // Paginação (usando total do servidor)
   const totalPaginas = Math.ceil(totalRegistros / itensPorPagina);
@@ -953,6 +1014,28 @@ export default function EstoquePage() {
               <SelectItem key="inativos">Inativos</SelectItem>
               <SelectItem key="todos">Todos</SelectItem>
             </Select>
+            {mostrarFiltroLoja && (
+              <Select
+                aria-label="Filtro de loja"
+                label="Loja"
+                selectedKeys={[lojaFiltro]}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
+
+                  setLojaFiltro(value || "todos");
+                }}
+              >
+                {
+                  [
+                    <SelectItem key="todos">Todas as Lojas</SelectItem>,
+                    ...lojasFiltraveis.map((loja) => (
+                      <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+                    )),
+                  ] as any
+                }
+              </Select>
+            )}
           </DrawerBody>
           <DrawerFooter>
             <Button variant="flat" onPress={limparTudo}>
