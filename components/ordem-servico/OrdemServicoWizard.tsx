@@ -679,6 +679,9 @@ export default function OrdemServicoWizard({
               />
 
               <Input
+                autoComplete="off"
+                data-form-type="other"
+                data-lpignore="true"
                 label="E-mail"
                 type="email"
                 value={clienteEmail}
@@ -835,6 +838,9 @@ export default function OrdemServicoWizard({
                             }}
                           />
                           <Input
+                            autoComplete="new-password"
+                            data-form-type="other"
+                            data-lpignore="true"
                             label="Senha/PIN (opcional)"
                             type="password"
                             value={ap.equipamento_senha}

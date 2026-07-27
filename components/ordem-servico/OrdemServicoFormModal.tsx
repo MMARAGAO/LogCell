@@ -1126,6 +1126,9 @@ export default function OrdemServicoFormModal({
                     />
 
                     <Input
+                      autoComplete="off"
+                      data-form-type="other"
+                      data-lpignore="true"
                       isReadOnly={!!clienteSelecionado}
                       label="E-mail"
                       placeholder="cliente@email.com"
@@ -1277,6 +1280,9 @@ export default function OrdemServicoFormModal({
                           />
 
                           <Input
+                            autoComplete="new-password"
+                            data-form-type="other"
+                            data-lpignore="true"
                             label="Senha / PIN"
                             type="password"
                             value={ap.equipamento_senha || ""}

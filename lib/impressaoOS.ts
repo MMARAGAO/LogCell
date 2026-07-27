@@ -228,6 +228,8 @@ export const gerarPDFOrdemServico = async (
     y,
     { align: "right" },
   );
+  y += 6;
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
   y += 10;
 
   // Status e Prioridade
@@ -626,6 +628,8 @@ export const gerarOrcamentoOS = async (
     y,
     { align: "right" },
   );
+  y += 6;
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
   y += 10;
 
   // Dados do Cliente
@@ -1165,6 +1169,8 @@ export const gerarGarantiaOS = async (
     y,
     { align: "right" },
   );
+  y += 6;
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
   y += 10;
 
   // Tipo de Garantia e Dias
@@ -1749,7 +1755,8 @@ export const gerarCupomTermicoGarantia = async (
   const tipoGarantiaFinal = tipoGarantia || os.tipo_garantia || "SERVICO";
   const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
 
-  cupom += `Garantia: ${tipoGarantiaFinal.toString().toUpperCase()} - ${diasGarantiaFinal} dias\n\n`;
+  cupom += `Garantia: ${tipoGarantiaFinal.toString().toUpperCase()} - ${diasGarantiaFinal} dias\n`;
+  cupom += `Responsável: ${os.tecnico?.nome || "—"}\n\n`;
 
   // Cliente
   cupom += linhaTracejada + "\n";
@@ -2241,6 +2248,11 @@ export const gerarCupomTermicoPDFOrcamento = async (
     y += 4;
   }
   y += 2;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  y += 4;
 
   // ========== DADOS DO CLIENTE ==========
   doc.setFont("helvetica", "bold");
@@ -2811,6 +2823,11 @@ export const gerarCupomTermicoPDFGarantia = async (
   );
   y += 6;
 
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  y += 4;
+
   // ========== DADOS DO CLIENTE ==========
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
@@ -3176,6 +3193,11 @@ export const gerarCupomTermicoPDFOS = async (
   doc.setFont("helvetica", "normal");
   doc.text(os.prioridade?.toUpperCase() || "MÉDIA", 23, y);
   y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  y += 4;
 
   // ========== DADOS DO CLIENTE ==========
   doc.setFont("helvetica", "bold");

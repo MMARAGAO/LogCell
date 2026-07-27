@@ -876,7 +876,9 @@ export default function VendasAparelhosPage() {
       `${v.marca || ""} ${v.modelo || ""}`,
       v.imei || "",
       v.valor_venda || 0,
-      v.venda ? Number(v.venda.valor_pago ?? v.pagamento_total) : v.pagamento_total,
+      v.venda
+        ? Number(v.venda.valor_pago ?? v.pagamento_total)
+        : v.pagamento_total,
       v.venda
         ? Number(v.venda.saldo_devedor ?? 0)
         : (v.valor_exibido || 0) - v.pagamento_total,
@@ -1115,7 +1117,7 @@ export default function VendasAparelhosPage() {
           new Date(v.data_venda).getTime() + garantiaDias * 86400000,
         ).toLocaleDateString("pt-BR")
       : "";
-    const usuarioNome = usuario?.nome || "Vendedor";
+    const vendedorNome = v.vendedor_nome || usuario?.nome || "Vendedor";
 
     win.document.write(`
       <html><head><title>Garantia - ${v.marca} ${v.modelo}</title>
@@ -1141,7 +1143,7 @@ export default function VendasAparelhosPage() {
           <tr><td><strong>IMEI:</strong></td><td>${v.imei || "—"}</td></tr>
           <tr><td><strong>Data da Venda:</strong></td><td>${dataVenda}</td></tr>
           <tr><td><strong>Garantia:</strong></td><td>${garantiaDias} dias (até ${dataFimGarantia})</td></tr>
-          <tr><td><strong>Vendedor:</strong></td><td>${usuarioNome}</td></tr>
+          <tr><td><strong>Vendedor:</strong></td><td>${vendedorNome}</td></tr>
         </table>
         <hr>
         <div class="clausulas">
@@ -1177,7 +1179,7 @@ export default function VendasAparelhosPage() {
           <p>Assinatura do Cliente: ______________________________________</p>
           <br>
           <p>Data: ${new Date().toLocaleDateString("pt-BR")}</p>
-          <p>Vendedor Responsável: ${usuarioNome}</p>
+          <p>Vendedor Responsável: ${vendedorNome}</p>
         </div>
         <div class="footer">LogCell - ${new Date().toLocaleString("pt-BR")}</div>
         <script>window.print()</script>
@@ -1220,7 +1222,8 @@ export default function VendasAparelhosPage() {
           <strong>Venda #${v.venda?.numero_venda}</strong><br>
           Data: ${v.data_venda ? formatarDataUtc(v.data_venda) : ""}<br>
           Cliente: ${v.cliente?.nome || "—"}<br>
-          ${v.cliente?.telefone ? `Tel: ${v.cliente.telefone}` : ""}
+          ${v.cliente?.telefone ? `Tel: ${v.cliente.telefone}<br>` : ""}
+          Vendedor: ${v.vendedor_nome || "—"}
         </div>
         <hr>
         <div class="info"><strong>${v.marca} ${v.modelo}</strong>${v.imei ? `<br>IMEI: ${v.imei}` : ""}</div>
