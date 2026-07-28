@@ -111,6 +111,27 @@ export async function buscarOrdensServico(filtros?: {
         .sort((a: any, b: any) => (a.sequencia || 0) - (b.sequencia || 0)),
     }));
 
+    // Buscar nome de quem criou cada OS
+    const criadoresIds = ordensComAparelhos
+      .map((os) => os.criado_por)
+      .filter((id): id is string => !!id);
+
+    if (criadoresIds.length > 0) {
+      const { data: usuariosCriadores } = await supabase
+        .from("usuarios")
+        .select("id, nome")
+        .in("id", Array.from(new Set(criadoresIds)));
+
+      if (usuariosCriadores && usuariosCriadores.length > 0) {
+        ordensComAparelhos = ordensComAparelhos.map((os) => ({
+          ...os,
+          criado_por_nome: os.criado_por
+            ? usuariosCriadores.find((u) => u.id === os.criado_por)?.nome
+            : undefined,
+        }));
+      }
+    }
+
     // Buscar informações dos técnicos separadamente
     if (ordensComAparelhos && ordensComAparelhos.length > 0) {
       const tecnicosIds = ordensComAparelhos
@@ -196,6 +217,19 @@ export async function buscarOrdemServicoPorId(id: string) {
       servicos: ap.ordem_servico_aparelhos_servicos || [],
     }));
 
+    // Buscar nome de quem criou a OS
+    let criadoPorNome: string | undefined;
+
+    if (data && data.criado_por) {
+      const { data: usuarioCriador } = await supabase
+        .from("usuarios")
+        .select("nome")
+        .eq("id", data.criado_por)
+        .single();
+
+      criadoPorNome = usuarioCriador?.nome;
+    }
+
     // Buscar informações do técnico separadamente
     if (data && data.tecnico_responsavel) {
       const { data: tecnico, error: tecnicoError } = await supabase
@@ -208,6 +242,7 @@ export async function buscarOrdemServicoPorId(id: string) {
         const osComTecnicoEAparelhos = {
           ...data,
           tecnico,
+          criado_por_nome: criadoPorNome,
           aparelhos: aparelhosMapeados,
         };
 
@@ -220,6 +255,7 @@ export async function buscarOrdemServicoPorId(id: string) {
 
     const osComAparelhos = {
       ...data,
+      criado_por_nome: criadoPorNome,
       aparelhos: aparelhosMapeados,
     };
 

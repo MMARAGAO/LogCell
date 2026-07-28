@@ -125,6 +125,7 @@ export interface OrdemServico {
     id: string;
     nome: string;
   };
+  criado_por_nome?: string;
   pecas?: OrdemServicoPeca[];
   historico?: HistoricoOrdemServico[];
   anexos?: OrdemServicoAnexo[];

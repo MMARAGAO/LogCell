@@ -229,7 +229,7 @@ export const gerarPDFOrdemServico = async (
     { align: "right" },
   );
   y += 6;
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 15, y);
   y += 10;
 
   // Status e Prioridade
@@ -629,7 +629,7 @@ export const gerarOrcamentoOS = async (
     { align: "right" },
   );
   y += 6;
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 15, y);
   y += 10;
 
   // Dados do Cliente
@@ -1170,7 +1170,7 @@ export const gerarGarantiaOS = async (
     { align: "right" },
   );
   y += 6;
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 15, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 15, y);
   y += 10;
 
   // Tipo de Garantia e Dias
@@ -1756,7 +1756,7 @@ export const gerarCupomTermicoGarantia = async (
   const diasGarantiaFinal = diasGarantia ?? os.dias_garantia ?? 90;
 
   cupom += `Garantia: ${tipoGarantiaFinal.toString().toUpperCase()} - ${diasGarantiaFinal} dias\n`;
-  cupom += `Responsável: ${os.tecnico?.nome || "—"}\n\n`;
+  cupom += `Responsável: ${os.criado_por_nome || "—"}\n\n`;
 
   // Cliente
   cupom += linhaTracejada + "\n";
@@ -2251,7 +2251,7 @@ export const gerarCupomTermicoPDFOrcamento = async (
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 5, y);
   y += 4;
 
   // ========== DADOS DO CLIENTE ==========
@@ -2825,7 +2825,7 @@ export const gerarCupomTermicoPDFGarantia = async (
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 5, y);
   y += 4;
 
   // ========== DADOS DO CLIENTE ==========
@@ -3196,7 +3196,7 @@ export const gerarCupomTermicoPDFOS = async (
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
-  doc.text(`Responsável: ${os.tecnico?.nome || "—"}`, 5, y);
+  doc.text(`Responsável: ${os.criado_por_nome || "—"}`, 5, y);
   y += 4;
 
   // ========== DADOS DO CLIENTE ==========
