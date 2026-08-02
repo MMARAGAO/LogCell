@@ -600,6 +600,12 @@ export default function CaixaPage() {
       doc.text(`Total Saídas: ${formatarMoeda(resumo.total_saidas)}`, 15, yPos);
       yPos += 7;
       doc.text(
+        `Total Vendas do Dia: ${formatarMoeda(resumo.vendas.total)}`,
+        15,
+        yPos,
+      );
+      yPos += 7;
+      doc.text(
         `Saldo Movimentado: ${formatarMoeda(resumo.total_entradas - resumo.total_saidas)}`,
         15,
         yPos,

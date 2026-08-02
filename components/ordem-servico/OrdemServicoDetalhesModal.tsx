@@ -46,6 +46,7 @@ import GarantiaModal from "./GarantiaModal";
 import ImpressaoOrcamentoModal from "./ImpressaoOrcamentoModal";
 import DevolverOSModal from "./DevolverOSModal";
 import GerenciarMultiplosAparelhos from "./GerenciarMultiplosAparelhos";
+import { TrocaDeResponsavel } from "./TrocaDeResponsavel";
 
 import { useToast } from "@/components/Toast";
 import {
@@ -131,7 +132,59 @@ export default function OrdemServicoDetalhesModal({
   const [modalConfirmGarantia, setModalConfirmGarantia] = useState(false);
   const [modalMultiplosAparelhos, setModalMultiplosAparelhos] = useState(false);
   const [loadingOrcamento, setLoadingOrcamento] = useState(false);
+  const [modalTrocarResponsavelOpen, setModalTrocarResponsavelOpen] =
+    useState(false);
+  const [usuariosAtivos, setUsuariosAtivos] = useState<any[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+  const [novoResponsavelId, setNovoResponsavelId] = useState("");
+  const [salvandoResponsavel, setSalvandoResponsavel] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    if (modalTrocarResponsavelOpen) {
+      setLoadingUsuarios(true);
+      import("@/services/authService").then(({ AuthService }) => {
+        AuthService.getUsuariosAtivos().then((usuarios) => {
+          setUsuariosAtivos(usuarios);
+          setLoadingUsuarios(false);
+        });
+      });
+      setNovoResponsavelId("");
+    }
+  }, [modalTrocarResponsavelOpen]);
+
+  const handleConfirmarTrocaResponsavel = async () => {
+    if (!osAtual || !novoResponsavelId) return;
+
+    setSalvandoResponsavel(true);
+    try {
+      const { supabase } = await import("@/lib/supabaseClient");
+      const { error } = await supabase
+        .from("ordem_servico")
+        .update({ criado_por: novoResponsavelId })
+        .eq("id", osAtual.id);
+
+      if (error) throw error;
+
+      const novoResponsavel = usuariosAtivos.find(
+        (u) => u.id === novoResponsavelId,
+      );
+
+      setOsAtual({
+        ...osAtual,
+        criado_por: novoResponsavelId,
+        criado_por_nome: novoResponsavel?.nome || osAtual.criado_por_nome,
+      });
+      toast.success("Responsável alterado com sucesso!");
+      setModalTrocarResponsavelOpen(false);
+      setNovoResponsavelId("");
+      onOSAtualizada?.();
+    } catch (err: any) {
+      toast.error("Erro ao trocar responsável: " + (err.message || ""));
+    } finally {
+      setSalvandoResponsavel(false);
+    }
+  };
 
   useEffect(() => {
     setOsAtual(os);
@@ -1354,6 +1407,13 @@ export default function OrdemServicoDetalhesModal({
                     label="Criado em"
                     value={formatarDataHora(osAtual.criado_em)}
                   />
+                  {osAtual.criado_por_nome && (
+                    <InfoItem
+                      icon={User}
+                      label="Criado por"
+                      value={osAtual.criado_por_nome}
+                    />
+                  )}
                   {osAtual.previsao_entrega && (
                     <InfoItem
                       icon={Calendar}
@@ -1422,6 +1482,16 @@ export default function OrdemServicoDetalhesModal({
           >
             Imprimir Documentos
           </Button>
+          <Button
+            className="w-full sm:w-auto"
+            color="secondary"
+            size="sm"
+            startContent={<User className="w-4 h-4" />}
+            variant="flat"
+            onPress={() => setModalTrocarResponsavelOpen(true)}
+          >
+            Trocar Responsável
+          </Button>
 
           <Button
             className="w-full sm:w-auto"
@@ -1476,6 +1546,22 @@ export default function OrdemServicoDetalhesModal({
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Modal de Troca de Responsável */}
+      <TrocaDeResponsavel
+        isOpen={modalTrocarResponsavelOpen}
+        loadingUsuarios={loadingUsuarios}
+        responsavelAtualId={osAtual?.criado_por || null}
+        responsavelSelecionado={novoResponsavelId}
+        salvando={salvandoResponsavel}
+        usuarios={usuariosAtivos}
+        onClose={() => {
+          setModalTrocarResponsavelOpen(false);
+          setNovoResponsavelId("");
+        }}
+        onConfirmar={handleConfirmarTrocaResponsavel}
+        onSelecionarResponsavel={setNovoResponsavelId}
+      />
 
       {/* Modal de Devolução */}
       <DevolverOSModal

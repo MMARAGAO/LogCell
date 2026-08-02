@@ -1365,6 +1365,24 @@ export const gerarGarantiaOS = async (
     }
   }
 
+  // Valor Recebido
+  if (y > 220) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFillColor(240, 240, 240);
+  doc.rect(15, y, pageWidth - 30, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("VALORES", 17, y + 5);
+  y += 12;
+
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Valor Recebido: R$ ${(os.valor_pago || 0).toFixed(2)}`, 17, y);
+  y += 10;
+
   // Termos de Garantia
   if (y > 200) {
     doc.addPage();
@@ -2087,6 +2105,7 @@ export const gerarCupomTermicoOrcamento = async (
     }
     cupom += `Total: R$ ${(os.valor_total || 0).toFixed(2)}\n`;
   }
+  cupom += `Valor Recebido: R$ ${(os.valor_pago || 0).toFixed(2)}\n`;
   cupom += "\n";
 
   // Observações
@@ -2948,6 +2967,26 @@ export const gerarCupomTermicoPDFGarantia = async (
     y += 3;
   });
   y += 3;
+
+  // ========== VALORES ==========
+  if (y > 220) {
+    doc.addPage();
+    y = 10;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.text("VALORES", 5, y);
+  y += 4;
+  doc.setLineWidth(0.3);
+  doc.line(5, y, pageWidth - 5, y);
+  y += 3;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.text(`Valor Recebido: R$ ${(os.valor_pago || 0).toFixed(2)}`, 5, y);
+  y += 4;
+  y += 2;
 
   // ========== TERMOS DE GARANTIA ==========
   if (y > 200) {
