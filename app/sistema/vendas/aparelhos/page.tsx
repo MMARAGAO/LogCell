@@ -283,7 +283,8 @@ export default function VendasAparelhosPage() {
     // embedded (vendas!inner.vendedor_id) em vez de pré-buscar os IDs e montar um
     // "venda_id=in.(...)" gigante — uma lista grande de UUIDs estoura o limite de
     // tamanho de URL do proxy reverso e retorna 502.
-    const filtrarPorVendedor = !isAdmin && !!usuario?.id;
+    const filtrarPorVendedor =
+      !isAdmin && !!usuario?.id && !temPermissao("vendas.ver_todas_vendas");
 
     try {
       // Monta filtros
