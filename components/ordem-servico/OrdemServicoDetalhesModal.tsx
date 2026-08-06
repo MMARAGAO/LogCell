@@ -38,6 +38,7 @@ import {
   CameraIcon as Camera,
   ExclamationTriangleIcon as AlertTriangle,
   CheckCircleIcon as CheckCircle,
+  IdentificationIcon as UserCog,
 } from "@heroicons/react/24/outline";
 
 import StatusProgressBar from "./StatusProgressBar";
@@ -714,6 +715,11 @@ export default function OrdemServicoDetalhesModal({
                         ? (osAtual.loja as any).nome
                         : "-"
                     }
+                  />
+                  <InfoItem
+                    icon={UserCog}
+                    label="Responsável"
+                    value={osAtual.criado_por_nome || "-"}
                   />
                 </div>
                 {osAtual.tipo_cliente && (

@@ -569,21 +569,67 @@ export default function CaixaPage() {
       doc.text(fechadoTexto, 15, 63, { maxWidth: pageWidth - 30 });
     }
 
-    // Resumo Financeiro (só no relatório completo)
-    let yPos: number;
+    // Totais principais (sempre no início, em todos os tipos de relatório)
+    // Recalculados por tipo de relatório para não misturar aparelhos com demais vendas
+    let yPos = caixaDetalhes.data_fechamento ? 80 : 73;
+    const totalSangria = resumo.sangrias.total;
+    let totalRecebido: number;
+    let totalVendido: number;
 
+    if (tipoRelatorio === "aparelhos") {
+      // Relatório de aparelhos não inclui OS
+      totalVendido = resumo.vendas_aparelhos.total;
+      totalRecebido = resumo.vendas_aparelhos.total;
+    } else if (tipoRelatorio === "outros") {
+      // Relatório de demais vendas inclui vendas (sem aparelhos) + OS
+      totalVendido = resumo.vendas.total + resumo.ordens_servico.total;
+      totalRecebido = totalVendido;
+    } else {
+      // Relatório completo: tudo
+      totalVendido =
+        resumo.vendas.total +
+        resumo.vendas_aparelhos.total +
+        resumo.ordens_servico.total;
+      totalRecebido = resumo.total_entradas;
+    }
+
+    doc.setFillColor(59, 130, 246);
+    doc.rect(15, yPos - 5, pageWidth - 30, 26, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(
+      `Total Recebido: ${formatarMoeda(totalRecebido)}`,
+      pageWidth / 2,
+      yPos,
+      { align: "center" },
+    );
+    yPos += 8;
+    doc.text(
+      `Total Sangria: ${formatarMoeda(totalSangria)}`,
+      pageWidth / 2,
+      yPos,
+      { align: "center" },
+    );
+    yPos += 8;
+    doc.text(
+      `Total do Caixa (Vendido): ${formatarMoeda(totalVendido)}`,
+      pageWidth / 2,
+      yPos,
+      { align: "center" },
+    );
+    doc.setTextColor(0, 0, 0);
+    yPos += 15;
+
+    // Resumo Financeiro (só no relatório completo)
     if (tipoRelatorio === "completo") {
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text(
-        "Resumo Financeiro",
-        15,
-        caixaDetalhes.data_fechamento ? 80 : 73,
-      );
+      doc.text("Resumo Financeiro", 15, yPos);
+      yPos += 8;
 
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      yPos = caixaDetalhes.data_fechamento ? 88 : 81;
 
       doc.text(
         `Saldo Inicial: ${formatarMoeda(resumo.saldo_inicial)}`,
@@ -616,24 +662,6 @@ export default function CaixaPage() {
         15,
         yPos,
       );
-
-      // Total Geral do Caixa
-      yPos += 10;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setFillColor(59, 130, 246);
-      doc.rect(15, yPos - 5, pageWidth - 30, 10, "F");
-      doc.setTextColor(255, 255, 255);
-      const totalGeral =
-        resumo.saldo_inicial + resumo.total_entradas - resumo.total_saidas;
-
-      doc.text(
-        `TOTAL GERAL DO CAIXA: ${formatarMoeda(totalGeral)}`,
-        pageWidth / 2,
-        yPos,
-        { align: "center" },
-      );
-      doc.setTextColor(0, 0, 0);
       yPos += 12;
 
       if (
@@ -664,8 +692,6 @@ export default function CaixaPage() {
         doc.addPage();
         yPos = 20;
       }
-    } else {
-      yPos = 75;
     }
 
     // ===== VENDAS =====
@@ -1113,7 +1139,60 @@ export default function CaixaPage() {
         yPos += 12;
       }
     }
-    // Demais detalhamentos (Tipo, Devoluções, Sangrias, Quebras) só no completo
+
+    // ===== SANGRIAS MANUAIS (Retirada de Dinheiro) - em todos os tipos de relatório =====
+    const sangriasManual = movimentacoes.filter(
+      (mov) => mov.tipo === "sangria" && !mov.eh_reembolso,
+    );
+
+    if (sangriasManual.length > 0) {
+      if (yPos > 245) {
+        doc.addPage();
+        yPos = 20;
+      } else {
+        yPos += 15;
+      }
+
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setFillColor(245, 158, 11);
+      doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.text("SANGRIAS MANUAIS (Retirada de Dinheiro)", pageWidth / 2, yPos, {
+        align: "center",
+      });
+      doc.setTextColor(0, 0, 0);
+      yPos += 10;
+
+      const sangriasData = [
+        ["Data/Hora", "Motivo", "Valor", "Responsável"],
+        ...sangriasManual.map((sangria) => [
+          formatarData(sangria.data),
+          sangria.descricao.replace("Sangria Manual - ", ""),
+          formatarMoeda(Math.abs(sangria.valor)),
+          sangria.usuario_responsavel || "N/A",
+        ]),
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [sangriasData[0]],
+        body: sangriasData.slice(1),
+        theme: "striped",
+        headStyles: { fillColor: [245, 158, 11] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 60 },
+          2: { cellWidth: 30, halign: "right" },
+          3: { cellWidth: 30 },
+        },
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY;
+    }
+
+    // Demais detalhamentos (Tipo, Devoluções, Reembolsos, Quebras) só no completo
     if (tipoRelatorio === "completo") {
       // Detalhamento por Tipo
       if (yPos > 250) {
@@ -1299,65 +1378,10 @@ export default function CaixaPage() {
         });
       }
 
-      // Detalhamento de Sangrias (Manual) e Reembolsos
-      const sangriasTodas = movimentacoes.filter(
-        (mov) => mov.tipo === "sangria",
+      // Detalhamento de Reembolsos (sangrias manuais já exibidas acima, em todos os tipos)
+      const reembolsos = movimentacoes.filter(
+        (mov) => mov.tipo === "sangria" && mov.eh_reembolso,
       );
-      const sangriasManual = sangriasTodas.filter((mov) => !mov.eh_reembolso);
-      const reembolsos = sangriasTodas.filter((mov) => mov.eh_reembolso);
-
-      // ===== SANGRIAS MANUAIS =====
-      if (sangriasManual.length > 0) {
-        if (yPos > 245) {
-          doc.addPage();
-          yPos = 20;
-        } else {
-          yPos += 15;
-        }
-
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.setFillColor(245, 158, 11);
-        doc.rect(15, yPos - 5, pageWidth - 30, 9, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.text(
-          "SANGRIAS MANUAIS (Retirada de Dinheiro)",
-          pageWidth / 2,
-          yPos,
-          {
-            align: "center",
-          },
-        );
-        doc.setTextColor(0, 0, 0);
-        yPos += 10;
-
-        const sangriasData = [
-          ["Data/Hora", "Motivo", "Valor", "Responsável"],
-          ...sangriasManual.map((sangria) => [
-            formatarData(sangria.data),
-            sangria.descricao.replace("Sangria Manual - ", ""),
-            formatarMoeda(Math.abs(sangria.valor)),
-            sangria.usuario_responsavel || "N/A",
-          ]),
-        ];
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [sangriasData[0]],
-          body: sangriasData.slice(1),
-          theme: "striped",
-          headStyles: { fillColor: [245, 158, 11] },
-          margin: { left: 15, right: 15 },
-          columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 60 },
-            2: { cellWidth: 30, halign: "right" },
-            3: { cellWidth: 30 },
-          },
-        });
-
-        yPos = (doc as any).lastAutoTable.finalY;
-      }
 
       // ===== REEMBOLSOS =====
       if (reembolsos.length > 0) {

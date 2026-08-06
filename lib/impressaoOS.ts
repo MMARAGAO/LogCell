@@ -1826,6 +1826,11 @@ export const gerarCupomTermicoGarantia = async (
   quebraLinhas(servicoTexto).forEach((linha) => (cupom += linha + "\n"));
   cupom += "\n";
 
+  // Valor Recebido
+  cupom += linhaTracejada + "\n";
+  cupom += `Valor Recebido: R$ ${(os.valor_pago || 0).toFixed(2)}\n`;
+  cupom += "\n";
+
   // Termos de garantia (compactados)
   cupom += linhaDiv + "\n";
   let tituloGarantia = "TERMOS DE GARANTIA";
