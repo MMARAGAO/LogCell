@@ -2713,6 +2713,52 @@ export class DashboardService {
           };
         }
 
+        case "os_lojista":
+        case "os_consumidor_final": {
+          const tipoAlvo =
+            cardKey === "os_lojista" ? "lojista" : "consumidor_final";
+
+          let q = supabase
+            .from("ordem_servico")
+            .select(
+              "numero_os, criado_em, status, tipo_cliente, valor_orcamento, valor_pago",
+              { count: "exact" },
+            )
+            .eq("tipo_cliente", tipoAlvo)
+            .gt("valor_pago", 0)
+            .neq("status", "cancelado")
+            .gte("criado_em", inicioISO)
+            .lte("criado_em", fimISO)
+            .range(from, to)
+            .order("criado_em", { ascending: false });
+
+          if (lojaNum) q = q.eq("id_loja", lojaNum);
+
+          const { data, count, error } = await q;
+
+          if (error) throw error;
+
+          return {
+            colunas: [
+              { key: "os", label: "OS" },
+              { key: "data", label: "Data" },
+              { key: "status", label: "Status" },
+              { key: "orcado", label: "Orçado" },
+              { key: "pago", label: "Pago" },
+            ],
+            rows: (data || []).map((r: any) => ({
+              os: r.numero_os ? `OS ${r.numero_os}` : r.id?.slice(0, 8),
+              data: r.criado_em
+                ? new Date(r.criado_em).toLocaleString("pt-BR")
+                : "-",
+              status: r.status || "-",
+              orcado: formatBRL(Number(r.valor_orcamento || 0)),
+              pago: formatBRL(Number(r.valor_pago || 0)),
+            })),
+            total: count || 0,
+          };
+        }
+
         case "os_aguardando": {
           let q = supabase
             .from("ordem_servico")

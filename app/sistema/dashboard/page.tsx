@@ -8,6 +8,8 @@ import {
   ExclamationTriangleIcon,
   PrinterIcon,
   ClockIcon,
+  DocumentArrowDownIcon,
+  TableCellsIcon,
 } from "@heroicons/react/24/outline";
 
 import { supabase } from "@/lib/supabaseClient";
@@ -15,6 +17,10 @@ import { DashboardService } from "@/services/dashboardService";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { ExecutiveOverview } from "@/components/dashboard/executive/ExecutiveOverview";
 import { PeriodSelector } from "@/components/dashboard/executive/PeriodSelector";
+import {
+  gerarPDFDashboard,
+  exportarDashboardExcel,
+} from "@/lib/exportarDashboard";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,6 +59,7 @@ export default function DashboardPage() {
   >([]);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [agora, setAgora] = useState<number>(() => Date.now());
+  const [exportando, setExportando] = useState<"pdf" | "excel" | null>(null);
 
   const carregar = async () => {
     try {
@@ -178,6 +185,54 @@ export default function DashboardPage() {
     }
   }, [filtroVersion]);
 
+  const periodoLabel = useMemo(() => {
+    const fmt = (iso: string) =>
+      iso ? new Date(`${iso}T00:00:00`).toLocaleDateString("pt-BR") : "";
+
+    return `${fmt(dataInicio)} a ${fmt(dataFim)}`;
+  }, [dataInicio, dataFim]);
+
+  const lojaLabel = useMemo(() => {
+    if (!lojaId) return "Todas as lojas";
+
+    return lojas.find((l) => l.id === Number(lojaId))?.nome || "Loja";
+  }, [lojaId, lojas]);
+
+  const dadosExport = () => ({
+    dados,
+    periodoLabel,
+    lojaLabel,
+    vendedores: top10Vendedores,
+    topClientes: top10Clientes,
+    topProdutos: top10Produtos,
+  });
+
+  const handleExportarPDF = async () => {
+    if (!dados || exportando) return;
+    setExportando("pdf");
+    try {
+      await gerarPDFDashboard(dadosExport());
+    } catch (err) {
+      console.error("Erro ao gerar PDF do dashboard:", err);
+      setError("Não foi possível gerar o PDF do dashboard.");
+    } finally {
+      setExportando(null);
+    }
+  };
+
+  const handleExportarExcel = async () => {
+    if (!dados || exportando) return;
+    setExportando("excel");
+    try {
+      await exportarDashboardExcel(dadosExport());
+    } catch (err) {
+      console.error("Erro ao gerar Excel do dashboard:", err);
+      setError("Não foi possível gerar o Excel do dashboard.");
+    } finally {
+      setExportando(null);
+    }
+  };
+
   useEffect(() => {
     supabase
       .from("lojas")
@@ -231,6 +286,24 @@ export default function DashboardPage() {
                   Atualizado {textoAtualizacao}
                 </span>
               )}
+              <button
+                className="inline-flex items-center gap-2 rounded-lg border border-default-200 px-3 py-1.5 text-sm font-medium text-default-700 transition-colors hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!dados || exportando !== null}
+                type="button"
+                onClick={handleExportarPDF}
+              >
+                <DocumentArrowDownIcon className="h-4 w-4" />
+                {exportando === "pdf" ? "Gerando..." : "PDF"}
+              </button>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg border border-default-200 px-3 py-1.5 text-sm font-medium text-default-700 transition-colors hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!dados || exportando !== null}
+                type="button"
+                onClick={handleExportarExcel}
+              >
+                <TableCellsIcon className="h-4 w-4" />
+                {exportando === "excel" ? "Gerando..." : "Excel"}
+              </button>
               <button
                 className="inline-flex items-center gap-2 rounded-lg border border-default-200 px-3 py-1.5 text-sm font-medium text-default-700 transition-colors hover:bg-default-100"
                 type="button"

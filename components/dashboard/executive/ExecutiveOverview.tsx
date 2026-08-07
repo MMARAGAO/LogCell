@@ -23,6 +23,8 @@ import {
   CalculatorIcon,
   ExclamationTriangleIcon,
   ArrowUturnLeftIcon,
+  BuildingStorefrontIcon,
+  UserIcon,
 } from "@heroicons/react/24/outline";
 
 import { formatarMoeda } from "@/lib/formatters";
@@ -155,6 +157,8 @@ const DRILL_TITULOS: Record<string, string> = {
   contas_vencidas: "Contas Vencidas — Em Atraso",
   caixa_atual: "Caixas — Resumo dos Caixas no Período",
   os_operacional: "Ordens de Serviço — Período",
+  os_lojista: "Ordens de Serviço — Lojista",
+  os_consumidor_final: "Ordens de Serviço — Consumidor Final",
   os_aguardando: "OS Aguardando Entrega",
   estoque_critico: "Estoque Crítico — Abaixo do Mínimo",
   quebras: "Quebras de Peças no Período",
@@ -390,6 +394,41 @@ export function ExecutiveOverview({
     },
   ];
 
+  // OS por tipo de cliente (lojista x consumidor final)
+  const osLojistaQtd = num(dados?.metricas_adicionais?.os_lojista_pagas);
+  const osConsumidorFinalQtd = num(
+    dados?.metricas_adicionais?.os_consumidor_final_pagas,
+  );
+  const osSemTipoQtd = num(dados?.metricas_adicionais?.os_sem_tipo_pagas);
+
+  const osPorTipoCliente = [
+    {
+      key: "os_lojista",
+      nome: `Lojista (${osLojistaQtd.toLocaleString("pt-BR")} OS)`,
+      icon: <BuildingStorefrontIcon className="h-5 w-5" />,
+      receita: num(dados?.metricas_adicionais?.os_lojista_faturamento),
+      lucro: num(dados?.metricas_adicionais?.os_lojista_lucro),
+    },
+    {
+      key: "os_consumidor_final",
+      nome: `Consumidor Final (${osConsumidorFinalQtd.toLocaleString("pt-BR")} OS)`,
+      icon: <UserIcon className="h-5 w-5" />,
+      receita: num(dados?.metricas_adicionais?.os_consumidor_final_faturamento),
+      lucro: num(dados?.metricas_adicionais?.os_consumidor_final_lucro),
+    },
+    ...(osSemTipoQtd > 0
+      ? [
+          {
+            key: "os_sem_tipo",
+            nome: `Sem Classificação (${osSemTipoQtd.toLocaleString("pt-BR")} OS)`,
+            icon: <WrenchScrewdriverIcon className="h-5 w-5" />,
+            receita: num(dados?.metricas_adicionais?.os_sem_tipo_faturamento),
+            lucro: num(dados?.metricas_adicionais?.os_sem_tipo_lucro),
+          },
+        ]
+      : []),
+  ];
+
   // ---- Insights automáticos (derivados de dados reais) ----
   const insights = useMemo<Insight[]>(() => {
     const list: Insight[] = [];
@@ -532,6 +571,36 @@ export function ExecutiveOverview({
                     nome={c.nome}
                     receita={c.receita}
                     onClick={() => abrirDetalhe(c.key)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Ordens de Serviço — Lojista x Consumidor Final */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-default-600">
+                  OS — Lojista × Consumidor Final
+                </h3>
+                <span className="text-xs text-default-400">
+                  Venda e lucro de ordens de serviço pagas, por tipo de cliente
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {osPorTipoCliente.map((c) => (
+                  <CategoryCard
+                    key={c.key}
+                    deltaReceita={null}
+                    icon={c.icon}
+                    loading={loading}
+                    lucro={c.lucro}
+                    nome={c.nome}
+                    receita={c.receita}
+                    onClick={() =>
+                      abrirDetalhe(
+                        c.key === "os_sem_tipo" ? "os_operacional" : c.key,
+                      )
+                    }
                   />
                 ))}
               </div>
