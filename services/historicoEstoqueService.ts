@@ -206,6 +206,8 @@ export async function getTodoHistorico(
   filtros?: {
     id_produto?: string;
     id_loja?: number;
+    id_lojas?: number[];
+    usuario_id?: string;
     data_inicio?: string;
     data_fim?: string;
   },
@@ -229,6 +231,12 @@ export async function getTodoHistorico(
 
     if (filtros?.id_loja) {
       query = query.eq("id_loja", filtros.id_loja);
+    } else if (filtros?.id_lojas && filtros.id_lojas.length > 0) {
+      query = query.in("id_loja", filtros.id_lojas);
+    }
+
+    if (filtros?.usuario_id) {
+      query = query.eq("usuario_id", filtros.usuario_id);
     }
 
     if (filtros?.data_inicio) {

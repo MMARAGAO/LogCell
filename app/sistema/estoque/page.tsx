@@ -31,7 +31,7 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CubeIcon,
   PlusIcon,
@@ -52,6 +52,7 @@ import {
   DocumentDuplicateIcon,
   ArrowDownTrayIcon,
   FunnelIcon,
+  ClipboardDocumentCheckIcon,
 } from "@heroicons/react/24/outline";
 
 import { supabase } from "@/lib/supabaseClient";
@@ -107,6 +108,7 @@ function abreviarLoja(nome?: string): string {
 }
 
 export default function EstoquePage() {
+  const router = useRouter();
   const { usuario: user } = useAuthContext();
   const {
     temPermissao,
@@ -879,6 +881,20 @@ export default function EstoquePage() {
               </Button>
             </Badge>
             <div className="flex items-center gap-2">
+              {temPermissao("estoque.ajustar") && (
+                <Button
+                  color="default"
+                  radius="md"
+                  size="md"
+                  startContent={
+                    <ClipboardDocumentCheckIcon className="h-4 w-4" />
+                  }
+                  variant="flat"
+                  onPress={() => router.push("/sistema/estoque/inventario")}
+                >
+                  Inventário
+                </Button>
+              )}
               {temPermissao("estoque.visualizar") && (
                 <Button
                   color="default"

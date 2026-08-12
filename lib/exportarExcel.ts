@@ -432,3 +432,63 @@ export function exportarRelatorioProduto(produto: ProdutoEstoque) {
     cellStyles: true,
   });
 }
+
+interface HistoricoEstoqueExport {
+  criado_em: string;
+  produto_descricao: string;
+  produto_marca?: string;
+  loja_nome?: string;
+  usuario_nome?: string;
+  quantidade_anterior?: number;
+  quantidade_nova?: number;
+  quantidade_alterada?: number;
+  motivo?: string;
+  observacao?: string;
+}
+
+export function exportarHistoricoEstoqueParaExcel(
+  registros: HistoricoEstoqueExport[],
+  nomeArquivo: string = "historico_inventario",
+) {
+  const dadosExcel = registros.map((item) => ({
+    "Data/Hora": new Date(item.criado_em).toLocaleString("pt-BR"),
+    Produto: item.produto_descricao,
+    Marca: item.produto_marca || "-",
+    Loja: item.loja_nome || "-",
+    Usuário: item.usuario_nome || "Sistema",
+    "Qtd. Anterior": item.quantidade_anterior ?? "-",
+    "Qtd. Nova": item.quantidade_nova ?? "-",
+    Diferença: item.quantidade_alterada ?? "-",
+    Motivo: item.motivo || "-",
+    Observação: item.observacao || "-",
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(dadosExcel);
+
+  ws["!cols"] = [
+    { wch: 18 }, // Data/Hora
+    { wch: 40 }, // Produto
+    { wch: 16 }, // Marca
+    { wch: 18 }, // Loja
+    { wch: 20 }, // Usuário
+    { wch: 14 }, // Qtd. Anterior
+    { wch: 12 }, // Qtd. Nova
+    { wch: 12 }, // Diferença
+    { wch: 20 }, // Motivo
+    { wch: 30 }, // Observação
+  ];
+
+  aplicarEstilosCabecalho(ws, ws["!cols"].length);
+  aplicarEstilosLinhas(ws);
+  ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+  XLSX.utils.book_append_sheet(wb, ws, "Histórico");
+
+  const timestamp = new Date().toISOString().split("T")[0];
+
+  XLSX.writeFile(wb, `${nomeArquivo}_${timestamp}.xlsx`, {
+    bookType: "xlsx",
+    cellStyles: true,
+  });
+}

@@ -286,6 +286,7 @@ export interface EstoqueLoja {
   quantidade: number;
   atualizado_por?: string;
   atualizado_em: string;
+  observacao?: string; // Motivo do último ajuste manual, lido pelo trigger de histórico
 }
 
 export interface EstoqueLojaCompleto extends EstoqueLoja {

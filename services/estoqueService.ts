@@ -150,6 +150,7 @@ export async function atualizarQuantidadeEstoque(
           quantidade: quantidade,
           atualizado_em: new Date().toISOString(),
           atualizado_por: usuarioId, // Preencher para trigger registrar no histórico
+          observacao: observacao ?? null, // Lido pelo trigger; sempre sobrescrito p/ não vazar texto de um ajuste anterior
         })
         .eq("id_produto", produtoId)
         .eq("id_loja", lojaId)
@@ -160,14 +161,30 @@ export async function atualizarQuantidadeEstoque(
 
       return data;
     } else {
-      // INSERT se não existe
-      const { data, error } = await supabase
+      // INSERT se não existe: cria a linha zerada e em seguida faz um UPDATE
+      // para a quantidade real, garantindo que o trigger de histórico (que
+      // depende de um UPDATE com atualizado_por preenchido) sempre dispare
+      // — mesmo para produtos que nunca tiveram estoque nesta loja.
+      const { error: erroInsert } = await supabase
         .from("estoque_lojas")
         .insert({
           id_produto: produtoId,
           id_loja: lojaId,
+          quantidade: 0,
+        });
+
+      if (erroInsert) throw erroInsert;
+
+      const { data, error } = await supabase
+        .from("estoque_lojas")
+        .update({
           quantidade: quantidade,
+          atualizado_em: new Date().toISOString(),
+          atualizado_por: usuarioId, // Preencher para trigger registrar no histórico
+          observacao: observacao ?? null, // Lido pelo trigger; sempre sobrescrito p/ não vazar texto de um ajuste anterior
         })
+        .eq("id_produto", produtoId)
+        .eq("id_loja", lojaId)
         .select()
         .single();
 
