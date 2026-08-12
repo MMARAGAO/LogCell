@@ -75,6 +75,7 @@ export interface PermissoesModulos {
     editar: boolean;
     excluir: boolean;
     ajustar: boolean;
+    inventario: boolean;
     ver_estatisticas: boolean;
     ver_preco_custo: boolean;
     ver_estoque_outras_lojas: boolean;

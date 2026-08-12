@@ -431,9 +431,9 @@ export function PermissoesModal({
                       isDisabled={todasLojas}
                       label="Lojas"
                       placeholder="Selecione uma ou mais lojas"
-                      selectedKeys={new Set(
-                        lojasSelecionadas.map((id) => id.toString()),
-                      )}
+                      selectedKeys={
+                        new Set(lojasSelecionadas.map((id) => id.toString()))
+                      }
                       selectionMode="multiple"
                       onSelectionChange={(keys) => {
                         const ids = Array.from(keys as Set<string>).map((k) =>
@@ -607,6 +607,14 @@ export function PermissoesModal({
                     }
                   >
                     Ajustar Quantidade
+                  </Checkbox>
+                  <Checkbox
+                    isSelected={permissoes.estoque?.inventario}
+                    onValueChange={() =>
+                      handleTogglePermissao("estoque", "inventario")
+                    }
+                  >
+                    Acessar Inventário
                   </Checkbox>
                   <Checkbox
                     isSelected={permissoes.estoque?.ver_estatisticas}

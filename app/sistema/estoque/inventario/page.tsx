@@ -393,6 +393,11 @@ export default function InventarioPage() {
   );
 
   const handleAbrirConfirmSalvar = () => {
+    if (!temPermissao("estoque.ajustar")) {
+      toast.error("Você não tem permissão para ajustar o estoque");
+
+      return;
+    }
     if (!lojaId) {
       toast.error("Selecione uma loja para ajustar o estoque");
 
@@ -509,7 +514,7 @@ export default function InventarioPage() {
     );
   }
 
-  if (!temPermissao("estoque.ajustar")) {
+  if (!temPermissao("estoque.inventario")) {
     return (
       <div className="p-8 text-center">
         <h1 className="mb-4 text-2xl font-bold text-danger">Acesso Negado</h1>

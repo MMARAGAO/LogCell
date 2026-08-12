@@ -28,6 +28,7 @@ export type Permissao =
   | "estoque.excluir"
   | "estoque.transferir"
   | "estoque.ajustar"
+  | "estoque.inventario"
   | "estoque.ver_estatisticas"
   | "estoque.ver_preco_custo"
   | "estoque.ver_estoque_outras_lojas"
@@ -175,6 +176,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "estoque.excluir",
     "estoque.transferir",
     "estoque.ajustar",
+    "estoque.inventario",
     "estoque.ver_estatisticas",
     "estoque.ver_preco_custo",
     "estoque.ver_estoque_outras_lojas",
@@ -300,6 +302,7 @@ export const PERMISSOES_POR_PERFIL: Record<PerfilUsuario, Permissao[]> = {
     "estoque.editar",
     "estoque.transferir",
     "estoque.ajustar",
+    "estoque.inventario",
     "estoque.ver_estatisticas",
     "estoque.ver_preco_custo",
     "estoque.ver_estoque_outras_lojas",

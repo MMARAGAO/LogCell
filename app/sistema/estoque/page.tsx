@@ -881,7 +881,7 @@ export default function EstoquePage() {
               </Button>
             </Badge>
             <div className="flex items-center gap-2">
-              {temPermissao("estoque.ajustar") && (
+              {temPermissao("estoque.inventario") && (
                 <Button
                   color="default"
                   radius="md"
