@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -9,6 +9,7 @@ import { Select, SelectItem } from "@heroui/select";
 import { Autocomplete, AutocompleteItem } from "@heroui/autocomplete";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Switch } from "@heroui/switch";
+import { Checkbox } from "@heroui/checkbox";
 import { Chip } from "@heroui/chip";
 import {
   Table,
@@ -36,7 +37,6 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { usePermissoes } from "@/hooks/usePermissoes";
 import { useLojaFilter } from "@/hooks/useLojaFilter";
 import { useToast } from "@/components/Toast";
-import { ConfirmModal } from "@/components/ConfirmModal";
 import { ProdutoFormModal } from "@/components/estoque";
 import { LojasService } from "@/services/lojasService";
 import { supabase } from "@/lib/supabaseClient";
@@ -57,6 +57,9 @@ interface ProdutoAjuste {
   codigo_fabricante?: string;
   quantidade_minima?: number;
   quantidade_atual: number;
+  // Marca itens trazidos por uma busca (não criados manualmente), para saber
+  // quais somem quando uma nova busca é feita (ver handleBuscarProdutos).
+  origemBusca?: boolean;
 }
 
 const MOTIVOS_AJUSTE = [
@@ -66,6 +69,100 @@ const MOTIVOS_AJUSTE = [
   { key: "devolucao", label: "Devolução" },
   { key: "outro", label: "Outro" },
 ];
+
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+// Pontua o quão relevante um produto é para os termos buscados, para que
+// resultados mais "óbvios" (nome começa com o termo, termos em sequência)
+// apareçam antes de matches fracos (termo só aparece na marca, por exemplo).
+function calcularRelevancia(produto: ProdutoAjuste, termos: string[]): number {
+  const desc = normalizarTexto(produto.descricao);
+  const fraseCompleta = termos.join(" ");
+  let score = 0;
+
+  if (desc === fraseCompleta) score += 1000;
+  else if (desc.startsWith(fraseCompleta)) score += 500;
+  else if (desc.includes(fraseCompleta)) score += 250;
+
+  termos.forEach((termo, idx) => {
+    const pos = desc.indexOf(termo);
+
+    if (pos === -1) {
+      // Não achou o termo na descrição — deve ter batido só na marca ou nos
+      // modelos, então penaliza bastante para ir para o fim da lista.
+      score -= 200;
+
+      return;
+    }
+
+    score += 50;
+    if (idx === 0 && pos === 0) score += 100; // primeiro termo logo no início
+    score -= pos * 0.2; // aparecer mais cedo na descrição é melhor
+  });
+
+  return score;
+}
+
+// Rascunho da lista de ajuste em andamento, salvo no navegador para
+// sobreviver a um refresh/fechamento acidental da aba.
+const RASCUNHO_STORAGE_KEY = "logcell_inventario_rascunho_v1";
+const RASCUNHO_VALIDADE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+
+interface RascunhoAjuste {
+  lojaId: string;
+  itens: ProdutoAjuste[];
+  alteracoes: Record<string, number>;
+  motivo: string;
+  observacao: string;
+  contagemCega: boolean;
+  atualizadoEm: number;
+}
+
+function carregarRascunho(): RascunhoAjuste | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const bruto = window.localStorage.getItem(RASCUNHO_STORAGE_KEY);
+
+    if (!bruto) return null;
+
+    const rascunho = JSON.parse(bruto) as RascunhoAjuste;
+
+    if (Date.now() - rascunho.atualizadoEm > RASCUNHO_VALIDADE_MS) {
+      window.localStorage.removeItem(RASCUNHO_STORAGE_KEY);
+
+      return null;
+    }
+
+    return rascunho;
+  } catch {
+    return null;
+  }
+}
+
+function salvarRascunho(rascunho: RascunhoAjuste) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(RASCUNHO_STORAGE_KEY, JSON.stringify(rascunho));
+  } catch {
+    // Silencioso: localStorage indisponível (modo privado, quota etc.) não
+    // deve quebrar o fluxo de ajuste, só perde a proteção contra refresh.
+  }
+}
+
+function limparRascunho() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(RASCUNHO_STORAGE_KEY);
+  } catch {
+    // Idem: falha ao limpar não é crítica.
+  }
+}
 
 export default function InventarioPage() {
   const router = useRouter();
@@ -80,10 +177,14 @@ export default function InventarioPage() {
 
   // ===== Aba: Ajustar Estoque =====
   const [buscaProduto, setBuscaProduto] = useState("");
-  const [resultadosBusca, setResultadosBusca] = useState<ProdutoAjuste[]>([]);
+  const [totalResultadosBusca, setTotalResultadosBusca] = useState(0);
   const [buscandoProdutos, setBuscandoProdutos] = useState(false);
   const [itens, setItens] = useState<ProdutoAjuste[]>([]);
   const [alteracoes, setAlteracoes] = useState<Record<string, number>>({});
+  // IDs retornados pela busca mais recente. Um produto já alterado some da
+  // tabela de edição (mas continua contando para a conferência) até que a
+  // loja mude, a lista seja limpa, ou ele seja buscado de novo pelo nome.
+  const [buscaAtualIds, setBuscaAtualIds] = useState<Set<string>>(new Set());
   const [motivo, setMotivo] = useState<string>("contagem_fisica");
   const [observacao, setObservacao] = useState("");
   const [contagemCega, setContagemCega] = useState(false);
@@ -93,7 +194,11 @@ export default function InventarioPage() {
     atual: 0,
     total: 0,
   });
-  const [confirmSalvarAberto, setConfirmSalvarAberto] = useState(false);
+  const [mostrarRevisao, setMostrarRevisao] = useState(false);
+  const [selecionadosRevisao, setSelecionadosRevisao] = useState<Set<string>>(
+    new Set(),
+  );
+  const restaurandoRascunhoRef = useRef(false);
 
   // ===== Aba: Histórico =====
   const [historico, setHistorico] = useState<HistoricoEstoqueCompleto[]>([]);
@@ -108,61 +213,46 @@ export default function InventarioPage() {
   const [produtosAutocomplete, setProdutosAutocomplete] = useState<
     { id: string; descricao: string }[]
   >([]);
+  const [totalProdutosAutocomplete, setTotalProdutosAutocomplete] = useState(0);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
   const [filtroUsuarioId, setFiltroUsuarioId] = useState<string>("");
   const [exportando, setExportando] = useState(false);
 
-  // Busca produtos para adicionar à lista de ajuste (debounced)
+  // Trocar de loja reinicia a lista de trabalho (quantidades são por loja).
+  // Pulado uma vez quando a troca vem da restauração de um rascunho salvo.
   useEffect(() => {
-    if (!lojaId || buscaProduto.trim().length < 2) {
-      setResultadosBusca([]);
+    if (restaurandoRascunhoRef.current) {
+      restaurandoRascunhoRef.current = false;
+
+      return;
+    }
+    setItens([]);
+    setAlteracoes({});
+    setBuscaAtualIds(new Set());
+  }, [lojaId]);
+
+  // Salva a lista de trabalho no navegador a cada mudança, para sobreviver a
+  // um refresh/fechamento acidental da aba. Limpa o rascunho quando a lista
+  // fica vazia (após salvar, limpar ou remover todos os itens).
+  useEffect(() => {
+    if (!lojaId) return;
+
+    if (itens.length === 0) {
+      limparRascunho();
 
       return;
     }
 
-    setBuscandoProdutos(true);
-    const t = setTimeout(async () => {
-      try {
-        const result = await buscarProdutosPaginados({
-          busca: buscaProduto,
-          ativo: true,
-          page: 1,
-          pageSize: 15,
-        });
-
-        const idLoja = Number(lojaId);
-        const encontrados: ProdutoAjuste[] = result.data.map((p: any) => {
-          const estoqueLoja = (p.estoques_lojas || []).find(
-            (e: any) => e.id_loja === idLoja,
-          );
-
-          return {
-            id: p.id,
-            descricao: p.descricao,
-            marca: p.marca,
-            categoria: p.categoria || p.grupo,
-            codigo_fabricante: p.codigo_fabricante,
-            quantidade_minima: p.quantidade_minima,
-            quantidade_atual: estoqueLoja?.quantidade ?? 0,
-          };
-        });
-
-        setResultadosBusca(encontrados);
-      } catch (error) {
-        console.error("Erro ao buscar produtos:", error);
-      } finally {
-        setBuscandoProdutos(false);
-      }
-    }, 350);
-
-    return () => clearTimeout(t);
-  }, [buscaProduto, lojaId]);
-
-  // Trocar de loja reinicia a lista de trabalho (quantidades são por loja)
-  useEffect(() => {
-    setItens([]);
-    setAlteracoes({});
-  }, [lojaId]);
+    salvarRascunho({
+      lojaId,
+      itens,
+      alteracoes,
+      motivo,
+      observacao,
+      contagemCega,
+      atualizadoEm: Date.now(),
+    });
+  }, [lojaId, itens, alteracoes, motivo, observacao, contagemCega]);
 
   useEffect(() => {
     if (paginaHistorico !== 1) setPaginaHistorico(1);
@@ -185,7 +275,34 @@ export default function InventarioPage() {
 
         setLojas(filtraveis);
 
-        if (filtraveis.length === 1) {
+        const rascunho = carregarRascunho();
+        const lojaDoRascunhoValida =
+          rascunho && filtraveis.some((l) => String(l.id) === rascunho.lojaId);
+
+        if (lojaDoRascunhoValida && rascunho) {
+          restaurandoRascunhoRef.current = true;
+          setLojaId(rascunho.lojaId);
+          setItens(rascunho.itens);
+          setAlteracoes(rascunho.alteracoes);
+          setMotivo(rascunho.motivo);
+          setObservacao(rascunho.observacao);
+          setContagemCega(rascunho.contagemCega);
+
+          const qtdAlterados = rascunho.itens.filter((produto) => {
+            const novaQuantidade = rascunho.alteracoes[produto.id];
+
+            return (
+              novaQuantidade !== undefined &&
+              novaQuantidade !== produto.quantidade_atual
+            );
+          }).length;
+
+          toast.info(
+            qtdAlterados > 0
+              ? `Recuperamos ${qtdAlterados} produto(s) com quantidade alterada de uma lista não salva (${rascunho.itens.length} produto(s) na lista de trabalho).`
+              : `Recuperamos sua lista de trabalho com ${rascunho.itens.length} produto(s) (nenhum com quantidade alterada ainda).`,
+          );
+        } else if (filtraveis.length === 1) {
           setLojaId(String(filtraveis[0].id));
         }
       } catch (error) {
@@ -210,16 +327,89 @@ export default function InventarioPage() {
     })();
   }, []);
 
-  const handleAdicionarProduto = (produtoId: string) => {
-    const produto = resultadosBusca.find((p) => p.id === produtoId);
+  const handleBuscarProdutos = async () => {
+    if (!lojaId) return;
 
-    if (!produto) return;
+    const termo = buscaProduto.trim();
 
-    setItens((prev) =>
-      prev.some((p) => p.id === produtoId) ? prev : [...prev, produto],
-    );
-    setBuscaProduto("");
-    setResultadosBusca([]);
+    if (termo.length < 2) {
+      toast.warning("Digite pelo menos 2 caracteres para buscar");
+
+      return;
+    }
+
+    setBuscandoProdutos(true);
+    try {
+      const result = await buscarProdutosPaginados({
+        busca: termo,
+        ativo: true,
+        page: 1,
+        pageSize: 200,
+      });
+
+      const idLoja = Number(lojaId);
+      const encontrados: ProdutoAjuste[] = result.data.map((p: any) => {
+        const estoqueLoja = (p.estoques_lojas || []).find(
+          (e: any) => e.id_loja === idLoja,
+        );
+
+        return {
+          id: p.id,
+          descricao: p.descricao,
+          marca: p.marca,
+          categoria: p.categoria || p.grupo,
+          codigo_fabricante: p.codigo_fabricante,
+          quantidade_minima: p.quantidade_minima,
+          quantidade_atual: estoqueLoja?.quantidade ?? 0,
+          origemBusca: true,
+        };
+      });
+
+      if (encontrados.length === 0) {
+        toast.warning("Nenhum produto encontrado para essa busca");
+      }
+
+      const termos = normalizarTexto(termo)
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+
+      encontrados.sort(
+        (a, b) => calcularRelevancia(b, termos) - calcularRelevancia(a, termos),
+      );
+
+      // Uma nova busca substitui os resultados da busca anterior — só ficam
+      // na lista os itens que vieram dela e já tiveram a quantidade alterada
+      // (senão perderia o trabalho feito), além de itens adicionados
+      // manualmente (Novo Produto), que nunca são removidos por uma busca.
+      setItens((prev) => {
+        const manter = prev.filter((p) => {
+          const foiEditado =
+            alteracoes[p.id] !== undefined &&
+            alteracoes[p.id] !== p.quantidade_atual;
+
+          return foiEditado || !p.origemBusca;
+        });
+        const idsManter = new Set(manter.map((p) => p.id));
+        const novos = encontrados.filter((p) => !idsManter.has(p.id));
+
+        return [...manter, ...novos];
+      });
+      setBuscaAtualIds(new Set(encontrados.map((p) => p.id)));
+      setTotalResultadosBusca(result.total);
+      setBuscaProduto("");
+    } catch (error) {
+      console.error("Erro ao buscar produtos:", error);
+      toast.error("Erro ao buscar produtos");
+    } finally {
+      setBuscandoProdutos(false);
+    }
+  };
+
+  const handleLimparLista = () => {
+    setItens([]);
+    setAlteracoes({});
+    setTotalResultadosBusca(0);
+    setBuscaAtualIds(new Set());
   };
 
   const handleRemoverItem = (produtoId: string) => {
@@ -237,6 +427,7 @@ export default function InventarioPage() {
   useEffect(() => {
     if (filtroProdutoBusca.length < 2) {
       setProdutosAutocomplete([]);
+      setTotalProdutosAutocomplete(0);
 
       return;
     }
@@ -245,12 +436,13 @@ export default function InventarioPage() {
         const result = await buscarProdutosPaginados({
           busca: filtroProdutoBusca,
           page: 1,
-          pageSize: 15,
+          pageSize: 50,
         });
 
         setProdutosAutocomplete(
           result.data.map((p: any) => ({ id: p.id, descricao: p.descricao })),
         );
+        setTotalProdutosAutocomplete(result.total);
       } catch (error) {
         console.error("Erro ao buscar produtos:", error);
       }
@@ -387,12 +579,34 @@ export default function InventarioPage() {
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [alteracoes, itens]);
 
+  // Itens exibidos na tabela de edição: escondemos os que já foram alterados
+  // (eles continuam contando para a conferência) para não poluir a tela,
+  // exceto os que fazem parte da busca mais recente — se você procurar o
+  // nome de um produto já alterado de novo, ele reaparece para reedição.
+  const itensVisiveis = useMemo(() => {
+    return itens.filter((produto) => {
+      const foiEditado =
+        alteracoes[produto.id] !== undefined &&
+        alteracoes[produto.id] !== produto.quantidade_atual;
+
+      return !foiEditado || buscaAtualIds.has(produto.id);
+    });
+  }, [itens, alteracoes, buscaAtualIds]);
+
   const totalUnidadesDiferenca = itensAlterados.reduce(
     (soma, item) => soma + item.diferenca,
     0,
   );
 
-  const handleAbrirConfirmSalvar = () => {
+  // Sai da revisão automaticamente se não sobrar nada para revisar (ex: usuário
+  // limpou os selecionados ou desfez as alterações restantes).
+  useEffect(() => {
+    if (mostrarRevisao && itensAlterados.length === 0) {
+      setMostrarRevisao(false);
+    }
+  }, [mostrarRevisao, itensAlterados.length]);
+
+  const handleAbrirRevisao = () => {
     if (!temPermissao("estoque.ajustar")) {
       toast.error("Você não tem permissão para ajustar o estoque");
 
@@ -408,16 +622,40 @@ export default function InventarioPage() {
 
       return;
     }
+    setSelecionadosRevisao(new Set(itensAlterados.map((i) => i.produtoId)));
+    setMostrarRevisao(true);
+  };
+
+  const handleToggleSelecionadoRevisao = (produtoId: string) => {
+    setSelecionadosRevisao((prev) => {
+      const novo = new Set(prev);
+
+      if (novo.has(produtoId)) novo.delete(produtoId);
+      else novo.add(produtoId);
+
+      return novo;
+    });
+  };
+
+  const handleToggleTodosRevisao = (marcar: boolean) => {
+    setSelecionadosRevisao(
+      marcar ? new Set(itensAlterados.map((i) => i.produtoId)) : new Set(),
+    );
+  };
+
+  const handleLimparSelecionadosRevisao = () => {
+    selecionadosRevisao.forEach((id) => handleRemoverItem(id));
+    setSelecionadosRevisao(new Set());
+  };
+
+  const handleSalvarAjustes = async () => {
+    if (!user || !lojaId) return;
+
     if (!motivo) {
       toast.error("Selecione o motivo do ajuste");
 
       return;
     }
-    setConfirmSalvarAberto(true);
-  };
-
-  const handleSalvarAjustes = async () => {
-    if (!user || !lojaId) return;
 
     setSalvando(true);
     setProgressoSalvar({ atual: 0, total: itensAlterados.length });
@@ -451,7 +689,6 @@ export default function InventarioPage() {
     }
 
     setSalvando(false);
-    setConfirmSalvarAberto(false);
 
     if (sucessos > 0) {
       toast.success(
@@ -466,6 +703,9 @@ export default function InventarioPage() {
     if (sucessos > 0) {
       setItens([]);
       setAlteracoes({});
+      setBuscaAtualIds(new Set());
+      setSelecionadosRevisao(new Set());
+      setMostrarRevisao(false);
     }
     setObservacao("");
   };
@@ -616,44 +856,242 @@ export default function InventarioPage() {
                   Os ajustes de estoque são feitos loja a loja.
                 </p>
               </div>
+            ) : mostrarRevisao ? (
+              <>
+                {/* Tela de conferência: só os produtos com quantidade alterada */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">
+                      Conferência de ajustes
+                    </h2>
+                    <p className="text-sm text-default-500">
+                      Revise os {itensAlterados.length} produto(s) alterado(s)
+                      na loja{" "}
+                      <span className="font-medium">{lojaSelecionadaNome}</span>{" "}
+                      antes de salvar.
+                    </p>
+                  </div>
+                  <Button
+                    isDisabled={salvando}
+                    startContent={<ArrowLeftIcon className="h-4 w-4" />}
+                    variant="light"
+                    onPress={() => setMostrarRevisao(false)}
+                  >
+                    Voltar e editar
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <Checkbox
+                    isIndeterminate={
+                      selecionadosRevisao.size > 0 &&
+                      selecionadosRevisao.size < itensAlterados.length
+                    }
+                    isSelected={
+                      selecionadosRevisao.size === itensAlterados.length &&
+                      itensAlterados.length > 0
+                    }
+                    size="sm"
+                    onValueChange={handleToggleTodosRevisao}
+                  >
+                    <span className="text-xs text-default-500">
+                      {selecionadosRevisao.size} de {itensAlterados.length}{" "}
+                      selecionado(s)
+                    </span>
+                  </Checkbox>
+                  <Button
+                    className="h-7 px-2 text-xs text-danger"
+                    isDisabled={selecionadosRevisao.size === 0 || salvando}
+                    size="sm"
+                    variant="light"
+                    onPress={handleLimparSelecionadosRevisao}
+                  >
+                    Limpar selecionados
+                  </Button>
+                </div>
+
+                <Card className="shadow-sm">
+                  <CardBody className="p-0">
+                    <Table
+                      removeWrapper
+                      aria-label="Conferência de ajustes de estoque"
+                      classNames={{
+                        th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
+                        td: "text-sm border-b border-default-100 py-2",
+                      }}
+                    >
+                      <TableHeader>
+                        <TableColumn width={40}> </TableColumn>
+                        <TableColumn>PRODUTO</TableColumn>
+                        <TableColumn width={100}>ATUAL</TableColumn>
+                        <TableColumn width={160}>NOVA QTD.</TableColumn>
+                        <TableColumn width={100}>DIFERENÇA</TableColumn>
+                        <TableColumn width={50}> </TableColumn>
+                      </TableHeader>
+                      <TableBody emptyContent="Nenhum produto para revisar">
+                        {itensAlterados.map((item) => (
+                          <TableRow key={item.produtoId}>
+                            <TableCell>
+                              <Checkbox
+                                isSelected={selecionadosRevisao.has(
+                                  item.produtoId,
+                                )}
+                                size="sm"
+                                onValueChange={() =>
+                                  handleToggleSelecionadoRevisao(item.produtoId)
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <p className="max-w-[320px] truncate font-medium">
+                                {item.descricao}
+                              </p>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-semibold tabular-nums">
+                                {item.quantidadeAtual}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                className="w-24"
+                                min={0}
+                                size="sm"
+                                type="number"
+                                value={String(item.quantidadeNova)}
+                                variant="bordered"
+                                onValueChange={(v) =>
+                                  handleAlterarQuantidade(item.produtoId, v)
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                color={
+                                  item.diferenca > 0 ? "success" : "danger"
+                                }
+                                size="sm"
+                                variant="flat"
+                              >
+                                {item.diferenca > 0 ? "+" : ""}
+                                {item.diferenca}
+                              </Chip>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                isIconOnly
+                                aria-label="Remover da lista"
+                                size="sm"
+                                variant="light"
+                                onPress={() =>
+                                  handleRemoverItem(item.produtoId)
+                                }
+                              >
+                                <XMarkIcon className="h-4 w-4 text-default-400" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardBody>
+                </Card>
+
+                <Card className="sticky bottom-4 z-20 bg-content1 shadow-lg">
+                  <CardBody className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-4">
+                      <span className="text-sm">
+                        <span className="font-semibold">
+                          {itensAlterados.length}
+                        </span>{" "}
+                        produto(s), diferença total de{" "}
+                        <span className="font-semibold">
+                          {totalUnidadesDiferenca > 0 ? "+" : ""}
+                          {totalUnidadesDiferenca}
+                        </span>{" "}
+                        unidade(s)
+                      </span>
+                      {salvando && (
+                        <span className="text-xs text-default-500">
+                          Salvando {progressoSalvar.atual} de{" "}
+                          {progressoSalvar.total}...
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <Select
+                        aria-label="Motivo do ajuste"
+                        className="max-w-xs"
+                        label="Motivo do ajuste"
+                        selectedKeys={[motivo]}
+                        variant="bordered"
+                        onSelectionChange={(keys) => {
+                          const value = Array.from(keys)[0] as string;
+
+                          setMotivo(value || "");
+                        }}
+                      >
+                        {MOTIVOS_AJUSTE.map((m) => (
+                          <SelectItem key={m.key}>{m.label}</SelectItem>
+                        ))}
+                      </Select>
+                      <Textarea
+                        className="flex-1"
+                        label="Observação (opcional)"
+                        minRows={1}
+                        value={observacao}
+                        variant="bordered"
+                        onValueChange={setObservacao}
+                      />
+                      <Button
+                        color="primary"
+                        isDisabled={itensAlterados.length === 0}
+                        isLoading={salvando}
+                        onPress={handleSalvarAjustes}
+                      >
+                        Salvar ajustes
+                      </Button>
+                    </div>
+                  </CardBody>
+                </Card>
+              </>
             ) : (
               <>
                 {/* Busca para adicionar produto + Novo Produto */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Autocomplete
-                    allowsCustomValue={false}
-                    aria-label="Buscar produto para adicionar"
-                    className="flex-1"
-                    inputValue={buscaProduto}
-                    isLoading={buscandoProdutos}
-                    items={resultadosBusca.filter(
-                      (p) => !itens.some((i) => i.id === p.id),
-                    )}
-                    placeholder="Buscar produto para adicionar..."
-                    startContent={
-                      <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
-                    }
-                    variant="bordered"
-                    onInputChange={setBuscaProduto}
-                    onSelectionChange={(key) => {
-                      if (key) handleAdicionarProduto(key as string);
-                    }}
-                  >
-                    {(item) => (
-                      <AutocompleteItem
-                        key={item.id}
-                        textValue={item.descricao}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                  <div className="flex-1">
+                    <div className="flex gap-2">
+                      <Input
+                        aria-label="Buscar produto"
+                        className="flex-1"
+                        placeholder="Buscar produto (ex: bateria foxconn)... pressione Enter"
+                        startContent={
+                          <MagnifyingGlassIcon className="h-4 w-4 text-default-400" />
+                        }
+                        value={buscaProduto}
+                        variant="bordered"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleBuscarProdutos();
+                        }}
+                        onValueChange={setBuscaProduto}
+                      />
+                      <Button
+                        color="primary"
+                        isLoading={buscandoProdutos}
+                        variant="flat"
+                        onPress={handleBuscarProdutos}
                       >
-                        <div className="flex flex-col">
-                          <span>{item.descricao}</span>
-                          <span className="text-xs text-default-400">
-                            {item.marca ? `${item.marca} · ` : ""}Estoque atual:{" "}
-                            {item.quantidade_atual}
-                          </span>
-                        </div>
-                      </AutocompleteItem>
+                        Pesquisar
+                      </Button>
+                    </div>
+                    {totalResultadosBusca > 200 && (
+                      <p className="mt-1 px-1 text-xs text-warning-600">
+                        Sua busca encontrou {totalResultadosBusca} produtos —
+                        mostrando os 200 primeiros. Refine a busca (marca,
+                        categoria, código) para ver os demais.
+                      </p>
                     )}
-                  </Autocomplete>
+                  </div>
                   <Switch
                     isSelected={contagemCega}
                     size="sm"
@@ -677,187 +1115,177 @@ export default function InventarioPage() {
                 </div>
 
                 {/* Lista de trabalho: produtos adicionados para ajuste */}
-                {itens.length === 0 ? (
+                {itensVisiveis.length === 0 ? (
                   <div className="rounded-xl border border-default-200/70 bg-content1 py-16 text-center">
                     <MagnifyingGlassIcon className="mx-auto mb-3 h-12 w-12 text-default-300" />
                     <p className="text-sm font-medium text-foreground">
-                      Nenhum produto adicionado ainda
+                      {itens.length === 0
+                        ? "Nenhum produto adicionado ainda"
+                        : "Todos os produtos buscados já foram ajustados"}
                     </p>
                     <p className="mt-1 text-xs text-default-500">
-                      Busque um produto acima e selecione-o para adicionar à
-                      lista de ajuste.
+                      {itens.length === 0
+                        ? "Busque um produto acima e pressione Enter — todos os resultados aparecem na tabela abaixo, prontos para editar."
+                        : "Eles saíram da tabela para não poluir a tela. Veja a lista de conferência abaixo, ou busque o nome de um deles de novo para reeditar."}
                     </p>
                   </div>
                 ) : (
-                  <Card className="shadow-sm">
-                    <CardBody className="p-0">
-                      <Table
-                        removeWrapper
-                        aria-label="Ajuste de estoque em massa"
-                        classNames={{
-                          th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
-                          td: "text-sm border-b border-default-100 py-2",
-                        }}
+                  <>
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs text-default-500">
+                        {itensVisiveis.length} produto(s) na lista
+                      </span>
+                      <Button
+                        className="h-7 px-2 text-xs text-default-500"
+                        size="sm"
+                        variant="light"
+                        onPress={handleLimparLista}
                       >
-                        <TableHeader>
-                          <TableColumn>PRODUTO</TableColumn>
-                          <TableColumn>CATEGORIA</TableColumn>
-                          <TableColumn width={140}>
-                            {contagemCega ? "ATUAL" : "QTD. ATUAL"}
-                          </TableColumn>
-                          <TableColumn width={160}>NOVA QTD.</TableColumn>
-                          <TableColumn width={100}>DIFERENÇA</TableColumn>
-                          <TableColumn width={50}> </TableColumn>
-                        </TableHeader>
-                        <TableBody emptyContent="Nenhum produto na lista">
-                          {itens.map((produto) => {
-                            const valorEditado =
-                              alteracoes[produto.id] !== undefined
-                                ? String(alteracoes[produto.id])
-                                : "";
-                            const diferenca =
-                              alteracoes[produto.id] !== undefined
-                                ? alteracoes[produto.id] -
-                                  produto.quantidade_atual
-                                : 0;
-
-                            return (
-                              <TableRow key={produto.id}>
-                                <TableCell>
-                                  <div className="min-w-0 max-w-[280px]">
-                                    <p className="truncate font-medium">
-                                      {produto.descricao}
-                                    </p>
-                                    {produto.marca && (
-                                      <p className="text-xs text-default-400">
-                                        {produto.marca}
-                                      </p>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {produto.categoria || (
-                                    <span className="text-default-300">—</span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {contagemCega ? (
-                                    <span className="text-default-300">
-                                      •••
-                                    </span>
-                                  ) : (
-                                    <span className="font-semibold tabular-nums">
-                                      {produto.quantidade_atual}
-                                    </span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    className="w-24"
-                                    min={0}
-                                    placeholder={
-                                      contagemCega
-                                        ? "Contar"
-                                        : String(produto.quantidade_atual)
-                                    }
-                                    size="sm"
-                                    type="number"
-                                    value={valorEditado}
-                                    variant="bordered"
-                                    onValueChange={(v) =>
-                                      handleAlterarQuantidade(produto.id, v)
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  {alteracoes[produto.id] !== undefined &&
-                                  diferenca !== 0 ? (
-                                    <Chip
-                                      color={
-                                        diferenca > 0 ? "success" : "danger"
-                                      }
-                                      size="sm"
-                                      variant="flat"
-                                    >
-                                      {diferenca > 0 ? "+" : ""}
-                                      {diferenca}
-                                    </Chip>
-                                  ) : (
-                                    <span className="text-default-300">—</span>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Button
-                                    isIconOnly
-                                    aria-label="Remover da lista"
-                                    size="sm"
-                                    variant="light"
-                                    onPress={() =>
-                                      handleRemoverItem(produto.id)
-                                    }
-                                  >
-                                    <XMarkIcon className="h-4 w-4 text-default-400" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </CardBody>
-                  </Card>
-                )}
-
-                {/* Barra de resumo / salvar */}
-                {itensAlterados.length > 0 && (
-                  <Card className="sticky bottom-4 shadow-lg">
-                    <CardBody className="flex flex-col gap-3">
-                      <div className="flex flex-wrap items-center gap-4">
-                        <span className="text-sm">
-                          <span className="font-semibold">
-                            {itensAlterados.length}
-                          </span>{" "}
-                          produto(s) alterado(s), diferença total de{" "}
-                          <span className="font-semibold">
-                            {totalUnidadesDiferenca > 0 ? "+" : ""}
-                            {totalUnidadesDiferenca}
-                          </span>{" "}
-                          unidade(s)
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <Select
-                          aria-label="Motivo do ajuste"
-                          className="max-w-xs"
-                          label="Motivo do ajuste"
-                          selectedKeys={[motivo]}
-                          variant="bordered"
-                          onSelectionChange={(keys) => {
-                            const value = Array.from(keys)[0] as string;
-
-                            setMotivo(value || "");
+                        Limpar lista
+                      </Button>
+                    </div>
+                    <Card className="shadow-sm">
+                      <CardBody className="p-0">
+                        <Table
+                          removeWrapper
+                          aria-label="Ajuste de estoque em massa"
+                          classNames={{
+                            th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
+                            td: "text-sm border-b border-default-100 py-2",
                           }}
                         >
-                          {MOTIVOS_AJUSTE.map((m) => (
-                            <SelectItem key={m.key}>{m.label}</SelectItem>
-                          ))}
-                        </Select>
-                        <Textarea
-                          className="flex-1"
-                          label="Observação (opcional)"
-                          minRows={1}
-                          value={observacao}
-                          variant="bordered"
-                          onValueChange={setObservacao}
-                        />
-                        <Button
-                          color="primary"
-                          isDisabled={salvando}
-                          onPress={handleAbrirConfirmSalvar}
-                        >
-                          Salvar ajustes
-                        </Button>
-                      </div>
+                          <TableHeader>
+                            <TableColumn>PRODUTO</TableColumn>
+                            <TableColumn>CATEGORIA</TableColumn>
+                            <TableColumn width={140}>
+                              {contagemCega ? "ATUAL" : "QTD. ATUAL"}
+                            </TableColumn>
+                            <TableColumn width={160}>NOVA QTD.</TableColumn>
+                            <TableColumn width={100}>DIFERENÇA</TableColumn>
+                            <TableColumn width={50}> </TableColumn>
+                          </TableHeader>
+                          <TableBody emptyContent="Nenhum produto na lista">
+                            {itensVisiveis.map((produto) => {
+                              const valorEditado =
+                                alteracoes[produto.id] !== undefined
+                                  ? String(alteracoes[produto.id])
+                                  : "";
+                              const diferenca =
+                                alteracoes[produto.id] !== undefined
+                                  ? alteracoes[produto.id] -
+                                    produto.quantidade_atual
+                                  : 0;
+
+                              return (
+                                <TableRow key={produto.id}>
+                                  <TableCell>
+                                    <div className="min-w-0 max-w-[280px]">
+                                      <p className="truncate font-medium">
+                                        {produto.descricao}
+                                      </p>
+                                      {produto.marca && (
+                                        <p className="text-xs text-default-400">
+                                          {produto.marca}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {produto.categoria || (
+                                      <span className="text-default-300">
+                                        —
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    {contagemCega ? (
+                                      <span className="text-default-300">
+                                        •••
+                                      </span>
+                                    ) : (
+                                      <span className="font-semibold tabular-nums">
+                                        {produto.quantidade_atual}
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      className="w-24"
+                                      min={0}
+                                      placeholder={
+                                        contagemCega
+                                          ? "Contar"
+                                          : String(produto.quantidade_atual)
+                                      }
+                                      size="sm"
+                                      type="number"
+                                      value={valorEditado}
+                                      variant="bordered"
+                                      onValueChange={(v) =>
+                                        handleAlterarQuantidade(produto.id, v)
+                                      }
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    {alteracoes[produto.id] !== undefined &&
+                                    diferenca !== 0 ? (
+                                      <Chip
+                                        color={
+                                          diferenca > 0 ? "success" : "danger"
+                                        }
+                                        size="sm"
+                                        variant="flat"
+                                      >
+                                        {diferenca > 0 ? "+" : ""}
+                                        {diferenca}
+                                      </Chip>
+                                    ) : (
+                                      <span className="text-default-300">
+                                        —
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Button
+                                      isIconOnly
+                                      aria-label="Remover da lista"
+                                      size="sm"
+                                      variant="light"
+                                      onPress={() =>
+                                        handleRemoverItem(produto.id)
+                                      }
+                                    >
+                                      <XMarkIcon className="h-4 w-4 text-default-400" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardBody>
+                    </Card>
+                  </>
+                )}
+
+                {/* Barra de resumo / ir para conferência */}
+                {itensAlterados.length > 0 && (
+                  <Card className="sticky bottom-4 z-20 bg-content1 shadow-lg">
+                    <CardBody className="flex flex-row flex-wrap items-center justify-between gap-3">
+                      <span className="text-sm">
+                        <span className="font-semibold">
+                          {itensAlterados.length}
+                        </span>{" "}
+                        produto(s) alterado(s), diferença total de{" "}
+                        <span className="font-semibold">
+                          {totalUnidadesDiferenca > 0 ? "+" : ""}
+                          {totalUnidadesDiferenca}
+                        </span>{" "}
+                        unidade(s)
+                      </span>
+                      <Button color="primary" onPress={handleAbrirRevisao}>
+                        Ver lista para conferência
+                      </Button>
                     </CardBody>
                   </Card>
                 )}
@@ -896,26 +1324,33 @@ export default function InventarioPage() {
                   variant="bordered"
                   onValueChange={setFiltroDataFim}
                 />
-                <Autocomplete
-                  allowsCustomValue={false}
-                  aria-label="Filtro de produto"
-                  className="max-w-xs"
-                  inputValue={filtroProdutoBusca}
-                  items={produtosAutocomplete}
-                  label="Produto"
-                  placeholder="Buscar produto..."
-                  variant="bordered"
-                  onInputChange={setFiltroProdutoBusca}
-                  onSelectionChange={(key) => {
-                    setFiltroProdutoId((key as string) || "");
-                  }}
-                >
-                  {(item) => (
-                    <AutocompleteItem key={item.id}>
-                      {item.descricao}
-                    </AutocompleteItem>
+                <div className="max-w-xs">
+                  <Autocomplete
+                    allowsCustomValue={false}
+                    aria-label="Filtro de produto"
+                    inputValue={filtroProdutoBusca}
+                    items={produtosAutocomplete}
+                    label="Produto"
+                    placeholder="Buscar produto..."
+                    variant="bordered"
+                    onInputChange={setFiltroProdutoBusca}
+                    onSelectionChange={(key) => {
+                      setFiltroProdutoId((key as string) || "");
+                    }}
+                  >
+                    {(item) => (
+                      <AutocompleteItem key={item.id}>
+                        {item.descricao}
+                      </AutocompleteItem>
+                    )}
+                  </Autocomplete>
+                  {totalProdutosAutocomplete > produtosAutocomplete.length && (
+                    <p className="mt-1 px-1 text-xs text-warning-600">
+                      Mostrando {produtosAutocomplete.length} de{" "}
+                      {totalProdutosAutocomplete} resultados. Refine a busca.
+                    </p>
                   )}
-                </Autocomplete>
+                </div>
                 <Select
                   aria-label="Filtro de usuário"
                   className="max-w-xs"
@@ -1050,39 +1485,6 @@ export default function InventarioPage() {
         produto={null}
         onClose={() => setModalNovoProduto(false)}
         onSubmit={handleCriarProduto}
-      />
-
-      {/* Confirmação de salvar ajustes */}
-      <ConfirmModal
-        cancelText="Cancelar"
-        confirmColor="primary"
-        confirmText="Confirmar e salvar"
-        isLoading={salvando}
-        isOpen={confirmSalvarAberto}
-        message={
-          <div className="space-y-2">
-            <p>
-              Você está prestes a ajustar{" "}
-              <span className="font-semibold">{itensAlterados.length}</span>{" "}
-              produto(s) na loja{" "}
-              <span className="font-semibold">{lojaSelecionadaNome}</span>, com
-              diferença total de{" "}
-              <span className="font-semibold">
-                {totalUnidadesDiferenca > 0 ? "+" : ""}
-                {totalUnidadesDiferenca}
-              </span>{" "}
-              unidade(s).
-            </p>
-            {salvando && (
-              <p className="text-xs text-default-500">
-                Salvando {progressoSalvar.atual} de {progressoSalvar.total}...
-              </p>
-            )}
-          </div>
-        }
-        title="Confirmar ajuste de estoque"
-        onClose={() => !salvando && setConfirmSalvarAberto(false)}
-        onConfirm={handleSalvarAjustes}
       />
 
       {/* Toast */}
