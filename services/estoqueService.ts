@@ -366,19 +366,41 @@ export async function buscarProdutosPaginados(params: {
       return { data: [], total: count || 0 };
     }
 
-    // Buscar estoques apenas dos produtos da página
+    // Buscar estoques apenas dos produtos da página, em lotes pequenos: um
+    // .in() com muitos UUIDs de uma vez estoura o limite de tamanho de
+    // header do nginx (a partir de ~100 IDs) e o proxy responde 502 —
+    // o erro era engolido e todo o lote aparecia com quantidade 0.
     const produtoIds = produtos.map((p: any) => p.id);
-    const { data: estoques } = await supabase
-      .from("estoque_lojas")
-      .select(
-        `
-        id_produto,
-        id_loja,
-        quantidade,
-        loja:lojas(id, nome)
-      `,
-      )
-      .in("id_produto", produtoIds);
+    const ESTOQUE_BATCH_SIZE = 50;
+    const lotes: string[][] = [];
+
+    for (let i = 0; i < produtoIds.length; i += ESTOQUE_BATCH_SIZE) {
+      lotes.push(produtoIds.slice(i, i + ESTOQUE_BATCH_SIZE));
+    }
+
+    const resultadosLotes = await Promise.all(
+      lotes.map((lote) =>
+        supabase
+          .from("estoque_lojas")
+          .select(
+            `
+            id_produto,
+            id_loja,
+            quantidade,
+            loja:lojas(id, nome)
+          `,
+          )
+          .in("id_produto", lote),
+      ),
+    );
+
+    resultadosLotes.forEach(({ error: erroLote }) => {
+      if (erroLote) {
+        console.error("Erro ao buscar lote de estoque:", erroLote);
+      }
+    });
+
+    const estoques = resultadosLotes.flatMap((r) => r.data || []);
 
     // Montar mapa de estoques
     const estoquesMap = new Map<string, any[]>();

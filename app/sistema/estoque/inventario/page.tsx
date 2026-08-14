@@ -943,7 +943,7 @@ export default function InventarioPage() {
                               />
                             </TableCell>
                             <TableCell>
-                              <p className="max-w-[320px] truncate font-medium">
+                              <p className="min-w-[240px] font-medium">
                                 {item.descricao}
                               </p>
                             </TableCell>
@@ -1179,8 +1179,8 @@ export default function InventarioPage() {
                               return (
                                 <TableRow key={produto.id}>
                                   <TableCell>
-                                    <div className="min-w-0 max-w-[280px]">
-                                      <p className="truncate font-medium">
+                                    <div className="min-w-[240px]">
+                                      <p className="font-medium">
                                         {produto.descricao}
                                       </p>
                                       {produto.marca && (
@@ -1415,8 +1415,8 @@ export default function InventarioPage() {
                           {new Date(item.criado_em).toLocaleString("pt-BR")}
                         </TableCell>
                         <TableCell>
-                          <div className="max-w-[220px]">
-                            <p className="truncate font-medium">
+                          <div className="min-w-[220px]">
+                            <p className="font-medium">
                               {item.produto_descricao}
                             </p>
                             {item.produto_marca && (
