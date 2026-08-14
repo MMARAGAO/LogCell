@@ -179,6 +179,11 @@ export default function InventarioPage() {
   const [buscaProduto, setBuscaProduto] = useState("");
   const [totalResultadosBusca, setTotalResultadosBusca] = useState(0);
   const [buscandoProdutos, setBuscandoProdutos] = useState(false);
+  // Controle de paginação da busca atual, para o botão "Carregar mais".
+  const [ultimaBusca, setUltimaBusca] = useState("");
+  const [paginaBusca, setPaginaBusca] = useState(1);
+  const [carregadosBusca, setCarregadosBusca] = useState(0);
+  const [carregandoMais, setCarregandoMais] = useState(false);
   const [itens, setItens] = useState<ProdutoAjuste[]>([]);
   const [alteracoes, setAlteracoes] = useState<Record<string, number>>({});
   // IDs retornados pela busca mais recente. Um produto já alterado some da
@@ -229,6 +234,9 @@ export default function InventarioPage() {
     setItens([]);
     setAlteracoes({});
     setBuscaAtualIds(new Set());
+    setUltimaBusca("");
+    setPaginaBusca(1);
+    setCarregadosBusca(0);
   }, [lojaId]);
 
   // Salva a lista de trabalho no navegador a cada mudança, para sobreviver a
@@ -327,6 +335,46 @@ export default function InventarioPage() {
     })();
   }, []);
 
+  // Busca uma página de produtos e já devolve mapeado para ProdutoAjuste,
+  // ordenado por relevância ao termo buscado. Usado tanto pela busca nova
+  // quanto pelo "Carregar mais" (mesma busca, próxima página).
+  const buscarPaginaProdutos = async (termo: string, pagina: number) => {
+    const result = await buscarProdutosPaginados({
+      busca: termo,
+      ativo: true,
+      page: pagina,
+      pageSize: 200,
+    });
+
+    const idLoja = Number(lojaId);
+    const encontrados: ProdutoAjuste[] = result.data.map((p: any) => {
+      const estoqueLoja = (p.estoques_lojas || []).find(
+        (e: any) => e.id_loja === idLoja,
+      );
+
+      return {
+        id: p.id,
+        descricao: p.descricao,
+        marca: p.marca,
+        categoria: p.categoria || p.grupo,
+        codigo_fabricante: p.codigo_fabricante,
+        quantidade_minima: p.quantidade_minima,
+        quantidade_atual: estoqueLoja?.quantidade ?? 0,
+        origemBusca: true,
+      };
+    });
+
+    const termos = normalizarTexto(termo)
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+
+    encontrados.sort(
+      (a, b) => calcularRelevancia(b, termos) - calcularRelevancia(a, termos),
+    );
+
+    return { encontrados, total: result.total };
+  };
+
   const handleBuscarProdutos = async () => {
     if (!lojaId) return;
 
@@ -340,42 +388,11 @@ export default function InventarioPage() {
 
     setBuscandoProdutos(true);
     try {
-      const result = await buscarProdutosPaginados({
-        busca: termo,
-        ativo: true,
-        page: 1,
-        pageSize: 200,
-      });
-
-      const idLoja = Number(lojaId);
-      const encontrados: ProdutoAjuste[] = result.data.map((p: any) => {
-        const estoqueLoja = (p.estoques_lojas || []).find(
-          (e: any) => e.id_loja === idLoja,
-        );
-
-        return {
-          id: p.id,
-          descricao: p.descricao,
-          marca: p.marca,
-          categoria: p.categoria || p.grupo,
-          codigo_fabricante: p.codigo_fabricante,
-          quantidade_minima: p.quantidade_minima,
-          quantidade_atual: estoqueLoja?.quantidade ?? 0,
-          origemBusca: true,
-        };
-      });
+      const { encontrados, total } = await buscarPaginaProdutos(termo, 1);
 
       if (encontrados.length === 0) {
         toast.warning("Nenhum produto encontrado para essa busca");
       }
-
-      const termos = normalizarTexto(termo)
-        .split(/\s+/)
-        .filter((t) => t.length > 0);
-
-      encontrados.sort(
-        (a, b) => calcularRelevancia(b, termos) - calcularRelevancia(a, termos),
-      );
 
       // Uma nova busca substitui os resultados da busca anterior — só ficam
       // na lista os itens que vieram dela e já tiveram a quantidade alterada
@@ -395,7 +412,10 @@ export default function InventarioPage() {
         return [...manter, ...novos];
       });
       setBuscaAtualIds(new Set(encontrados.map((p) => p.id)));
-      setTotalResultadosBusca(result.total);
+      setTotalResultadosBusca(total);
+      setUltimaBusca(termo);
+      setPaginaBusca(1);
+      setCarregadosBusca(encontrados.length);
       setBuscaProduto("");
     } catch (error) {
       console.error("Erro ao buscar produtos:", error);
@@ -405,11 +425,49 @@ export default function InventarioPage() {
     }
   };
 
+  const handleCarregarMaisResultados = async () => {
+    if (!ultimaBusca) return;
+
+    setCarregandoMais(true);
+    try {
+      const proximaPagina = paginaBusca + 1;
+      const { encontrados, total } = await buscarPaginaProdutos(
+        ultimaBusca,
+        proximaPagina,
+      );
+
+      setItens((prev) => {
+        const idsExistentes = new Set(prev.map((p) => p.id));
+        const novos = encontrados.filter((p) => !idsExistentes.has(p.id));
+
+        return [...prev, ...novos];
+      });
+      setBuscaAtualIds((prev) => {
+        const novo = new Set(prev);
+
+        encontrados.forEach((p) => novo.add(p.id));
+
+        return novo;
+      });
+      setTotalResultadosBusca(total);
+      setPaginaBusca(proximaPagina);
+      setCarregadosBusca((prev) => prev + encontrados.length);
+    } catch (error) {
+      console.error("Erro ao carregar mais produtos:", error);
+      toast.error("Erro ao carregar mais produtos");
+    } finally {
+      setCarregandoMais(false);
+    }
+  };
+
   const handleLimparLista = () => {
     setItens([]);
     setAlteracoes({});
     setTotalResultadosBusca(0);
     setBuscaAtualIds(new Set());
+    setUltimaBusca("");
+    setPaginaBusca(1);
+    setCarregadosBusca(0);
   };
 
   const handleRemoverItem = (produtoId: string) => {
@@ -704,6 +762,9 @@ export default function InventarioPage() {
       setItens([]);
       setAlteracoes({});
       setBuscaAtualIds(new Set());
+      setUltimaBusca("");
+      setPaginaBusca(1);
+      setCarregadosBusca(0);
       setSelecionadosRevisao(new Set());
       setMostrarRevisao(false);
     }
@@ -1084,13 +1145,6 @@ export default function InventarioPage() {
                         Pesquisar
                       </Button>
                     </div>
-                    {totalResultadosBusca > 200 && (
-                      <p className="mt-1 px-1 text-xs text-warning-600">
-                        Sua busca encontrou {totalResultadosBusca} produtos —
-                        mostrando os 200 primeiros. Refine a busca (marca,
-                        categoria, código) para ver os demais.
-                      </p>
-                    )}
                   </div>
                   <Switch
                     isSelected={contagemCega}
@@ -1266,6 +1320,25 @@ export default function InventarioPage() {
                       </CardBody>
                     </Card>
                   </>
+                )}
+
+                {/* Carregar mais resultados da busca atual */}
+                {ultimaBusca && carregadosBusca < totalResultadosBusca && (
+                  <div className="flex flex-col items-center gap-2 py-2">
+                    <p className="text-xs text-default-500">
+                      Mostrando {carregadosBusca} de {totalResultadosBusca}{" "}
+                      produtos encontrados para &quot;{ultimaBusca}&quot;.
+                    </p>
+                    <Button
+                      isLoading={carregandoMais}
+                      size="sm"
+                      variant="flat"
+                      onPress={handleCarregarMaisResultados}
+                    >
+                      Carregar mais{" "}
+                      {Math.min(200, totalResultadosBusca - carregadosBusca)}
+                    </Button>
+                  </div>
                 )}
 
                 {/* Barra de resumo / ir para conferência */}
