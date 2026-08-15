@@ -234,6 +234,7 @@ export default function InventarioPage() {
   // transferência, devolução e saída de OS, que já têm explicação própria.
   const [filtroSomenteAjustes, setFiltroSomenteAjustes] = useState(true);
   const [exportando, setExportando] = useState(false);
+  const requisicaoHistoricoRef = useRef(0);
 
   // ===== Aba: Relatório de Perdas =====
   const [perdas, setPerdas] = useState<PerdaEstoque[]>([]);
@@ -242,6 +243,11 @@ export default function InventarioPage() {
   const [filtroPerdaDataFim, setFiltroPerdaDataFim] = useState("");
   const [filtroPerdaLojaId, setFiltroPerdaLojaId] = useState<string>("");
   const [exportandoPerdas, setExportandoPerdas] = useState(false);
+  const requisicaoPerdasRef = useRef(0);
+  const temFiltroDataHistorico = Boolean(filtroDataInicio || filtroDataFim);
+  const temFiltroDataPerdas = Boolean(
+    filtroPerdaDataInicio || filtroPerdaDataFim,
+  );
 
   // Trocar de loja reinicia a lista de trabalho (quantidades são por loja).
   // Pulado uma vez quando a troca vem da restauração de um rascunho salvo.
@@ -531,6 +537,16 @@ export default function InventarioPage() {
   }, [filtroProdutoBusca]);
 
   const carregarHistorico = useCallback(async () => {
+    const requisicaoId = ++requisicaoHistoricoRef.current;
+
+    if (!filtroDataInicio && !filtroDataFim) {
+      setHistorico([]);
+      setTotalHistorico(0);
+      setLoadingHistorico(false);
+
+      return;
+    }
+
     setLoadingHistorico(true);
     try {
       const filtros: Parameters<typeof getTodoHistorico>[0] = {
@@ -557,13 +573,19 @@ export default function InventarioPage() {
         historicoPorPagina,
       );
 
-      setHistorico(result.data);
-      setTotalHistorico(result.total);
+      if (requisicaoId === requisicaoHistoricoRef.current) {
+        setHistorico(result.data);
+        setTotalHistorico(result.total);
+      }
     } catch (error) {
-      console.error("Erro ao carregar histórico:", error);
-      toast.error("Erro ao carregar histórico");
+      if (requisicaoId === requisicaoHistoricoRef.current) {
+        console.error("Erro ao carregar histórico:", error);
+        toast.error("Erro ao carregar histórico");
+      }
     } finally {
-      setLoadingHistorico(false);
+      if (requisicaoId === requisicaoHistoricoRef.current) {
+        setLoadingHistorico(false);
+      }
     }
   }, [
     lojaId,
@@ -584,6 +606,12 @@ export default function InventarioPage() {
   }, [loadingPermissoes, aba, carregarHistorico]);
 
   const handleExportarHistorico = async () => {
+    if (!temFiltroDataHistorico) {
+      toast.warning("Informe uma data para consultar o histórico.");
+
+      return;
+    }
+
     setExportando(true);
     try {
       const filtros: Parameters<typeof getTodoHistorico>[0] = {
@@ -642,16 +670,31 @@ export default function InventarioPage() {
   };
 
   const carregarPerdas = useCallback(async () => {
+    const requisicaoId = ++requisicaoPerdasRef.current;
+
+    if (!filtroPerdaDataInicio && !filtroPerdaDataFim) {
+      setPerdas([]);
+      setLoadingPerdas(false);
+
+      return;
+    }
+
     setLoadingPerdas(true);
     try {
       const result = await getRelatorioPerdas(montarFiltrosPerdas());
 
-      setPerdas(result);
+      if (requisicaoId === requisicaoPerdasRef.current) {
+        setPerdas(result);
+      }
     } catch (error) {
-      console.error("Erro ao carregar relatório de perdas:", error);
-      toast.error("Erro ao carregar relatório de perdas");
+      if (requisicaoId === requisicaoPerdasRef.current) {
+        console.error("Erro ao carregar relatório de perdas:", error);
+        toast.error("Erro ao carregar relatório de perdas");
+      }
     } finally {
-      setLoadingPerdas(false);
+      if (requisicaoId === requisicaoPerdasRef.current) {
+        setLoadingPerdas(false);
+      }
     }
   }, [
     filtroPerdaDataInicio,
@@ -696,6 +739,12 @@ export default function InventarioPage() {
   }, [perdas]);
 
   const handleExportarPerdas = async () => {
+    if (!temFiltroDataPerdas) {
+      toast.warning("Informe uma data para consultar as divergências.");
+
+      return;
+    }
+
     if (perdas.length === 0) {
       toast.warning("Nenhum registro encontrado com os filtros atuais.");
 
@@ -1573,6 +1622,7 @@ export default function InventarioPage() {
                   <span className="text-sm">Somente ajustes manuais</span>
                 </Switch>
                 <Button
+                  isDisabled={!temFiltroDataHistorico}
                   isLoading={exportando}
                   startContent={
                     !exportando && <ArrowDownTrayIcon className="h-4 w-4" />
@@ -1605,7 +1655,11 @@ export default function InventarioPage() {
                     <TableColumn>OBSERVAÇÃO</TableColumn>
                   </TableHeader>
                   <TableBody
-                    emptyContent="Nenhuma movimentação encontrada"
+                    emptyContent={
+                      temFiltroDataHistorico
+                        ? "Nenhuma movimentação encontrada"
+                        : "Informe uma data para consultar o histórico"
+                    }
                     isLoading={loadingHistorico}
                     items={historico}
                     loadingContent={<Spinner size="sm" />}
@@ -1736,6 +1790,7 @@ export default function InventarioPage() {
                   ]}
                 </Select>
                 <Button
+                  isDisabled={!temFiltroDataPerdas}
                   isLoading={exportandoPerdas}
                   startContent={
                     !exportandoPerdas && (
@@ -1836,7 +1891,11 @@ export default function InventarioPage() {
                     <TableColumn>ÚLTIMA OCORRÊNCIA</TableColumn>
                   </TableHeader>
                   <TableBody
-                    emptyContent="Nenhuma divergência encontrada com os filtros atuais"
+                    emptyContent={
+                      temFiltroDataPerdas
+                        ? "Nenhuma divergência encontrada com os filtros atuais"
+                        : "Informe uma data para consultar as divergências"
+                    }
                     isLoading={loadingPerdas}
                     items={perdas}
                     loadingContent={<Spinner size="sm" />}
