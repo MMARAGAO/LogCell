@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabaseClient";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 import {
   RMA,
   NovoRMA,
@@ -457,78 +458,20 @@ class RMAService {
     try {
       console.log("🔵 Movimentando estoque:", params);
 
-      // Buscar estoque atual
-      const { data: estoqueAtual, error: erroConsulta } = await supabase
-        .from("estoque_lojas")
-        .select("quantidade")
-        .eq("id_produto", params.produto_id)
-        .eq("id_loja", params.loja_id)
-        .single();
-
-      if (erroConsulta && erroConsulta.code !== "PGRST116") {
-        throw erroConsulta;
-      }
-
-      const quantidadeAtual = estoqueAtual?.quantidade || 0;
       const quantidadeMovimentacao =
         params.tipo_movimentacao === "entrada"
           ? params.quantidade
           : -params.quantidade;
-      const novaQuantidade = quantidadeAtual + quantidadeMovimentacao;
 
-      // Atualizar ou inserir estoque
-      if (estoqueAtual) {
-        const { error: erroEstoque } = await supabase
-          .from("estoque_lojas")
-          .update({
-            quantidade: novaQuantidade,
-            atualizado_por: params.criado_por,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq("id_produto", params.produto_id)
-          .eq("id_loja", params.loja_id);
-
-        if (erroEstoque) {
-          // Verifica se é erro de estoque negativo
-          if (
-            erroEstoque.code === "23514" ||
-            erroEstoque.message?.includes("estoque_lojas_quantidade_check")
-          ) {
-            throw new Error(
-              `Estoque insuficiente. Disponível: ${quantidadeAtual}, Solicitado: ${params.quantidade}`,
-            );
-          }
-          throw erroEstoque;
-        }
-      } else {
-        const { error: erroEstoque } = await supabase
-          .from("estoque_lojas")
-          .insert({
-            id_produto: params.produto_id,
-            id_loja: params.loja_id,
-            quantidade: novaQuantidade,
-            atualizado_por: params.criado_por,
-          });
-
-        if (erroEstoque) throw erroEstoque;
-      }
-
-      // Registrar no histórico de estoque
-      const { error: erroHistorico } = await supabase
-        .from("historico_estoque")
-        .insert({
-          id_produto: params.produto_id,
-          id_loja: params.loja_id,
-          usuario_id: params.criado_por,
-          quantidade: Math.abs(quantidadeMovimentacao),
-          quantidade_anterior: quantidadeAtual,
-          quantidade_nova: novaQuantidade,
-          tipo_movimentacao: params.tipo_movimentacao,
-          motivo: params.motivo,
-          observacao: `RMA #${params.rma_id}`,
-        });
-
-      if (erroHistorico) throw erroHistorico;
+      await movimentarEstoqueComHistorico({
+        produtoId: params.produto_id,
+        lojaId: params.loja_id,
+        quantidadeDelta: quantidadeMovimentacao,
+        tipoMovimentacao: params.tipo_movimentacao,
+        usuarioId: params.criado_por,
+        motivo: params.motivo,
+        observacao: `RMA #${params.rma_id}`,
+      });
 
       // Registrar no histórico do RMA
       await this.registrarHistorico({

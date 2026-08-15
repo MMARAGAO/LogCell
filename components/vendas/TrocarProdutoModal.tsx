@@ -30,6 +30,7 @@ import {
 
 import { useToast } from "@/components/Toast";
 import { supabase } from "@/lib/supabaseClient";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 
 interface TrocarProdutoModalProps {
   isOpen: boolean;
@@ -302,19 +303,13 @@ export function TrocarProdutoModal({
 
       if (estoqueAtual) {
         console.log("✅ Estoque atual encontrado:", estoqueAtual);
-        await supabase
-          .from("estoque_lojas")
-          .update({ quantidade: estoqueAtual.quantidade + qtd })
-          .eq("id", estoqueAtual.id);
-
-        // Registrar no histórico de estoque
-        await supabase.from("historico_estoque").insert({
-          id_produto: produtoAtual.id,
-          id_loja: lojaId,
-          tipo_movimentacao: "entrada",
-          quantidade: qtd,
+        await movimentarEstoqueComHistorico({
+          produtoId: produtoAtual.id,
+          lojaId,
+          quantidadeDelta: qtd,
+          tipoMovimentacao: "entrada",
+          usuarioId: user.id,
           motivo: `Devolução por troca - Venda`,
-          usuario_id: user.id,
         });
       }
 
@@ -340,26 +335,13 @@ export function TrocarProdutoModal({
       }
 
       console.log("✅ Estoque novo encontrado:", estoqueNovo);
-      const { error: errorBaixaEstoque } = await supabase
-        .from("estoque_lojas")
-        .update({ quantidade: estoqueNovo.quantidade - qtdNovo })
-        .eq("id", estoqueNovo.id);
-
-      if (errorBaixaEstoque) {
-        console.error("❌ Erro ao baixar estoque:", errorBaixaEstoque);
-        throw new Error(
-          `Erro ao baixar estoque: ${errorBaixaEstoque.message || "Erro desconhecido"}`,
-        );
-      }
-
-      // Registrar no histórico de estoque
-      await supabase.from("historico_estoque").insert({
-        id_produto: produtoNovo.id,
-        id_loja: lojaId,
-        tipo_movimentacao: "saida",
-        quantidade: qtdNovo,
+      await movimentarEstoqueComHistorico({
+        produtoId: produtoNovo.id,
+        lojaId,
+        quantidadeDelta: -qtdNovo,
+        tipoMovimentacao: "saida",
+        usuarioId: user.id,
         motivo: `Troca de produto - Venda`,
-        usuario_id: user.id,
       });
 
       // 3. Atualizar o item da venda

@@ -48,6 +48,7 @@ import { SimuladorTaxaCartao } from "@/components/vendas/SimuladorTaxaCartao";
 import { formatarMoeda, formatarTelefone } from "@/lib/formatters";
 import { supabase } from "@/lib/supabaseClient";
 import { BrindesAparelhosService } from "@/services/brindesAparelhosService";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 
 interface VendaAparelhoModalProps {
   aparelho: Aparelho;
@@ -732,27 +733,13 @@ export function VendaAparelhoModal({
               throw new Error("Estoque insuficiente para brinde");
             }
 
-            const novaQuantidade = quantidadeAtual - brinde.quantidade;
-
-            await supabase
-              .from("estoque_lojas")
-              .update({
-                quantidade: novaQuantidade,
-                atualizado_em: new Date().toISOString(),
-                atualizado_por: usuario.id,
-              })
-              .eq("id_produto", brinde.produto_id)
-              .eq("id_loja", brinde.loja_id || lojaId);
-
-            await supabase.from("historico_estoque").insert({
-              id_produto: brinde.produto_id,
-              id_loja: brinde.loja_id || lojaId,
-              quantidade_anterior: quantidadeAtual,
-              quantidade_nova: novaQuantidade,
-              quantidade_alterada: -brinde.quantidade,
-              tipo_movimentacao: "brinde_aparelho",
+            await movimentarEstoqueComHistorico({
+              produtoId: brinde.produto_id,
+              lojaId: brinde.loja_id || lojaId,
+              quantidadeDelta: -brinde.quantidade,
+              tipoMovimentacao: "brinde_aparelho",
+              usuarioId: usuario.id,
               motivo: `Brinde na venda #${venda.numero_venda}`,
-              usuario_id: usuario.id,
             });
           }
 

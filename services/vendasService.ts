@@ -10,6 +10,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { aplicarEscopoLoja } from "@/lib/lojaScope";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 
 export class VendasService {
   /**
@@ -914,25 +915,12 @@ export class VendasService {
             .single();
 
           if (estoqueAtual) {
-            await supabase
-              .from("estoque_lojas")
-              .update({
-                quantidade: estoqueAtual.quantidade + itemAntigo.quantidade,
-                atualizado_por: usuarioId,
-                atualizado_em: new Date().toISOString(),
-              })
-              .eq("id_produto", itemAntigo.produto_id)
-              .eq("id_loja", vendaAtual.loja_id);
-
-            // Registrar no histórico de estoque
-            await supabase.from("historico_estoque").insert({
-              id_produto: itemAntigo.produto_id,
-              id_loja: vendaAtual.loja_id,
-              usuario_id: usuarioId,
-              quantidade: itemAntigo.quantidade,
-              quantidade_anterior: estoqueAtual.quantidade,
-              quantidade_nova: estoqueAtual.quantidade + itemAntigo.quantidade,
-              tipo_movimentacao: "devolucao_edicao_venda",
+            await movimentarEstoqueComHistorico({
+              produtoId: itemAntigo.produto_id,
+              lojaId: vendaAtual.loja_id,
+              quantidadeDelta: itemAntigo.quantidade,
+              tipoMovimentacao: "devolucao_edicao_venda",
+              usuarioId,
               motivo: `Devolução ao estoque por remoção de item da venda ${vendaAtual.numero_venda}`,
             });
           }
@@ -1083,42 +1071,27 @@ export class VendasService {
               };
             }
 
-            const { error: erroEstoque } = await supabase
-              .from("estoque_lojas")
-              .update({
-                quantidade: estoqueAtual.quantidade - diferenca,
-                atualizado_por: usuarioId,
-                atualizado_em: new Date().toISOString(),
-              })
-              .eq("id_produto", itemNovo.produto_id)
-              .eq("id_loja", vendaAtual.loja_id);
-
-            if (erroEstoque) {
-              // Verifica se é erro de estoque negativo
-              if (
-                erroEstoque.code === "23514" ||
-                erroEstoque.message?.includes("estoque_lojas_quantidade_check")
-              ) {
+            try {
+              await movimentarEstoqueComHistorico({
+                produtoId: itemNovo.produto_id,
+                lojaId: vendaAtual.loja_id,
+                quantidadeDelta: -diferenca,
+                tipoMovimentacao:
+                  diferenca > 0
+                    ? "baixa_edicao_venda"
+                    : "devolucao_edicao_venda",
+                usuarioId,
+                motivo: `Ajuste de estoque por alteração de quantidade na venda ${vendaAtual.numero_venda} (de ${itemAntigo.quantidade} para ${itemNovo.quantidade})`,
+              });
+            } catch (error: any) {
+              if (error.message?.includes("Estoque insuficiente")) {
                 return {
                   success: false,
                   error: `Estoque insuficiente para aumentar quantidade de ${itemNovo.produto_nome}. Quantidade disponível: ${estoqueAtual.quantidade}`,
                 };
               }
-              throw erroEstoque;
+              throw error;
             }
-
-            // Registrar no histórico de estoque
-            await supabase.from("historico_estoque").insert({
-              id_produto: itemNovo.produto_id,
-              id_loja: vendaAtual.loja_id,
-              usuario_id: usuarioId,
-              quantidade: diferenca,
-              quantidade_anterior: estoqueAtual.quantidade,
-              quantidade_nova: estoqueAtual.quantidade - diferenca,
-              tipo_movimentacao:
-                diferenca > 0 ? "baixa_edicao_venda" : "devolucao_edicao_venda",
-              motivo: `Ajuste de estoque por alteração de quantidade na venda ${vendaAtual.numero_venda} (de ${itemAntigo.quantidade} para ${itemNovo.quantidade})`,
-            });
 
             alteracoes.push(
               `Alterado: ${itemNovo.produto_nome} (${itemAntigo.quantidade} → ${itemNovo.quantidade}un)`,
@@ -1956,48 +1929,13 @@ export class VendasService {
     usuario_id: string;
   }): Promise<void> {
     try {
-      // Buscar estoque atual
-      const { data: estoque } = await supabase
-        .from("estoque_lojas")
-        .select("*")
-        .eq("id_produto", dados.produto_id)
-        .eq("id_loja", dados.loja_id)
-        .single();
-
-      const quantidadeAtual = estoque?.quantidade || 0;
-      const novaQuantidade = quantidadeAtual + dados.quantidade;
-
-      if (estoque) {
-        // Atualizar estoque existente
-        await supabase
-          .from("estoque_lojas")
-          .update({
-            quantidade: novaQuantidade,
-            atualizado_em: new Date().toISOString(),
-            atualizado_por: dados.usuario_id,
-          })
-          .eq("id_produto", dados.produto_id)
-          .eq("id_loja", dados.loja_id);
-      } else {
-        // Criar novo registro de estoque
-        await supabase.from("estoque_lojas").insert({
-          id_produto: dados.produto_id,
-          id_loja: dados.loja_id,
-          quantidade: dados.quantidade,
-          atualizado_por: dados.usuario_id,
-        });
-      }
-
-      // Registrar no histórico de estoque
-      await supabase.from("historico_estoque").insert({
-        id_produto: dados.produto_id,
-        id_loja: dados.loja_id,
-        quantidade_anterior: quantidadeAtual,
-        quantidade_nova: novaQuantidade,
-        quantidade_alterada: dados.quantidade,
-        tipo_movimentacao: "devolucao_venda",
+      await movimentarEstoqueComHistorico({
+        produtoId: dados.produto_id,
+        lojaId: dados.loja_id,
+        quantidadeDelta: dados.quantidade,
+        tipoMovimentacao: "devolucao_venda",
+        usuarioId: dados.usuario_id,
         motivo: dados.motivo,
-        usuario_id: dados.usuario_id,
       });
 
       console.log("✅ Estoque devolvido:", {

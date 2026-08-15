@@ -4,6 +4,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { aplicarEscopoLoja } from "@/lib/lojaScope";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 import {
   OrdemServico,
   OrdemServicoFormData,
@@ -958,41 +959,16 @@ export async function adicionarPecaOS(
         );
       }
 
-      // Baixar do estoque
-      const novaQuantidade = estoqueAtual.quantidade - dados.quantidade;
-      const { error: erroEstoque } = await supabase
-        .from("estoque_lojas")
-        .update({
-          quantidade: novaQuantidade,
-          atualizado_em: new Date().toISOString(),
-          atualizado_por: userId,
-        })
-        .eq("id_produto", dados.id_produto)
-        .eq("id_loja", dados.id_loja);
-
-      if (erroEstoque) throw erroEstoque;
-
-      // Registrar no histórico de estoque
-      const { error: erroHistorico } = await supabase
-        .from("historico_estoque")
-        .insert({
-          id_produto: dados.id_produto,
-          id_loja: dados.id_loja,
-          tipo_movimentacao: "saida",
-          quantidade: dados.quantidade,
-          quantidade_anterior: estoqueAtual.quantidade,
-          quantidade_nova: novaQuantidade,
-          quantidade_alterada: dados.quantidade,
-          motivo: "ordem_servico",
-          observacao: `Saída para OS - ${descricaoPeca}`,
-          usuario_id: userId,
-          id_ordem_servico: dados.id_ordem_servico,
-        });
-
-      if (erroHistorico) {
-        console.error("Erro ao registrar histórico de estoque:", erroHistorico);
-        // Não falhar a operação por causa do histórico
-      }
+      await movimentarEstoqueComHistorico({
+        produtoId: dados.id_produto,
+        lojaId: dados.id_loja,
+        quantidadeDelta: -dados.quantidade,
+        tipoMovimentacao: "saida",
+        usuarioId: userId,
+        motivo: "ordem_servico",
+        observacao: `Saída para OS - ${descricaoPeca}`,
+        ordemServicoId: dados.id_ordem_servico,
+      });
     }
 
     // Calcular valor total
@@ -1072,30 +1048,15 @@ export async function removerPecaOS(id: string, userId: string) {
         .single();
 
       if (estoqueAtual) {
-        const novaQuantidade = estoqueAtual.quantidade + peca.quantidade;
-
-        await supabase
-          .from("estoque_lojas")
-          .update({
-            quantidade: novaQuantidade,
-            atualizado_por: userId,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq("id_produto", peca.id_produto)
-          .eq("id_loja", peca.id_loja);
-
-        // Registrar no histórico de estoque
-        await supabase.from("historico_estoque").insert({
-          id_produto: peca.id_produto,
-          id_loja: peca.id_loja,
-          tipo_movimentacao: "entrada",
-          quantidade: peca.quantidade,
-          quantidade_anterior: estoqueAtual.quantidade,
-          quantidade_nova: novaQuantidade,
-          quantidade_alterada: peca.quantidade,
+        await movimentarEstoqueComHistorico({
+          produtoId: peca.id_produto,
+          lojaId: peca.id_loja,
+          quantidadeDelta: peca.quantidade,
+          tipoMovimentacao: "entrada",
+          usuarioId: userId,
           motivo: "ordem_servico",
-          observacao: `Devolução por remoção de peça da OS`,
-          usuario_id: userId,
+          observacao: "Devolução por remoção de peça da OS",
+          ordemServicoId: peca.id_ordem_servico,
         });
       }
     }

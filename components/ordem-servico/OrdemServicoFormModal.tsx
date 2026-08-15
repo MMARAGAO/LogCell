@@ -39,6 +39,7 @@ import { buscarTodosClientesAtivos } from "@/lib/clienteHelpers";
 import { buscarTecnicosAtivos } from "@/services/tecnicoService";
 import { supabase } from "@/lib/supabaseClient";
 import { useToast } from "@/components/Toast";
+import { movimentarEstoqueComHistorico } from "@/services/movimentacaoEstoqueService";
 
 interface OrdemServicoFormModalProps {
   isOpen: boolean;
@@ -913,55 +914,20 @@ export default function OrdemServicoFormModal({
               .single();
 
             if (estoqueAtual) {
-              const quantidadeAnterior = estoqueAtual.quantidade;
-              const novaQuantidade = quantidadeAnterior - peca.quantidade;
-
-              // Atualizar estoque
-              const { error: errorEstoque } = await supabase
-                .from("estoque_lojas")
-                .update({
-                  quantidade: novaQuantidade,
-                  atualizado_por: user?.id,
-                })
-                .eq("id_produto", peca.id_produto)
-                .eq("id_loja", peca.id_loja);
-
-              if (errorEstoque) {
-                // Verifica se é erro de estoque negativo
-                if (
-                  errorEstoque.code === "23514" ||
-                  errorEstoque.message?.includes(
-                    "estoque_lojas_quantidade_check",
-                  )
-                ) {
-                  throw new Error(
-                    `Estoque insuficiente para ${peca.descricao_peca}. Disponível: ${estoqueAtual.quantidade}, Solicitado: ${peca.quantidade}`,
-                  );
-                }
-                throw new Error(
-                  `Erro ao atualizar estoque: ${errorEstoque.message}`,
-                );
+              if (!user?.id) {
+                throw new Error("Usuário não autenticado");
               }
 
-              // Registrar histórico de movimentação
-              const { error: errorHistorico } = await supabase
-                .from("historico_estoque")
-                .insert({
-                  id_produto: peca.id_produto,
-                  id_loja: peca.id_loja,
-                  id_ordem_servico: osId,
-                  tipo_movimentacao: "saida",
-                  quantidade: peca.quantidade,
-                  quantidade_anterior: quantidadeAnterior,
-                  quantidade_nova: novaQuantidade,
-                  motivo: `Utilizado na OS #${osNumero}`,
-                  observacao: peca.descricao_peca,
-                  usuario_id: user?.id,
-                });
-
-              if (errorHistorico) {
-                console.error("Erro ao registrar histórico:", errorHistorico);
-              }
+              await movimentarEstoqueComHistorico({
+                produtoId: peca.id_produto,
+                lojaId: peca.id_loja,
+                quantidadeDelta: -peca.quantidade,
+                tipoMovimentacao: "saida",
+                usuarioId: user.id,
+                motivo: `Utilizado na OS #${osNumero}`,
+                observacao: peca.descricao_peca,
+                ordemServicoId: osId,
+              });
             }
           }
         }
