@@ -31,6 +31,7 @@ import {
   EyeSlashIcon,
   CubeIcon,
   XMarkIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 import { useAuthContext } from "@/contexts/AuthContext";
@@ -45,8 +46,16 @@ import {
   buscarProdutosPaginados,
   atualizarQuantidadeEstoque,
 } from "@/services/estoqueService";
-import { getTodoHistorico } from "@/services/historicoEstoqueService";
-import { exportarHistoricoEstoqueParaExcel } from "@/lib/exportarExcel";
+import {
+  getTodoHistorico,
+  getRelatorioPerdas,
+  PerdaEstoque,
+} from "@/services/historicoEstoqueService";
+import {
+  exportarHistoricoEstoqueParaExcel,
+  exportarPerdasEstoqueParaExcel,
+} from "@/lib/exportarExcel";
+import { formatarMoeda } from "@/lib/formatters";
 import { Loja, Produto, HistoricoEstoqueCompleto } from "@/types";
 
 interface ProdutoAjuste {
@@ -171,7 +180,7 @@ export default function InventarioPage() {
   const { lojaIds, podeVerTodasLojas } = useLojaFilter();
   const toast = useToast();
 
-  const [aba, setAba] = useState<"ajuste" | "historico">("ajuste");
+  const [aba, setAba] = useState<"ajuste" | "historico" | "perdas">("ajuste");
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaId, setLojaId] = useState<string>("");
 
@@ -221,7 +230,18 @@ export default function InventarioPage() {
   const [totalProdutosAutocomplete, setTotalProdutosAutocomplete] = useState(0);
   const [usuarios, setUsuarios] = useState<{ id: string; nome: string }[]>([]);
   const [filtroUsuarioId, setFiltroUsuarioId] = useState<string>("");
+  // Por padrão só mostra ajuste manual (Inventário/Estoque) — exclui venda,
+  // transferência, devolução e saída de OS, que já têm explicação própria.
+  const [filtroSomenteAjustes, setFiltroSomenteAjustes] = useState(true);
   const [exportando, setExportando] = useState(false);
+
+  // ===== Aba: Relatório de Perdas =====
+  const [perdas, setPerdas] = useState<PerdaEstoque[]>([]);
+  const [loadingPerdas, setLoadingPerdas] = useState(false);
+  const [filtroPerdaDataInicio, setFiltroPerdaDataInicio] = useState("");
+  const [filtroPerdaDataFim, setFiltroPerdaDataFim] = useState("");
+  const [filtroPerdaLojaId, setFiltroPerdaLojaId] = useState<string>("");
+  const [exportandoPerdas, setExportandoPerdas] = useState(false);
 
   // Trocar de loja reinicia a lista de trabalho (quantidades são por loja).
   // Pulado uma vez quando a troca vem da restauração de um rascunho salvo.
@@ -269,6 +289,7 @@ export default function InventarioPage() {
     filtroDataFim,
     filtroProdutoId,
     filtroUsuarioId,
+    filtroSomenteAjustes,
     lojaId,
   ]);
 
@@ -521,6 +542,7 @@ export default function InventarioPage() {
           ? new Date(`${filtroDataFim}T23:59:59`).toISOString()
           : undefined,
         usuario_id: filtroUsuarioId || undefined,
+        tipo_movimentacao: filtroSomenteAjustes ? "ajuste" : undefined,
       };
 
       if (lojaId) {
@@ -549,6 +571,7 @@ export default function InventarioPage() {
     filtroDataInicio,
     filtroDataFim,
     filtroUsuarioId,
+    filtroSomenteAjustes,
     paginaHistorico,
     podeVerTodasLojas,
     lojaIds,
@@ -572,6 +595,7 @@ export default function InventarioPage() {
           ? new Date(`${filtroDataFim}T23:59:59`).toISOString()
           : undefined,
         usuario_id: filtroUsuarioId || undefined,
+        tipo_movimentacao: filtroSomenteAjustes ? "ajuste" : undefined,
       };
 
       if (lojaId) {
@@ -595,6 +619,98 @@ export default function InventarioPage() {
       toast.error("Erro ao gerar planilha. Tente novamente.");
     } finally {
       setExportando(false);
+    }
+  };
+
+  const montarFiltrosPerdas = () => {
+    const filtros: Parameters<typeof getRelatorioPerdas>[0] = {
+      dataInicio: filtroPerdaDataInicio
+        ? new Date(`${filtroPerdaDataInicio}T00:00:00`).toISOString()
+        : undefined,
+      dataFim: filtroPerdaDataFim
+        ? new Date(`${filtroPerdaDataFim}T23:59:59`).toISOString()
+        : undefined,
+    };
+
+    if (filtroPerdaLojaId) {
+      filtros.lojaIds = [Number(filtroPerdaLojaId)];
+    } else if (!podeVerTodasLojas && lojaIds.length > 0) {
+      filtros.lojaIds = lojaIds;
+    }
+
+    return filtros;
+  };
+
+  const carregarPerdas = useCallback(async () => {
+    setLoadingPerdas(true);
+    try {
+      const result = await getRelatorioPerdas(montarFiltrosPerdas());
+
+      setPerdas(result);
+    } catch (error) {
+      console.error("Erro ao carregar relatório de perdas:", error);
+      toast.error("Erro ao carregar relatório de perdas");
+    } finally {
+      setLoadingPerdas(false);
+    }
+  }, [
+    filtroPerdaDataInicio,
+    filtroPerdaDataFim,
+    filtroPerdaLojaId,
+    podeVerTodasLojas,
+    lojaIds,
+  ]);
+
+  useEffect(() => {
+    if (!loadingPermissoes && aba === "perdas") {
+      carregarPerdas();
+    }
+  }, [loadingPermissoes, aba, carregarPerdas]);
+
+  const totaisPerdas = useMemo(() => {
+    return perdas.reduce(
+      (acc, p) => ({
+        unidadesReducaoBruta:
+          acc.unidadesReducaoBruta + p.unidades_reducao_bruta,
+        valorReducaoBruta: acc.valorReducaoBruta + p.valor_reducao_bruta,
+        unidadesCompensadas: acc.unidadesCompensadas + p.unidades_compensadas,
+        valorCompensado: acc.valorCompensado + p.valor_compensado,
+        unidadesDivergencia:
+          acc.unidadesDivergencia + p.unidades_divergencia_liquida,
+        valorDivergencia: acc.valorDivergencia + p.valor_divergencia_liquida,
+        unidadesConfirmadas:
+          acc.unidadesConfirmadas + p.unidades_perda_confirmada,
+        valorConfirmado: acc.valorConfirmado + p.valor_perda_confirmada,
+      }),
+      {
+        unidadesReducaoBruta: 0,
+        valorReducaoBruta: 0,
+        unidadesCompensadas: 0,
+        valorCompensado: 0,
+        unidadesDivergencia: 0,
+        valorDivergencia: 0,
+        unidadesConfirmadas: 0,
+        valorConfirmado: 0,
+      },
+    );
+  }, [perdas]);
+
+  const handleExportarPerdas = async () => {
+    if (perdas.length === 0) {
+      toast.warning("Nenhum registro encontrado com os filtros atuais.");
+
+      return;
+    }
+
+    setExportandoPerdas(true);
+    try {
+      exportarPerdasEstoqueParaExcel(perdas);
+      toast.success(`Planilha gerada com ${perdas.length} produto(s)!`);
+    } catch (error) {
+      console.error("Erro ao exportar perdas:", error);
+      toast.error("Erro ao gerar planilha. Tente novamente.");
+    } finally {
+      setExportandoPerdas(false);
     }
   };
 
@@ -848,41 +964,44 @@ export default function InventarioPage() {
         </p>
       </header>
 
-      {/* Seletor de loja */}
-      <Card className="mb-6 shadow-sm">
-        <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {lojas.length > 1 ? (
-            <Select
-              aria-label="Loja"
-              className="max-w-xs"
-              label="Loja"
-              placeholder={
-                aba === "historico" ? "Todas as lojas" : "Selecione uma loja"
-              }
-              selectedKeys={lojaId ? [lojaId] : []}
-              variant="bordered"
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] as string;
+      {/* Seletor de loja (não se aplica à aba de Perdas, que tem filtro próprio) */}
+      {aba !== "perdas" && (
+        <Card className="mb-6 shadow-sm">
+          <CardBody className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {lojas.length > 1 ? (
+              <Select
+                aria-label="Loja"
+                className="max-w-xs"
+                label="Loja"
+                placeholder={
+                  aba === "historico" ? "Todas as lojas" : "Selecione uma loja"
+                }
+                selectedKeys={lojaId ? [lojaId] : []}
+                variant="bordered"
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] as string;
 
-                setLojaId(value || "");
-              }}
-            >
-              {[
-                ...(aba === "historico" && podeVerTodasLojas
-                  ? [<SelectItem key="">Todas as lojas</SelectItem>]
-                  : []),
-                ...lojas.map((loja) => (
-                  <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
-                )),
-              ]}
-            </Select>
-          ) : (
-            <div className="text-sm text-default-600">
-              Loja: <span className="font-semibold">{lojaSelecionadaNome}</span>
-            </div>
-          )}
-        </CardBody>
-      </Card>
+                  setLojaId(value || "");
+                }}
+              >
+                {[
+                  ...(aba === "historico" && podeVerTodasLojas
+                    ? [<SelectItem key="">Todas as lojas</SelectItem>]
+                    : []),
+                  ...lojas.map((loja) => (
+                    <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+                  )),
+                ]}
+              </Select>
+            ) : (
+              <div className="text-sm text-default-600">
+                Loja:{" "}
+                <span className="font-semibold">{lojaSelecionadaNome}</span>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       <Tabs
         classNames={{
@@ -894,7 +1013,9 @@ export default function InventarioPage() {
         color="primary"
         selectedKey={aba}
         variant="underlined"
-        onSelectionChange={(key) => setAba(key as "ajuste" | "historico")}
+        onSelectionChange={(key) =>
+          setAba(key as "ajuste" | "historico" | "perdas")
+        }
       >
         {/* ===== ABA: Ajustar Estoque ===== */}
         <Tab
@@ -1444,6 +1565,13 @@ export default function InventarioPage() {
                     )),
                   ]}
                 </Select>
+                <Switch
+                  isSelected={filtroSomenteAjustes}
+                  size="sm"
+                  onValueChange={setFiltroSomenteAjustes}
+                >
+                  <span className="text-sm">Somente ajustes manuais</span>
+                </Switch>
                 <Button
                   isLoading={exportando}
                   startContent={
@@ -1548,6 +1676,269 @@ export default function InventarioPage() {
                 />
               </div>
             )}
+          </div>
+        </Tab>
+
+        {/* ===== ABA: Relatório de Divergências ===== */}
+        <Tab
+          key="perdas"
+          title={
+            <div className="flex items-center gap-2">
+              <ExclamationTriangleIcon className="h-5 w-5" />
+              <span>Divergências</span>
+            </div>
+          }
+        >
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-default-500">
+              Conciliação dos ajustes manuais de estoque. Reduções e aumentos do
+              mesmo produto são compensados no período; somente ajustes
+              classificados como quebra ou perda entram como perda confirmada.
+            </p>
+
+            {/* Filtros */}
+            <Card className="shadow-sm">
+              <CardBody className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <Input
+                  className="max-w-[160px]"
+                  label="Data início"
+                  type="date"
+                  value={filtroPerdaDataInicio}
+                  variant="bordered"
+                  onValueChange={setFiltroPerdaDataInicio}
+                />
+                <Input
+                  className="max-w-[160px]"
+                  label="Data fim"
+                  type="date"
+                  value={filtroPerdaDataFim}
+                  variant="bordered"
+                  onValueChange={setFiltroPerdaDataFim}
+                />
+                <Select
+                  aria-label="Filtro de loja"
+                  className="max-w-xs"
+                  label="Loja"
+                  placeholder="Todas as lojas"
+                  selectedKeys={filtroPerdaLojaId ? [filtroPerdaLojaId] : []}
+                  variant="bordered"
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] as string;
+
+                    setFiltroPerdaLojaId(value || "");
+                  }}
+                >
+                  {[
+                    <SelectItem key="">Todas as lojas</SelectItem>,
+                    ...lojas.map((loja) => (
+                      <SelectItem key={String(loja.id)}>{loja.nome}</SelectItem>
+                    )),
+                  ]}
+                </Select>
+                <Button
+                  isLoading={exportandoPerdas}
+                  startContent={
+                    !exportandoPerdas && (
+                      <ArrowDownTrayIcon className="h-4 w-4" />
+                    )
+                  }
+                  variant="flat"
+                  onPress={handleExportarPerdas}
+                >
+                  Exportar Excel
+                </Button>
+              </CardBody>
+            </Card>
+
+            {/* Resumo */}
+            {perdas.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <Card className="shadow-sm">
+                  <CardBody>
+                    <span className="text-sm text-default-500">
+                      Redução bruta
+                    </span>
+                    <span className="mt-1 text-xl font-bold tabular-nums text-danger">
+                      {formatarMoeda(totaisPerdas.valorReducaoBruta)}
+                    </span>
+                    <span className="text-xs text-default-400">
+                      {totaisPerdas.unidadesReducaoBruta.toLocaleString(
+                        "pt-BR",
+                      )}{" "}
+                      unidades
+                    </span>
+                  </CardBody>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardBody>
+                    <span className="text-sm text-default-500">
+                      Compensações
+                    </span>
+                    <span className="mt-1 text-xl font-bold tabular-nums text-success">
+                      {formatarMoeda(totaisPerdas.valorCompensado)}
+                    </span>
+                    <span className="text-xs text-default-400">
+                      {totaisPerdas.unidadesCompensadas.toLocaleString("pt-BR")}{" "}
+                      unidades
+                    </span>
+                  </CardBody>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardBody>
+                    <span className="text-sm text-default-500">
+                      Divergência líquida
+                    </span>
+                    <span className="mt-1 text-xl font-bold tabular-nums text-warning">
+                      {formatarMoeda(totaisPerdas.valorDivergencia)}
+                    </span>
+                    <span className="text-xs text-default-400">
+                      {totaisPerdas.unidadesDivergencia.toLocaleString("pt-BR")}{" "}
+                      unidades
+                    </span>
+                  </CardBody>
+                </Card>
+                <Card className="shadow-sm">
+                  <CardBody>
+                    <span className="text-sm text-default-500">
+                      Perda confirmada
+                    </span>
+                    <span className="mt-1 text-xl font-bold tabular-nums text-danger">
+                      {formatarMoeda(totaisPerdas.valorConfirmado)}
+                    </span>
+                    <span className="text-xs text-default-400">
+                      {totaisPerdas.unidadesConfirmadas.toLocaleString("pt-BR")}{" "}
+                      unidades
+                    </span>
+                  </CardBody>
+                </Card>
+              </div>
+            )}
+
+            {/* Tabela de perdas */}
+            <Card className="shadow-sm">
+              <CardBody className="p-0 overflow-x-auto">
+                <Table
+                  removeWrapper
+                  aria-label="Relatório de divergências de estoque"
+                  classNames={{
+                    th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
+                    td: "text-sm border-b border-default-100 py-2",
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn>PRODUTO</TableColumn>
+                    <TableColumn>LOJAS</TableColumn>
+                    <TableColumn>REDUÇÃO BRUTA</TableColumn>
+                    <TableColumn>COMPENSADO</TableColumn>
+                    <TableColumn>DIVERGÊNCIA LÍQUIDA</TableColumn>
+                    <TableColumn>PERDA CONFIRMADA</TableColumn>
+                    <TableColumn>AJUSTES</TableColumn>
+                    <TableColumn>ÚLTIMA OCORRÊNCIA</TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    emptyContent="Nenhuma divergência encontrada com os filtros atuais"
+                    isLoading={loadingPerdas}
+                    items={perdas}
+                    loadingContent={<Spinner size="sm" />}
+                  >
+                    {(item) => (
+                      <TableRow key={item.id_produto}>
+                        <TableCell>
+                          <div className="min-w-[220px]">
+                            <p className="font-medium">
+                              {item.produto_descricao}
+                            </p>
+                            {item.produto_marca && (
+                              <p className="text-xs text-default-400">
+                                {item.produto_marca}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{item.loja_nome || "—"}</TableCell>
+                        <TableCell>
+                          <div className="whitespace-nowrap">
+                            <p className="font-semibold tabular-nums text-danger">
+                              {formatarMoeda(item.valor_reducao_bruta)}
+                            </p>
+                            <p className="text-xs text-default-400">
+                              {item.unidades_reducao_bruta.toLocaleString(
+                                "pt-BR",
+                              )}{" "}
+                              un.
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="whitespace-nowrap">
+                            <p className="font-semibold tabular-nums text-success">
+                              {formatarMoeda(item.valor_compensado)}
+                            </p>
+                            <p className="text-xs text-default-400">
+                              {item.unidades_compensadas.toLocaleString(
+                                "pt-BR",
+                              )}{" "}
+                              un.
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="whitespace-nowrap">
+                            <p className="font-semibold tabular-nums text-warning">
+                              {formatarMoeda(item.valor_divergencia_liquida)}
+                            </p>
+                            <p className="text-xs text-default-400">
+                              {item.unidades_divergencia_liquida.toLocaleString(
+                                "pt-BR",
+                              )}{" "}
+                              un.
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {item.valor_perda_confirmada > 0 ? (
+                            <div className="whitespace-nowrap">
+                              <p className="font-semibold tabular-nums text-danger">
+                                {formatarMoeda(item.valor_perda_confirmada)}
+                              </p>
+                              <p className="text-xs text-default-400">
+                                {item.unidades_perda_confirmada.toLocaleString(
+                                  "pt-BR",
+                                )}{" "}
+                                un.
+                              </p>
+                            </div>
+                          ) : item.classificacao_pendente ? (
+                            <Chip color="warning" size="sm" variant="flat">
+                              Classificar
+                            </Chip>
+                          ) : (
+                            <span className="text-default-400">
+                              Não confirmada
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="whitespace-nowrap text-xs tabular-nums">
+                            <p className="text-danger">
+                              ↓ {item.qtd_ajustes_reducao}
+                            </p>
+                            <p className="text-success">
+                              ↑ {item.qtd_ajustes_aumento}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {new Date(item.ultima_ocorrencia).toLocaleString(
+                            "pt-BR",
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardBody>
+            </Card>
           </div>
         </Tab>
       </Tabs>

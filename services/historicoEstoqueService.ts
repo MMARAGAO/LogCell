@@ -210,6 +210,7 @@ export async function getTodoHistorico(
     usuario_id?: string;
     data_inicio?: string;
     data_fim?: string;
+    tipo_movimentacao?: string;
   },
   page: number = 1,
   limit: number = 50,
@@ -245,6 +246,10 @@ export async function getTodoHistorico(
 
     if (filtros?.data_fim) {
       query = query.lte("criado_em", filtros.data_fim);
+    }
+
+    if (filtros?.tipo_movimentacao) {
+      query = query.eq("tipo_movimentacao", filtros.tipo_movimentacao);
     }
 
     // Paginação
@@ -450,6 +455,55 @@ export async function getEstatisticasMovimentacoes(
     return stats;
   } catch (error) {
     console.error("Erro ao buscar estatísticas:", error);
+    throw error;
+  }
+}
+
+export interface PerdaEstoque {
+  id_produto: string;
+  produto_descricao: string;
+  produto_marca?: string;
+  id_loja: number | null;
+  loja_nome: string | null;
+  // Campos legados mantidos para compatibilidade: representam redução bruta.
+  unidades_perdidas: number;
+  valor_perdido: number;
+  qtd_ajustes: number;
+  ultima_ocorrencia: string;
+  unidades_reducao_bruta: number;
+  valor_reducao_bruta: number;
+  unidades_compensadas: number;
+  valor_compensado: number;
+  unidades_divergencia_liquida: number;
+  valor_divergencia_liquida: number;
+  unidades_perda_confirmada: number;
+  valor_perda_confirmada: number;
+  qtd_ajustes_reducao: number;
+  qtd_ajustes_aumento: number;
+  classificacao_pendente: boolean;
+}
+
+// Relatório de divergências: separa redução bruta, compensações, divergência
+// líquida e perda explicitamente confirmada. Ver
+// scripts/relatorio_perdas_estoque.sql para a função no banco.
+export async function getRelatorioPerdas(filtros?: {
+  dataInicio?: string;
+  dataFim?: string;
+  lojaIds?: number[];
+}): Promise<PerdaEstoque[]> {
+  try {
+    const { data, error } = await supabase.rpc("relatorio_perdas_estoque", {
+      p_data_inicio: filtros?.dataInicio || null,
+      p_data_fim: filtros?.dataFim || null,
+      p_loja_ids:
+        filtros?.lojaIds && filtros.lojaIds.length > 0 ? filtros.lojaIds : null,
+    });
+
+    if (error) throw error;
+
+    return (data || []) as PerdaEstoque[];
+  } catch (error) {
+    console.error("Erro ao buscar relatório de perdas:", error);
     throw error;
   }
 }
