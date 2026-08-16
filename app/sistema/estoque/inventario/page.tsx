@@ -243,6 +243,8 @@ export default function InventarioPage() {
   const [filtroPerdaDataFim, setFiltroPerdaDataFim] = useState("");
   const [filtroPerdaLojaId, setFiltroPerdaLojaId] = useState<string>("");
   const [exportandoPerdas, setExportandoPerdas] = useState(false);
+  const [paginaPerdas, setPaginaPerdas] = useState(1);
+  const perdasPorPagina = 20;
   const requisicaoPerdasRef = useRef(0);
   const temFiltroDataHistorico = Boolean(filtroDataInicio || filtroDataFim);
   const temFiltroDataPerdas = Boolean(
@@ -688,8 +690,8 @@ export default function InventarioPage() {
       }
     } catch (error) {
       if (requisicaoId === requisicaoPerdasRef.current) {
-        console.error("Erro ao carregar relatório de perdas:", error);
-        toast.error("Erro ao carregar relatório de perdas");
+        console.error("Erro ao carregar balanço do inventário:", error);
+        toast.error("Erro ao carregar balanço do inventário");
       }
     } finally {
       if (requisicaoId === requisicaoPerdasRef.current) {
@@ -710,37 +712,40 @@ export default function InventarioPage() {
     }
   }, [loadingPermissoes, aba, carregarPerdas]);
 
+  useEffect(() => {
+    setPaginaPerdas(1);
+  }, [filtroPerdaDataInicio, filtroPerdaDataFim, filtroPerdaLojaId]);
+
   const totaisPerdas = useMemo(() => {
     return perdas.reduce(
       (acc, p) => ({
         unidadesReducaoBruta:
           acc.unidadesReducaoBruta + p.unidades_reducao_bruta,
         valorReducaoBruta: acc.valorReducaoBruta + p.valor_reducao_bruta,
-        unidadesCompensadas: acc.unidadesCompensadas + p.unidades_compensadas,
-        valorCompensado: acc.valorCompensado + p.valor_compensado,
-        unidadesDivergencia:
-          acc.unidadesDivergencia + p.unidades_divergencia_liquida,
-        valorDivergencia: acc.valorDivergencia + p.valor_divergencia_liquida,
-        unidadesConfirmadas:
-          acc.unidadesConfirmadas + p.unidades_perda_confirmada,
-        valorConfirmado: acc.valorConfirmado + p.valor_perda_confirmada,
+        unidadesEntradas: acc.unidadesEntradas + p.unidades_entradas,
+        valorEntradas: acc.valorEntradas + p.valor_entradas,
+        valorSaldoLiquido: acc.valorSaldoLiquido + p.valor_saldo_liquido,
       }),
       {
         unidadesReducaoBruta: 0,
         valorReducaoBruta: 0,
-        unidadesCompensadas: 0,
-        valorCompensado: 0,
-        unidadesDivergencia: 0,
-        valorDivergencia: 0,
-        unidadesConfirmadas: 0,
-        valorConfirmado: 0,
+        unidadesEntradas: 0,
+        valorEntradas: 0,
+        valorSaldoLiquido: 0,
       },
     );
   }, [perdas]);
 
+  const totalPaginasPerdas = Math.ceil(perdas.length / perdasPorPagina);
+  const perdasPaginadas = useMemo(() => {
+    const inicio = (paginaPerdas - 1) * perdasPorPagina;
+
+    return perdas.slice(inicio, inicio + perdasPorPagina);
+  }, [perdas, paginaPerdas]);
+
   const handleExportarPerdas = async () => {
     if (!temFiltroDataPerdas) {
-      toast.warning("Informe uma data para consultar as divergências.");
+      toast.warning("Informe uma data para consultar o balanço.");
 
       return;
     }
@@ -1733,21 +1738,21 @@ export default function InventarioPage() {
           </div>
         </Tab>
 
-        {/* ===== ABA: Relatório de Divergências ===== */}
+        {/* ===== ABA: Balanço do Inventário ===== */}
         <Tab
           key="perdas"
           title={
             <div className="flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5" />
-              <span>Divergências</span>
+              <span>Balanço</span>
             </div>
           }
         >
           <div className="mt-4 space-y-4">
             <p className="text-sm text-default-500">
-              Conciliação dos ajustes manuais de estoque. Reduções e aumentos do
-              mesmo produto são compensados no período; somente ajustes
-              classificados como quebra ou perda entram como perda confirmada.
+              Resumo financeiro dos ajustes manuais de estoque no período.
+              Entradas incluem quantidades iniciais de produtos novos e aumentos
+              manuais; o saldo líquido é entradas menos reduções.
             </p>
 
             {/* Filtros */}
@@ -1807,12 +1812,10 @@ export default function InventarioPage() {
 
             {/* Resumo */}
             {perdas.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Card className="shadow-sm">
                   <CardBody>
-                    <span className="text-sm text-default-500">
-                      Redução bruta
-                    </span>
+                    <span className="text-sm text-default-500">Reduções</span>
                     <span className="mt-1 text-xl font-bold tabular-nums text-danger">
                       {formatarMoeda(totaisPerdas.valorReducaoBruta)}
                     </span>
@@ -1826,14 +1829,12 @@ export default function InventarioPage() {
                 </Card>
                 <Card className="shadow-sm">
                   <CardBody>
-                    <span className="text-sm text-default-500">
-                      Compensações
-                    </span>
+                    <span className="text-sm text-default-500">Entradas</span>
                     <span className="mt-1 text-xl font-bold tabular-nums text-success">
-                      {formatarMoeda(totaisPerdas.valorCompensado)}
+                      {formatarMoeda(totaisPerdas.valorEntradas)}
                     </span>
                     <span className="text-xs text-default-400">
-                      {totaisPerdas.unidadesCompensadas.toLocaleString("pt-BR")}{" "}
+                      {totaisPerdas.unidadesEntradas.toLocaleString("pt-BR")}{" "}
                       unidades
                     </span>
                   </CardBody>
@@ -1841,40 +1842,33 @@ export default function InventarioPage() {
                 <Card className="shadow-sm">
                   <CardBody>
                     <span className="text-sm text-default-500">
-                      Divergência líquida
+                      Saldo líquido do inventário
                     </span>
-                    <span className="mt-1 text-xl font-bold tabular-nums text-warning">
-                      {formatarMoeda(totaisPerdas.valorDivergencia)}
-                    </span>
-                    <span className="text-xs text-default-400">
-                      {totaisPerdas.unidadesDivergencia.toLocaleString("pt-BR")}{" "}
-                      unidades
-                    </span>
-                  </CardBody>
-                </Card>
-                <Card className="shadow-sm">
-                  <CardBody>
-                    <span className="text-sm text-default-500">
-                      Perda confirmada
-                    </span>
-                    <span className="mt-1 text-xl font-bold tabular-nums text-danger">
-                      {formatarMoeda(totaisPerdas.valorConfirmado)}
+                    <span
+                      className={`mt-1 text-xl font-bold tabular-nums ${
+                        totaisPerdas.valorSaldoLiquido >= 0
+                          ? "text-success"
+                          : "text-danger"
+                      }`}
+                    >
+                      {formatarMoeda(totaisPerdas.valorSaldoLiquido)}
                     </span>
                     <span className="text-xs text-default-400">
-                      {totaisPerdas.unidadesConfirmadas.toLocaleString("pt-BR")}{" "}
-                      unidades
+                      {totaisPerdas.valorSaldoLiquido >= 0
+                        ? "Saldo positivo"
+                        : "Saldo negativo"}
                     </span>
                   </CardBody>
                 </Card>
               </div>
             )}
 
-            {/* Tabela de perdas */}
+            {/* Tabela do balanço */}
             <Card className="shadow-sm">
               <CardBody className="p-0 overflow-x-auto">
                 <Table
                   removeWrapper
-                  aria-label="Relatório de divergências de estoque"
+                  aria-label="Balanço dos ajustes de inventário"
                   classNames={{
                     th: "bg-default-50 text-default-600 text-xs font-semibold uppercase tracking-wider border-b border-default-200",
                     td: "text-sm border-b border-default-100 py-2",
@@ -1883,21 +1877,20 @@ export default function InventarioPage() {
                   <TableHeader>
                     <TableColumn>PRODUTO</TableColumn>
                     <TableColumn>LOJAS</TableColumn>
-                    <TableColumn>REDUÇÃO BRUTA</TableColumn>
-                    <TableColumn>COMPENSADO</TableColumn>
-                    <TableColumn>DIVERGÊNCIA LÍQUIDA</TableColumn>
-                    <TableColumn>PERDA CONFIRMADA</TableColumn>
+                    <TableColumn>REDUÇÕES</TableColumn>
+                    <TableColumn>ENTRADAS</TableColumn>
+                    <TableColumn>SALDO LÍQUIDO</TableColumn>
                     <TableColumn>AJUSTES</TableColumn>
                     <TableColumn>ÚLTIMA OCORRÊNCIA</TableColumn>
                   </TableHeader>
                   <TableBody
                     emptyContent={
                       temFiltroDataPerdas
-                        ? "Nenhuma divergência encontrada com os filtros atuais"
-                        : "Informe uma data para consultar as divergências"
+                        ? "Nenhum ajuste encontrado com os filtros atuais"
+                        : "Informe uma data para consultar o balanço"
                     }
                     isLoading={loadingPerdas}
-                    items={perdas}
+                    items={perdasPaginadas}
                     loadingContent={<Spinner size="sm" />}
                   >
                     {(item) => (
@@ -1931,51 +1924,26 @@ export default function InventarioPage() {
                         <TableCell>
                           <div className="whitespace-nowrap">
                             <p className="font-semibold tabular-nums text-success">
-                              {formatarMoeda(item.valor_compensado)}
+                              {formatarMoeda(item.valor_entradas)}
                             </p>
                             <p className="text-xs text-default-400">
-                              {item.unidades_compensadas.toLocaleString(
-                                "pt-BR",
-                              )}{" "}
+                              {item.unidades_entradas.toLocaleString("pt-BR")}{" "}
                               un.
                             </p>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="whitespace-nowrap">
-                            <p className="font-semibold tabular-nums text-warning">
-                              {formatarMoeda(item.valor_divergencia_liquida)}
-                            </p>
-                            <p className="text-xs text-default-400">
-                              {item.unidades_divergencia_liquida.toLocaleString(
-                                "pt-BR",
-                              )}{" "}
-                              un.
+                            <p
+                              className={`font-semibold tabular-nums ${
+                                item.valor_saldo_liquido >= 0
+                                  ? "text-success"
+                                  : "text-danger"
+                              }`}
+                            >
+                              {formatarMoeda(item.valor_saldo_liquido)}
                             </p>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.valor_perda_confirmada > 0 ? (
-                            <div className="whitespace-nowrap">
-                              <p className="font-semibold tabular-nums text-danger">
-                                {formatarMoeda(item.valor_perda_confirmada)}
-                              </p>
-                              <p className="text-xs text-default-400">
-                                {item.unidades_perda_confirmada.toLocaleString(
-                                  "pt-BR",
-                                )}{" "}
-                                un.
-                              </p>
-                            </div>
-                          ) : item.classificacao_pendente ? (
-                            <Chip color="warning" size="sm" variant="flat">
-                              Classificar
-                            </Chip>
-                          ) : (
-                            <span className="text-default-400">
-                              Não confirmada
-                            </span>
-                          )}
                         </TableCell>
                         <TableCell>
                           <div className="whitespace-nowrap text-xs tabular-nums">
@@ -1998,6 +1966,25 @@ export default function InventarioPage() {
                 </Table>
               </CardBody>
             </Card>
+
+            {perdas.length > 0 && (
+              <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <span className="text-sm text-default-500">
+                  Mostrando {(paginaPerdas - 1) * perdasPorPagina + 1}–
+                  {Math.min(paginaPerdas * perdasPorPagina, perdas.length)} de{" "}
+                  {perdas.length.toLocaleString("pt-BR")} produtos
+                </span>
+                {totalPaginasPerdas > 1 && (
+                  <Pagination
+                    showControls
+                    color="primary"
+                    page={paginaPerdas}
+                    total={totalPaginasPerdas}
+                    onChange={setPaginaPerdas}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </Tab>
       </Tabs>

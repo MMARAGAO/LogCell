@@ -1,10 +1,9 @@
--- Relatório de divergências de inventário.
+-- Balanço dos ajustes manuais de inventário.
 --
--- Mantém separadas quatro métricas:
---   1. redução bruta: todos os ajustes manuais para baixo;
---   2. compensação: aumentos do mesmo produto no período/filtro;
---   3. divergência líquida: redução bruta menos compensações;
---   4. perda confirmada: somente ajustes classificados como quebra_perda.
+-- Mantém separadas três métricas principais:
+--   1. reduções: todos os ajustes manuais para baixo;
+--   2. entradas: todos os ajustes manuais para cima, inclusive estoque inicial;
+--   3. saldo líquido: valor das entradas menos o valor das reduções.
 
 BEGIN;
 
@@ -128,7 +127,10 @@ RETURNS TABLE (
   valor_perda_confirmada numeric,
   qtd_ajustes_reducao bigint,
   qtd_ajustes_aumento bigint,
-  classificacao_pendente boolean
+  classificacao_pendente boolean,
+  unidades_entradas bigint,
+  valor_entradas numeric,
+  valor_saldo_liquido numeric
 )
 LANGUAGE sql
 STABLE
@@ -191,7 +193,7 @@ AS $function$
       LEAST(ag.unidades_reducao, ag.unidades_aumento)::bigint AS unidades_compensadas,
       GREATEST(ag.unidades_reducao - ag.unidades_aumento, 0)::bigint AS unidades_liquidas
     FROM agregados ag
-    WHERE ag.unidades_reducao > 0
+    WHERE ag.unidades_reducao > 0 OR ag.unidades_aumento > 0
   )
   SELECT
     c.id_produto,
@@ -213,9 +215,14 @@ AS $function$
     (c.unidades_confirmadas * c.preco_compra)::numeric AS valor_perda_confirmada,
     c.qtd_reducoes AS qtd_ajustes_reducao,
     c.qtd_aumentos AS qtd_ajustes_aumento,
-    c.classificacao_pendente
+    c.classificacao_pendente,
+    c.unidades_aumento AS unidades_entradas,
+    (c.unidades_aumento * c.preco_compra)::numeric AS valor_entradas,
+    ((c.unidades_aumento - c.unidades_reducao) * c.preco_compra)::numeric AS valor_saldo_liquido
   FROM calculados c
-  ORDER BY valor_divergencia_liquida DESC, valor_reducao_bruta DESC;
+  ORDER BY ABS(((c.unidades_aumento - c.unidades_reducao) * c.preco_compra)::numeric) DESC,
+           valor_reducao_bruta DESC,
+           c.id_produto;
 $function$;
 
 GRANT EXECUTE ON FUNCTION public.relatorio_perdas_estoque(timestamptz, timestamptz, integer[]) TO authenticated;

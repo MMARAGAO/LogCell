@@ -499,21 +499,17 @@ interface PerdaEstoqueExport {
   loja_nome?: string | null;
   unidades_reducao_bruta: number;
   valor_reducao_bruta: number;
-  unidades_compensadas: number;
-  valor_compensado: number;
-  unidades_divergencia_liquida: number;
-  valor_divergencia_liquida: number;
-  unidades_perda_confirmada: number;
-  valor_perda_confirmada: number;
+  unidades_entradas: number;
+  valor_entradas: number;
+  valor_saldo_liquido: number;
   qtd_ajustes_reducao: number;
   qtd_ajustes_aumento: number;
-  classificacao_pendente: boolean;
   ultima_ocorrencia: string;
 }
 
 export function exportarPerdasEstoqueParaExcel(
   registros: PerdaEstoqueExport[],
-  nomeArquivo: string = "relatorio_perdas_estoque",
+  nomeArquivo: string = "balanco_inventario",
 ) {
   const dadosExcel = registros.map((item) => ({
     Produto: item.produto_descricao,
@@ -521,19 +517,11 @@ export function exportarPerdasEstoqueParaExcel(
     Lojas: item.loja_nome || "-",
     "Unidades — Redução Bruta": item.unidades_reducao_bruta,
     "Redução Bruta (R$)": formatarValorMonetario(item.valor_reducao_bruta),
-    "Unidades Compensadas": item.unidades_compensadas,
-    "Valor Compensado (R$)": formatarValorMonetario(item.valor_compensado),
-    "Unidades — Divergência Líquida": item.unidades_divergencia_liquida,
-    "Divergência Líquida (R$)": formatarValorMonetario(
-      item.valor_divergencia_liquida,
-    ),
-    "Unidades — Perda Confirmada": item.unidades_perda_confirmada,
-    "Perda Confirmada (R$)": formatarValorMonetario(
-      item.valor_perda_confirmada,
-    ),
+    "Unidades — Entradas": item.unidades_entradas,
+    "Entradas (R$)": formatarValorMonetario(item.valor_entradas),
+    "Saldo Líquido (R$)": formatarValorMonetario(item.valor_saldo_liquido),
     "Ajustes de Redução": item.qtd_ajustes_reducao,
     "Ajustes de Aumento": item.qtd_ajustes_aumento,
-    "Classificação Pendente": item.classificacao_pendente ? "Sim" : "Não",
     "Última Ocorrência": new Date(item.ultima_ocorrencia).toLocaleString(
       "pt-BR",
     ),
@@ -548,15 +536,11 @@ export function exportarPerdasEstoqueParaExcel(
     { wch: 28 }, // Lojas
     { wch: 22 }, // Unidades — Redução Bruta
     { wch: 20 }, // Redução Bruta
-    { wch: 20 }, // Unidades Compensadas
-    { wch: 22 }, // Valor Compensado
-    { wch: 26 }, // Unidades — Divergência Líquida
-    { wch: 24 }, // Divergência Líquida
-    { wch: 24 }, // Unidades — Perda Confirmada
-    { wch: 22 }, // Perda Confirmada
+    { wch: 20 }, // Unidades — Entradas
+    { wch: 20 }, // Entradas
+    { wch: 22 }, // Saldo Líquido
     { wch: 18 }, // Ajustes de Redução
     { wch: 18 }, // Ajustes de Aumento
-    { wch: 22 }, // Classificação Pendente
     { wch: 18 }, // Última Ocorrência
   ];
 
@@ -564,7 +548,7 @@ export function exportarPerdasEstoqueParaExcel(
   aplicarEstilosLinhas(ws);
   ws["!freeze"] = { xSplit: 0, ySplit: 1 };
 
-  XLSX.utils.book_append_sheet(wb, ws, "Divergências de Estoque");
+  XLSX.utils.book_append_sheet(wb, ws, "Balanço do Inventário");
 
   const timestamp = new Date().toISOString().split("T")[0];
 

@@ -481,10 +481,13 @@ export interface PerdaEstoque {
   qtd_ajustes_reducao: number;
   qtd_ajustes_aumento: number;
   classificacao_pendente: boolean;
+  unidades_entradas: number;
+  valor_entradas: number;
+  valor_saldo_liquido: number;
 }
 
-// Relatório de divergências: separa redução bruta, compensações, divergência
-// líquida e perda explicitamente confirmada. Ver
+// Balanço do inventário: separa reduções, entradas e o saldo líquido em valor.
+// Campos antigos permanecem na função do banco para compatibilidade. Ver
 // scripts/relatorio_perdas_estoque.sql para a função no banco.
 export async function getRelatorioPerdas(filtros?: {
   dataInicio?: string;
@@ -492,18 +495,49 @@ export async function getRelatorioPerdas(filtros?: {
   lojaIds?: number[];
 }): Promise<PerdaEstoque[]> {
   try {
-    const { data, error } = await supabase.rpc("relatorio_perdas_estoque", {
+    const parametros = {
       p_data_inicio: filtros?.dataInicio || null,
       p_data_fim: filtros?.dataFim || null,
       p_loja_ids:
         filtros?.lojaIds && filtros.lojaIds.length > 0 ? filtros.lojaIds : null,
-    });
+    };
+    const tamanhoLote = 1000;
+    const registros: Record<string, unknown>[] = [];
 
-    if (error) throw error;
+    for (let pagina = 0; pagina < 100; pagina++) {
+      const inicio = pagina * tamanhoLote;
+      const { data, error } = await supabase
+        .rpc("relatorio_perdas_estoque", parametros)
+        .range(inicio, inicio + tamanhoLote - 1);
 
-    return (data || []) as PerdaEstoque[];
+      if (error) throw error;
+
+      const lote = (data || []) as Record<string, unknown>[];
+
+      registros.push(...lote);
+
+      if (lote.length < tamanhoLote) break;
+
+      if (pagina === 99) {
+        throw new Error("O balanço excedeu o limite seguro de paginação.");
+      }
+    }
+
+    return registros.map((item) => ({
+      ...item,
+      unidades_reducao_bruta: Number(item.unidades_reducao_bruta ?? 0),
+      valor_reducao_bruta: Number(item.valor_reducao_bruta ?? 0),
+      unidades_entradas: Number(item.unidades_entradas ?? 0),
+      valor_entradas: Number(item.valor_entradas ?? 0),
+      valor_saldo_liquido: Number(
+        item.valor_saldo_liquido ??
+          -Number(item.valor_reducao_bruta ?? item.valor_perdido ?? 0),
+      ),
+      qtd_ajustes_reducao: Number(item.qtd_ajustes_reducao ?? 0),
+      qtd_ajustes_aumento: Number(item.qtd_ajustes_aumento ?? 0),
+    })) as PerdaEstoque[];
   } catch (error) {
-    console.error("Erro ao buscar relatório de perdas:", error);
+    console.error("Erro ao buscar balanço do inventário:", error);
     throw error;
   }
 }
