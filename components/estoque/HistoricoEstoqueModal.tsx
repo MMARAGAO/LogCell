@@ -8,11 +8,15 @@ import {
 import { Button } from "@heroui/button";
 import { Chip } from "@heroui/chip";
 import { Spinner } from "@heroui/spinner";
-import { useState, useEffect } from "react";
 import {
-  ArrowUpCircleIcon,
-  ArrowDownCircleIcon,
-} from "@heroicons/react/24/outline";
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@heroui/table";
+import { useState, useEffect, useMemo } from "react";
 
 import { HistoricoEstoqueCompleto } from "@/types";
 import { getHistoricoProduto } from "@/services/historicoEstoqueService";
@@ -26,6 +30,8 @@ interface HistoricoEstoqueModalProps {
 
 const PAGE_SIZE = 50;
 
+type Filtro = "todos" | "reducoes" | "entradas";
+
 export default function HistoricoEstoqueModal({
   isOpen,
   onClose,
@@ -38,6 +44,7 @@ export default function HistoricoEstoqueModal({
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [total, setTotal] = useState(0);
+  const [filtro, setFiltro] = useState<Filtro>("todos");
 
   useEffect(() => {
     if (isOpen && produtoId) {
@@ -77,37 +84,14 @@ export default function HistoricoEstoqueModal({
     }
   };
 
-  const getIconeAlteracao = (item: HistoricoEstoqueCompleto) => {
+  const getAlteracao = (item: HistoricoEstoqueCompleto) => {
     if (
       item.quantidade_anterior === undefined ||
       item.quantidade_nova === undefined
     )
-      return null;
-    const alteracao = item.quantidade_nova - item.quantidade_anterior;
+      return undefined;
 
-    if (alteracao > 0) {
-      return <ArrowUpCircleIcon className="w-5 h-5 text-success" />;
-    } else if (alteracao < 0) {
-      return <ArrowDownCircleIcon className="w-5 h-5 text-danger" />;
-    }
-
-    return null;
-  };
-
-  const getCorAlteracao = (
-    item: HistoricoEstoqueCompleto,
-  ): "success" | "danger" | "default" => {
-    if (
-      item.quantidade_anterior === undefined ||
-      item.quantidade_nova === undefined
-    )
-      return "default";
-    const alteracao = item.quantidade_nova - item.quantidade_anterior;
-
-    if (alteracao > 0) return "success";
-    if (alteracao < 0) return "danger";
-
-    return "default";
+    return item.quantidade_nova - item.quantidade_anterior;
   };
 
   const formatarData = (data: string) => {
@@ -146,14 +130,57 @@ export default function HistoricoEstoqueModal({
     );
   };
 
+  const historicoFiltrado = useMemo(() => {
+    if (filtro === "todos") return historico;
+
+    return historico.filter((item) => {
+      const alteracao = getAlteracao(item);
+
+      if (alteracao === undefined || alteracao === 0) return false;
+
+      return filtro === "reducoes" ? alteracao < 0 : alteracao > 0;
+    });
+  }, [historico, filtro]);
+
   return (
-    <Modal isOpen={isOpen} scrollBehavior="inside" size="3xl" onClose={onClose}>
+    <Modal isOpen={isOpen} scrollBehavior="inside" size="5xl" onClose={onClose}>
       <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
-          <span>Histórico de Alterações</span>
+        <ModalHeader className="flex flex-col gap-2">
+          <span>Histórico de Movimentações</span>
           <span className="text-sm text-default-500 font-normal">
             {produtoNome}
           </span>
+          {historico.length > 0 && (
+            <div className="flex gap-2">
+              <Chip
+                className="cursor-pointer"
+                color={filtro === "todos" ? "primary" : "default"}
+                size="sm"
+                variant={filtro === "todos" ? "solid" : "flat"}
+                onClick={() => setFiltro("todos")}
+              >
+                Todos
+              </Chip>
+              <Chip
+                className="cursor-pointer"
+                color={filtro === "reducoes" ? "danger" : "default"}
+                size="sm"
+                variant={filtro === "reducoes" ? "solid" : "flat"}
+                onClick={() => setFiltro("reducoes")}
+              >
+                Só reduções
+              </Chip>
+              <Chip
+                className="cursor-pointer"
+                color={filtro === "entradas" ? "success" : "default"}
+                size="sm"
+                variant={filtro === "entradas" ? "solid" : "flat"}
+                onClick={() => setFiltro("entradas")}
+              >
+                Só entradas
+              </Chip>
+            </div>
+          )}
         </ModalHeader>
         <ModalBody>
           {loading ? (
@@ -162,118 +189,98 @@ export default function HistoricoEstoqueModal({
             </div>
           ) : historico.length > 0 ? (
             <div className="space-y-3">
-              {historico.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-4 border border-default-200 rounded-lg hover:bg-default-50 transition-colors"
+              <Table
+                removeWrapper
+                aria-label="Histórico de movimentações de estoque"
+              >
+                <TableHeader>
+                  <TableColumn>DATA</TableColumn>
+                  <TableColumn>TIPO</TableColumn>
+                  <TableColumn>QUANTIDADE</TableColumn>
+                  <TableColumn>LOJA</TableColumn>
+                  <TableColumn>MOTIVO / OBSERVAÇÃO</TableColumn>
+                  <TableColumn>RESPONSÁVEL</TableColumn>
+                </TableHeader>
+                <TableBody
+                  emptyContent="Nenhuma movimentação nesse filtro."
+                  items={historicoFiltrado}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    {/* Ícone e Informações */}
-                    <div className="flex items-center gap-3 flex-1">
-                      {getIconeAlteracao(item)}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {/* Tipo de Movimentação */}
-                          {item.tipo_movimentacao &&
-                            (() => {
-                              const tipo = getTipoMovimentacao(
-                                item.tipo_movimentacao,
-                              );
+                  {(item) => {
+                    const tipo = getTipoMovimentacao(item.tipo_movimentacao);
+                    const alteracao = getAlteracao(item);
+                    const motivoTexto =
+                      item.motivo &&
+                      item.observacao &&
+                      item.motivo.trim() === item.observacao.trim()
+                        ? item.motivo
+                        : [item.motivo, item.observacao]
+                            .filter(Boolean)
+                            .join(" — ");
 
-                              return (
-                                <Chip
-                                  className="font-semibold"
-                                  color={tipo.color}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {tipo.label}
-                                </Chip>
-                              );
-                            })()}
-
-                          {/* Alteração de Quantidade */}
-                          {item.quantidade_anterior !== undefined &&
-                            item.quantidade_nova !== undefined &&
-                            (() => {
-                              const alteracao =
-                                item.quantidade_nova - item.quantidade_anterior;
-
-                              return alteracao !== 0 ? (
-                                <Chip
-                                  color={getCorAlteracao(item)}
-                                  size="sm"
-                                  variant="flat"
-                                >
-                                  {alteracao > 0 ? "+" : ""}
-                                  {alteracao}
-                                </Chip>
-                              ) : null;
-                            })()}
-
-                          {/* Data */}
-                          <span className="text-sm text-default-500">
+                    return (
+                      <TableRow
+                        key={item.id}
+                        className={
+                          alteracao !== undefined && alteracao < 0
+                            ? "bg-danger-50/50"
+                            : ""
+                        }
+                      >
+                        <TableCell>
+                          <span className="text-sm whitespace-nowrap">
                             {formatarData(item.criado_em)}
                           </span>
-                        </div>
-
-                        {/* Loja */}
-                        {item.loja_nome && (
-                          <p className="text-sm mt-1">
-                            <span className="font-semibold">Loja:</span>{" "}
-                            {item.loja_nome}
-                          </p>
-                        )}
-
-                        {/* Antes e Depois */}
-                        {item.quantidade_anterior !== undefined &&
-                          item.quantidade_nova !== undefined && (
-                            <p className="text-sm mt-1">
-                              <span className="font-semibold">Mudança:</span>{" "}
-                              <span className="text-danger">
-                                {item.quantidade_anterior}
-                              </span>{" "}
-                              →{" "}
-                              <span className="text-success">
-                                {item.quantidade_nova}
-                              </span>
-                            </p>
+                        </TableCell>
+                        <TableCell>
+                          <Chip color={tipo.color} size="sm" variant="flat">
+                            {tipo.label}
+                          </Chip>
+                        </TableCell>
+                        <TableCell>
+                          {item.quantidade_anterior !== undefined &&
+                          item.quantidade_nova !== undefined ? (
+                            <span className="text-sm whitespace-nowrap">
+                              {item.quantidade_anterior} →{" "}
+                              {item.quantidade_nova}{" "}
+                              {alteracao !== undefined && alteracao !== 0 && (
+                                <span
+                                  className={
+                                    alteracao > 0
+                                      ? "text-success font-semibold"
+                                      : "text-danger font-semibold"
+                                  }
+                                >
+                                  ({alteracao > 0 ? "+" : ""}
+                                  {alteracao})
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            "-"
                           )}
-
-                        {/* Motivo */}
-                        {item.motivo && (
-                          <p className="text-sm text-default-600 mt-1">
-                            <span className="font-semibold">Motivo:</span>{" "}
-                            {item.motivo}
-                          </p>
-                        )}
-
-                        {/* Observação */}
-                        {item.observacao && (
-                          <p className="text-sm text-default-500 mt-1 italic">
-                            &quot;{item.observacao}&quot;
-                          </p>
-                        )}
-
-                        {/* Usuários */}
-                        {item.usuario_origem_nome && (
-                          <p className="text-xs text-default-400 mt-2">
-                            Solicitado por: {item.usuario_origem_nome}
-                          </p>
-                        )}
-                        {item.usuario_nome && (
-                          <p className="text-xs text-default-400">
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {item.loja_nome || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-default-600">
+                            {motivoTexto || "-"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-default-500">
                             {item.usuario_origem_nome
-                              ? "Confirmado por:"
-                              : "Por:"}{" "}
-                            {item.usuario_nome}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                              ? `${item.usuario_origem_nome} → ${item.usuario_nome || "Sistema"}`
+                              : item.usuario_nome || "Sistema"}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }}
+                </TableBody>
+              </Table>
 
               {hasMore && (
                 <div className="text-center pt-2 pb-1">
