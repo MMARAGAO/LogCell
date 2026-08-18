@@ -333,6 +333,11 @@ export interface HistoricoEstoqueCompleto extends HistoricoEstoque {
   loja_nome?: string;
   usuario_nome?: string;
   usuario_origem_nome?: string;
+  // Produto do outro lado de uma troca de produto (venda com substituição de item)
+  produto_troca_nome?: string;
+  produto_troca_direcao?: "entrada" | "saida";
+  venda_troca_numero?: number;
+  venda_troca_cliente?: string;
 }
 
 export interface FotoProduto {

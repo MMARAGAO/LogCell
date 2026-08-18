@@ -110,9 +110,84 @@ export async function getHistoricoProduto(
       }
     }
 
+    // Buscar contexto de trocas de produto (venda com substituição de item) que
+    // envolvem este produto, como produto novo (saiu com o cliente) ou produto
+    // antigo devolvido. A tabela trocas_produtos guarda a venda e o cliente de
+    // cada troca; casamos com a linha do histórico pelo instante mais próximo,
+    // já que não existe FK direta entre historico_estoque e trocas_produtos.
+    const temTroca = historico.some(
+      (item) =>
+        item.motivo === "Troca de produto - Venda" ||
+        item.motivo === "Devolução por troca - Venda",
+    );
+
+    let trocas: any[] = [];
+
+    if (temTroca) {
+      const { data: trocasData } = await supabase
+        .from("trocas_produtos")
+        .select(
+          `
+          criado_em,
+          produto_antigo_id,
+          produto_antigo_nome,
+          produto_novo_id,
+          produto_novo_nome,
+          venda:vendas(numero_venda, cliente:clientes(nome))
+        `,
+        )
+        .or(
+          `produto_novo_id.eq.${produtoId},produto_antigo_id.eq.${produtoId}`,
+        );
+
+      trocas = trocasData || [];
+    }
+
+    const encontrarTroca = (criadoEm: string) => {
+      const alvo = new Date(criadoEm).getTime();
+      let melhor: any = null;
+      let menorDiff = Infinity;
+
+      for (const t of trocas) {
+        const diff = Math.abs(new Date(t.criado_em).getTime() - alvo);
+
+        if (diff < menorDiff && diff <= 120_000) {
+          menorDiff = diff;
+          melhor = t;
+        }
+      }
+
+      return melhor;
+    };
+
     // Combinar dados
     const dataFormatada = historico.map((item: any) => {
       const transferId = item.observacao?.match(transferIdRegex)?.[1];
+
+      let produtoTrocaNome: string | undefined;
+      let produtoTrocaDirecao: "entrada" | "saida" | undefined;
+      let vendaTrocaNumero: number | undefined;
+      let vendaTrocaCliente: string | undefined;
+
+      if (item.motivo === "Troca de produto - Venda") {
+        const troca = encontrarTroca(item.criado_em);
+
+        if (troca) {
+          produtoTrocaNome = troca.produto_antigo_nome;
+          produtoTrocaDirecao = "entrada";
+          vendaTrocaNumero = troca.venda?.numero_venda;
+          vendaTrocaCliente = troca.venda?.cliente?.nome;
+        }
+      } else if (item.motivo === "Devolução por troca - Venda") {
+        const troca = encontrarTroca(item.criado_em);
+
+        if (troca) {
+          produtoTrocaNome = troca.produto_novo_nome;
+          produtoTrocaDirecao = "saida";
+          vendaTrocaNumero = troca.venda?.numero_venda;
+          vendaTrocaCliente = troca.venda?.cliente?.nome;
+        }
+      }
 
       return {
         ...item,
@@ -126,6 +201,10 @@ export async function getHistoricoProduto(
           transferId && criadoPorMap[transferId]
             ? criadoPorMap[transferId]
             : undefined,
+        produto_troca_nome: produtoTrocaNome,
+        produto_troca_direcao: produtoTrocaDirecao,
+        venda_troca_numero: vendaTrocaNumero,
+        venda_troca_cliente: vendaTrocaCliente,
       };
     });
 

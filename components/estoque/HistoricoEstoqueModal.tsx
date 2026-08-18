@@ -234,10 +234,11 @@ export default function HistoricoEstoqueModal({
                   {(item) => {
                     const tipo = getTipoMovimentacao(item.tipo_movimentacao);
                     const alteracao = getAlteracao(item);
-                    const motivoTexto =
-                      item.motivo &&
-                      item.observacao &&
-                      item.motivo.trim() === item.observacao.trim()
+                    const motivoTexto = item.venda_troca_numero
+                      ? `Venda #${item.venda_troca_numero}${item.venda_troca_cliente ? ` - Cliente: ${item.venda_troca_cliente}` : ""}`
+                      : item.motivo &&
+                          item.observacao &&
+                          item.motivo.trim() === item.observacao.trim()
                         ? item.motivo
                         : [item.motivo, item.observacao]
                             .filter(Boolean)
@@ -309,6 +310,16 @@ export default function HistoricoEstoqueModal({
                           <span className="text-sm text-default-600">
                             {motivoTexto || "-"}
                           </span>
+                          {item.produto_troca_nome && (
+                            <div className="text-xs text-default-500 mt-1">
+                              {item.produto_troca_direcao === "entrada"
+                                ? "Cliente devolveu: "
+                                : "Cliente levou: "}
+                              <span className="font-medium">
+                                {item.produto_troca_nome}
+                              </span>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-default-500">
