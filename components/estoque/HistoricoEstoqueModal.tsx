@@ -84,14 +84,39 @@ export default function HistoricoEstoqueModal({
     }
   };
 
-  const getAlteracao = (item: HistoricoEstoqueCompleto) => {
-    if (
-      item.quantidade_anterior === undefined ||
-      item.quantidade_nova === undefined
-    )
-      return undefined;
+  const TIPOS_SAIDA = new Set([
+    "venda",
+    "saida",
+    "quebra",
+    "transferencia_saida",
+    "ordem_servico",
+  ]);
+  const TIPOS_ENTRADA = new Set([
+    "entrada",
+    "devolucao_venda",
+    "transferencia_entrada",
+  ]);
 
-    return item.quantidade_nova - item.quantidade_anterior;
+  // Alguns registros antigos não têm quantidade_anterior/nova preenchidos
+  // (ex.: troca de produto). Nesses casos, caímos em quantidade_alterada e,
+  // por último, no total movimentado (`quantidade`) com sinal inferido pelo tipo.
+  const getAlteracao = (item: HistoricoEstoqueCompleto) => {
+    if (item.quantidade_anterior != null && item.quantidade_nova != null) {
+      return item.quantidade_nova - item.quantidade_anterior;
+    }
+
+    if (item.quantidade_alterada != null) {
+      return item.quantidade_alterada;
+    }
+
+    const quantidade = item.quantidade;
+
+    if (quantidade != null) {
+      if (TIPOS_SAIDA.has(item.tipo_movimentacao || "")) return -quantidade;
+      if (TIPOS_ENTRADA.has(item.tipo_movimentacao || "")) return quantidade;
+    }
+
+    return undefined;
   };
 
   const formatarData = (data: string) => {
@@ -116,6 +141,7 @@ export default function HistoricoEstoqueModal({
       devolucao_venda: { label: "Devolução", color: "success" },
       entrada: { label: "Entrada", color: "success" },
       ajuste: { label: "Ajuste", color: "warning" },
+      saida: { label: "Saída", color: "danger" },
       transferencia_saida: { label: "Transferência (Saída)", color: "danger" },
       transferencia_entrada: {
         label: "Transferência (Entrada)",
@@ -237,8 +263,8 @@ export default function HistoricoEstoqueModal({
                           </Chip>
                         </TableCell>
                         <TableCell>
-                          {item.quantidade_anterior !== undefined &&
-                          item.quantidade_nova !== undefined ? (
+                          {item.quantidade_anterior != null &&
+                          item.quantidade_nova != null ? (
                             <span className="text-sm whitespace-nowrap">
                               {item.quantidade_anterior} →{" "}
                               {item.quantidade_nova}{" "}
@@ -254,6 +280,21 @@ export default function HistoricoEstoqueModal({
                                   {alteracao})
                                 </span>
                               )}
+                            </span>
+                          ) : alteracao !== undefined && alteracao !== 0 ? (
+                            <span
+                              className={
+                                alteracao > 0
+                                  ? "text-success font-semibold text-sm"
+                                  : "text-danger font-semibold text-sm"
+                              }
+                            >
+                              {alteracao > 0 ? "+" : ""}
+                              {alteracao}
+                            </span>
+                          ) : item.quantidade != null ? (
+                            <span className="text-sm">
+                              {item.quantidade} un.
                             </span>
                           ) : (
                             "-"

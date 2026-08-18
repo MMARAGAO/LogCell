@@ -317,6 +317,7 @@ export interface HistoricoEstoque {
   id_produto: string;
   id_loja?: number; // INTEGER no banco (compatível com lojas)
   usuario_id?: string;
+  quantidade?: number; // Total movimentado em módulo (ABS), sempre preenchido
   quantidade_anterior?: number;
   quantidade_nova?: number;
   quantidade_alterada?: number;
